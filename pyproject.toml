@@ -134,6 +134,17 @@ known_third_party = [
 [tool.ruff]
 target-version = "py39"
 line-length = 100
+exclude = [
+    ".git",
+    ".venv",
+    ".tox",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -151,18 +162,15 @@ ignore = [
     "E501",  # line too long (handled by black)
     "B008",  # do not perform function calls in argument defaults
     "S101",  # use of assert (we use it in tests)
-]
-exclude = [
-    ".git",
-    ".venv",
-    ".tox",
-    "__pycache__",
-    "build",
-    "dist",
-    "*.egg-info",
+    "S324",  # probable use of insecure hash functions (md5 is ok for hashing URLs)
+    "B904",  # within except clause, raise exceptions with raise ... from err (optional)
+    "ARG002", # unused method argument (common in interfaces)
+    "B027",  # empty method in abstract base class (allowed)
+    "S112",  # try-except-continue (acceptable pattern)
+    "B007",  # loop control variable not used (acceptable)
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S", "ARG"]  # Allow security issues and unused args in tests
 
 # MyPy configuration

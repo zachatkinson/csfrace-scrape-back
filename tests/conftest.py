@@ -2,8 +2,8 @@
 
 import asyncio
 import tempfile
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock
 
 import aiohttp
@@ -12,8 +12,8 @@ from bs4 import BeautifulSoup
 
 from src.core.converter import AsyncWordPressConverter
 from src.processors.html_processor import HTMLProcessor
-from src.processors.metadata_extractor import MetadataExtractor
 from src.processors.image_downloader import AsyncImageDownloader
+from src.processors.metadata_extractor import MetadataExtractor
 
 
 @pytest.fixture(scope="session")
@@ -99,7 +99,7 @@ def sample_html() -> str:
 @pytest.fixture
 def sample_soup(sample_html: str) -> BeautifulSoup:
     """BeautifulSoup object from sample HTML."""
-    return BeautifulSoup(sample_html, 'html.parser')
+    return BeautifulSoup(sample_html, "html.parser")
 
 
 @pytest.fixture
@@ -124,17 +124,17 @@ def image_downloader(temp_dir: Path) -> AsyncImageDownloader:
 async def mock_session() -> AsyncGenerator[AsyncMock, None]:
     """Mock aiohttp session for testing."""
     session = AsyncMock(spec=aiohttp.ClientSession)
-    
+
     # Mock response for successful requests
     mock_response = AsyncMock()
     mock_response.status = 200
     mock_response.text.return_value = "test response"
     mock_response.content_length = 1024
-    mock_response.headers = {'content-type': 'image/jpeg'}
-    mock_response.content.iter_chunked.return_value = [b'test data']
-    
+    mock_response.headers = {"content-type": "image/jpeg"}
+    mock_response.content.iter_chunked.return_value = [b"test data"]
+
     session.get.return_value.__aenter__.return_value = mock_response
-    
+
     yield session
 
 
@@ -142,8 +142,7 @@ async def mock_session() -> AsyncGenerator[AsyncMock, None]:
 def converter(temp_dir: Path) -> AsyncWordPressConverter:
     """Async converter instance with temporary directory."""
     return AsyncWordPressConverter(
-        base_url="https://test.example.com/blog/test-post",
-        output_dir=temp_dir
+        base_url="https://test.example.com/blog/test-post", output_dir=temp_dir
     )
 
 

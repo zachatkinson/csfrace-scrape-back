@@ -1,21 +1,18 @@
 """Batch processing for multiple URLs with concurrent execution."""
 
 import asyncio
-from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any, Callable, Optional, Union
 
 import structlog
 from rich.console import Console
-from rich.progress import Progress, TaskID, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-from rich.table import Table
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
+from rich.table import Table
 
 from ..core.converter import AsyncWordPressConverter
-from ..core.exceptions import ConversionError
-from ..core.config import config
-
 
 logger = structlog.get_logger(__name__)
 console = Console()
@@ -23,8 +20,9 @@ console = Console()
 
 class BatchJobStatus(Enum):
     """Status of a batch job."""
+
     PENDING = "pending"
-    RUNNING = "running" 
+    RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -33,6 +31,7 @@ class BatchJobStatus(Enum):
 @dataclass
 class BatchJob:
     """Individual job in a batch processing operation."""
+
     url: str
     output_dir: Path
     status: BatchJobStatus = BatchJobStatus.PENDING
@@ -41,7 +40,7 @@ class BatchJob:
     end_time: Optional[float] = None
     progress_task: Optional[TaskID] = None
     archive_path: Optional[Path] = None
-    
+
     @property
     def duration(self) -> Optional[float]:
         """Calculate job duration if completed."""
@@ -50,9 +49,10 @@ class BatchJob:
         return None
 
 
-@dataclass  
+@dataclass
 class BatchConfig:
     """Configuration for batch processing operations."""
+
     max_concurrent: int = 3
     continue_on_error: bool = True
     output_base_dir: Path = Path("batch_output")
@@ -68,34 +68,36 @@ class BatchConfig:
 
 class BatchProcessor:
     """Processes multiple WordPress URLs concurrently."""
-    
+
     def __init__(self, batch_config: Optional[BatchConfig] = None):
         """Initialize batch processor.
-        
+
         Args:
             batch_config: Configuration for batch processing
         """
         self.config = batch_config or BatchConfig()
-        self.jobs: List[BatchJob] = []
+        self.jobs: list[BatchJob] = []
         self.semaphore = asyncio.Semaphore(self.config.max_concurrent)
-        self.results: Dict[str, Any] = {}
-        
+        self.results: dict[str, Any] = {}
+
         logger.info(
             "Initialized batch processor",
             max_concurrent=self.config.max_concurrent,
-            continue_on_error=self.config.continue_on_error
+            continue_on_error=self.config.continue_on_error,
         )
-    
-    def add_job(self, url: str, output_dir: Optional[Path] = None, custom_slug: Optional[str] = None) -> BatchJob:
+
+    def add_job(
+        self, url: str, output_dir: Optional[Path] = None, custom_slug: Optional[str] = None
+    ) -> BatchJob:
         """Add a job to the batch processing queue with intelligent directory naming.
-        
+
         BEST PRACTICES IMPLEMENTED:
         1. **Slug-based Organization**: Uses actual WordPress post slug when possible
         2. **Domain Separation**: Groups posts by domain for multi-site batches
         3. **Collision Avoidance**: Handles duplicate slugs with numbering
         4. **Length Limits**: Prevents filesystem path length issues
         5. **Cross-platform**: Safe characters for Windows/Linux/Mac
-        
+
         Directory structure:
         batch_output/
         ├── csfrace-com_my-blog-post/          # domain_slug format
@@ -107,100 +109,101 @@ class BatchProcessor:
         │       └── inline-image.png
         └── csfrace-com_my-blog-post-2/        # Handle duplicates
             └── ...
-        
+
         Args:
             url: WordPress URL to convert
             output_dir: Optional specific output directory (overrides slug generation)
             custom_slug: Optional custom slug to use instead of URL-derived
-            
+
         Returns:
             Created BatchJob instance
-            
+
         Raises:
             ValueError: If URL is invalid or slug generation fails
         """
         if output_dir is None:
             output_dir = self._generate_output_directory(url, custom_slug)
-        
+
         # Ensure no duplicate output directories
         output_dir = self._ensure_unique_directory(output_dir)
-        
+
         job = BatchJob(url=url, output_dir=output_dir)
         self.jobs.append(job)
-        
+
         logger.debug("Added batch job", url=url, output_dir=str(output_dir))
         return job
-    
+
     def _generate_output_directory(self, url: str, custom_slug: Optional[str] = None) -> Path:
         """Generate intelligent output directory from URL or custom slug.
-        
+
         Args:
             url: WordPress URL
             custom_slug: Optional custom slug override
-            
+
         Returns:
             Generated output directory path
         """
-        from urllib.parse import urlparse
         import re
-        
+        from urllib.parse import urlparse
+
         try:
             parsed = urlparse(url)
             if not parsed.netloc:
                 raise ValueError(f"Invalid URL: {url}")
-            
+
             # Clean domain for filesystem
             domain = parsed.netloc.lower()
-            domain = re.sub(r'^www\.', '', domain)  # Remove www prefix
-            domain = re.sub(r'[^a-zA-Z0-9.-]', '-', domain)  # Safe characters
-            domain = domain.replace('.', '-')  # Replace dots
-            
+            domain = re.sub(r"^www\.", "", domain)  # Remove www prefix
+            domain = re.sub(r"[^a-zA-Z0-9.-]", "-", domain)  # Safe characters
+            domain = domain.replace(".", "-")  # Replace dots
+
             if custom_slug:
                 slug = custom_slug
             else:
                 # Extract slug from URL path
-                path_parts = [p for p in parsed.path.strip('/').split('/') if p]
+                path_parts = [p for p in parsed.path.strip("/").split("/") if p]
                 if path_parts:
                     # Use last part as slug (WordPress convention)
                     slug = path_parts[-1]
                     # Remove common WordPress artifacts
-                    slug = re.sub(r'\.(html|php)$', '', slug)  # Remove extensions
-                    slug = re.sub(r'^index$', 'homepage', slug)  # Handle index pages
+                    slug = re.sub(r"\.(html|php)$", "", slug)  # Remove extensions
+                    slug = re.sub(r"^index$", "homepage", slug)  # Handle index pages
                 else:
-                    slug = 'homepage'
-            
+                    slug = "homepage"
+
             # Clean slug for filesystem
-            slug = re.sub(r'[^a-zA-Z0-9-_]', '-', slug)  # Safe characters only
-            slug = re.sub(r'-+', '-', slug)  # Collapse multiple dashes
-            slug = slug.strip('-')  # Remove leading/trailing dashes
+            slug = re.sub(r"[^a-zA-Z0-9-_]", "-", slug)  # Safe characters only
+            slug = re.sub(r"-+", "-", slug)  # Collapse multiple dashes
+            slug = slug.strip("-")  # Remove leading/trailing dashes
             slug = slug[:50] if len(slug) > 50 else slug  # Limit length
-            
+
             if not slug:  # Fallback if slug is empty after cleaning
-                slug = 'post'
-            
+                slug = "post"
+
             # Combine domain and slug
             safe_name = f"{domain}_{slug}"
             return self.config.output_base_dir / safe_name
-            
+
         except Exception as e:
             logger.warning("Failed to generate directory from URL", url=url, error=str(e))
             # Fallback to hash-based naming
             import hashlib
+
             url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
             return self.config.output_base_dir / f"post_{url_hash}"
-    
+
     def _ensure_unique_directory(self, base_dir: Path) -> Path:
         """Ensure directory name is unique by adding numbering if needed.
-        
+
         Args:
             base_dir: Base directory path
-            
+
         Returns:
             Unique directory path
         """
         if not any(job.output_dir == base_dir for job in self.jobs):
             return base_dir
-        
+
         # Find next available number
         counter = 2
         while True:
@@ -208,14 +211,14 @@ class BatchProcessor:
             if not any(job.output_dir == numbered_dir for job in self.jobs):
                 return numbered_dir
             counter += 1
-    
+
     def add_jobs_from_file(self, file_path: Union[str, Path]) -> int:
         """Add jobs from a file containing URLs.
-        
+
         Supports multiple formats:
         1. **Plain text** (.txt): One URL per line, comments with #
         2. **CSV format** (.csv): Structured data with headers
-        
+
         CSV Format:
         ```csv
         url,slug,output_dir,priority
@@ -224,48 +227,48 @@ class BatchProcessor:
         # This is a comment
         https://site.com/post3,special-post,/custom/path,low
         ```
-        
+
         CSV Columns (all optional except url):
         - url: WordPress URL (required)
         - slug: Custom slug override
         - output_dir: Custom output directory
         - priority: Job priority (unused currently)
-        
+
         Args:
             file_path: Path to file (.txt or .csv)
-            
+
         Returns:
             Number of jobs added
-            
+
         Raises:
             FileNotFoundError: If file doesn't exist
             ValueError: If CSV format is invalid
         """
         file_path = Path(file_path)
-        
+
         if not file_path.exists():
             raise FileNotFoundError(f"Jobs file not found: {file_path}")
-        
+
         # Determine file format
-        if file_path.suffix.lower() == '.csv':
+        if file_path.suffix.lower() == ".csv":
             return self._add_jobs_from_csv(file_path)
         else:
             return self._add_jobs_from_txt(file_path)
-    
+
     def _add_jobs_from_txt(self, file_path: Path) -> int:
         """Add jobs from plain text file (one URL per line).
-        
+
         Args:
             file_path: Path to text file
-            
+
         Returns:
             Number of jobs added
         """
         added = 0
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 url = line.strip()
-                if url and not url.startswith('#'):  # Skip empty lines and comments
+                if url and not url.startswith("#"):  # Skip empty lines and comments
                     try:
                         self.add_job(url)
                         added += 1
@@ -275,160 +278,153 @@ class BatchProcessor:
                             file_path=str(file_path),
                             line_num=line_num,
                             url=url,
-                            error=str(e)
+                            error=str(e),
                         )
-        
+
         logger.info("Loaded jobs from text file", file_path=str(file_path), jobs_added=added)
         return added
-    
+
     def _add_jobs_from_csv(self, file_path: Path) -> int:
         """Add jobs from CSV file with structured data or simple URL list.
-        
+
         Supports two formats:
         1. Simple URL list (one URL per line, comma-separated or not)
         2. Structured CSV with columns: url, slug, output_dir, priority
-        
+
         Args:
             file_path: Path to CSV file
-            
+
         Returns:
             Number of jobs added
         """
-        import csv
-        
+
         added = 0
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 # Read first line to detect format
                 first_line = f.readline().strip()
                 f.seek(0)
-                
+
                 # Check if it looks like a header (contains 'url' column)
-                if 'url' in first_line.lower() and (',' in first_line or '\t' in first_line):
+                if "url" in first_line.lower() and ("," in first_line or "\t" in first_line):
                     # Structured CSV format
                     added = self._process_structured_csv(f)
                 else:
                     # Simple URL list format
                     added = self._process_simple_csv(f)
-        
+
         except Exception as e:
             logger.error("Failed to parse CSV file", file_path=str(file_path), error=str(e))
             raise ValueError(f"Invalid CSV format in {file_path}: {e}")
-        
+
         logger.info("Loaded jobs from CSV file", file_path=str(file_path), jobs_added=added)
         return added
-    
+
     def _process_structured_csv(self, file_handle) -> int:
         """Process structured CSV with columns."""
         import csv
-        
+
         added = 0
         # Detect delimiter
         sample = file_handle.read(1024)
         file_handle.seek(0)
         sniffer = csv.Sniffer()
         delimiter = sniffer.sniff(sample).delimiter
-        
+
         reader = csv.DictReader(file_handle, delimiter=delimiter)
-        
+
         for row_num, row in enumerate(reader, 2):  # Start at 2 (header is row 1)
             # Skip comment rows
-            if row.get('url', '').strip().startswith('#'):
+            if row.get("url", "").strip().startswith("#"):
                 continue
-            
-            url = row.get('url', '').strip()
+
+            url = row.get("url", "").strip()
             if not url:
                 continue
-            
+
             try:
                 # Extract optional fields
-                custom_slug = row.get('slug', '').strip() or None
-                custom_output = row.get('output_dir', '').strip() or None
-                
+                custom_slug = row.get("slug", "").strip() or None
+                custom_output = row.get("output_dir", "").strip() or None
+
                 if custom_output:
                     custom_output = Path(custom_output)
-                
-                self.add_job(
-                    url=url,
-                    output_dir=custom_output,
-                    custom_slug=custom_slug
-                )
+
+                self.add_job(url=url, output_dir=custom_output, custom_slug=custom_slug)
                 added += 1
-                
+
                 logger.debug(
                     "Added structured CSV job",
                     row_num=row_num,
                     url=url,
                     slug=custom_slug,
-                    output_dir=custom_output
+                    output_dir=custom_output,
                 )
-                
+
             except Exception as e:
-                logger.warning(
-                    "Skipped invalid CSV row",
-                    row_num=row_num,
-                    url=url,
-                    error=str(e)
-                )
-        
+                logger.warning("Skipped invalid CSV row", row_num=row_num, url=url, error=str(e))
+
         return added
-    
+
     def _process_simple_csv(self, file_handle) -> int:
         """Process simple CSV/list of URLs."""
         import csv
-        
+
         added = 0
         file_handle.seek(0)
-        
+
         # Try to detect if it's comma-separated or line-separated
         content = file_handle.read()
         file_handle.seek(0)
-        
-        if ',' in content and content.count(',') > content.count('\n'):
+
+        if "," in content and content.count(",") > content.count("\n"):
             # Comma-separated URLs
             reader = csv.reader(file_handle)
             for row_num, row in enumerate(reader, 1):
                 for url in row:
                     url = url.strip()
-                    if url and not url.startswith('#'):
+                    if url and not url.startswith("#"):
                         try:
                             self.add_job(url)
                             added += 1
                             logger.debug("Added simple CSV job", row_num=row_num, url=url)
                         except Exception as e:
-                            logger.warning("Skipped invalid URL", row_num=row_num, url=url, error=str(e))
+                            logger.warning(
+                                "Skipped invalid URL", row_num=row_num, url=url, error=str(e)
+                            )
         else:
             # Line-separated URLs
             for line_num, line in enumerate(file_handle, 1):
                 url = line.strip()
-                if url and not url.startswith('#'):
+                if url and not url.startswith("#"):
                     try:
                         self.add_job(url)
                         added += 1
                         logger.debug("Added simple list job", line_num=line_num, url=url)
                     except Exception as e:
-                        logger.warning("Skipped invalid URL", line_num=line_num, url=url, error=str(e))
-        
+                        logger.warning(
+                            "Skipped invalid URL", line_num=line_num, url=url, error=str(e)
+                        )
+
         return added
-    
+
     async def process_all(
-        self,
-        progress_callback: Optional[Callable[[str, int], None]] = None
-    ) -> Dict[str, Any]:
+        self, progress_callback: Optional[Callable[[str, int], None]] = None
+    ) -> dict[str, Any]:
         """Process all jobs in the batch queue.
-        
+
         Args:
             progress_callback: Optional callback for progress updates
-            
+
         Returns:
             Dictionary with processing results and statistics
         """
         if not self.jobs:
             logger.warning("No jobs to process")
             return {"status": "no_jobs", "results": []}
-        
+
         logger.info("Starting batch processing", total_jobs=len(self.jobs))
-        
+
         # Setup progress display
         with Progress(
             SpinnerColumn(),
@@ -438,110 +434,104 @@ class BatchProcessor:
             TimeElapsedColumn(),
             console=console,
         ) as progress:
-            
             # Create main progress task
             main_task = progress.add_task(
-                f"Processing {len(self.jobs)} URLs...",
-                total=len(self.jobs)
+                f"Processing {len(self.jobs)} URLs...", total=len(self.jobs)
             )
-            
+
             # Create individual job tasks
             for job in self.jobs:
                 job.progress_task = progress.add_task(
-                    f"Queued: {job.url}",
-                    total=100,
-                    visible=False
+                    f"Queued: {job.url}", total=100, visible=False
                 )
-            
+
             # Process jobs concurrently
             tasks = [
-                self._process_single_job(job, progress, progress_callback)
-                for job in self.jobs
+                self._process_single_job(job, progress, progress_callback) for job in self.jobs
             ]
-            
+
             # Wait for all jobs to complete
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             # Update main progress
             progress.update(main_task, completed=len(self.jobs))
-        
+
         # Compile results
         summary = self._compile_results(results)
-        
+
         if self.config.create_summary:
             await self._create_summary_report(summary)
-        
+
         logger.info(
             "Batch processing completed",
             total=summary["total"],
             successful=summary["successful"],
-            failed=summary["failed"]
+            failed=summary["failed"],
         )
-        
+
         return summary
-    
+
     async def _process_single_job(
         self,
         job: BatchJob,
         progress: Progress,
-        progress_callback: Optional[Callable[[str, int], None]] = None
+        progress_callback: Optional[Callable[[str, int], None]] = None,
     ) -> BatchJob:
         """Process a single job with semaphore control.
-        
+
         Args:
             job: Job to process
             progress: Rich progress instance
             progress_callback: Optional progress callback
-            
+
         Returns:
             Updated job with results
         """
         async with self.semaphore:
             job.start_time = asyncio.get_event_loop().time()
             job.status = BatchJobStatus.RUNNING
-            
+
             # Show job in progress
             if job.progress_task:
                 progress.update(
-                    job.progress_task,
-                    description=f"Processing: {job.url}",
-                    visible=True
+                    job.progress_task, description=f"Processing: {job.url}", visible=True
                 )
-            
+
             try:
                 # Check if output already exists and skip if configured
-                if self.config.skip_existing and (job.output_dir / "converted_content.html").exists():
+                if (
+                    self.config.skip_existing
+                    and (job.output_dir / "converted_content.html").exists()
+                ):
                     job.status = BatchJobStatus.SKIPPED
                     logger.info("Skipping existing output", url=job.url)
                     return job
-                
+
                 # Create converter and process
                 converter = AsyncWordPressConverter(job.url, job.output_dir)
-                
+
                 def job_progress_callback(p: int):
                     if job.progress_task:
                         progress.update(job.progress_task, completed=p)
                     if progress_callback:
                         progress_callback(job.url, p)
-                
+
                 # Process with timeout
                 await asyncio.wait_for(
                     converter.convert(progress_callback=job_progress_callback),
-                    timeout=self.config.timeout_per_job
+                    timeout=self.config.timeout_per_job,
                 )
-                
+
                 job.status = BatchJobStatus.COMPLETED
                 job.end_time = asyncio.get_event_loop().time()
-                
+
                 if job.progress_task:
                     progress.update(
-                        job.progress_task,
-                        description=f"✅ Completed: {job.url}",
-                        completed=100
+                        job.progress_task, description=f"✅ Completed: {job.url}", completed=100
                     )
-                
+
                 logger.info("Job completed successfully", url=job.url, duration=job.duration)
-                
+
                 # Create archive if configured
                 if self.config.create_archives:
                     try:
@@ -550,46 +540,42 @@ class BatchProcessor:
                         logger.info("Created job archive", url=job.url, archive=str(archive_path))
                     except Exception as e:
                         logger.warning("Failed to create archive", url=job.url, error=str(e))
-                
+
             except asyncio.TimeoutError:
                 job.status = BatchJobStatus.FAILED
                 job.error = f"Timeout after {self.config.timeout_per_job}s"
                 job.end_time = asyncio.get_event_loop().time()
-                
+
                 if job.progress_task:
                     progress.update(
-                        job.progress_task,
-                        description=f"⏰ Timeout: {job.url}",
-                        completed=0
+                        job.progress_task, description=f"⏰ Timeout: {job.url}", completed=0
                     )
-                
+
                 logger.error("Job timed out", url=job.url, timeout=self.config.timeout_per_job)
-                
+
             except Exception as e:
                 job.status = BatchJobStatus.FAILED
                 job.error = str(e)
                 job.end_time = asyncio.get_event_loop().time()
-                
+
                 if job.progress_task:
                     progress.update(
-                        job.progress_task,
-                        description=f"❌ Failed: {job.url}",
-                        completed=0
+                        job.progress_task, description=f"❌ Failed: {job.url}", completed=0
                     )
-                
+
                 logger.error("Job failed", url=job.url, error=str(e))
-                
+
                 if not self.config.continue_on_error:
                     raise
-            
+
             return job
-    
-    def _compile_results(self, results: List[Any]) -> Dict[str, Any]:
+
+    def _compile_results(self, results: list[Any]) -> dict[str, Any]:
         """Compile processing results into a summary.
-        
+
         Args:
             results: List of job results
-            
+
         Returns:
             Summary dictionary with statistics
         """
@@ -600,19 +586,19 @@ class BatchProcessor:
             "skipped": 0,
             "jobs": [],
             "total_duration": 0.0,
-            "average_duration": 0.0
+            "average_duration": 0.0,
         }
-        
+
         for job in self.jobs:
             job_data = {
                 "url": job.url,
                 "status": job.status.value,
                 "output_dir": str(job.output_dir),
                 "duration": job.duration,
-                "error": job.error
+                "error": job.error,
             }
             summary["jobs"].append(job_data)
-            
+
             if job.status == BatchJobStatus.COMPLETED:
                 summary["successful"] += 1
                 if job.duration:
@@ -621,15 +607,15 @@ class BatchProcessor:
                 summary["failed"] += 1
             elif job.status == BatchJobStatus.SKIPPED:
                 summary["skipped"] += 1
-        
+
         if summary["successful"] > 0:
             summary["average_duration"] = summary["total_duration"] / summary["successful"]
-        
+
         return summary
-    
-    async def _create_summary_report(self, summary: Dict[str, Any]) -> None:
+
+    async def _create_summary_report(self, summary: dict[str, Any]) -> None:
         """Create a summary report of the batch processing.
-        
+
         Args:
             summary: Processing summary data
         """
@@ -639,25 +625,25 @@ class BatchProcessor:
         table.add_column("Status", style="bold")
         table.add_column("Duration", justify="right")
         table.add_column("Output", style="dim")
-        
+
         for job_data in summary["jobs"]:
             status = job_data["status"]
             status_color = {
                 "completed": "green",
-                "failed": "red", 
+                "failed": "red",
                 "skipped": "yellow",
-                "pending": "dim"
+                "pending": "dim",
             }.get(status, "white")
-            
-            duration_str = f"{job_data['duration']:.1f}s" if job_data['duration'] else "N/A"
-            
+
+            duration_str = f"{job_data['duration']:.1f}s" if job_data["duration"] else "N/A"
+
             table.add_row(
                 job_data["url"][:50] + "..." if len(job_data["url"]) > 50 else job_data["url"],
                 f"[{status_color}]{status.upper()}[/{status_color}]",
                 duration_str,
-                str(Path(job_data["output_dir"]).name)
+                str(Path(job_data["output_dir"]).name),
             )
-        
+
         # Show summary panel
         stats_text = f"""
 Total Jobs: {summary['total']}
@@ -666,71 +652,73 @@ Total Jobs: {summary['total']}
 ⏭️  Skipped: {summary['skipped']}
 ⏱️  Average Duration: {summary['average_duration']:.1f}s
         """.strip()
-        
+
         console.print()
         console.print(Panel(stats_text, title="📊 Batch Results", expand=False))
         console.print()
         console.print(table)
-        
+
         # Save summary to file
         summary_path = self.config.output_base_dir / "batch_summary.json"
         summary_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         import json
-        with open(summary_path, 'w', encoding='utf-8') as f:
+
+        with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, default=str)
-        
+
         logger.info("Summary report saved", path=str(summary_path))
-    
+
     async def _create_archive(self, job: BatchJob) -> Path:
         """Create a ZIP archive of the job's output directory.
-        
+
         Args:
             job: Completed batch job
-            
+
         Returns:
             Path to the created ZIP archive
-            
+
         Raises:
             Exception: If archive creation fails
         """
         import zipfile
-        
+
         if not job.output_dir.exists():
             raise ValueError(f"Output directory does not exist: {job.output_dir}")
-        
+
         # Create archive name based on job slug/URL
         archive_name = f"{job.output_dir.name}.zip"
         archive_path = self.config.output_base_dir / "archives" / archive_name
-        
+
         # Ensure archives directory exists
         archive_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         logger.debug("Creating archive", job_url=job.url, archive_path=str(archive_path))
-        
+
         # Create ZIP archive
-        with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zip_file:
             # Add all files from the output directory
-            for file_path in job.output_dir.rglob('*'):
+            for file_path in job.output_dir.rglob("*"):
                 if file_path.is_file():
                     # Calculate relative path within the archive
                     arc_path = file_path.relative_to(job.output_dir)
                     zip_file.write(file_path, arc_path)
                     logger.debug("Added file to archive", file=str(arc_path))
-        
+
         # Optional: Clean up original directory if configured
-        if getattr(self.config, 'cleanup_after_archive', False):
+        if getattr(self.config, "cleanup_after_archive", False):
             import shutil
+
             shutil.rmtree(job.output_dir)
             logger.debug("Cleaned up original directory", path=str(job.output_dir))
-        
+
         archive_size = archive_path.stat().st_size
         logger.info(
-            "Archive created successfully", 
+            "Archive created successfully",
             job_url=job.url,
             archive_path=str(archive_path),
             size_bytes=archive_size,
-            size_mb=round(archive_size / (1024 * 1024), 2)
+            size_mb=round(archive_size / (1024 * 1024), 2),
         )
-        
+
         return archive_path
