@@ -1,0 +1,25 @@
+{
+  "seo_metadata": {
+    "version": "1.0.0",
+    "plugin_type": "metadata_extractor",
+    "enabled": true,
+    "priority": 10,
+    "settings": {
+      "extract_schema": true,
+      "extract_open_graph": true,
+      "extract_twitter_cards": true,
+      "analyze_seo_signals": true
+    }
+  },
+  "font_cleanup": {
+    "version": "1.0.0",
+    "plugin_type": "html_processor",
+    "enabled": true,
+    "priority": 20,
+    "settings": {
+      "remove_font_tags": true,
+      "clean_font_styles": true,
+      "remove_empty_elements": true
+    }
+  }
+}

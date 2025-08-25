@@ -11,240 +11,409 @@
 [![Docker](https://img.shields.io/badge/docker-supported-blue?logo=docker)](https://github.com/zachatkinson/csfrace-scrape/blob/master/Dockerfile)
 [![Async](https://img.shields.io/badge/async-aiohttp-blue.svg)](https://docs.aiohttp.org/)
 
-A modern Python command-line tool that converts WordPress blog content to Shopify-compatible HTML format. Specifically designed for CSFrace website content migration, this tool handles various WordPress blocks, embeds, and formatting while ensuring the output is optimized for Shopify's content management system.
+A high-performance, async Python tool for converting WordPress content to Shopify-compatible HTML. Built for enterprise-scale content migrations with advanced batch processing, intelligent caching, and extensible plugin architecture.
 
-## Features
+## ✨ Key Features
 
-### Content Conversion Capabilities
-- **Font Formatting**: Converts `<b>` to `<strong>` and `<i>` to `<em>` tags
-- **Text Alignment**: Transforms WordPress alignment classes to Shopify-compatible formats
-- **Kadence Blocks Support**:
-  - Row layouts → Media grid layouts (2, 3, 4, or 5 columns)
-  - Advanced galleries → Media grid galleries
-  - Advanced buttons → Shopify button styles with full-width support
-- **Image Handling**:
-  - Downloads all images locally for backup
-  - Simplifies WordPress image blocks to clean `<img>` tags
-  - Preserves alt text and captions
-- **Media Embeds**:
-  - YouTube videos with responsive 16:9 aspect ratio
-  - Instagram embeds with proper container structure
-- **Blockquotes**: Converts WordPress pullquotes to testimonial-style quotes
-- **External Links**: Automatically adds `target="_blank"` and `rel="noreferrer noopener"` to external links
-- **Metadata Extraction**:
-  - Page title
-  - URL and slug
-  - Meta description
-  - Published date
-
-### Clean Output
-- Removes WordPress-specific classes and inline styles
-- Strips out script tags
-- Preserves only Shopify-relevant classes
-- Generates clean, semantic HTML ready for Shopify
+- 🚀 **High-Performance Async Processing** - Concurrent downloads with configurable limits
+- 📦 **Intelligent Batch Processing** - Process hundreds of URLs with smart directory organization  
+- ⚡ **Advanced Caching System** - File-based and Redis caching with automatic expiration
+- 🔧 **Extensible Plugin Architecture** - Custom processing pipelines for specialized content
+- ⚙️ **Flexible Configuration** - YAML/JSON config files with CLI overrides
+- 📊 **Rich Progress Tracking** - Beautiful console output with statistics and progress bars
+- 🗂️ **Archive Management** - Automatic ZIP creation with optional cleanup
+- 🌐 **Robots.txt Compliance** - Respectful crawling with rate limiting
+- 🔄 **Robust Error Recovery** - Exponential backoff and retry mechanisms
+- 🎯 **WordPress Content Expertise** - Specialized handling of Kadence blocks, embeds, and formatting
 
 ## Installation
 
 ### Prerequisites
-- Python 3.9 or higher (3.11+ recommended)
-- Git (for cloning the repository)
+- Python 3.9+ (Python 3.11+ recommended)
+- Git (for development setup)
 
-### Install Dependencies
+### Quick Install
 ```bash
-# Clone the repository (if applicable)
 git clone https://github.com/zachatkinson/csfrace-scrape.git
 cd csfrace-scrape
+python -m pip install -r requirements/base.txt
+```
 
-# Basic installation (core dependencies only)
-python -m pip install -r requirements.txt
-
-# OR install with development tools (recommended for contributors)
+### Development Install
+```bash
 python -m pip install -e .[dev,test]
-
-# OR production installation with monitoring
-python -m pip install -r requirements/prod.txt
 ```
 
-### Core Dependencies
-- `aiohttp` - Async HTTP client for concurrent requests
-- `httpx` - Modern HTTP client with async support
-- `beautifulsoup4` - HTML parsing and manipulation
-- `lxml` - Fast XML/HTML parser
-- `bleach` - HTML sanitization for security
-- `pydantic` - Data validation using Python type annotations
-- `click` - Command-line interface framework
-- `rich` - Rich text and beautiful formatting
-- `structlog` - Structured logging
-- `tenacity` - Retry library with exponential backoff
-- `PyYAML` - YAML configuration file support
-
-## Usage
-
-### Basic Usage
+### Optional Dependencies
 ```bash
-python main.py <wordpress-url>
+# For Redis caching (recommended for high-volume processing)
+python -m pip install "redis>=5.0.0"
+
+# For advanced plugins (image processing, NLP, etc.)
+python -m pip install -r requirements/optional.txt
 ```
 
-### Specify Output Directory
+## Quick Start
+
+### Single URL
 ```bash
-python main.py <wordpress-url> -o <output-directory>
+python -m src.main https://example.com/blog/post
 ```
 
-### Examples
+### Batch Processing
 ```bash
-# Convert a single blog post
-python main.py https://csfrace.com/blog/sample-post
+# Multiple URLs
+python -m src.main "https://site.com/post1,https://site.com/post2" --batch-size 5
 
-# Convert and save to custom directory
-python main.py https://csfrace.com/blog/sample-post -o my-conversions
-
-# URL without protocol (https:// will be added automatically)
-python main.py csfrace.com/blog/sample-post
+# From file
+python -m src.main --urls-file urls.txt --batch-size 10 -o batch_output
 ```
 
-### Interactive Mode
-If you run the script without arguments, it will prompt for a URL:
+### With Configuration
 ```bash
-python main.py
-# Enter WordPress URL to convert: csfrace.com/blog/sample-post
+# Generate config template
+python -m src.main --generate-config yaml
+
+# Use configuration
+python -m src.main --config config.yaml --urls-file urls.txt
 ```
+
+## Usage Guide
+
+### Command Line Interface
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `url` | WordPress URL(s) to convert | `https://example.com/post` |
+| `-o, --output` | Output directory | `-o my_output` |
+| `-c, --config` | Configuration file | `-c config.yaml` |
+| `--urls-file` | File with URLs to process | `--urls-file urls.txt` |
+| `--batch-size` | Concurrent processing limit | `--batch-size 5` |
+| `--generate-config` | Create example config | `--generate-config yaml` |
+| `-v, --verbose` | Enable verbose logging | `-v` |
+
+### Batch Processing Modes
+
+#### 1. Comma-Separated URLs
+```bash
+python -m src.main "https://site.com/post1,https://site.com/post2,https://site.com/post3"
+```
+
+#### 2. Text File Input
+Create `urls.txt`:
+```
+https://example.com/blog/post-1
+https://example.com/blog/post-2  
+https://example.com/blog/post-3
+# Comments are supported
+```
+
+Run batch:
+```bash
+python -m src.main --urls-file urls.txt --batch-size 3
+```
+
+#### 3. CSV Input with Custom Settings
+Create `jobs.csv`:
+```csv
+url,slug,output_dir,priority
+https://example.com/post-1,custom-slug-1,custom/dir1,1
+https://example.com/post-2,custom-slug-2,,2
+https://example.com/post-3,,,3
+```
+
+Process CSV:
+```bash
+python -m src.main --urls-file jobs.csv
+```
+
+### Configuration Management
+
+#### Generate Configuration Template
+```bash
+python -m src.main --generate-config yaml  # Creates wp-shopify-config.yaml
+python -m src.main --generate-config json  # Creates wp-shopify-config.json
+```
+
+#### Example Configuration (`config.yaml`)
+```yaml
+converter:
+  default_timeout: 30
+  max_concurrent_downloads: 10
+  rate_limit_delay: 0.5
+  max_retries: 3
+  respect_robots_txt: true
+  preserve_classes:
+    - center
+    - media-grid
+    - button--primary
+
+batch:
+  max_concurrent: 5
+  create_archives: true
+  output_base_dir: "batch_output"
+  cleanup_after_archive: false
+  timeout_per_job: 300
+```
+
+#### Use Configuration
+```bash
+# With configuration file
+python -m src.main --config config.yaml https://example.com/post
+
+# Override config settings via CLI
+python -m src.main --config config.yaml --batch-size 10 --urls-file urls.txt
+```
+
+### Caching System
+
+#### File-Based Caching (Default)
+- Automatic local file caching
+- Configurable TTL per content type
+- Intelligent size management
+- Cross-platform compatibility
+
+#### Redis Caching (Recommended for High Volume)
+1. Install Redis:
+   ```bash
+   # macOS
+   brew install redis
+   brew services start redis
+   
+   # Ubuntu/Debian
+   sudo apt install redis-server
+   sudo systemctl start redis
+   ```
+
+2. Install Python Redis client:
+   ```bash
+   python -m pip install "redis>=5.0.0"
+   ```
+
+3. Configure caching in `config.yaml`:
+   ```yaml
+   cache:
+     backend: redis
+     redis_host: localhost
+     redis_port: 6379
+     ttl_html: 1800
+     ttl_images: 86400
+   ```
 
 ## Output Structure
 
-The converter creates an output directory (default: `converted_content/`) with the following structure:
-
+### Single URL Output
 ```
 converted_content/
-├── metadata.txt              # Extracted page metadata
-├── converted_content.html    # Converted HTML only
-├── shopify_ready_content.html # Combined metadata + HTML (ready to paste)
-└── images/                   # Downloaded images
+├── metadata.txt                 # Extracted metadata
+├── converted_content.html       # Clean HTML content
+├── shopify_ready_content.html   # Complete file for Shopify
+└── images/                      # Downloaded images
     ├── image1.jpg
-    ├── image2.png
-    └── ...
+    └── image2.png
 ```
 
-### Output Files Description
+### Batch Processing Output
+```
+batch_output/
+├── example-com_post-1/          # Organized by domain and slug
+│   ├── metadata.txt
+│   ├── converted_content.html
+│   ├── shopify_ready_content.html
+│   └── images/
+├── example-com_post-2/
+│   └── ...
+├── archives/                    # ZIP archives (if enabled)
+│   ├── example-com_post-1.zip
+│   └── example-com_post-2.zip
+└── batch_summary.json          # Processing statistics
+```
 
-1. **metadata.txt**: Plain text file containing:
-   - Page title
-   - Original URL
-   - URL slug
-   - Meta description
-   - Published date
+## Content Conversion Features
 
-2. **converted_content.html**: Clean HTML content without metadata, ready for Shopify's HTML editor
+### WordPress Block Support
+- **Kadence Blocks**: Row layouts → Media grid layouts
+- **Advanced Galleries**: Converted to responsive media grids
+- **Advanced Buttons**: Shopify-compatible button styles
+- **Pullquotes**: Testimonial-style quote formatting
+- **Embeds**: YouTube, Instagram with responsive containers
 
-3. **shopify_ready_content.html**: Complete file with HTML comments containing metadata and the converted content - perfect for copy/paste into Shopify
+### HTML Transformations
+- Font tags: `<b>` → `<strong>`, `<i>` → `<em>`
+- Text alignment: WordPress classes → Shopify-compatible
+- Image optimization: Clean `<img>` tags with proper alt text
+- External links: Auto-add `target="_blank"` and security attributes
+- Script removal: Security-focused content sanitization
 
-4. **images/**: Local copies of all images found in the content
+### Metadata Extraction
+- Page title and description
+- URL slug generation
+- Publication dates
+- SEO-relevant meta tags
+- Custom WordPress fields
 
-## Conversion Rules
+## Plugin Architecture
 
-### HTML Element Mappings
-| WordPress Element | Shopify Output |
-|------------------|----------------|
-| `<b>` | `<strong>` |
-| `<i>` | `<em>` |
-| `.has-text-align-center` | `.center` |
-| `.wp-block-kadence-rowlayout` | `.media-grid-*` |
-| `.wp-block-kadence-advancedgallery` | `.media-grid` |
-| `.wp-block-kadence-advancedbtn` | `.button.button--full-width.button--primary` |
-| `.wp-block-pullquote` | `.testimonial-quote` |
-| `.wp-block-embed-youtube` | Responsive iframe container |
+### Built-in Plugins
+- **SEO Metadata Extractor**: Comprehensive SEO data extraction
+- **Font Cleanup Plugin**: Removes font-related styling
+- **Content Filter**: Customizable content filtering rules
 
-### Special Handling
-- **External Links**: Links not pointing to csfrace.com automatically open in new tabs
-- **Images**: All images are downloaded locally with proper naming
-- **Scripts**: All script tags are removed for security
-- **Styles**: Inline styles are removed except for specific media embeds
+### Creating Custom Plugins
+1. Inherit from appropriate base class:
+   ```python
+   from src.plugins.base import HTMLProcessorPlugin
+   
+   class MyCustomPlugin(HTMLProcessorPlugin):
+       @property
+       def plugin_info(self):
+           return {
+               'name': 'My Custom Plugin',
+               'version': '1.0.0',
+               'description': 'Custom content processing',
+               'author': 'Your Name',
+               'plugin_type': 'html_processor'
+           }
+       
+       async def process_html(self, html_content, metadata, context):
+           # Custom processing logic
+           return processed_html
+   ```
 
-## Command-Line Options
+2. Register and use:
+   ```python
+   from src.plugins.registry import plugin_registry
+   plugin_registry.register_plugin(MyCustomPlugin)
+   ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `url` | WordPress URL to convert (required) | - |
-| `-o, --output` | Output directory for converted files | `converted_content` |
-| `-h, --help` | Show help message and exit | - |
+## Advanced Features
+
+### Performance Monitoring
+```bash
+# View processing statistics
+python -m src.main --urls-file large-batch.txt -v
+```
+
+### Error Recovery
+- Automatic retry with exponential backoff
+- Graceful handling of failed URLs
+- Detailed error reporting and logging
+- Continue-on-error batch processing
+
+### Archive Management
+```yaml
+batch:
+  create_archives: true
+  archive_format: zip
+  cleanup_after_archive: false  # Keep original directories
+```
+
+### Robots.txt Compliance
+- Automatic robots.txt checking
+- Respectful crawl delays
+- Rate limiting configuration
+- User-agent identification
+
+## Development
+
+### Testing
+```bash
+# Run all tests
+python -m pytest tests/ --cov=src
+
+# Run specific test categories  
+python -m pytest tests/unit/test_batch_processor.py
+python -m pytest tests/integration/test_priority2_integration.py
+
+# Test with Redis (requires Redis server)
+python -m pytest tests/integration/test_redis_cache.py
+```
+
+### Code Quality
+```bash
+# Format code
+ruff format src/ tests/
+
+# Lint code
+ruff check src/ tests/
+
+# Type checking
+mypy src/
+```
+
+### Semantic Versioning
+```bash
+# Create version bump and update changelog
+cz bump
+
+# View version history
+cz changelog
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"No entry-content div found"**
-   - The script will attempt to process the entire body content
-   - Check if the WordPress site structure is standard
+**"No Redis connection"**
+- Ensure Redis server is running: `redis-cli ping`
+- Check Redis configuration in config file
+- Falls back to file caching automatically
 
-2. **Images not downloading**
-   - Check internet connection
-   - Verify the images are publicly accessible
-   - Some sites may block automated downloads
+**"Batch processing timeout"**
+- Reduce `batch_size` in configuration
+- Increase `timeout_per_job` setting
+- Check network connectivity
 
-3. **Timeout errors**
-   - The script has a 10-second timeout for requests
-   - Try again or check if the site is accessible
+**"Permission denied" errors**
+- Ensure write permissions in output directory
+- Check available disk space
+- Verify file system supports long paths (Windows)
 
-4. **Encoding issues**
-   - Ensure your terminal supports UTF-8
-   - Output files are saved with UTF-8 encoding
+### Debug Mode
+```bash
+python -m src.main --urls-file urls.txt -v  # Verbose logging
+```
 
-### Debug Tips
-- Check the console output for specific error messages
-- Verify the URL is correct and accessible
-- Ensure you have write permissions in the output directory
-- Review `converted_content.html` to see the raw conversion result
+### Performance Tuning
+```yaml
+# High-performance configuration
+batch:
+  max_concurrent: 10
+  timeout_per_job: 120
+converter:
+  max_concurrent_downloads: 20
+  rate_limit_delay: 0.1
+```
 
-## Best Practices
+## Changelog
 
-1. **Review Output**: Always review the converted content before pasting into Shopify
-2. **Image Optimization**: Consider optimizing downloaded images before uploading to Shopify
-3. **SEO Preservation**: Check that metadata is correctly transferred
-4. **Test Links**: Verify all links work correctly after conversion
-5. **Backup Original**: Keep the original WordPress content as backup
-
-## Limitations
-
-- Requires the WordPress site to be publicly accessible
-- Complex custom WordPress blocks may not convert perfectly
-- JavaScript-dependent content won't be captured
-- Some WordPress plugins' output may not be recognized
-- Rate limiting: 0.5 second delay between image downloads to be respectful to servers
+See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
 
 ## Contributing
 
-See [CLAUDE.md](CLAUDE.md) for development best practices and coding standards.
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes with tests
+4. Run the test suite: `pytest tests/`
+5. Commit using conventional format: `cz commit`
+6. Push and create a Pull Request
 
-### Development Setup
-```bash
-# Install development dependencies (when available)
-pip3 install -r requirements-dev.txt
-
-# Run tests (when implemented)
-pytest tests/
-
-# Check code style (when configured)
-flake8 src/
-```
-
-## Future Enhancements
-
-- Batch processing of multiple URLs
-- Configuration file support
-- Progress indicators for large conversions
-- Dry-run mode to preview without downloading
-- Direct Shopify API integration
-- Support for additional WordPress page builders
-- Markdown output format option
-- GUI version for non-technical users
+See [CLAUDE.md](CLAUDE.md) for development guidelines and coding standards.
 
 ## License
 
-[Specify your license here]
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-For issues, questions, or suggestions, please [create an issue](link-to-issues) or contact the maintainers.
+- 📋 [Create an Issue](https://github.com/zachatkinson/csfrace-scrape/issues) for bug reports
+- 💡 [Request Features](https://github.com/zachatkinson/csfrace-scrape/discussions) for enhancements  
+- 📖 [Documentation](https://github.com/zachatkinson/csfrace-scrape/wiki) for detailed guides
 
 ## Acknowledgments
 
-Built specifically for migrating CSFrace WordPress content to Shopify, handling their specific use of Kadence blocks and custom formatting requirements.
+Built for CSFrace's WordPress to Shopify migration, featuring specialized handling of Kadence blocks, custom themes, and enterprise-scale content processing requirements.
+
+---
+
+⭐ **Star this repo** if it helped with your WordPress to Shopify migration!
