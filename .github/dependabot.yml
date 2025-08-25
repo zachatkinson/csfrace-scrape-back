@@ -1,0 +1,92 @@
+# GitHub Dependabot configuration
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    target-branch: "develop"
+    reviewers:
+      - "zachatkinson"
+    assignees:
+      - "zachatkinson"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    # Group updates
+    groups:
+      testing:
+        patterns:
+          - "pytest*"
+          - "coverage"
+          - "hypothesis"
+          - "factory-boy"
+        update-types:
+          - "minor"
+          - "patch"
+      linting:
+        patterns:
+          - "ruff"
+          - "black"
+          - "isort"
+          - "mypy"
+          - "bandit"
+        update-types:
+          - "minor"
+          - "patch"
+      async:
+        patterns:
+          - "aiohttp*"
+          - "httpx"
+          - "asyncio*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    target-branch: "develop"
+    reviewers:
+      - "zachatkinson"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    target-branch: "develop"
+    reviewers:
+      - "zachatkinson"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"

@@ -1,0 +1,33 @@
+# Testing dependencies
+-r base.txt
+
+# Core testing framework
+pytest>=7.4.0,<8.0.0
+pytest-asyncio>=0.21.0,<1.0.0
+pytest-cov>=4.1.0,<5.0.0
+pytest-mock>=3.12.0,<4.0.0
+pytest-xdist>=3.5.0,<4.0.0  # Parallel test execution
+pytest-benchmark>=4.0.0,<5.0.0
+pytest-timeout>=2.2.0,<3.0.0
+pytest-html>=4.1.0,<5.0.0  # HTML test reports
+
+# HTTP mocking
+aioresponses>=0.7.4,<1.0.0
+responses>=0.24.0,<1.0.0
+httpx>=0.25.0,<1.0.0  # For httpx mocking
+
+# Property-based testing
+hypothesis>=6.90.0,<7.0.0
+
+# Test data factories
+factory-boy>=3.3.0,<4.0.0
+faker>=20.1.0,<21.0.0
+
+# Time mocking
+freezegun>=1.2.0,<2.0.0
+
+# Coverage reporting
+coverage[toml]>=7.3.0,<8.0.0
+
+# Performance testing
+locust>=2.17.0,<3.0.0  # Load testing (if needed)

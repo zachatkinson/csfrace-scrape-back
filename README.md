@@ -44,8 +44,8 @@ A Python3 command-line tool that converts WordPress blog content to Shopify-comp
 git clone <repository-url>
 cd csfrace-scrape
 
-# Install required packages
-pip3 install -r requirements.txt
+# Install required packages (modern Python best practice)
+python -m pip install -r requirements.txt
 ```
 
 ### Required Packages
@@ -56,30 +56,30 @@ pip3 install -r requirements.txt
 
 ### Basic Usage
 ```bash
-python3 main.py <wordpress-url>
+python main.py <wordpress-url>
 ```
 
 ### Specify Output Directory
 ```bash
-python3 main.py <wordpress-url> -o <output-directory>
+python main.py <wordpress-url> -o <output-directory>
 ```
 
 ### Examples
 ```bash
 # Convert a single blog post
-python3 main.py https://csfrace.com/blog/sample-post
+python main.py https://csfrace.com/blog/sample-post
 
 # Convert and save to custom directory
-python3 main.py https://csfrace.com/blog/sample-post -o my-conversions
+python main.py https://csfrace.com/blog/sample-post -o my-conversions
 
 # URL without protocol (https:// will be added automatically)
-python3 main.py csfrace.com/blog/sample-post
+python main.py csfrace.com/blog/sample-post
 ```
 
 ### Interactive Mode
 If you run the script without arguments, it will prompt for a URL:
 ```bash
-python3 main.py
+python main.py
 # Enter WordPress URL to convert: csfrace.com/blog/sample-post
 ```
 
