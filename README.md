@@ -2,34 +2,14 @@
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub release](https://img.shields.io/github/release/zachatkinson/csfrace-scrape.svg)](https://github.com/zachatkinson/csfrace-scrape/releases)
-
 [![CI](https://github.com/zachatkinson/csfrace-scrape/workflows/CI/CD%20Pipeline/badge.svg)](https://github.com/zachatkinson/csfrace-scrape/actions)
 [![codecov](https://codecov.io/gh/zachatkinson/csfrace-scrape/branch/master/graph/badge.svg)](https://codecov.io/gh/zachatkinson/csfrace-scrape)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zachatkinson/csfrace-scrape/ci.yml?branch=master&label=tests)](https://github.com/zachatkinson/csfrace-scrape/actions/workflows/ci.yml)
-[![GitHub issues](https://img.shields.io/github/issues/zachatkinson/csfrace-scrape)](https://github.com/zachatkinson/csfrace-scrape/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/zachatkinson/csfrace-scrape)](https://github.com/zachatkinson/csfrace-scrape/pulls)
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
-[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-
-[![Security: bandit](https://img.shields.io/badge/security-bandit-green.svg)](https://github.com/PyCQA/bandit)
-[![Safety](https://img.shields.io/badge/safety-checked-green.svg)](https://github.com/pyupio/safety)
-[![GitHub repo size](https://img.shields.io/github/repo-size/zachatkinson/csfrace-scrape)](https://github.com/zachatkinson/csfrace-scrape)
-[![GitHub language count](https://img.shields.io/github/languages/count/zachatkinson/csfrace-scrape)](https://github.com/zachatkinson/csfrace-scrape)
-
-[![Dependabot](https://img.shields.io/badge/dependabot-enabled-blue?logo=dependabot)](https://github.com/zachatkinson/csfrace-scrape/network/dependencies)
-[![GitHub top language](https://img.shields.io/github/languages/top/zachatkinson/csfrace-scrape)](https://github.com/zachatkinson/csfrace-scrape)
 [![Docker](https://img.shields.io/badge/docker-supported-blue?logo=docker)](https://github.com/zachatkinson/csfrace-scrape/blob/master/Dockerfile)
 [![Async](https://img.shields.io/badge/async-aiohttp-blue.svg)](https://docs.aiohttp.org/)
-
-[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)](https://github.com/zachatkinson/csfrace-scrape)
-[![Made with Python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/zachatkinson/csfrace-scrape/graphs/commit-activity)
-[![GitHub last commit](https://img.shields.io/github/last-commit/zachatkinson/csfrace-scrape.svg)](https://github.com/zachatkinson/csfrace-scrape/commits/master)
 
 A modern Python command-line tool that converts WordPress blog content to Shopify-compatible HTML format. Specifically designed for CSFrace website content migration, this tool handles various WordPress blocks, embeds, and formatting while ensuring the output is optimized for Shopify's content management system.
 
