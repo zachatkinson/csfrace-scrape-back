@@ -21,7 +21,6 @@ detect-secrets>=1.4.0,<2.0.0
 
 # Development tools
 pre-commit>=3.6.0,<4.0.0
-commitizen>=3.12.0,<4.0.0
 
 # Debugging and profiling
 ipython>=8.17.0,<9.0.0
