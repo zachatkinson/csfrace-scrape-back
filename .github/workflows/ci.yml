@@ -116,6 +116,7 @@ jobs:
         run: |
           pytest tests/unit/ \
             --cov=src \
+            --cov-branch \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-fail-under=85 \
@@ -138,10 +139,12 @@ jobs:
             junit-*.xml
             htmlcov/
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == env.PYTHON_VERSION
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: zachatkinson/csfrace-scrape
           file: ./coverage.xml
           flags: unittests
           name: codecov-umbrella

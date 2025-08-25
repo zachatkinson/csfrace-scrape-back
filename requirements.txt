@@ -1,2 +1,5 @@
-requests
-beautifulsoup4
+# This file points to the base requirements for backwards compatibility
+# For development, use: python -m pip install -e .[dev,test]
+# For production, use: python -m pip install -r requirements/prod.txt
+
+-r requirements/base.txt
