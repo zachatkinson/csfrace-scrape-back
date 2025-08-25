@@ -29,7 +29,49 @@ def process_content(self, html_content: str) -> Tuple[Dict[str, str], str]:
     pass
 ```
 
-### 3. Error Handling
+### 3. Code Quality & Formatting (MANDATORY)
+**CRITICAL: All code MUST pass linting and formatting before commits/PRs.**
+
+**Mandatory Tools:**
+```bash
+# Format code (must pass)
+python -m black src/ tests/ --line-length=100 --check
+
+# Lint code (must pass) 
+python -m ruff check src/ tests/
+
+# Type checking (strongly recommended)
+python -m mypy src/
+```
+
+**Pre-commit Requirements:**
+- **Install pre-commit hooks**: `pre-commit install`
+- **All commits must pass pre-commit hooks**
+- **CI will fail if linting/formatting fails**
+
+**Code Style Enforcement:**
+- **Line Length**: 100 characters (configured in pyproject.toml)
+- **Import Organization**: Ruff handles import sorting automatically
+- **Type Hints**: Use modern Python type hints (`list[str]` not `List[str]`)
+- **String Quotes**: Prefer double quotes for consistency
+
+**Configuration Files:**
+- **pyproject.toml**: Contains all tool configurations (Ruff, Black, MyPy, pytest)
+- **Modern Ruff config**: Uses `[tool.ruff.lint]` section (not deprecated top-level)
+- **Ignore patterns**: Only acceptable patterns in ignore lists
+
+**Acceptable Ignore Patterns (already configured):**
+```toml
+[tool.ruff.lint]
+ignore = [
+    "E501",   # line too long (handled by black)
+    "S324",   # insecure hash functions (MD5 ok for URL hashing)
+    "B904",   # raise from err (optional)
+    "ARG002", # unused args (common in interfaces)
+]
+```
+
+### 4. Error Handling
 - Use specific exception types rather than bare `except:`
 - Implement proper logging instead of print statements
 - Provide meaningful error messages with context

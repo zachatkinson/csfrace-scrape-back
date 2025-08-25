@@ -327,10 +327,10 @@ class TestPluginRegistry:
         config1 = PluginConfig(
             name="Plugin1", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR, priority=10
         )
-        config2 = PluginConfig(
+        PluginConfig(
             name="Plugin2", version="1.0.0", plugin_type=PluginType.CONTENT_FILTER, priority=20
         )
-        config3 = PluginConfig(
+        PluginConfig(
             name="Plugin3",
             version="1.0.0",
             plugin_type=PluginType.HTML_PROCESSOR,

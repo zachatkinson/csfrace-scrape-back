@@ -61,7 +61,7 @@ class TestHTMLProcessor:
         """
         soup = BeautifulSoup(html, "html.parser")
 
-        result = await html_processor._convert_kadence_layouts(soup)
+        await html_processor._convert_kadence_layouts(soup)
 
         # Check that Kadence layout is gone
         assert soup.find("div", class_="wp-block-kadence-rowlayout") is None
@@ -88,7 +88,7 @@ class TestHTMLProcessor:
         """
         soup = BeautifulSoup(html, "html.parser")
 
-        result = await html_processor._convert_simple_images(soup)
+        await html_processor._convert_simple_images(soup)
 
         # Check that wp-block-image is gone
         assert soup.find("div", class_="wp-block-image") is None
@@ -111,7 +111,7 @@ class TestHTMLProcessor:
         """
         soup = BeautifulSoup(html, "html.parser")
 
-        result = await html_processor._convert_buttons(soup)
+        await html_processor._convert_buttons(soup)
 
         # Check that Kadence button block is gone
         assert soup.find("div", class_="wp-block-kadence-advancedbtn") is None
@@ -139,7 +139,7 @@ class TestHTMLProcessor:
         """
         soup = BeautifulSoup(html, "html.parser")
 
-        result = await html_processor._convert_blockquotes(soup)
+        await html_processor._convert_blockquotes(soup)
 
         # Check that pullquote is gone
         assert soup.find("figure", class_="wp-block-pullquote") is None
@@ -173,7 +173,7 @@ class TestHTMLProcessor:
         """
         soup = BeautifulSoup(html, "html.parser")
 
-        result = await html_processor._convert_youtube_embeds(soup)
+        await html_processor._convert_youtube_embeds(soup)
 
         # Check that YouTube figure is gone
         assert soup.find("figure", class_="wp-block-embed-youtube") is None
@@ -249,9 +249,9 @@ class TestHTMLProcessor:
     async def test_wordpress_artifacts_cleanup(self, html_processor: HTMLProcessor):
         """Test cleanup of WordPress classes and attributes."""
         html = """
-        <div class="wp-block-something preserve-this center" 
-             style="color: red;" 
-             data-align="center" 
+        <div class="wp-block-something preserve-this center"
+             style="color: red;"
+             data-align="center"
              id="wp-123">
             <p>Content</p>
         </div>

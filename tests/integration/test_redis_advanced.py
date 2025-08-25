@@ -143,7 +143,7 @@ class TestRedisAdvanced:
         assert await redis_cache.get_html(url) == "<html>Version 2</html>"
 
         # Should only have one entry for this URL
-        stats = await redis_cache.get_cache_stats()
+        await redis_cache.get_cache_stats()
         # Count entries with our test prefix
         import redis.asyncio as redis_client
 

@@ -45,11 +45,11 @@ def sample_html() -> str:
     <body>
         <div class="entry-content">
             <p>This is a test paragraph with <b>bold</b> and <i>italic</i> text.</p>
-            
+
             <div class="has-text-align-center">
                 <p>Centered text content</p>
             </div>
-            
+
             <div class="wp-block-kadence-rowlayout">
                 <div class="kt-has-2-columns">
                     <div class="wp-block-kadence-column">
@@ -66,29 +66,29 @@ def sample_html() -> str:
                     </div>
                 </div>
             </div>
-            
+
             <div class="wp-block-image">
                 <img src="/test-image.jpg" alt="Test image">
             </div>
-            
+
             <div class="wp-block-kadence-advancedbtn">
                 <a class="button" href="https://external-site.com">External Link</a>
             </div>
-            
+
             <figure class="wp-block-pullquote">
                 <blockquote>
                     <p>This is a test quote</p>
                     <cite>Test Author</cite>
                 </blockquote>
             </figure>
-            
+
             <figure class="wp-block-embed-youtube">
                 <div class="wp-block-embed__wrapper">
                     <iframe src="https://www.youtube.com/embed/test123" title="Test Video"></iframe>
                 </div>
                 <figcaption>Test video caption</figcaption>
             </figure>
-            
+
             <script>alert('This should be removed');</script>
         </div>
     </body>

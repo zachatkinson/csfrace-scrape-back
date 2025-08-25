@@ -1,9 +1,10 @@
 """Integration tests for the complete conversion pipeline."""
 
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
+
 import aiohttp
+import pytest
 
 from src.core.converter import AsyncWordPressConverter
 from src.core.exceptions import ConversionError, FetchError
@@ -314,7 +315,7 @@ class TestAsyncWordPressConverter:
         <body>
         <div class="entry-content">
         {'<p>This is paragraph content. ' * 1000}
-        {'<img src="/image{}.jpg" alt="Image {}">'.format(i, i) for i in range(50)}
+        {"".join(f'<img src="/image{i}.jpg" alt="Image {i}">' for i in range(50))}
         </p>
         </div>
         </body>

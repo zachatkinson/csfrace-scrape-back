@@ -228,7 +228,7 @@ https://example.com/blog/third-post,,,3
             },
         }
 
-        converter_config = ConfigLoader.create_converter_config(config_data)
+        ConfigLoader.create_converter_config(config_data)
         batch_config = ConfigLoader.create_batch_config(config_data)
 
         # 2. Set up caching
@@ -260,7 +260,7 @@ https://example.com/blog/third-post,,,3
         assert len(processor.jobs) == 2
 
         # 5. Check cache hits/misses before processing
-        cache_stats_before = await cache.get_cache_stats()
+        await cache.get_cache_stats()
 
         # Verify cached content exists
         cached_content = await cache.get_html(urls_to_process[0])
