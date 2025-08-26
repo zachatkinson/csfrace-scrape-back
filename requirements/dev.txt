@@ -14,7 +14,7 @@ types-PyYAML>=6.0.0
 types-beautifulsoup4>=4.12.0
 
 # Security scanning
-bandit>=1.7.5,<2.0.0
+bandit[sarif]>=1.8.6,<2.0.0
 safety>=2.3.0,<3.0.0
 pip-audit>=2.6.0,<3.0.0
 detect-secrets>=1.4.0,<2.0.0
