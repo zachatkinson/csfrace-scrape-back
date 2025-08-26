@@ -3,7 +3,7 @@
 #########################
 # Build stage
 #########################
-FROM python:3.11-slim as builder
+FROM python:3.11.11-slim-bookworm as builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     g++ \
+    && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
@@ -34,7 +35,7 @@ RUN python -m pip install --upgrade pip setuptools wheel && \
 #########################
 # Production stage
 #########################
-FROM python:3.11-slim as production
+FROM python:3.11.11-slim-bookworm as production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -42,9 +43,10 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH="/app/src:$PYTHONPATH"
 
-# Install runtime dependencies
+# Install runtime dependencies and apply security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

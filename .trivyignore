@@ -1,0 +1,10 @@
+# Trivy ignore file for known false positives or accepted risks
+
+# Python vulnerabilities that are not applicable to our use case
+# Add specific CVE IDs here if they don't apply to our application
+
+# Example: Ignore vulnerabilities in test dependencies
+# CVE-2023-XXXXX
+
+# OS-level vulnerabilities that can't be fixed without major upgrades
+# (Only add these if you've verified they don't affect your application)
