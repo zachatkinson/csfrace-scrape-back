@@ -1,42 +1,22 @@
-# Trivy ignore file for known false positives or accepted risks
-
-# OS-level vulnerabilities that are either unfixable or don't affect our application
-# These are inherited from the base Python Docker image and can't be easily fixed
-
-# glibc vulnerabilities - static binary issue, minimal impact for web scraper
-CVE-2025-4802
-
-# zlib vulnerability marked as "will_not_fix" by maintainers
-CVE-2023-45853
-
-# perl CPAN vulnerability - we don't use CPAN or perl in our application
-CVE-2023-31484
-
-# libldap vulnerability - we don't use LDAP authentication
-CVE-2023-2953
-
-# linux-pam directory traversal - we run as non-root user with restricted permissions
-CVE-2025-6020
-
-# SQLite vulnerabilities - we don't directly use SQLite in our application
-# These are transitive dependencies from system packages
-CVE-2025-6965
-CVE-2025-7458
-
-# Additional common OS-level vulnerabilities in Debian bookworm
-# These are often found in base Python images and don't affect web scrapers
-
-# OpenSSL vulnerabilities - if not used directly
-CVE-2023-5678
-CVE-2024-0727
-
-# systemd vulnerabilities - not relevant for containerized apps
-CVE-2023-26604
-
-# Additional glibc and core system vulnerabilities
-CVE-2023-4911
-CVE-2023-4527
-
-# Python package vulnerabilities that may appear in base image
-CVE-2023-40217
-CVE-2023-41105
+# Trivy ignore file - SECURITY BEST PRACTICES
+# 
+# ⚠️  WARNING: Only add CVEs here after proper security review
+# 
+# Each ignored CVE must include:
+# 1. Verified CVE number (not guessed)
+# 2. Clear justification for why it's safe to ignore
+# 3. Risk assessment and mitigation steps
+# 4. Review date for re-evaluation
+# 
+# APPROVAL PROCESS:
+# - All ignores must be reviewed by security team
+# - Document why the vulnerability doesn't apply to our use case
+# - Set expiration dates for regular review
+# 
+# ===================================================================
+# CURRENTLY NO VULNERABILITIES IGNORED
+# 
+# This file intentionally left minimal to maintain security posture.
+# We will only add ignores after seeing actual Trivy output and 
+# conducting proper risk assessment for each specific CVE.
+# ===================================================================

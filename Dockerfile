@@ -35,7 +35,7 @@ RUN python -m pip install --upgrade pip "setuptools>=78.1.1" wheel && \
 #########################
 # Production stage
 #########################
-FROM python:3.11.11-slim-bookworm as production
+FROM python:3.11-slim-bookworm as production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -54,6 +54,9 @@ RUN groupadd -r scraper && useradd -r -g scraper scraper
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
+
+# SECURITY: Fix setuptools vulnerabilities CVE-2024-6345 and CVE-2025-47273
+RUN python -m pip install --upgrade "setuptools>=78.1.1"
 
 # Set work directory
 WORKDIR /app
