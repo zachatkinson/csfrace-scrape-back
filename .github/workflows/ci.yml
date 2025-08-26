@@ -147,8 +147,14 @@ jobs:
         
       - name: Run unit tests with coverage
         run: |
-          # Run unit tests from reorganized test structure (tests now mirror src/ structure)
-          uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
+          # Run unit tests with parallel execution for faster CI (Playwright best practice)
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            # Parallel execution on Ubuntu (faster, more resources)
+            uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
+          else
+            # Sequential execution on Windows/macOS (more stable)
+            uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
+          fi
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
