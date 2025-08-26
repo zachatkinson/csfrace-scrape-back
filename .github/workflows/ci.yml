@@ -152,16 +152,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          pytest tests/unit/ \
-            --cov=src \
-            --cov-branch \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --cov-fail-under=28 \
-            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
-            -v \
-            --tb=short \
-            --maxfail=10
+          pytest tests/unit/ --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -244,11 +235,7 @@ jobs:
 
       - name: Run Redis integration tests
         run: |
-          pytest tests/integration/test_redis_cache.py \
-            --junit-xml=junit-redis-integration-${{ matrix.python-version }}.xml \
-            -v \
-            --tb=short \
-            --maxfail=5
+          pytest tests/integration/test_redis_cache.py --junit-xml=junit-redis-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
         env:
           REDIS_URL: redis://localhost:6379
 
@@ -295,11 +282,7 @@ jobs:
 
       - name: Run converter integration tests
         run: |
-          pytest tests/integration/test_converter_integration.py \
-            --junit-xml=junit-converter-integration-${{ matrix.python-version }}.xml \
-            -v \
-            --tb=short \
-            --maxfail=5
+          pytest tests/integration/test_converter_integration.py --junit-xml=junit-converter-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
 
       - name: Upload converter integration test results
         uses: actions/upload-artifact@v4
@@ -385,10 +368,7 @@ jobs:
 
       - name: Run performance tests
         run: |
-          pytest tests/performance/ \
-            --benchmark-only \
-            --benchmark-json=benchmark.json \
-            --benchmark-sort=mean
+          pytest tests/performance/ --benchmark-only --benchmark-json=benchmark.json --benchmark-sort=mean
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
