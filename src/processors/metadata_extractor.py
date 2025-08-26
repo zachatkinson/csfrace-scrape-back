@@ -61,20 +61,22 @@ class MetadataExtractor:
 
     async def _extract_meta_description(self, soup: BeautifulSoup) -> str:
         """Extract meta description from various sources."""
+        from ..utils.html import find_meta_content
+
         # Try standard meta description
-        meta_desc = soup.find("meta", attrs={"name": "description"})
-        if meta_desc and meta_desc.get("content"):
-            return meta_desc["content"].strip()
+        meta_desc = find_meta_content(soup, name="description")
+        if meta_desc:
+            return meta_desc.strip()
 
         # Try Open Graph description
-        og_desc = soup.find("meta", attrs={"property": "og:description"})
-        if og_desc and og_desc.get("content"):
-            return og_desc["content"].strip()
+        og_desc = find_meta_content(soup, property="og:description")
+        if og_desc:
+            return og_desc.strip()
 
         # Try Twitter description
-        twitter_desc = soup.find("meta", attrs={"name": "twitter:description"})
-        if twitter_desc and twitter_desc.get("content"):
-            return twitter_desc["content"].strip()
+        twitter_desc = find_meta_content(soup, name="twitter:description")
+        if twitter_desc:
+            return twitter_desc.strip()
 
         return "No description found"
 

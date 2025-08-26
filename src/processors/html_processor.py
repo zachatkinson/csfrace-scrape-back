@@ -5,8 +5,10 @@ import re
 import structlog
 from bs4 import BeautifulSoup, NavigableString, Tag
 
+from ..constants import CONSTANTS
 from ..core.config import config
 from ..core.exceptions import ProcessingError
+from ..utils.html import safe_copy_attributes
 
 logger = structlog.get_logger(__name__)
 
@@ -224,8 +226,7 @@ class HTMLProcessor:
 
         # Create clean img tag
         new_img = soup_root.new_tag("img")
-        new_img["src"] = img.get("src", "")
-        new_img["alt"] = img.get("alt", "")
+        safe_copy_attributes(img, new_img, {"src": "src", "alt": "alt"})
 
         # Copy important attributes
         if img.get("width"):
@@ -264,8 +265,7 @@ class HTMLProcessor:
             if img_tag:
                 # Create new clean img tag
                 new_img = soup_root.new_tag("img")
-                new_img["src"] = img_tag.get("src", "")
-                new_img["alt"] = img_tag.get("alt", "")
+                safe_copy_attributes(img_tag, new_img, {"src": "src", "alt": "alt"})
 
                 # Preserve dimensions if available
                 if img_tag.get("width"):
@@ -301,7 +301,7 @@ class HTMLProcessor:
     def _create_shopify_button(self, soup_root: BeautifulSoup, original_btn: Tag) -> Tag:
         """Create Shopify-formatted button."""
         new_btn = soup_root.new_tag("a")
-        new_btn["href"] = original_btn.get("href", "")
+        safe_copy_attributes(original_btn, new_btn, {"href": "href"})
         new_btn["class"] = [
             "button",
             "button--full-width",
@@ -326,7 +326,10 @@ class HTMLProcessor:
             return False
 
         href_lower = href.lower()
-        return href_lower.startswith(("http://", "https://")) and "csfrace.com" not in href_lower
+        return (
+            href_lower.startswith((CONSTANTS.HTTP_PROTOCOL, CONSTANTS.HTTPS_PROTOCOL))
+            and CONSTANTS.TARGET_DOMAIN not in href_lower
+        )
 
     async def _convert_blockquotes(self, content: Tag) -> Tag:
         """Convert pullquote blocks to testimonial format.
@@ -407,9 +410,12 @@ class HTMLProcessor:
 
         # Responsive iframe
         new_iframe = soup_root.new_tag("iframe")
-        new_iframe["style"] = "aspect-ratio: 16/9; width: 100% !important;"
-        new_iframe["src"] = iframe.get("src", "")
-        new_iframe["title"] = iframe.get("title", "YouTube Video")
+        new_iframe[
+            "style"
+        ] = f"aspect-ratio: {CONSTANTS.IFRAME_ASPECT_RATIO}; width: 100% !important;"
+        safe_copy_attributes(
+            iframe, new_iframe, {"src": "src", "title": ("title", "YouTube Video")}
+        )
         new_iframe["frameborder"] = "0"
         new_iframe["allowfullscreen"] = True
 
@@ -529,7 +535,7 @@ class HTMLProcessor:
                 if not any(
                     keep_style in style
                     for keep_style in [
-                        "aspect-ratio: 16/9",
+                        f"aspect-ratio: {CONSTANTS.IFRAME_ASPECT_RATIO}",
                         "display: flex; justify-content: center;",
                     ]
                 ):

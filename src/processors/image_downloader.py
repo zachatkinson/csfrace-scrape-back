@@ -145,7 +145,11 @@ class AsyncImageDownloader:
             # Check robots.txt and enforce crawl delay for images
             await robots_checker.check_and_delay(url, config.user_agent, session)
 
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            from ..constants import CONSTANTS
+
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=CONSTANTS.DEFAULT_TIMEOUT)
+            ) as response:
                 response.raise_for_status()
 
                 # Generate filename
@@ -215,4 +219,6 @@ class AsyncImageDownloader:
                 return ext
 
         # Default extension
-        return ".jpg"
+        from ..constants import CONSTANTS
+
+        return CONSTANTS.DEFAULT_IMAGE_EXTENSION

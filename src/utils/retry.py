@@ -47,9 +47,9 @@ def with_retry(
             # Create retry configuration
             retry_config = AsyncRetrying(
                 stop=stop_after_attempt(max_attempts),
-                wait=wait_exponential(multiplier=1, min=1, max=60, base=backoff_factor),
+                wait=wait_exponential(multiplier=backoff_factor, min=1, max=60),
                 retry=retry_if_exception_type(retry_on),
-                before_sleep=before_sleep_log(logger, logging_level=20),  # INFO level
+                before_sleep=before_sleep_log(logger, log_level=20),  # INFO level from constants
                 reraise=True,
             )
 

@@ -1,74 +1,47 @@
 """Configuration settings for the converter."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from ..constants import CONSTANTS
 
 
 @dataclass(frozen=True)
 class ConverterConfig:
-    """Configuration for the WordPress to Shopify converter."""
+    """Configuration for the WordPress to Shopify converter.
 
-    # HTTP Settings
-    default_timeout: int = 30
-    max_concurrent_downloads: int = 10
-    rate_limit_delay: float = 0.5
-    max_retries: int = 3
-    backoff_factor: float = 2.0
+    All values use centralized constants to eliminate DRY violations.
+    """
 
-    # User Agent
-    user_agent: str = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    # HTTP Settings - using centralized constants
+    default_timeout: int = CONSTANTS.DEFAULT_TIMEOUT
+    max_concurrent_downloads: int = CONSTANTS.MAX_CONCURRENT
+    rate_limit_delay: float = CONSTANTS.RATE_LIMIT_DELAY
+    max_retries: int = CONSTANTS.MAX_RETRIES
+    backoff_factor: float = CONSTANTS.BACKOFF_FACTOR
+
+    # User Agent - using centralized constant
+    user_agent: str = CONSTANTS.DEFAULT_USER_AGENT
+
+    # Output Settings - using centralized constants
+    default_output_dir: str = CONSTANTS.DEFAULT_OUTPUT_DIR
+    images_subdir: str = CONSTANTS.DEFAULT_IMAGES_DIR
+
+    # Shopify-compatible CSS classes - using centralized constant
+    preserve_classes: frozenset[str] = CONSTANTS.SHOPIFY_PRESERVE_CLASSES
+
+    # File names - using centralized constants
+    metadata_file: str = CONSTANTS.METADATA_FILE
+    html_file: str = CONSTANTS.HTML_FILE
+    shopify_file: str = CONSTANTS.SHOPIFY_FILE
+
+    # Robots.txt settings - using centralized constants
+    respect_robots_txt: bool = CONSTANTS.RESPECT_ROBOTS_TXT
+    robots_cache_duration: int = CONSTANTS.ROBOTS_CACHE_DURATION
+
+    # Content type mappings - using centralized constant
+    content_type_extensions: dict[str, str] = field(
+        default_factory=lambda: CONSTANTS.IMAGE_CONTENT_TYPES
     )
-
-    # Output Settings
-    default_output_dir: str = "converted_content"
-    images_subdir: str = "images"
-
-    # Shopify-compatible CSS classes to preserve
-    preserve_classes: frozenset[str] = frozenset(
-        [
-            "center",
-            "media-grid",
-            "media-grid-2",
-            "media-grid-4",
-            "media-grid-5",
-            "media-grid-text-box",
-            "testimonial-quote",
-            "group",
-            "quote-container",
-            "button",
-            "button--full-width",
-            "button--primary",
-            "press-release-button",
-        ]
-    )
-
-    # File names
-    metadata_file: str = "metadata.txt"
-    html_file: str = "converted_content.html"
-    shopify_file: str = "shopify_ready_content.html"
-
-    # Robots.txt settings
-    respect_robots_txt: bool = True
-    robots_cache_duration: int = 3600  # 1 hour
-
-    # Content type mappings for images
-    content_type_extensions: dict = None
-
-    def __post_init__(self):
-        if self.content_type_extensions is None:
-            object.__setattr__(
-                self,
-                "content_type_extensions",
-                {
-                    "image/jpeg": ".jpg",
-                    "image/jpg": ".jpg",
-                    "image/png": ".png",
-                    "image/gif": ".gif",
-                    "image/webp": ".webp",
-                    "image/svg+xml": ".svg",
-                },
-            )
 
 
 # Global config instance

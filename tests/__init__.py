@@ -1,1 +1,1 @@
-"""Test suite for WordPress to Shopify converter."""
+"""Test package for WordPress to Shopify converter."""

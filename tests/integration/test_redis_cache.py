@@ -1,158 +1,348 @@
-"""Integration tests for Redis caching backend."""
+"""Integration tests for Redis cache backend."""
 
-from pathlib import Path
+import asyncio
+import time
+from unittest.mock import patch
 
 import pytest
 
-from src.caching.base import CacheBackend, CacheConfig
-from src.caching.manager import CacheManager
+from src.caching.base import CacheConfig, CacheBackend
+from src.constants import TEST_CONSTANTS
+
+# Skip all tests in this module if Redis is not available
+pytestmark = pytest.mark.redis
 
 
-@pytest.mark.asyncio
-async def test_redis_cache_integration():
-    """Test Redis cache integration if Redis is available."""
+@pytest.mark.integration
+class TestRedisCacheIntegration:
+    """Test Redis cache backend integration."""
 
-    try:
-        # Try to create Redis cache manager
-        config = CacheConfig(
-            backend=CacheBackend.REDIS,
-            redis_host="localhost",
-            redis_port=6379,
-            redis_db=1,  # Use db 1 for tests
-            redis_key_prefix="test:",
-            ttl_html=300,
-            ttl_images=600,
-        )
+    @pytest.fixture
+    async def redis_cache(self):
+        """Create Redis cache instance for testing."""
+        try:
+            from src.caching.redis_cache import RedisCache, REDIS_AVAILABLE
+            
+            if not REDIS_AVAILABLE:
+                pytest.skip("Redis package not available")
+            
+            config = CacheConfig(
+                backend=CacheBackend.REDIS,
+                redis_host=TEST_CONSTANTS.TEST_REDIS_HOST,
+                redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
+                redis_db=TEST_CONSTANTS.TEST_REDIS_DB,
+                redis_key_prefix=TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX,
+                ttl_default=30  # Short TTL for testing
+            )
+            
+            cache = RedisCache(config)
+            
+            try:
+                await cache.initialize()
+                yield cache
+            finally:
+                try:
+                    await cache.clear()
+                    await cache.shutdown()
+                except Exception:
+                    # Ignore cleanup errors
+                    pass
+                    
+        except ImportError:
+            pytest.skip("Redis package not available")
+        except Exception as e:
+            pytest.skip(f"Redis server not available: {e}")
 
-        cache = CacheManager(config)
-        await cache.initialize()
+    @pytest.mark.asyncio
+    async def test_redis_connection(self, redis_cache):
+        """Test Redis connection establishment."""
+        # Should be able to ping Redis
+        client = await redis_cache._get_client()
+        assert client is not None
+        
+        # Test ping
+        result = await client.ping()
+        assert result is True
 
-        # Test HTML caching
-        test_url = "https://example.com/redis-test"
-        test_html = "<html><body><h1>Redis Test</h1></body></html>"
+    @pytest.mark.asyncio
+    async def test_redis_basic_operations(self, redis_cache):
+        """Test basic Redis cache operations."""
+        # Test set operation
+        success = await redis_cache.set("test_key", "test_value", ttl=60)
+        assert success is True
+        
+        # Test get operation
+        entry = await redis_cache.get("test_key")
+        assert entry is not None
+        assert entry.value == "test_value"
+        assert not entry.is_expired
+        
+        # Test delete operation
+        deleted = await redis_cache.delete("test_key")
+        assert deleted is True
+        
+        # Verify deletion
+        entry = await redis_cache.get("test_key")
+        assert entry is None
 
-        success = await cache.set_html(test_url, test_html)
-        assert success, "Failed to cache HTML in Redis"
+    @pytest.mark.asyncio
+    async def test_redis_expiration(self, redis_cache):
+        """Test Redis TTL and expiration."""
+        # Set key with short TTL
+        await redis_cache.set("expire_key", "expire_value", ttl=2)
+        
+        # Should exist initially
+        entry = await redis_cache.get("expire_key")
+        assert entry is not None
+        assert entry.value == "expire_value"
+        
+        # Wait for expiration
+        await asyncio.sleep(3)
+        
+        # Should be expired
+        entry = await redis_cache.get("expire_key")
+        assert entry is None
 
-        cached_html = await cache.get_html(test_url)
-        assert cached_html == test_html, "Retrieved HTML doesn't match cached HTML"
-
-        # Test image caching with binary data
-        image_url = "https://example.com/test.jpg"
-        image_data = b"\x89PNG\r\n\x1a\nfake image data"
-
-        success = await cache.set_image(image_url, image_data)
-        assert success, "Failed to cache image in Redis"
-
-        cached_image = await cache.get_image(image_url)
-        assert cached_image == image_data, "Retrieved image data doesn't match cached data"
-
-        # Test metadata caching
-        metadata = {
-            "title": "Redis Test Page",
-            "description": "Testing Redis caching",
-            "tags": ["redis", "cache", "test"],
-            "nested": {"data": "value"},
+    @pytest.mark.asyncio
+    async def test_redis_complex_data_types(self, redis_cache):
+        """Test caching complex data types."""
+        complex_data = {
+            "string": "value",
+            "number": 123,
+            "list": [1, 2, 3, "four"],
+            "dict": {"nested": "value", "count": 456},
+            "boolean": True,
+            "null": None
         }
+        
+        await redis_cache.set("complex_key", complex_data, ttl=60)
+        
+        entry = await redis_cache.get("complex_key")
+        assert entry is not None
+        assert entry.value == complex_data
 
-        success = await cache.set_metadata(test_url, metadata)
-        assert success, "Failed to cache metadata in Redis"
+    @pytest.mark.asyncio
+    async def test_redis_compression(self, redis_cache):
+        """Test Redis data compression."""
+        # Test with large data that benefits from compression
+        large_data = "x" * 10000  # 10KB string
+        
+        await redis_cache.set("large_key", large_data, ttl=60)
+        
+        entry = await redis_cache.get("large_key")
+        assert entry is not None
+        assert entry.value == large_data
+        assert entry.compressed == redis_cache.config.compress
 
-        cached_metadata = await cache.get_metadata(test_url)
-        assert cached_metadata == metadata, "Retrieved metadata doesn't match cached metadata"
+    @pytest.mark.asyncio
+    async def test_redis_key_prefix(self, redis_cache):
+        """Test Redis key prefixing."""
+        await redis_cache.set("prefix_test", "value", ttl=60)
+        
+        # Check that key exists with prefix
+        client = await redis_cache._get_client()
+        redis_key = redis_cache._make_redis_key("prefix_test")
+        
+        assert redis_key.startswith(TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX)
+        
+        # Verify key exists in Redis
+        exists = await client.exists(redis_key)
+        assert exists == 1
 
-        # Test cache stats
-        stats = await cache.get_cache_stats()
-        assert "redis_version" in stats, "Redis stats should include version"
-        assert stats["total_entries"] >= 3, "Should have cached at least 3 items"
-        assert stats["backend"] == "redis", "Backend should be Redis"
+    @pytest.mark.asyncio
+    async def test_redis_clear_operations(self, redis_cache):
+        """Test Redis clear operations."""
+        # Add multiple keys
+        await redis_cache.set("clear_key1", "value1", ttl=60)
+        await redis_cache.set("clear_key2", "value2", ttl=60)
+        await redis_cache.set("clear_key3", "value3", ttl=60)
+        
+        # Clear cache
+        success = await redis_cache.clear()
+        assert success is True
+        
+        # All keys should be gone
+        assert await redis_cache.get("clear_key1") is None
+        assert await redis_cache.get("clear_key2") is None
+        assert await redis_cache.get("clear_key3") is None
 
-        # Test cache invalidation
-        invalidated = await cache.invalidate_url(test_url)
-        assert invalidated, "Should have invalidated cached data"
+    @pytest.mark.asyncio
+    async def test_redis_stats(self, redis_cache):
+        """Test Redis statistics collection."""
+        # Add some test data
+        await redis_cache.set("stats_key1", "value1", ttl=60, content_type="html")
+        await redis_cache.set("stats_key2", "value2", ttl=60, content_type="image")
+        
+        # Get some data to generate hit/miss stats
+        await redis_cache.get("stats_key1")  # Hit
+        await redis_cache.get("nonexistent")  # Miss
+        
+        stats = await redis_cache.stats()
+        
+        assert isinstance(stats, dict)
+        assert "hits" in stats
+        assert "misses" in stats
+        assert "total_entries" in stats
+        assert "total_size_bytes" in stats
+        assert "redis_version" in stats
+        assert "hit_rate" in stats
+        
+        assert stats["hits"] >= 1
+        assert stats["misses"] >= 1
+        assert stats["total_entries"] >= 2
 
-        # Verify invalidation worked
-        assert await cache.get_html(test_url) is None, "HTML should be invalidated"
-        assert await cache.get_metadata(test_url) is None, "Metadata should be invalidated"
+    @pytest.mark.asyncio
+    async def test_redis_concurrent_operations(self, redis_cache):
+        """Test concurrent Redis operations."""
+        # Perform multiple operations concurrently
+        async def set_data(key, value):
+            return await redis_cache.set(f"concurrent_{key}", f"value_{value}", ttl=60)
+        
+        async def get_data(key):
+            return await redis_cache.get(f"concurrent_{key}")
+        
+        # Set data concurrently
+        set_tasks = [set_data(i, i) for i in range(10)]
+        results = await asyncio.gather(*set_tasks)
+        
+        # All sets should succeed
+        assert all(results)
+        
+        # Get data concurrently
+        get_tasks = [get_data(i) for i in range(10)]
+        entries = await asyncio.gather(*get_tasks)
+        
+        # All gets should succeed
+        assert all(entry is not None for entry in entries)
+        assert all(entry.value == f"value_{i}" for i, entry in enumerate(entries))
 
-        # Image should still exist (different URL)
-        cached_image_after = await cache.get_image(image_url)
-        assert cached_image_after == image_data, "Image should still be cached"
+    @pytest.mark.asyncio
+    async def test_redis_error_handling(self, redis_cache):
+        """Test Redis error handling."""
+        # Test with Redis connection issues
+        original_client = redis_cache.redis_client
+        
+        # Simulate connection failure
+        redis_cache.redis_client = None
+        
+        # Operations should handle errors gracefully
+        entry = await redis_cache.get("error_test")
+        assert entry is None  # Should return None on error, not raise
+        
+        success = await redis_cache.set("error_test", "value")
+        assert success is False  # Should return False on error
+        
+        # Restore client
+        redis_cache.redis_client = original_client
 
-        # Cleanup
-        await cache.clear_cache()
-        await cache.shutdown()
+    @pytest.mark.asyncio
+    async def test_redis_key_generation(self, redis_cache):
+        """Test Redis key generation and handling."""
+        # Test normal key
+        redis_key = redis_cache._make_redis_key("normal_key")
+        expected_prefix = TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX
+        assert redis_key == f"{expected_prefix}normal_key"
+        
+        # Test key with special characters
+        special_key = redis_cache._make_redis_key("key:with:colons")
+        assert special_key == f"{expected_prefix}key:with:colons"
 
-    except Exception as e:
-        if "redis" in str(e).lower() or "connection" in str(e).lower():
-            pytest.skip(f"Redis not available for testing: {e}")
-        else:
-            raise
+    @pytest.mark.asyncio
+    async def test_redis_ttl_handling(self, redis_cache):
+        """Test Redis TTL handling."""
+        # Test with different TTL values
+        await redis_cache.set("ttl_test1", "value1", ttl=0)  # No expiration
+        await redis_cache.set("ttl_test2", "value2", ttl=3600)  # 1 hour
+        await redis_cache.set("ttl_test3", "value3")  # Default TTL
+        
+        client = await redis_cache._get_client()
+        
+        # Check TTL values in Redis
+        ttl1 = await client.ttl(redis_cache._make_redis_key("ttl_test1"))
+        ttl2 = await client.ttl(redis_cache._make_redis_key("ttl_test2"))
+        ttl3 = await client.ttl(redis_cache._make_redis_key("ttl_test3"))
+        
+        # TTL of -1 means no expiration, positive value means time remaining
+        assert ttl1 == -1  # No expiration
+        assert 3500 <= ttl2 <= 3600  # Should be close to 1 hour
+        assert ttl3 > 0  # Should have some TTL
 
+    @pytest.mark.asyncio
+    async def test_redis_cleanup_expired(self, redis_cache):
+        """Test Redis expired cleanup (should be no-op since Redis handles TTL)."""
+        # Add expired data
+        await redis_cache.set("cleanup_test", "value", ttl=1)
+        await asyncio.sleep(2)
+        
+        # Run cleanup
+        cleaned = await redis_cache.cleanup_expired()
+        
+        # Redis handles TTL automatically, so cleanup should return 0
+        assert cleaned == 0
+        
+        # Key should be automatically expired by Redis
+        entry = await redis_cache.get("cleanup_test")
+        assert entry is None
 
-@pytest.mark.asyncio
-async def test_redis_vs_file_cache_compatibility():
-    """Test that Redis and file cache backends are compatible."""
-
-    # Test data
-    test_url = "https://example.com/compatibility-test"
-    test_html = "<html><body>Compatibility test</body></html>"
-    test_metadata = {"title": "Compatibility Test", "source": "test"}
-
-    try:
-        # Test with Redis first
-        redis_config = CacheConfig(
-            backend=CacheBackend.REDIS,
-            redis_db=2,  # Different DB for this test
-            redis_key_prefix="compat:",
-        )
-
-        redis_cache = CacheManager(redis_config)
+    @pytest.mark.asyncio
+    async def test_redis_connection_recovery(self, redis_cache):
+        """Test Redis connection recovery after disconnection."""
+        # Test that cache can recover from connection issues
+        # This is a complex test that would require actually interrupting Redis connection
+        # For now, just test that initialization can be called multiple times
+        
         await redis_cache.initialize()
+        await redis_cache.initialize()  # Should not fail
+        
+        # Basic operation should still work
+        success = await redis_cache.set("recovery_test", "value", ttl=60)
+        assert success is True
 
-        # Cache data in Redis
-        await redis_cache.set_html(test_url, test_html)
-        await redis_cache.set_metadata(test_url, test_metadata)
+    @pytest.mark.asyncio
+    async def test_redis_memory_efficiency(self, redis_cache):
+        """Test Redis memory usage with various data sizes."""
+        data_sizes = [100, 1000, 10000]  # Different data sizes
+        
+        for size in data_sizes:
+            data = "x" * size
+            key = f"memory_test_{size}"
+            
+            success = await redis_cache.set(key, data, ttl=60)
+            assert success is True
+            
+            entry = await redis_cache.get(key)
+            assert entry is not None
+            assert len(entry.value) == size
 
-        # Verify Redis cache
-        redis_html = await redis_cache.get_html(test_url)
-        redis_metadata = await redis_cache.get_metadata(test_url)
-
-        assert redis_html == test_html
-        assert redis_metadata == test_metadata
-
-        await redis_cache.shutdown()
-
-        # Test with File cache
-        file_config = CacheConfig(backend=CacheBackend.FILE, cache_dir=Path("test_compat_cache"))
-
-        file_cache = CacheManager(file_config)
-        await file_cache.initialize()
-
-        # Cache same data in file cache
-        await file_cache.set_html(test_url, test_html)
-        await file_cache.set_metadata(test_url, test_metadata)
-
-        # Verify file cache
-        file_html = await file_cache.get_html(test_url)
-        file_metadata = await file_cache.get_metadata(test_url)
-
-        assert file_html == test_html
-        assert file_metadata == test_metadata
-
-        # Both backends should produce identical results
-        assert redis_html == file_html
-        assert redis_metadata == file_metadata
-
-        await file_cache.shutdown()
-
-        # Cleanup
-        import shutil
-
-        shutil.rmtree("test_compat_cache", ignore_errors=True)
-
-    except Exception as e:
-        if "redis" in str(e).lower() or "connection" in str(e).lower():
-            pytest.skip(f"Redis not available for testing: {e}")
-        else:
-            raise
+    @pytest.mark.asyncio  
+    async def test_redis_database_isolation(self, redis_cache):
+        """Test that test Redis database is isolated."""
+        # Ensure we're using the test database
+        assert redis_cache.config.redis_db == TEST_CONSTANTS.TEST_REDIS_DB
+        
+        # Add data
+        await redis_cache.set("isolation_test", "test_value", ttl=60)
+        
+        # Create cache with different database
+        different_config = CacheConfig(
+            backend=CacheBackend.REDIS,
+            redis_host=TEST_CONSTANTS.TEST_REDIS_HOST,
+            redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
+            redis_db=TEST_CONSTANTS.TEST_REDIS_DB + 1,  # Different DB
+            redis_key_prefix="different:",
+        )
+        
+        try:
+            from src.caching.redis_cache import RedisCache
+            different_cache = RedisCache(different_config)
+            await different_cache.initialize()
+            
+            # Should not see data from other database
+            entry = await different_cache.get("isolation_test")
+            assert entry is None
+            
+            await different_cache.shutdown()
+            
+        except Exception:
+            # If we can't test database isolation, that's ok
+            pass

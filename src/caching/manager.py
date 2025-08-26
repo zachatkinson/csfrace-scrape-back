@@ -48,6 +48,8 @@ class CacheManager:
                         "Redis backend requested but redis package not available. Install with: pip install redis"
                     )
                 self.backend = RedisCache(self.config)
+                # Initialize Redis connection - this will test connectivity
+                await self.backend.initialize()
             else:
                 raise ValueError(f"Unsupported cache backend: {self.config.backend}")
 
@@ -308,12 +310,17 @@ class CacheManager:
 
     def _hash_url(self, url: str) -> str:
         """Create a hash of a URL for use in cache keys."""
-        return hashlib.sha256(url.encode()).hexdigest()[:16]
+        from ..constants import CONSTANTS
+
+        return hashlib.sha256(url.encode()).hexdigest()[: CONSTANTS.HASH_LENGTH]
 
     async def shutdown(self) -> None:
         """Shutdown cache manager and backend."""
-        if self.backend and hasattr(self.backend, "close"):
-            await self.backend.close()
+        if self.backend:
+            if hasattr(self.backend, "shutdown"):
+                await self.backend.shutdown()
+            elif hasattr(self.backend, "close"):
+                await self.backend.close()
 
         self._initialized = False
         logger.info("Cache manager shutdown")

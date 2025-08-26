@@ -61,18 +61,18 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
             metadata["title"] = title_tag.get_text().strip()
             metadata["title_length"] = len(metadata["title"])
 
+        from ...utils.html import find_meta_content
+
         # Meta description
-        desc_tag = soup.find("meta", attrs={"name": "description"})
-        if desc_tag:
-            metadata["description"] = desc_tag.get("content", "").strip()
+        description = find_meta_content(soup, name="description")
+        if description:
+            metadata["description"] = description.strip()
             metadata["description_length"] = len(metadata["description"])
 
         # Meta keywords
-        keywords_tag = soup.find("meta", attrs={"name": "keywords"})
-        if keywords_tag:
-            metadata["keywords"] = [
-                k.strip() for k in keywords_tag.get("content", "").split(",") if k.strip()
-            ]
+        keywords = find_meta_content(soup, name="keywords")
+        if keywords:
+            metadata["keywords"] = [k.strip() for k in keywords.split(",") if k.strip()]
 
         # Canonical URL
         canonical_tag = soup.find("link", attrs={"rel": "canonical"})

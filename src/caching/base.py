@@ -11,6 +11,8 @@ from typing import Any, Optional, Union
 
 import structlog
 
+from ..constants import CONSTANTS
+
 logger = structlog.get_logger(__name__)
 
 
@@ -24,30 +26,30 @@ class CacheBackend(Enum):
 
 @dataclass
 class CacheConfig:
-    """Configuration for caching system."""
+    """Configuration for caching system using centralized constants."""
 
     backend: CacheBackend = CacheBackend.FILE
-    ttl_default: int = 3600  # 1 hour default TTL
-    ttl_html: int = 1800  # 30 minutes for HTML content
-    ttl_images: int = 86400  # 24 hours for images
-    ttl_metadata: int = 3600  # 1 hour for metadata
-    ttl_robots: int = 86400  # 24 hours for robots.txt
+    ttl_default: int = CONSTANTS.DEFAULT_TTL
+    ttl_html: int = CONSTANTS.CACHE_TTL_HTML
+    ttl_images: int = CONSTANTS.CACHE_TTL_IMAGES
+    ttl_metadata: int = CONSTANTS.CACHE_TTL_METADATA
+    ttl_robots: int = CONSTANTS.ROBOTS_CACHE_DURATION
 
     # File cache settings
     cache_dir: Path = Path(".cache")
-    max_cache_size_mb: int = 1000  # 1GB max cache size
+    max_cache_size_mb: int = CONSTANTS.MAX_CACHE_SIZE_MB
 
-    # Redis cache settings
-    redis_host: str = "localhost"
-    redis_port: int = 6379
-    redis_db: int = 0
+    # Redis cache settings - using centralized constants
+    redis_host: str = CONSTANTS.REDIS_HOST
+    redis_port: int = CONSTANTS.REDIS_PORT
+    redis_db: int = CONSTANTS.REDIS_DB
     redis_password: Optional[str] = None
-    redis_key_prefix: str = "wp-shopify:"
+    redis_key_prefix: str = CONSTANTS.REDIS_KEY_PREFIX
 
     # General settings
     compress: bool = True
     cleanup_on_startup: bool = True
-    max_key_length: int = 250
+    max_key_length: int = CONSTANTS.MAX_KEY_LENGTH
 
 
 @dataclass
@@ -187,9 +189,9 @@ class BaseCacheBackend(abc.ABC):
 
         # Hash if too long
         if len(raw_key) > self.config.max_key_length:
-            key_hash = hashlib.sha256(raw_key.encode()).hexdigest()[:16]
+            key_hash = hashlib.sha256(raw_key.encode()).hexdigest()[: CONSTANTS.HASH_LENGTH]
             # Keep some readable part + hash
-            readable_part = raw_key[: self.config.max_key_length - 20]
+            readable_part = raw_key[: self.config.max_key_length - CONSTANTS.KEY_READABLE_OFFSET]
             return f"{readable_part}:{key_hash}"
 
         return raw_key

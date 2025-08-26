@@ -3,6 +3,7 @@
 import time
 from typing import Any, Optional
 
+from ..constants import CONSTANTS
 from .base import BaseCacheBackend, CacheConfig, CacheEntry
 
 try:
@@ -38,21 +39,35 @@ class RedisCache(BaseCacheBackend):
         self.redis_client = None
         self._stats = {"hits": 0, "misses": 0, "sets": 0, "deletes": 0, "errors": 0}
 
+    async def initialize(self):
+        """Initialize Redis connection and test connectivity."""
+        await self._get_client()  # This will establish and test the connection
+
+    async def shutdown(self):
+        """Close Redis connection."""
+        if self.redis_client:
+            await self.redis_client.aclose()
+            self.redis_client = None
+            self.logger.info("Redis connection closed")
+
     async def _get_client(self):
         """Get Redis client, creating connection if needed."""
         if self.redis_client is None:
             try:
+                from ..constants import CONSTANTS
+
                 self.redis_client = redis.Redis(
                     host=self.config.redis_host,
                     port=self.config.redis_port,
                     db=self.config.redis_db,
                     password=self.config.redis_password,
                     decode_responses=False,  # We handle encoding ourselves
-                    socket_connect_timeout=5.0,
-                    socket_timeout=5.0,
+                    socket_connect_timeout=CONSTANTS.REDIS_SOCKET_CONNECT_TIMEOUT,
+                    socket_timeout=CONSTANTS.REDIS_SOCKET_TIMEOUT,
+                    retry_on_timeout=True,
                 )
 
-                # Test connection
+                # Test connection - this will raise an exception if connection fails
                 await self.redis_client.ping()
                 self.logger.info(
                     "Redis connection established",
@@ -62,6 +77,15 @@ class RedisCache(BaseCacheBackend):
 
             except Exception as e:
                 self.logger.error("Failed to connect to Redis", error=str(e))
+                # Clean up failed connection attempt
+                if self.redis_client:
+                    try:
+                        await self.redis_client.aclose()
+                    except Exception as cleanup_error:
+                        self.logger.warning(
+                            "Failed to cleanup Redis connection", error=str(cleanup_error)
+                        )
+                    self.redis_client = None
                 raise
 
         return self.redis_client
@@ -211,7 +235,7 @@ class RedisCache(BaseCacheBackend):
             total_size = 0
             if keys:
                 # Sample a few keys to estimate average size
-                sample_keys = keys[: min(10, len(keys))]
+                sample_keys = keys[: min(CONSTANTS.SAMPLE_KEY_COUNT, len(keys))]
                 sample_sizes = []
 
                 for key in sample_keys:
@@ -230,7 +254,7 @@ class RedisCache(BaseCacheBackend):
                 **self._stats,
                 "total_entries": total_entries,
                 "total_size_bytes": total_size,
-                "total_size_mb": round(total_size / (1024 * 1024), 2),
+                "total_size_mb": round(total_size / CONSTANTS.BYTES_PER_MB, 2),
                 "redis_version": redis_info.get("redis_version", "unknown"),
                 "redis_memory_used": redis_info.get("used_memory_human", "unknown"),
                 "redis_connected_clients": redis_info.get("connected_clients", 0),

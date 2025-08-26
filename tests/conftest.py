@@ -1,179 +1,280 @@
-"""Pytest configuration and shared fixtures."""
+"""Shared fixtures and test configuration for pytest."""
 
 import asyncio
 import tempfile
-from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import pytest
+import pytest_asyncio
+from aioresponses import aioresponses
 from bs4 import BeautifulSoup
 
-from src.core.converter import AsyncWordPressConverter
-from src.processors.html_processor import HTMLProcessor
-from src.processors.image_downloader import AsyncImageDownloader
-from src.processors.metadata_extractor import MetadataExtractor
+from src.constants import CONSTANTS, TEST_CONSTANTS
+from src.caching.base import CacheConfig
+from src.caching.file_cache import FileCache
+from src.core.config import config
 
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an instance of the default event loop for the test session."""
+    """Create event loop for async tests."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
 @pytest.fixture
-def temp_dir() -> Generator[Path, None, None]:
-    """Temporary directory for test outputs."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+def mock_aiohttp_session():
+    """Mock aiohttp session for testing."""
+    session = AsyncMock(spec=aiohttp.ClientSession)
+    return session
 
 
 @pytest.fixture
-def sample_html() -> str:
-    """Sample WordPress HTML for testing."""
+def mock_responses():
+    """Mock HTTP responses with aioresponses."""
+    with aioresponses() as m:
+        yield m
+
+
+@pytest.fixture
+def temp_dir():
+    """Create temporary directory for test files."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield Path(temp_dir)
+
+
+@pytest.fixture
+def cache_config(temp_dir):
+    """Create test cache configuration."""
+    return CacheConfig(
+        cache_dir=temp_dir / ".test_cache",
+        ttl_default=30,  # Short TTL for testing
+        max_cache_size_mb=10,  # Small cache for testing
+        redis_host=TEST_CONSTANTS.TEST_REDIS_HOST,
+        redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
+        redis_db=TEST_CONSTANTS.TEST_REDIS_DB,
+        redis_key_prefix=TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX,
+        cleanup_on_startup=True,
+    )
+
+
+@pytest_asyncio.fixture
+async def file_cache(cache_config):
+    """Create test file cache instance."""
+    cache = FileCache(cache_config)
+    # FileCache initializes in constructor, no separate initialize method needed
+    yield cache
+    await cache.cleanup_expired()
+    await cache.clear()
+
+
+@pytest.fixture
+def sample_html():
+    """Sample HTML content for testing."""
     return """
     <!DOCTYPE html>
     <html>
     <head>
         <title>Test Blog Post</title>
         <meta name="description" content="A test blog post for unit testing">
-        <meta property="article:published_time" content="2024-01-15T10:00:00Z">
+        <meta property="og:title" content="OG Test Title">
+        <meta property="og:description" content="OG test description">
     </head>
     <body>
-        <div class="entry-content">
-            <p>This is a test paragraph with <b>bold</b> and <i>italic</i> text.</p>
-
-            <div class="has-text-align-center">
-                <p>Centered text content</p>
-            </div>
-
-            <div class="wp-block-kadence-rowlayout">
-                <div class="kt-has-2-columns">
-                    <div class="wp-block-kadence-column">
-                        <div class="kt-inside-inner-col">
-                            <h3>Column 1 Title</h3>
-                            <p>Column 1 content</p>
-                        </div>
-                    </div>
-                    <div class="wp-block-kadence-column">
-                        <div class="kt-inside-inner-col">
-                            <h3>Column 2 Title</h3>
-                            <p>Column 2 content</p>
-                        </div>
-                    </div>
+        <article class="wp-block-group">
+            <h1>Test Blog Post</h1>
+            <div class="wp-block-columns">
+                <div class="wp-block-column">
+                    <p><strong>Bold text</strong> and <em>italic text</em></p>
+                    <p style="text-align: center;">Centered text</p>
                 </div>
             </div>
-
-            <div class="wp-block-image">
-                <img src="/test-image.jpg" alt="Test image">
-            </div>
-
-            <div class="wp-block-kadence-advancedbtn">
-                <a class="button" href="https://external-site.com">External Link</a>
-            </div>
-
-            <figure class="wp-block-pullquote">
-                <blockquote>
-                    <p>This is a test quote</p>
-                    <cite>Test Author</cite>
-                </blockquote>
+            <figure class="wp-block-image">
+                <img src="/test-image.jpg" alt="Test image" title="Test Title">
+                <figcaption>Test image caption</figcaption>
             </figure>
-
-            <figure class="wp-block-embed-youtube">
+            <div class="wp-block-buttons">
+                <div class="wp-block-button">
+                    <a class="wp-block-button__link" href="/test-link">Test Button</a>
+                </div>
+            </div>
+            <blockquote class="wp-block-quote">
+                <p>Test quote content</p>
+                <cite>Test Author</cite>
+            </blockquote>
+            <figure class="wp-block-embed wp-block-embed-youtube">
                 <div class="wp-block-embed__wrapper">
-                    <iframe src="https://www.youtube.com/embed/test123" title="Test Video"></iframe>
+                    <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
                 </div>
-                <figcaption>Test video caption</figcaption>
             </figure>
-
-            <script>alert('This should be removed');</script>
-        </div>
+        </article>
+        <script>console.log('test');</script>
     </body>
     </html>
     """
 
 
 @pytest.fixture
-def sample_soup(sample_html: str) -> BeautifulSoup:
+def sample_soup(sample_html):
     """BeautifulSoup object from sample HTML."""
     return BeautifulSoup(sample_html, "html.parser")
 
 
 @pytest.fixture
-def html_processor() -> HTMLProcessor:
-    """HTML processor instance."""
-    return HTMLProcessor()
+def sample_metadata():
+    """Sample metadata dictionary."""
+    return {
+        "title": TEST_CONSTANTS.SAMPLE_HTML_TITLE,
+        "description": TEST_CONSTANTS.SAMPLE_HTML_DESCRIPTION,
+        "url": TEST_CONSTANTS.SAMPLE_POST_URL,
+        "og_title": "OG Test Title",
+        "og_description": "OG test description",
+        "word_count": 50,
+        "reading_time": 1,
+        "images": ["/test-image.jpg"],
+    }
 
 
 @pytest.fixture
-def metadata_extractor() -> MetadataExtractor:
-    """Metadata extractor instance."""
-    return MetadataExtractor("https://test.example.com/blog/test-post")
+def sample_image_data():
+    """Sample image data for testing."""
+    return TEST_CONSTANTS.TEST_IMAGE_CONTENT
 
 
 @pytest.fixture
-def image_downloader(temp_dir: Path) -> AsyncImageDownloader:
-    """Image downloader instance with temporary directory."""
-    return AsyncImageDownloader(temp_dir / "images", max_concurrent=2)
-
-
-@pytest.fixture
-async def mock_session() -> AsyncGenerator[AsyncMock, None]:
-    """Mock aiohttp session for testing."""
-    session = AsyncMock(spec=aiohttp.ClientSession)
-
-    # Mock response for successful requests
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.text.return_value = "test response"
-    mock_response.content_length = 1024
-    mock_response.headers = {"content-type": "image/jpeg"}
-    mock_response.content.iter_chunked.return_value = [b"test data"]
-
-    session.get.return_value.__aenter__.return_value = mock_response
-
-    yield session
-
-
-@pytest.fixture
-def converter(temp_dir: Path) -> AsyncWordPressConverter:
-    """Async converter instance with temporary directory."""
-    return AsyncWordPressConverter(
-        base_url="https://test.example.com/blog/test-post", output_dir=temp_dir
-    )
-
-
-@pytest.fixture
-def mock_robots_content() -> str:
-    """Sample robots.txt content for testing."""
+def sample_wordpress_content():
+    """Sample WordPress content with various blocks."""
     return """
-User-agent: *
-Disallow: /admin/
-Disallow: /private/
-Crawl-delay: 2
-
-User-agent: Googlebot
-Crawl-delay: 1
-
-User-agent: BadBot
-Disallow: /
+    <div class="wp-block-group">
+        <div class="wp-block-kadence-spacer"></div>
+        <div class="wp-block-columns">
+            <div class="wp-block-column">
+                <p style="font-size: 18px; color: #333;">Custom styled text</p>
+                <p class="has-text-align-center">Centered paragraph</p>
+            </div>
+        </div>
+        <div class="wp-block-gallery">
+            <figure><img src="/image1.jpg" alt="Image 1"></figure>
+            <figure><img src="/image2.jpg" alt="Image 2"></figure>
+        </div>
+        <div class="wp-block-buttons">
+            <div class="wp-block-button is-style-fill">
+                <a class="wp-block-button__link has-vivid-red-background-color" href="/action">
+                    Action Button
+                </a>
+            </div>
+        </div>
+    </div>
     """
 
 
 @pytest.fixture
-def image_urls() -> list[str]:
-    """Sample image URLs for testing."""
-    return [
-        "https://test.example.com/image1.jpg",
-        "https://test.example.com/image2.png",
-        "https://test.example.com/image3.webp",
-    ]
+def mock_wordpress_server(mock_responses):
+    """Mock WordPress server responses."""
+    # Mock robots.txt
+    mock_responses.get(
+        f"{TEST_CONSTANTS.BASE_TEST_URL}/robots.txt",
+        body="User-agent: *\nAllow: /\nCrawl-delay: 1"
+    )
+    
+    # Mock sample post
+    mock_responses.get(
+        TEST_CONSTANTS.SAMPLE_POST_URL,
+        body="""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Sample WordPress Post</title>
+            <meta name="description" content="Sample post content">
+        </head>
+        <body>
+            <article>
+                <h1>Sample Post</h1>
+                <p>This is sample content.</p>
+            </article>
+        </body>
+        </html>
+        """
+    )
+    
+    # Mock image
+    mock_responses.get(
+        f"{TEST_CONSTANTS.BASE_TEST_URL}{TEST_CONSTANTS.SAMPLE_IMAGE_URL}",
+        body=TEST_CONSTANTS.TEST_IMAGE_CONTENT,
+        headers={"Content-Type": "image/jpeg"}
+    )
+    
+    return mock_responses
 
 
-# Pytest marks for different test categories
-pytest.mark.unit = pytest.mark.unit
-pytest.mark.integration = pytest.mark.integration
-pytest.mark.slow = pytest.mark.slow
+@pytest.fixture
+def plugin_config():
+    """Sample plugin configuration."""
+    from src.plugins.base import PluginConfig, PluginType
+    
+    return PluginConfig(
+        name="test_plugin",
+        version="1.0.0",
+        plugin_type=PluginType.HTML_PROCESSOR,
+        enabled=True,
+        priority=100,
+        settings={"test_setting": "test_value"}
+    )
+
+
+@pytest_asyncio.fixture
+async def mock_redis_cache():
+    """Mock Redis cache for testing."""
+    try:
+        from src.caching.redis_cache import RedisCache
+        cache = MagicMock(spec=RedisCache)
+        cache.get = AsyncMock(return_value=None)
+        cache.set = AsyncMock(return_value=True)
+        cache.delete = AsyncMock(return_value=True)
+        cache.clear = AsyncMock(return_value=True)
+        cache.stats = AsyncMock(return_value={
+            "hits": 0, "misses": 0, "total_entries": 0
+        })
+        return cache
+    except ImportError:
+        # Redis not available, return None
+        return None
+
+
+# Test markers
+def pytest_configure(config):
+    """Configure custom pytest markers."""
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests"
+    )
+    config.addinivalue_line(
+        "markers", "performance: marks tests as performance tests"
+    )
+    config.addinivalue_line(
+        "markers", "e2e: marks tests as end-to-end tests"
+    )
+    config.addinivalue_line(
+        "markers", "redis: marks tests that require Redis"
+    )
+
+
+# Skip Redis tests if not available
+def pytest_collection_modifyitems(config, items):
+    """Modify test collection to handle missing dependencies."""
+    try:
+        import redis
+        redis_available = True
+    except ImportError:
+        redis_available = False
+    
+    if not redis_available:
+        skip_redis = pytest.mark.skip(reason="Redis not available")
+        for item in items:
+            if "redis" in item.keywords:
+                item.add_marker(skip_redis)

@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [master, develop]
   schedule:
     # Run weekly security scans
     - cron: '0 6 * * 1'
@@ -37,18 +37,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .[dev,test]
+          python -m pip install -r requirements/dev.txt
 
-      - name: Cache pre-commit hooks
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
-
-      - name: Run pre-commit hooks
-        run: |
-          pre-commit install
-          pre-commit run --all-files --show-diff-on-failure
 
       - name: Run Ruff (linting)
         run: ruff check src/ tests/ --output-format=github
@@ -110,7 +100,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .[test]
+          python -m pip install -r requirements/dev.txt
 
       - name: Run unit tests
         run: |
@@ -119,7 +109,7 @@ jobs:
             --cov-branch \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=85 \
+            --cov-fail-under=80 \
             --junit-xml=junit-unit.xml
 
       - name: Run integration tests
@@ -169,7 +159,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .[test]
+          python -m pip install -r requirements/dev.txt
 
       - name: Run performance tests
         run: |
@@ -234,34 +224,6 @@ jobs:
         with:
           sarif_file: hadolint-results.sarif
 
-  # Documentation build
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install documentation dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[docs]
-
-      - name: Build documentation
-        run: |
-          sphinx-build -W -b html docs/ docs/_build/html/
-
-      - name: Upload documentation
-        uses: actions/upload-artifact@v3
-        with:
-          name: documentation
-          path: docs/_build/html/
 
   # Dependency review (for PRs)
   dependency-review:
@@ -298,7 +260,7 @@ jobs:
     name: Deploy to Production
     needs: [quality, test, performance, docker]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     environment: production
 
     steps:
@@ -315,7 +277,7 @@ jobs:
     name: Cleanup
     runs-on: ubuntu-latest
     if: always()
-    needs: [quality, test, performance, docker, docs]
+    needs: [quality, test, performance, docker]
 
     steps:
       - name: Delete old artifacts

@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import aiofiles
 
+from ..constants import CONSTANTS
 from .base import BaseCacheBackend, CacheConfig, CacheEntry
 
 
@@ -235,7 +236,7 @@ class FileCache(BaseCacheBackend):
                 "total_entries": total_entries,
                 "expired_entries": expired_entries,
                 "total_size_bytes": total_size,
-                "total_size_mb": round(total_size / (1024 * 1024), 2),
+                "total_size_mb": round(total_size / CONSTANTS.BYTES_PER_MB, 2),
                 "cache_dir": str(self.cache_dir),
                 "hit_rate": (
                     self._stats["hits"] / max(1, self._stats["hits"] + self._stats["misses"])
@@ -325,10 +326,14 @@ class FileCache(BaseCacheBackend):
             # Remove oldest files until under limit
             removed_size = 0
             removed_count = 0
-            target_size = self.config.max_cache_size_mb * 0.8 * 1024 * 1024  # 80% of limit
+            target_size = (
+                self.config.max_cache_size_mb
+                * CONSTANTS.CACHE_CLEANUP_RATIO
+                * CONSTANTS.BYTES_PER_MB
+            )
 
             for cache_file, mtime, size in cache_files:
-                if current_size_mb * 1024 * 1024 - removed_size <= target_size:
+                if current_size_mb * CONSTANTS.BYTES_PER_MB - removed_size <= target_size:
                     break
 
                 try:
@@ -341,7 +346,7 @@ class FileCache(BaseCacheBackend):
             self.logger.info(
                 "Cache cleanup completed",
                 removed_count=removed_count,
-                removed_size_mb=round(removed_size / (1024 * 1024), 2),
+                removed_size_mb=round(removed_size / CONSTANTS.BYTES_PER_MB, 2),
             )
 
         except Exception as e:

@@ -3,15 +3,81 @@
 ## Project Overview
 This Python3 application converts WordPress blog content from the CSFrace website to Shopify-compatible HTML format. It handles various WordPress blocks, embeds, and formatting while ensuring the output is optimized for Shopify's content system.
 
-## Python Development Standards
+## MANDATORY Code Quality Standards
 
-### 1. Code Style & Formatting
+### 1. DRY and SOLID Principles (MANDATORY)
+**These principles are MANDATORY and must be followed without exception. NO EXCEPTIONS.**
+
+#### DRY (Don't Repeat Yourself) - ZERO TOLERANCE
+- **NEVER duplicate code, values, or logic anywhere**
+- **ALL repeated values must be extracted to constants**
+- **NO hardcoded URLs, paths, or magic numbers in business logic**
+- **Use environment variables with proper defaults**
+- **Extract common functionality into reusable utilities**
+
+**Constants Management Pattern (MANDATORY):**
+```python
+# constants.py - MANDATORY for all projects
+from dataclasses import dataclass
+from os import environ
+from pathlib import Path
+
+@dataclass(frozen=True)
+class AppConstants:
+    # URLs - NO hardcoding allowed
+    DEFAULT_BASE_URL: str = environ.get("BASE_URL", "https://example.com")
+    TEST_BASE_URL: str = environ.get("TEST_URL", "https://test.example.com") 
+    
+    # Paths - NO hardcoding allowed
+    DEFAULT_OUTPUT_DIR: Path = Path(environ.get("OUTPUT_DIR", "converted_content"))
+    DEFAULT_IMAGES_DIR: str = "images"
+    
+    # Timeouts and limits
+    DEFAULT_TIMEOUT: int = int(environ.get("DEFAULT_TIMEOUT", "30"))
+    MAX_CONCURRENT: int = int(environ.get("MAX_CONCURRENT", "10"))
+    MAX_RETRIES: int = int(environ.get("MAX_RETRIES", "3"))
+    
+    # File names - centralized
+    METADATA_FILE: str = "metadata.txt" 
+    HTML_FILE: str = "converted_content.html"
+    SHOPIFY_FILE: str = "shopify_ready_content.html"
+```
+
+#### SOLID Principles (MANDATORY)
+1. **Single Responsibility**: Each class/function has ONE clear purpose
+2. **Open/Closed**: Extend through inheritance/composition, not modification  
+3. **Liskov Substitution**: Subclasses must work exactly like base classes
+4. **Interface Segregation**: Create focused, specific interfaces
+5. **Dependency Inversion**: Depend on abstractions, inject dependencies
+
+**Dependency Injection Pattern (MANDATORY):**
+```python
+# GOOD - Dependencies injected, testable, flexible
+class AsyncWordPressConverter:
+    def __init__(self, 
+                 base_url: str, 
+                 output_dir: Path,
+                 config: Optional[ConverterConfig] = None,
+                 http_client: Optional[HTTPClient] = None,
+                 logger: Optional[Logger] = None):
+        self.config = config or default_config
+        self.http_client = http_client or default_client
+        self.logger = logger or get_logger(__name__)
+```
+
+#### Configuration Management (MANDATORY)
+- **ALL configuration through environment variables**
+- **NO hardcoded values in business logic** 
+- **Validation on all configuration inputs**
+- **Sensible defaults with explicit documentation**
+
+### 2. Code Style & Formatting (MANDATORY)  
 - **PEP 8 Compliance**: Follow PEP 8 style guide for Python code
 - **Line Length**: Maximum 100 characters (relaxed from PEP 8's 79 for readability)
 - **Indentation**: 4 spaces (no tabs)
 - **Naming Conventions**:
   - Classes: `PascalCase` (e.g., `WordPressToShopifyConverter`)
-  - Functions/Methods: `snake_case` (e.g., `convert_font_formatting`)
+  - Functions/Methods: `snake_case` (e.g., `convert_font_formatting`)  
   - Constants: `UPPER_SNAKE_CASE` (e.g., `DEFAULT_OUTPUT_DIR`)
   - Private methods: Leading underscore (e.g., `_internal_method`)
 

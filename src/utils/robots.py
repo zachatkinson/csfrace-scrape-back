@@ -9,6 +9,7 @@ import aiohttp
 import structlog
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 
+from ..constants import CONSTANTS
 from ..core.config import config
 from ..core.exceptions import RateLimitError
 
@@ -53,39 +54,46 @@ class RobotsChecker:
                 stop=stop_after_attempt(3), wait=wait_fixed(1), reraise=True
             ):
                 with attempt:
-                    async with session.get(
-                        robots_url, timeout=aiohttp.ClientTimeout(total=10)
-                    ) as response:
-                        if response.status == 200:
-                            robots_content = await response.text()
+                    from ..utils.http import safe_http_get
 
-                            # Parse robots.txt content directly
-                            rp = RobotFileParser()
-                            rp.set_url(robots_url)
+                    http_response = await safe_http_get(
+                        session,
+                        robots_url,
+                        timeout=CONSTANTS.ROBOTS_TIMEOUT,
+                        expected_statuses={
+                            CONSTANTS.HTTP_STATUS_OK,
+                            CONSTANTS.HTTP_STATUS_NOT_FOUND,
+                        },
+                    )
 
-                            # Parse the content line by line
-                            lines = robots_content.splitlines()
-                            rp.parse(lines)
+                    if http_response.status == CONSTANTS.HTTP_STATUS_OK:
+                        robots_content = http_response.content
 
-                            # Cache the result
-                            self._cache[domain] = rp
+                        # Parse robots.txt content directly
+                        rp = RobotFileParser()
+                        rp.set_url(robots_url)
 
-                            logger.info(
-                                "Successfully loaded robots.txt", domain=domain, url=robots_url
-                            )
-                            return rp
-                        elif response.status == 404:
-                            logger.info("No robots.txt found", domain=domain)
-                            # Cache the fact that there's no robots.txt
-                            self._cache[domain] = None
-                            return None
-                        else:
-                            logger.warning(
-                                "Unexpected robots.txt response",
-                                domain=domain,
-                                status=response.status,
-                            )
-                            return None
+                        # Parse the content line by line
+                        lines = robots_content.splitlines()
+                        rp.parse(lines)
+
+                        # Cache the result
+                        self._cache[domain] = rp
+
+                        logger.info("Successfully loaded robots.txt", domain=domain, url=robots_url)
+                        return rp
+                    elif http_response.status == CONSTANTS.HTTP_STATUS_NOT_FOUND:
+                        logger.info("No robots.txt found", domain=domain)
+                        # Cache the fact that there's no robots.txt
+                        self._cache[domain] = None
+                        return None
+                    else:
+                        logger.warning(
+                            "Unexpected robots.txt response",
+                            domain=domain,
+                            status=http_response.status,
+                        )
+                        return None
 
         except Exception as e:
             logger.warning("Failed to fetch robots.txt", domain=domain, error=str(e))

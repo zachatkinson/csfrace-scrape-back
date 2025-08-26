@@ -12,6 +12,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from ..constants import CONSTANTS
 from ..core.converter import AsyncWordPressConverter
 
 logger = structlog.get_logger(__name__)
@@ -325,8 +326,10 @@ class BatchProcessor:
         import csv
 
         added = 0
+        from ..constants import CONSTANTS
+
         # Detect delimiter
-        sample = file_handle.read(1024)
+        sample = file_handle.read(CONSTANTS.FILE_READ_BUFFER_SIZE)
         file_handle.seek(0)
         sniffer = csv.Sniffer()
         delimiter = sniffer.sniff(sample).delimiter
@@ -646,11 +649,11 @@ class BatchProcessor:
 
         # Show summary panel
         stats_text = f"""
-Total Jobs: {summary['total']}
-✅ Successful: {summary['successful']}
-❌ Failed: {summary['failed']}
-⏭️  Skipped: {summary['skipped']}
-⏱️  Average Duration: {summary['average_duration']:.1f}s
+Total Jobs: {summary["total"]}
+✅ Successful: {summary["successful"]}
+❌ Failed: {summary["failed"]}
+⏭️  Skipped: {summary["skipped"]}
+⏱️  Average Duration: {summary["average_duration"]:.1f}s
         """.strip()
 
         console.print()
@@ -718,7 +721,7 @@ Total Jobs: {summary['total']}
             job_url=job.url,
             archive_path=str(archive_path),
             size_bytes=archive_size,
-            size_mb=round(archive_size / (1024 * 1024), 2),
+            size_mb=round(archive_size / CONSTANTS.BYTES_PER_MB, 2),
         )
 
         return archive_path
