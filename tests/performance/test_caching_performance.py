@@ -218,6 +218,7 @@ class TestCachePerformance:
         def cache_operation():
             # Since benchmark doesn't handle async, we use asyncio.run
             import asyncio
+
             asyncio.run(file_cache.set(test_key, test_data, ttl=3600))
             return asyncio.run(file_cache.get(test_key))
 

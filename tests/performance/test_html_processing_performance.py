@@ -56,6 +56,7 @@ class TestHTMLProcessingPerformance:
         def process_large_content():
             # Since benchmark doesn't handle async, we use asyncio.run
             import asyncio
+
             return asyncio.run(html_processor.process(soup))
 
         result = benchmark(process_large_content)
