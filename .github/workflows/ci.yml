@@ -15,7 +15,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.13"
-  POETRY_VERSION: "1.6.1"
+  UV_VERSION: "0.8.13"
 
 jobs:
   # Code quality and security checks (foundational job)
@@ -39,37 +39,31 @@ jobs:
           persist-credentials: false  # Security best practice
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements/*.txt'
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-quality-${{ hashFiles('requirements/*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-quality-
-            ${{ runner.os }}-pip-
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: quality
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/dev.txt
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
 
       - name: Run Ruff (linting)
-        run: ruff check src/ tests/ --output-format=github
+        run: uv run ruff check src/ tests/ --output-format=github
 
       - name: Run Ruff (formatting check)
-        run: ruff format --check src/ tests/
+        run: uv run ruff format --check src/ tests/
 
       - name: Run MyPy (type checking)
-        run: mypy src/ --show-error-codes
+        run: uv run mypy src/ --show-error-codes
 
       - name: Run Bandit (security scan)
-        run: bandit -r src/ -f sarif -o bandit-report.sarif
+        run: uv run bandit -r src/ -f sarif -o bandit-report.sarif
         continue-on-error: true
 
       - name: Upload Bandit SARIF results
@@ -81,12 +75,12 @@ jobs:
 
       - name: Run Safety (dependency security)
         run: |
-          safety check --format json --output safety-report.json || 
+          uv run safety check --format json --output safety-report.json || 
           echo '{"vulnerabilities": []}' > safety-report.json
         continue-on-error: true
 
-      - name: Run pip-audit (package vulnerabilities)
-        run: pip-audit --format=json --output=pip-audit-report.json
+      - name: Run pip-audit (package vulnerabilities) 
+        run: uv run pip-audit --format=json --output=pip-audit-report.json
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -134,29 +128,23 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements/*.txt'
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements/*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-
-            ${{ runner.os }}-pip-
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: unit-tests-${{ matrix.os }}-${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/dev.txt
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
 
       - name: Run unit tests with coverage
         run: |
-          pytest tests/unit/ --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
+          uv run pytest tests/unit/ --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -209,37 +197,31 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements/*.txt'
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-redis-${{ matrix.python-version }}-${{ hashFiles('requirements/*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-redis-${{ matrix.python-version }}-
-            ${{ runner.os }}-pip-
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: redis-integration-${{ matrix.python-version }}
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y redis-tools
           
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/dev.txt
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
 
       - name: Verify Redis connection
         run: redis-cli -h localhost -p 6379 ping
 
       - name: Run Redis integration tests
         run: |
-          pytest tests/integration/test_redis_cache.py --junit-xml=junit-redis-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+          uv run pytest tests/integration/test_redis_cache.py --junit-xml=junit-redis-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
         env:
           REDIS_URL: redis://localhost:6379
 
@@ -273,20 +255,23 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements/*.txt'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/dev.txt
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: converter-integration-${{ matrix.python-version }}
+
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
 
       - name: Run converter integration tests
         run: |
-          pytest tests/integration/test_converter_integration.py --junit-xml=junit-converter-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+          uv run pytest tests/integration/test_converter_integration.py --junit-xml=junit-converter-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
 
       - name: Upload converter integration test results
         uses: actions/upload-artifact@v4
@@ -318,27 +303,31 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: compatibility-${{ matrix.deps }}-${{ matrix.python-version }}
 
       - name: Install minimum dependencies
         if: matrix.deps == 'minimum'
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/base.txt
-          python -m pip install pytest pytest-cov pytest-asyncio aioresponses
+          uv sync --frozen --no-editable
+          uv add --dev pytest pytest-cov pytest-asyncio aioresponses --resolution=lowest
 
       - name: Install latest dependencies  
         if: matrix.deps == 'latest'
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade -r requirements/base.txt
-          python -m pip install --upgrade pytest pytest-cov pytest-asyncio aioresponses
+          uv sync --frozen --no-editable --upgrade
 
       - name: Run compatibility tests
         run: |
-          pytest tests/unit/ --cov=src --cov-fail-under=25 -x --tb=short
+          uv run pytest tests/unit/ --cov=src --cov-fail-under=25 -x --tb=short
         continue-on-error: ${{ matrix.deps == 'latest' }}  # Allow latest to fail for early detection
 
   # Performance Benchmarks
@@ -359,20 +348,23 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements/*.txt'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/dev.txt
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: performance
+
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
 
       - name: Run performance tests
         run: |
-          pytest tests/performance/ --benchmark-only --benchmark-json=benchmark.json --benchmark-sort=mean
+          uv run pytest tests/performance/ --benchmark-only --benchmark-json=benchmark.json --benchmark-sort=mean
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

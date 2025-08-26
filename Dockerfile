@@ -1,15 +1,19 @@
-# Multi-stage Dockerfile for production deployment
+# Multi-stage Dockerfile for production deployment using UV
 
 #########################
 # Build stage
 #########################
 FROM python:3.13-slim as builder
 
-# Set environment variables
+# Install UV from official image (production best practice)
+COPY --from=ghcr.io/astral-sh/uv:0.8.13 /uv /uvx /bin/
+
+# Set environment variables for UV and Python
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/tmp/.uv-cache
 
 # Install system dependencies for building (including lxml requirements for Python 3.13)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,33 +26,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
-# SECURITY: Upgrade setuptools early to fix CVE-2024-6345 and CVE-2025-47273
-RUN python -m pip install --upgrade pip "setuptools>=78.1.1" wheel
-
 # Set work directory
 WORKDIR /build
 
-# Copy requirements (need both files for -r reference)
-COPY requirements/base.txt ./base.txt
-COPY requirements/prod.txt ./requirements.txt
+# Copy dependency files for optimal layer caching
+COPY uv.lock pyproject.toml ./
 
-# Create virtual environment and install dependencies  
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-# Install requirements - setuptools already upgraded above
-RUN python -m pip install --upgrade pip wheel && \
-    python -m pip install -r requirements.txt
+# Install dependencies (system Python, no venv overhead)
+RUN --mount=type=cache,target=/tmp/.uv-cache \
+    uv sync --frozen --no-editable --no-dev
 
 #########################
 # Production stage
 #########################
 FROM python:3.13-slim as production
 
-# Set environment variables
+# Copy UV binary from builder
+COPY --from=builder /uv /uvx /bin/
+
+# Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH="/app/src:$PYTHONPATH"
+    PYTHONPATH="/app/src:$PYTHONPATH" \
+    UV_PROJECT_ENVIRONMENT=/usr/local
 
 # Install runtime dependencies and apply security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -59,13 +59,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user
 RUN groupadd -r scraper && useradd -r -g scraper scraper
 
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
-
-# SECURITY: Fix setuptools vulnerabilities CVE-2024-6345 and CVE-2025-47273
-# Must upgrade setuptools in both venv and system Python for Trivy scanning
-RUN /opt/venv/bin/python -m pip install --upgrade "setuptools>=78.1.1" && \
-    python -m pip install --upgrade "setuptools>=78.1.1"
+# Copy the Python environment from builder (system Python installation)
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Set work directory
 WORKDIR /app
@@ -77,9 +73,9 @@ COPY --chown=scraper:scraper . .
 RUN mkdir -p /app/output /app/logs && \
     chown -R scraper:scraper /app
 
-# Health check
+# Health check using uv
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
+    CMD uv run python -c "import sys; sys.exit(0)" || exit 1
 
 # Switch to non-root user
 USER scraper
@@ -87,8 +83,8 @@ USER scraper
 # Expose port (if running API mode)
 EXPOSE 8000
 
-# Set entrypoint
-ENTRYPOINT ["python", "-m", "src.main"]
+# Set entrypoint using uv
+ENTRYPOINT ["uv", "run", "python", "-m", "src.main"]
 
 # Default command
 CMD ["--help"]

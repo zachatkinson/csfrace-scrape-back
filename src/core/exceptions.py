@@ -42,3 +42,9 @@ class RateLimitError(ConversionError):
     """Exception raised when rate limits are exceeded."""
 
     pass
+
+
+class ConfigurationError(ConversionError):
+    """Exception raised for configuration-related errors."""
+
+    pass

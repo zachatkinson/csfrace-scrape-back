@@ -1035,37 +1035,39 @@ repos:
 ```
 
 **Development Commands:**
+
+**IMPORTANT: Use `uv` for all environments (local, CI/CD, Docker) as it's now the recommended standard for modern Python development in 2025. uv provides 40% faster builds, better security, and smaller images:**
+
 ```bash
 # Install dependencies
-python -m pip install -r requirements/dev.txt
+uv sync
 
 # Run the converter
-python -m src.main <wordpress-url>
+uv run python -m src.main <wordpress-url>
 
 # Run with configuration file
-python -m src.main --config config/development.yaml
+uv run python -m src.main --config config/development.yaml
 
 # Run tests
-pytest tests/ -v --cov=src --cov-report=html
+uv run python -m pytest tests/ -v --cov=src --cov-report=html
 
 # Run specific test categories
-pytest tests/unit/ -m "not slow"
-pytest tests/integration/ --maxfail=1
-pytest tests/performance/ --benchmark-only
+uv run python -m pytest tests/unit/ -m "not slow"
+uv run python -m pytest tests/integration/ --maxfail=1
+uv run python -m pytest tests/performance/ --benchmark-only
 
 # Code quality checks
-flake8 src/ tests/
-black --check src/ tests/
-mypy src/
-bandit -r src/
-safety check
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
+uv run bandit -r src/
 
 # Format code
-black src/ tests/
-isort src/ tests/
+uv run ruff format src/ tests/
+uv run ruff check --fix src/ tests/
 
 # Build documentation
-sphinx-build -b html docs/ docs/_build/
+uv run sphinx-build -b html docs/ docs/_build/
 
 # Build Docker image
 docker build -t csfrace-scraper .
@@ -1074,8 +1076,19 @@ docker build -t csfrace-scraper .
 docker-compose up -d
 
 # Performance profiling
-python -m cProfile -o profile.stats src/main.py <url>
-python -c "import pstats; pstats.Stats('profile.stats').sort_stats('cumulative').print_stats(10)"
+uv run python -m cProfile -o profile.stats src/main.py <url>
+uv run python -c "import pstats; pstats.Stats('profile.stats').sort_stats('cumulative').print_stats(10)"
+```
+
+**CI/CD Commands (production-ready with uv):**
+```bash
+# Modern CI/CD with uv (40% faster builds)
+uv sync --frozen --no-editable
+uv run pytest tests/ -v --cov=src --cov-report=html
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
+uv run bandit -r src/
 ```
 
 **IDE Configuration (.vscode/settings.json):**

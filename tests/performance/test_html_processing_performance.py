@@ -90,7 +90,7 @@ class TestHTMLProcessingPerformance:
         url = "https://example.com/test"
 
         start_time = time.time()
-        metadata = await metadata_extractor.extract(soup, url)
+        metadata = await metadata_extractor.extract(soup)
         extraction_time = time.time() - start_time
 
         # Metadata extraction should be very fast
