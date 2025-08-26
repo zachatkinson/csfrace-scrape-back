@@ -190,7 +190,7 @@ class BatchProcessor:
             # Fallback to hash-based naming
             import hashlib
 
-            url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+            url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()[:8]
             return self.config.output_base_dir / f"post_{url_hash}"
 
     def _ensure_unique_directory(self, base_dir: Path) -> Path:
