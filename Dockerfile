@@ -3,7 +3,7 @@
 #########################
 # Build stage
 #########################
-FROM python:3.11-slim-bookworm as builder
+FROM python:3.13-slim as builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
+# SECURITY: Upgrade setuptools early to fix CVE-2024-6345 and CVE-2025-47273
+RUN python -m pip install --upgrade pip "setuptools>=78.1.1" wheel
+
 # Set work directory
 WORKDIR /build
 
@@ -26,19 +29,17 @@ WORKDIR /build
 COPY requirements/base.txt ./base.txt
 COPY requirements/prod.txt ./requirements.txt
 
-# Create virtual environment and install dependencies
+# Create virtual environment and install dependencies  
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN python -m pip install --upgrade pip "setuptools>=78.1.1" wheel && \
+# Install requirements - setuptools already upgraded above
+RUN python -m pip install --upgrade pip wheel && \
     python -m pip install -r requirements.txt
-
-# SECURITY: Also upgrade system setuptools to fix CVE-2024-6345 and CVE-2025-47273
-RUN python3 -m pip install --break-system-packages --upgrade "setuptools>=78.1.1"
 
 #########################
 # Production stage
 #########################
-FROM python:3.11-slim-bookworm as production
+FROM python:3.13-slim as production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
