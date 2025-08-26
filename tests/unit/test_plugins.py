@@ -1,6 +1,5 @@
 """Tests for plugin system components."""
 
-
 import pytest
 
 from src.plugins.base import (
