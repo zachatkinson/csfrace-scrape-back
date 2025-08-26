@@ -29,7 +29,7 @@ COPY requirements/prod.txt ./requirements.txt
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN python -m pip install --upgrade pip setuptools wheel && \
+RUN python -m pip install --upgrade pip "setuptools>=78.1.1" wheel && \
     python -m pip install -r requirements.txt
 
 #########################

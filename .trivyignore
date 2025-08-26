@@ -1,10 +1,24 @@
 # Trivy ignore file for known false positives or accepted risks
 
-# Python vulnerabilities that are not applicable to our use case
-# Add specific CVE IDs here if they don't apply to our application
+# OS-level vulnerabilities that are either unfixable or don't affect our application
+# These are inherited from the base Python Docker image and can't be easily fixed
 
-# Example: Ignore vulnerabilities in test dependencies
-# CVE-2023-XXXXX
+# glibc vulnerabilities - static binary issue, minimal impact for web scraper
+CVE-2025-4802
 
-# OS-level vulnerabilities that can't be fixed without major upgrades
-# (Only add these if you've verified they don't affect your application)
+# zlib vulnerability marked as "will_not_fix" by maintainers
+CVE-2023-45853
+
+# perl CPAN vulnerability - we don't use CPAN or perl in our application
+CVE-2023-31484
+
+# libldap vulnerability - we don't use LDAP authentication
+CVE-2023-2953
+
+# linux-pam directory traversal - we run as non-root user with restricted permissions
+CVE-2025-6020
+
+# SQLite vulnerabilities - we don't directly use SQLite in our application
+# These are transitive dependencies from system packages
+CVE-2025-6965
+CVE-2025-7458

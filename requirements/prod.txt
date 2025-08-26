@@ -11,7 +11,7 @@ opentelemetry-instrumentation-httpx>=0.42b0,<1.0.0
 
 # Production web server (if API mode is needed)
 uvicorn[standard]>=0.24.0,<1.0.0
-gunicorn>=21.2.0,<22.0.0
+gunicorn>=23.0.0,<24.0.0  # Updated to fix CVE-2024-1135 and CVE-2024-6827
 
 # Database drivers (if using database storage)
 asyncpg>=0.29.0,<1.0.0  # PostgreSQL async driver

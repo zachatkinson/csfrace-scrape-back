@@ -285,6 +285,8 @@ jobs:
           comment-on-alert: true
           alert-threshold: '200%'
           fail-on-alert: false
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmarks
         continue-on-error: true
 
   # Docker build and security scan
