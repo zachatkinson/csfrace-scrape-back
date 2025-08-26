@@ -32,6 +32,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN python -m pip install --upgrade pip "setuptools>=78.1.1" wheel && \
     python -m pip install -r requirements.txt
 
+# SECURITY: Also upgrade system setuptools to fix CVE-2024-6345 and CVE-2025-47273
+RUN python3 -m pip install --break-system-packages --upgrade "setuptools>=78.1.1"
+
 #########################
 # Production stage
 #########################
