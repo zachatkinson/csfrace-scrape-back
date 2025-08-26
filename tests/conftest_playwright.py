@@ -1,17 +1,19 @@
 """Playwright configuration for CI optimization."""
+
 import os
+from typing import Any
+
 import pytest
-from typing import Dict, Any
 
 
 @pytest.fixture(scope="session")
-def browser_config() -> Dict[str, Any]:
+def browser_config() -> dict[str, Any]:
     """Configure browser for CI environment with performance optimizations."""
     config = {
         "headless": True,
         "args": [
             "--no-sandbox",
-            "--disable-dev-shm-usage", 
+            "--disable-dev-shm-usage",
             "--disable-gpu",
             "--disable-extensions",
             "--disable-background-timer-throttling",
@@ -35,20 +37,22 @@ def browser_config() -> Dict[str, Any]:
         ],
         "ignore_default_args": ["--enable-automation"],
     }
-    
+
     # CI-specific optimizations
     if os.getenv("CI"):
-        config["args"].extend([
-            "--no-zygote",  # Disable zygote process (CI safety)
-            "--single-process",  # Use single process (CI stability)
-            "--disable-web-security",  # Disable web security for faster testing
-        ])
-    
+        config["args"].extend(
+            [
+                "--no-zygote",  # Disable zygote process (CI safety)
+                "--single-process",  # Use single process (CI stability)
+                "--disable-web-security",  # Disable web security for faster testing
+            ]
+        )
+
     return config
 
 
 @pytest.fixture(scope="session")
-def browser_context_config() -> Dict[str, Any]:
+def browser_context_config() -> dict[str, Any]:
     """Configure browser context for CI with resource blocking."""
     return {
         "ignore_https_errors": True,
@@ -61,7 +65,7 @@ def browser_context_config() -> Dict[str, Any]:
 async def optimized_page(browser_context):
     """Create a page with resource blocking for faster tests."""
     page = await browser_context.new_page()
-    
+
     # Block unnecessary resources to speed up tests by ~500ms per page load
     await page.route("**/*.{png,jpg,jpeg,gif,svg,webp}", lambda route: route.abort())
     await page.route("**/*.{css,woff,woff2,ttf,eot}", lambda route: route.abort())
@@ -72,6 +76,7 @@ async def optimized_page(browser_context):
     await page.route("**/twitter**", lambda route: route.abort())
     await page.route("**/google-analytics**", lambda route: route.abort())
     await page.route("**/googletagmanager**", lambda route: route.abort())
-    
+
     yield page
     await page.close()
+
