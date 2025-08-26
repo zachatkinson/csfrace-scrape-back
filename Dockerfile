@@ -59,7 +59,9 @@ RUN groupadd -r scraper && useradd -r -g scraper scraper
 COPY --from=builder /opt/venv /opt/venv
 
 # SECURITY: Fix setuptools vulnerabilities CVE-2024-6345 and CVE-2025-47273
-RUN python -m pip install --upgrade "setuptools>=78.1.1"
+# Must upgrade setuptools in both venv and system Python for Trivy scanning
+RUN /opt/venv/bin/python -m pip install --upgrade "setuptools>=78.1.1" && \
+    python -m pip install --upgrade "setuptools>=78.1.1"
 
 # Set work directory
 WORKDIR /app

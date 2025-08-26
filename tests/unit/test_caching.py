@@ -247,14 +247,16 @@ class TestBaseCacheBackend:
         """Test custom type serialization/deserialization."""
         backend = self.MockCacheBackend(cache_config)
 
-        # Test with Path objects
-        test_data = {"path": Path("/test/path"), "bytes": b"binary data"}
+        # Test with Path objects - use cross-platform path
+        original_path = Path("/test/path")
+        test_data = {"path": original_path, "bytes": b"binary data"}
 
         compressed = backend._compress_data(test_data)
         decompressed = backend._decompress_data(compressed, compressed=True)
 
         assert isinstance(decompressed["path"], Path)
-        assert str(decompressed["path"]) == "/test/path"
+        # Compare Path objects directly instead of string representation for cross-platform compatibility
+        assert decompressed["path"] == original_path
         assert isinstance(decompressed["bytes"], bytes)
         assert decompressed["bytes"] == b"binary data"
 
