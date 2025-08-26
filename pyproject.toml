@@ -325,6 +325,7 @@ dev = [
     "pytest-asyncio>=1.1.0,<2.0.0",
     "pytest-benchmark>=5.1.0,<6.0.0",
     "pytest-cov>=6.2.1,<7.0.0",
+    "pytest-xdist>=3.3.0,<4.0.0",  # For parallel test execution in CI
     "playwright>=1.40.0,<2.0.0",
     "pyyaml>=6.0.2,<7.0.0",
     "redis[hiredis]>=6.4.0,<7.0.0",

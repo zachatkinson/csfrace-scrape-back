@@ -51,7 +51,7 @@ jobs:
           cache-suffix: quality
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable --all-extras
+        run: uv sync --frozen --no-editable
 
       - name: Run Ruff (linting)
         run: uv run ruff check src/ tests/ --output-format=github
@@ -140,7 +140,7 @@ jobs:
           cache-suffix: unit-tests-${{ matrix.os }}-${{ matrix.python-version }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable --all-extras
+        run: uv sync --frozen --no-editable
 
       - name: Install Playwright browsers
         run: uv run playwright install chromium
@@ -225,7 +225,7 @@ jobs:
           sudo apt-get install -y redis-tools
           
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable --all-extras
+        run: uv sync --frozen --no-editable
 
       - name: Verify Redis connection
         run: redis-cli -h localhost -p 6379 ping
@@ -278,7 +278,7 @@ jobs:
           cache-suffix: converter-integration-${{ matrix.python-version }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable --all-extras
+        run: uv sync --frozen --no-editable
 
       - name: Run converter integration tests
         run: |
@@ -328,12 +328,12 @@ jobs:
       - name: Install minimum dependencies
         if: matrix.deps == 'minimum'
         run: |
-          uv sync --frozen --no-editable --all-extras
+          uv sync --frozen --no-editable
 
       - name: Install latest dependencies  
         if: matrix.deps == 'latest'
         run: |
-          uv sync --no-editable --upgrade --all-extras
+          uv sync --no-editable --upgrade
 
       - name: Install Playwright browsers
         run: uv run playwright install chromium
@@ -373,7 +373,7 @@ jobs:
           cache-suffix: performance
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable --all-extras
+        run: uv sync --frozen --no-editable
 
       - name: Install Playwright browsers
         run: uv run playwright install chromium
