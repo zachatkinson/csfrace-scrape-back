@@ -220,12 +220,20 @@ class AdaptiveRenderer:
         """Render multiple pages concurrently."""
         logger.info("Starting concurrent rendering", url_count=len(urls))
 
+        # Extract concurrency control parameter
+        max_concurrent = render_options.pop("max_concurrent", self.strategy.max_concurrent_renders)
+
+        # Create semaphore for concurrency control
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def render_with_semaphore(url: str):
+            async with semaphore:
+                return await self.render_page(url, **render_options)
+
         # Create tasks for concurrent rendering
         tasks = []
         for url in urls:
-            task = asyncio.create_task(
-                self.render_page(url, **render_options), name=f"render_{url}"
-            )
+            task = asyncio.create_task(render_with_semaphore(url), name=f"render_{url}")
             tasks.append(task)
 
         # Execute all tasks and collect results

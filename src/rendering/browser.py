@@ -39,6 +39,7 @@ class BrowserConfig(BaseModel):
     )
     ignore_https_errors: bool = Field(default=True, description="Ignore HTTPS certificate errors")
     javascript_enabled: bool = Field(default=True, description="Enable JavaScript execution")
+    proxy: Optional[dict[str, str]] = Field(default=None, description="Proxy configuration")
 
     @field_validator("browser_type")
     @classmethod
