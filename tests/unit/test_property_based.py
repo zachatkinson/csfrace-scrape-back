@@ -8,7 +8,7 @@ import asyncio
 from unittest.mock import Mock
 
 import pytest
-from hypothesis import given, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, rule
 
@@ -182,16 +182,18 @@ class TestCircuitBreakerProperties:
 
             # Verify correct number of results
             assert len(results) == num_operations
-            
+
             # Count successful and rejected operations
             successful = sum(1 for r in results if r is True)
             rejected = sum(1 for r in results if isinstance(r, Exception))
-            
+
             # Should have at least some successful operations if any were started
             if num_operations > 0:
                 assert successful + rejected == num_operations
                 # At least min(max_concurrent, num_operations) should succeed eventually
-                assert successful >= min(max_concurrent, 1) if num_operations > 0 else successful == 0
+                assert (
+                    successful >= min(max_concurrent, 1) if num_operations > 0 else successful == 0
+                )
 
             # Verify concurrency limit was respected
             assert max_active <= max_concurrent
@@ -358,7 +360,9 @@ class TestPersistentCookieJarProperties:
         ),
         domain=st.from_regex(r"[a-z]{3,10}\.(com|org|net)", fullmatch=True),
     )
-    @settings(max_examples=30, deadline=2000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        max_examples=30, deadline=2000, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     def test_cookie_persistence_roundtrip(self, cookies, domain, tmp_path):
         """Test that cookies survive save/load roundtrip."""
         cookie_path = tmp_path / "test_cookies.json"
