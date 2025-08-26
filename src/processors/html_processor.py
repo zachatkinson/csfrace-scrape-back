@@ -5,7 +5,7 @@ import re
 import structlog
 from bs4 import BeautifulSoup, NavigableString, Tag
 
-from ..constants import CONSTANTS
+from ..constants import CONSTANTS, IFRAME_ASPECT_RATIO
 from ..core.config import config
 from ..core.exceptions import ProcessingError
 from ..utils.html import safe_copy_attributes
@@ -411,7 +411,7 @@ class HTMLProcessor:
         # Responsive iframe
         new_iframe = soup_root.new_tag("iframe")
         new_iframe["style"] = (
-            f"aspect-ratio: {CONSTANTS.IFRAME_ASPECT_RATIO}; width: 100% !important;"
+            f"aspect-ratio: {IFRAME_ASPECT_RATIO}; width: 100% !important;"
         )
         safe_copy_attributes(
             iframe, new_iframe, {"src": "src", "title": ("title", "YouTube Video")}
@@ -535,7 +535,7 @@ class HTMLProcessor:
                 if not any(
                     keep_style in style
                     for keep_style in [
-                        f"aspect-ratio: {CONSTANTS.IFRAME_ASPECT_RATIO}",
+                        f"aspect-ratio: {IFRAME_ASPECT_RATIO}",
                         "display: flex; justify-content: center;",
                     ]
                 ):

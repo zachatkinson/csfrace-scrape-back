@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from src.constants import CONSTANTS, TEST_CONSTANTS, AppConstants
+from src.constants import CONSTANTS, PROGRESS_CONSTANTS, TEST_CONSTANTS, AppConstants
 
 
 class TestAppConstants:
@@ -87,11 +87,11 @@ class TestAppConstants:
 
     def test_progress_constants(self):
         """Test progress tracking constants."""
-        assert CONSTANTS.PROGRESS_START == 0
-        assert CONSTANTS.PROGRESS_SETUP == 10
-        assert CONSTANTS.PROGRESS_FETCH == 20
-        assert CONSTANTS.PROGRESS_PROCESS == 60
-        assert CONSTANTS.PROGRESS_COMPLETE == 100
+        assert PROGRESS_CONSTANTS.START == 0
+        assert PROGRESS_CONSTANTS.SETUP == 10
+        assert PROGRESS_CONSTANTS.FETCH == 20
+        assert PROGRESS_CONSTANTS.PROCESS == 60
+        assert PROGRESS_CONSTANTS.COMPLETE == 100
 
 
 class TestTestConstants:

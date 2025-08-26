@@ -56,7 +56,6 @@ class TestRenderingStrategy:
             RenderingStrategy(force_javascript=True, force_static=True)
 
 
-@pytest.mark.asyncio
 class TestAdaptiveRenderer:
     """Test adaptive renderer functionality."""
 
@@ -90,7 +89,8 @@ class TestAdaptiveRenderer:
             reasons=[],
         )
 
-    def test_adaptive_renderer_initialization(self):
+    @pytest.mark.asyncio
+    async def test_adaptive_renderer_initialization(self):
         """Test adaptive renderer initialization."""
         strategy = RenderingStrategy(confidence_threshold=0.8)
         renderer = AdaptiveRenderer(strategy=strategy)
@@ -100,7 +100,8 @@ class TestAdaptiveRenderer:
         assert renderer._js_renderer is None
         assert renderer._render_semaphore._value == 3  # Default max concurrent
 
-    def test_adaptive_renderer_custom_detector(self, mock_detector):
+    @pytest.mark.asyncio
+    async def test_adaptive_renderer_custom_detector(self, mock_detector):
         """Test adaptive renderer with custom detector."""
         renderer = AdaptiveRenderer(detector=mock_detector)
 
@@ -359,7 +360,6 @@ class TestAdaptiveRenderer:
         assert renderer._js_renderer is None
 
 
-@pytest.mark.asyncio
 class TestRenderingService:
     """Test high-level rendering service."""
 
@@ -368,7 +368,8 @@ class TestRenderingService:
         """Mock adaptive renderer."""
         return AsyncMock()
 
-    def test_rendering_service_initialization(self):
+    @pytest.mark.asyncio
+    async def test_rendering_service_initialization(self):
         """Test rendering service initialization."""
         service = RenderingService()
 
