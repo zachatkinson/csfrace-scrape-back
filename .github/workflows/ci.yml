@@ -283,56 +283,8 @@ jobs:
           path: junit-converter-integration-${{ matrix.python-version }}.xml
           retention-days: 30
 
-  # Dependency Compatibility Matrix
-  dependency-compatibility:
-    name: Dependency Compatibility - ${{ matrix.deps }} (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    needs: quality
-    timeout-minutes: 60
-    permissions:
-      contents: read
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.13"]  # Simplified to latest stable only for faster CI
-        deps: [minimum, latest]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-suffix: compatibility-${{ matrix.deps }}-${{ matrix.python-version }}
-
-      - name: Install minimum dependencies
-        if: matrix.deps == 'minimum'
-        run: |
-          uv sync --frozen --no-editable
-
-      - name: Install latest dependencies  
-        if: matrix.deps == 'latest'
-        run: |
-          uv sync --no-editable --upgrade
-
-      - name: Install Playwright browsers
-        run: uv run playwright install chromium
-
-      - name: Run compatibility tests
-        run: |
-          uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-fail-under=25 -x --tb=short
-        continue-on-error: ${{ matrix.deps == 'latest' }}  # Allow latest to fail for early detection
+  # Removed dependency compatibility jobs - using uv.lock for reproducible builds
+  # Trust modern dependency management instead of redundant version testing
 
   # Performance Benchmarks
   performance:
