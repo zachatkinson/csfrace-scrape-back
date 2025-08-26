@@ -54,10 +54,10 @@ class AsyncContextManager:
 
 def create_mock_session(responses: dict[str, MockHTTPResponse]) -> AsyncMock:
     """Create mock aiohttp session with predefined responses.
-    
+
     Args:
         responses: Dict mapping URLs to MockHTTPResponse objects
-    
+
     Returns:
         Mock session that returns appropriate responses for URLs
     """
@@ -76,10 +76,10 @@ def create_mock_session(responses: dict[str, MockHTTPResponse]) -> AsyncMock:
 
 def create_sample_soup(content: str = None) -> BeautifulSoup:
     """Create BeautifulSoup object from sample or provided content.
-    
+
     Args:
         content: HTML content string, uses default if None
-    
+
     Returns:
         BeautifulSoup object
     """
@@ -99,7 +99,7 @@ def create_sample_soup(content: str = None) -> BeautifulSoup:
 
 def assert_html_contains(html: str, expected_elements: list[str]):
     """Assert that HTML contains expected elements.
-    
+
     Args:
         html: HTML string to check
         expected_elements: List of expected element selectors or text content
@@ -117,7 +117,7 @@ def assert_html_contains(html: str, expected_elements: list[str]):
 
 def assert_html_not_contains(html: str, unwanted_elements: list[str]):
     """Assert that HTML does not contain unwanted elements.
-    
+
     Args:
         html: HTML string to check
         unwanted_elements: List of unwanted element selectors or text content
@@ -220,14 +220,14 @@ class AsyncTestHelper:
     @staticmethod
     async def run_with_timeout(coro, timeout: float = 5.0):
         """Run coroutine with timeout.
-        
+
         Args:
             coro: Coroutine to run
             timeout: Timeout in seconds
-        
+
         Returns:
             Coroutine result
-        
+
         Raises:
             asyncio.TimeoutError: If timeout is exceeded
         """
@@ -257,12 +257,12 @@ class FileTestHelper:
     @staticmethod
     def create_test_file(directory: Path, filename: str, content: str) -> Path:
         """Create test file with content.
-        
+
         Args:
             directory: Directory to create file in
             filename: Name of file
             content: File content
-        
+
         Returns:
             Path to created file
         """
@@ -273,11 +273,11 @@ class FileTestHelper:
     @staticmethod
     def create_test_image(directory: Path, filename: str = "test_image.jpg") -> Path:
         """Create test image file.
-        
+
         Args:
             directory: Directory to create file in
             filename: Image filename
-        
+
         Returns:
             Path to created image file
         """
@@ -293,11 +293,11 @@ class CacheTestHelper:
     @staticmethod
     def create_cache_entry_data(key: str = "test_key", value: Any = "test_value") -> dict[str, Any]:
         """Create cache entry data dictionary.
-        
+
         Args:
             key: Cache key
             value: Cache value
-        
+
         Returns:
             Cache entry data dictionary
         """
@@ -319,10 +319,10 @@ class PluginTestHelper:
     @staticmethod
     def create_mock_plugin_info(name: str = "test_plugin") -> dict[str, Any]:
         """Create mock plugin info dictionary.
-        
+
         Args:
             name: Plugin name
-        
+
         Returns:
             Plugin info dictionary
         """
@@ -339,10 +339,10 @@ class PluginTestHelper:
     @staticmethod
     def create_processing_context(url: str = None) -> dict[str, Any]:
         """Create processing context for plugin testing.
-        
+
         Args:
             url: Source URL
-        
+
         Returns:
             Processing context dictionary
         """
@@ -356,12 +356,12 @@ class PluginTestHelper:
 
 def compare_html_structure(html1: str, html2: str, ignore_whitespace: bool = True) -> bool:
     """Compare HTML structure ignoring formatting differences.
-    
+
     Args:
         html1: First HTML string
         html2: Second HTML string
         ignore_whitespace: Whether to ignore whitespace differences
-    
+
     Returns:
         True if structures are equivalent
     """
@@ -382,10 +382,10 @@ def compare_html_structure(html1: str, html2: str, ignore_whitespace: bool = Tru
 
 def extract_urls_from_html(html: str) -> list[str]:
     """Extract all URLs from HTML content.
-    
+
     Args:
         html: HTML content
-    
+
     Returns:
         List of URLs found in the HTML
     """
@@ -403,11 +403,11 @@ def extract_urls_from_html(html: str) -> list[str]:
 
 def count_html_elements(html: str, tag_name: str) -> int:
     """Count occurrences of specific HTML elements.
-    
+
     Args:
         html: HTML content
         tag_name: HTML tag name to count
-    
+
     Returns:
         Number of elements found
     """
@@ -417,10 +417,10 @@ def count_html_elements(html: str, tag_name: str) -> int:
 
 def get_html_text_content(html: str) -> str:
     """Extract text content from HTML.
-    
+
     Args:
         html: HTML content
-    
+
     Returns:
         Extracted text content
     """
@@ -451,10 +451,10 @@ class PerformanceTestHelper:
     @staticmethod
     def create_large_html_content(element_count: int = 1000) -> str:
         """Create large HTML content for performance testing.
-        
+
         Args:
             element_count: Number of elements to create
-        
+
         Returns:
             Large HTML content string
         """
