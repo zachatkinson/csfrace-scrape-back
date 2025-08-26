@@ -257,7 +257,7 @@ class TestPerformanceBoundaries:
             for url in test_urls:
                 try:
                     parsed = safe_parse_url(url)
-                    result = parsed is not None and parsed.scheme in ('http', 'https')
+                    result = parsed is not None and parsed.scheme in ("http", "https")
                     results.append(result)
                 except Exception:
                     results.append(False)
@@ -325,10 +325,11 @@ class TestPerformanceRegression:
     @pytest.mark.benchmark(group="regression", min_rounds=5, max_time=30, warmup=True)
     def test_html_processor_baseline_performance(self, benchmark):
         """Baseline performance test for HTML processing."""
-        from bs4 import BeautifulSoup
         import asyncio
+
         import pytest
-        
+        from bs4 import BeautifulSoup
+
         processor = HTMLProcessor()
         sample_html = """
         <html>
@@ -348,7 +349,7 @@ class TestPerformanceRegression:
         """
 
         def process_html_sync():
-            soup = BeautifulSoup(sample_html, 'html.parser')
+            soup = BeautifulSoup(sample_html, "html.parser")
             # Use existing event loop if available
             try:
                 loop = asyncio.get_running_loop()

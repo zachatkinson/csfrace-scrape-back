@@ -133,7 +133,7 @@ class TestCircuitBreakerProperties:
             if breaker.state == CircuitBreakerState.OPEN:
                 # Circuit is open, further calls should be rejected
                 break
-            
+
             # Perform a failing operation
             try:
                 async with breaker:
@@ -144,7 +144,7 @@ class TestCircuitBreakerProperties:
         # Basic invariants
         assert breaker.failure_count >= 0
         assert isinstance(breaker.state, CircuitBreakerState)
-        
+
         # If we had enough failures, circuit should be open
         if failures_processed >= failure_threshold:
             assert breaker.state == CircuitBreakerState.OPEN
@@ -317,9 +317,9 @@ class TestHTMLProcessingProperties:
         html = "".join(html_parts)
 
         from bs4 import BeautifulSoup
-        
+
         processor = HTMLProcessor()
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         processed = await processor.process(soup)
 
         # Properties that should hold

@@ -14,7 +14,7 @@ from src.core.exceptions import (
     FetchError,
     RateLimitError,
 )
-from src.utils.retry import ResilienceManager, RetryConfig
+from src.utils.retry import CircuitBreaker, ResilienceManager, RetryConfig
 from src.utils.session_manager import EnhancedSessionManager, SessionConfig
 
 
@@ -77,7 +77,7 @@ class TestNetworkErrorScenarios:
         """Test recovery from connection reset errors."""
         resilience = ResilienceManager(
             retry_config=RetryConfig(max_attempts=3, base_delay=0.1),
-            circuit_breaker_enabled=True,
+            circuit_breaker=CircuitBreaker(failure_threshold=3, recovery_timeout=1.0),
         )
 
         call_count = 0
@@ -86,7 +86,7 @@ class TestNetworkErrorScenarios:
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                raise ConnectionResetError("Connection reset by peer")
+                raise ClientError("Connection reset by peer")
             return "Success"
 
         result = await resilience.execute(flaky_connection)
