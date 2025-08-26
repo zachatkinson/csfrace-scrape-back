@@ -1,0 +1,23 @@
+# Codecov configuration
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+comment:
+  layout: "header, diff, flags, files, footer"
+  behavior: default
+  require_changes: false
+
+# Ignore patterns
+ignore:
+  - "tests/"
+  - "scripts/"
+  - "docs/"
+  - "examples/"
