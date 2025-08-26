@@ -48,8 +48,8 @@ class TestConverterIntegration:
         class MockDownloader:
             async def process_and_download(self, soup, output_dir, base_url):
                 # Mock download of images found in soup
-                images = soup.find_all('img')
-                downloaded_images = [img.get('src', '') for img in images]
+                images = soup.find_all("img")
+                downloaded_images = [img.get("src", "") for img in images]
                 return soup, downloaded_images
 
         class MockCacheManager:
