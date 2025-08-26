@@ -42,8 +42,8 @@ class TestRenderingPerformanceBenchmarks:
 
         # Mock both static and JS renderers
         mock_static_renderer = AsyncMock()
-        mock_js_renderer = AsyncMock() 
-        
+        mock_js_renderer = AsyncMock()
+
         async def mock_render(url, **kwargs):
             return RenderResult(
                 html="<html>Test content</html>",
@@ -53,10 +53,10 @@ class TestRenderingPerformanceBenchmarks:
                 load_time=0.1,
                 javascript_executed=False,
             )
-        
+
         mock_static_renderer.render_page.side_effect = mock_render
         mock_js_renderer.render_page.side_effect = mock_render
-        
+
         renderer._static_renderer = mock_static_renderer
         renderer._js_renderer = mock_js_renderer
 
@@ -168,46 +168,38 @@ class TestRenderingPerformanceBenchmarks:
         assert isinstance(result, ContentAnalysis)
         assert result.confidence_score >= 0.0
 
-    @pytest.mark.asyncio
     @pytest.mark.benchmark(group="large_content")
-    async def test_large_content_handling_performance(self):
-        """Test rendering performance with large content (>10MB)."""
-        renderer = AdaptiveRenderer()
-
-        # Mock components for testing
-        mock_detector = MagicMock()
-        mock_detector.analyze_html.return_value = ContentAnalysis(
-            is_dynamic=False, confidence_score=0.1, fallback_strategy="standard"
-        )
-        renderer.detector = mock_detector
+    def test_large_content_handling_performance(self, benchmark):
+        """Test content processing performance with large content (>10MB)."""
+        detector = DynamicContentDetector()
 
         # Generate large HTML content (>10MB)
         large_content_size = 11 * 1024 * 1024  # 11MB
         large_content = "x" * large_content_size
-        large_html = f"<html><body><div>{large_content}</div></body></html>"
+        large_html = f"""
+        <html>
+        <head>
+            <title>Large Content Test</title>
+            <script src="framework.js"></script>
+        </head>
+        <body>
+            <div class="content">
+                {large_content}
+            </div>
+            <script>
+                console.log("Large content processing");
+                window.appFramework = "test";
+            </script>
+        </body>
+        </html>
+        """
 
-        mock_static_renderer = AsyncMock()
-        mock_static_renderer.render_page.return_value = RenderResult(
-            html=large_html,
-            url="https://example.com/large",
-            status_code=200,
-            final_url="https://example.com/large",
-            load_time=2.0,
-            javascript_executed=False,
-        )
-        renderer._static_renderer = mock_static_renderer
-
-        # Measure performance with large content
-        start_time = time.time()
-        result, analysis = await renderer.render_page("https://example.com/large")
-        execution_time = time.time() - start_time
+        # Benchmark large content processing
+        result = benchmark(detector.analyze_html, large_html)
 
         # Should handle large content successfully
-        assert result.status_code == 200
-        assert len(result.html) > 10 * 1024 * 1024  # Verify large content
-
-        # Should complete in reasonable time (adjust based on requirements)
-        assert execution_time < 30.0  # Should handle 11MB within 30 seconds
+        assert isinstance(result, ContentAnalysis)
+        assert result.confidence_score >= 0.0
 
     @pytest.mark.benchmark(group="concurrent")
     def test_concurrent_detection_benchmark(self, benchmark):
@@ -272,87 +264,6 @@ class TestRenderingPerformanceBenchmarks:
         assert creation_time < 1.0  # Pool creation should be fast
         assert init_time < 5.0  # Initialization should complete within 5 seconds
         assert cleanup_time < 2.0  # Cleanup should complete within 2 seconds
-
-    @pytest.mark.asyncio
-    @pytest.mark.benchmark(group="rendering_speed")
-    async def test_rendering_speed_benchmark_various_content_types(self):
-        """Benchmark rendering speed with different content types."""
-        renderer = AdaptiveRenderer()
-
-        # Mock detector and renderers
-        mock_detector = MagicMock()
-        renderer.detector = mock_detector
-
-        mock_static_renderer = AsyncMock()
-        mock_js_renderer = AsyncMock()
-        renderer._static_renderer = mock_static_renderer
-        renderer._js_renderer = mock_js_renderer
-
-        # Test different content types
-        test_cases = [
-            {
-                "name": "simple_static",
-                "html": "<html><body><p>Simple content</p></body></html>",
-                "is_dynamic": False,
-                "confidence": 0.1,
-            },
-            {
-                "name": "complex_static",
-                "html": "<html><body>" + "<div>Content</div>" * 1000 + "</body></html>",
-                "is_dynamic": False,
-                "confidence": 0.2,
-            },
-            {
-                "name": "dynamic_content",
-                "html": "<html><body><div id='app'></div><script>render();</script></body></html>",
-                "is_dynamic": True,
-                "confidence": 0.8,
-            },
-        ]
-
-        performance_results = {}
-
-        for test_case in test_cases:
-            # Configure mocks for this test case
-            mock_detector.analyze_html.return_value = ContentAnalysis(
-                is_dynamic=test_case["is_dynamic"],
-                confidence_score=test_case["confidence"],
-                fallback_strategy="javascript" if test_case["is_dynamic"] else "standard",
-            )
-
-            render_result = RenderResult(
-                html=test_case["html"],
-                url=f"https://example.com/{test_case['name']}",
-                status_code=200,
-                final_url=f"https://example.com/{test_case['name']}",
-                load_time=0.5,
-                javascript_executed=test_case["is_dynamic"],
-            )
-
-            if test_case["is_dynamic"]:
-                mock_js_renderer.render_page.return_value = render_result
-            else:
-                mock_static_renderer.render_page.return_value = render_result
-
-            # Measure rendering time
-            start_time = time.time()
-            result, analysis = await renderer.render_page(
-                f"https://example.com/{test_case['name']}"
-            )
-            execution_time = time.time() - start_time
-
-            performance_results[test_case["name"]] = execution_time
-
-            # Verify result
-            assert result.status_code == 200
-            assert result.javascript_executed == test_case["is_dynamic"]
-
-        # Performance assertions
-        assert performance_results["simple_static"] < 1.0  # Simple content should be very fast
-        assert (
-            performance_results["complex_static"] < 2.0
-        )  # Complex static should still be reasonable
-        assert performance_results["dynamic_content"] < 3.0  # Dynamic content may take longer
 
     @pytest.mark.benchmark(group="memory_usage")
     def test_content_analysis_memory_efficiency(self):

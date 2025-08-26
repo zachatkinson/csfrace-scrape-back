@@ -80,7 +80,7 @@ def create_sample_soup(content: str = None) -> BeautifulSoup:
         BeautifulSoup object
     """
     if content is None:
-        content = """
+        content = """  # noqa: W291, W293
         <html>
         <head><title>Test Page</title></head>
         <body>

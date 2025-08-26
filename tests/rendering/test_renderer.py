@@ -107,6 +107,7 @@ class TestAdaptiveRenderer:
 
         assert renderer.detector == mock_detector
 
+    @pytest.mark.asyncio
     async def test_analyze_content_force_javascript(self, mock_detector):
         """Test content analysis with forced JavaScript."""
         strategy = RenderingStrategy(force_javascript=True)
@@ -125,6 +126,7 @@ class TestAdaptiveRenderer:
         # Detector should not be called when forcing
         mock_detector.analyze_html.assert_not_called()
 
+    @pytest.mark.asyncio
     async def test_analyze_content_force_static(self, mock_detector):
         """Test content analysis with forced static."""
         strategy = RenderingStrategy(force_static=True)
@@ -143,6 +145,7 @@ class TestAdaptiveRenderer:
         # Detector should not be called when forcing
         mock_detector.analyze_html.assert_not_called()
 
+    @pytest.mark.asyncio
     async def test_analyze_content_automatic_detection(self, mock_detector, sample_analysis):
         """Test automatic content analysis."""
         mock_detector.analyze_html.return_value = sample_analysis
@@ -157,6 +160,7 @@ class TestAdaptiveRenderer:
         assert analysis == sample_analysis
         mock_detector.analyze_html.assert_called_once_with(html, "https://example.com")
 
+    @pytest.mark.asyncio
     async def test_analyze_content_below_threshold(self, mock_detector, static_analysis):
         """Test content analysis below confidence threshold."""
         mock_detector.analyze_html.return_value = static_analysis
@@ -170,6 +174,7 @@ class TestAdaptiveRenderer:
         assert analysis == static_analysis
 
     @patch("src.rendering.renderer.JavaScriptRenderer")
+    @pytest.mark.asyncio
     async def test_ensure_js_renderer(self, mock_js_renderer_class, mock_detector):
         """Test JavaScript renderer initialization."""
         mock_js_renderer = AsyncMock()
@@ -191,6 +196,7 @@ class TestAdaptiveRenderer:
         assert mock_js_renderer.initialize.call_count == 1  # Not called again
 
     @patch("src.rendering.renderer.get_recommended_wait_conditions")
+    @pytest.mark.asyncio
     async def test_render_page_with_static_html(
         self, mock_wait_conditions, mock_detector, static_analysis
     ):
@@ -216,6 +222,7 @@ class TestAdaptiveRenderer:
         mock_detector.analyze_html.assert_called_with(static_html, "https://example.com")
 
     @patch("src.rendering.renderer.get_recommended_wait_conditions")
+    @pytest.mark.asyncio
     async def test_render_page_javascript_rendering(
         self, mock_wait_conditions, mock_detector, sample_analysis
     ):
@@ -265,6 +272,7 @@ class TestAdaptiveRenderer:
             # Should re-analyze the rendered content
             assert mock_detector.analyze_html.call_count == 2
 
+    @pytest.mark.asyncio
     async def test_render_multiple_pages(self, mock_detector, static_analysis):
         """Test concurrent rendering of multiple pages."""
         mock_detector.analyze_html.return_value = static_analysis
@@ -298,6 +306,7 @@ class TestAdaptiveRenderer:
                 assert result.html == f"Content {i}"
                 assert result.url == url
 
+    @pytest.mark.asyncio
     async def test_render_multiple_with_errors(self, mock_detector):
         """Test concurrent rendering with some failures."""
         renderer = AdaptiveRenderer(detector=mock_detector)
@@ -336,6 +345,7 @@ class TestAdaptiveRenderer:
             assert "error" in result2.metadata
             assert analysis2.fallback_strategy == "error"
 
+    @pytest.mark.asyncio
     async def test_cleanup(self):
         """Test renderer cleanup."""
         renderer = AdaptiveRenderer()
@@ -349,6 +359,7 @@ class TestAdaptiveRenderer:
         mock_js_renderer.cleanup.assert_called_once()
         assert renderer._js_renderer is None
 
+    @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test renderer as context manager."""
         renderer = AdaptiveRenderer()
@@ -375,6 +386,7 @@ class TestRenderingService:
 
         assert isinstance(service.adaptive_renderer, AdaptiveRenderer)
 
+    @pytest.mark.asyncio
     async def test_should_render_with_javascript(self, mock_adaptive_renderer):
         """Test JavaScript rendering decision."""
         expected_analysis = ContentAnalysis(is_dynamic=True, confidence_score=0.8)
@@ -393,6 +405,7 @@ class TestRenderingService:
             "<html></html>", "https://example.com"
         )
 
+    @pytest.mark.asyncio
     async def test_enhance_static_content_no_enhancement(self, mock_adaptive_renderer):
         """Test static content that doesn't need enhancement."""
         static_analysis = ContentAnalysis(is_dynamic=False, confidence_score=0.2)
@@ -407,6 +420,7 @@ class TestRenderingService:
         # Should return original HTML
         assert result == static_html
 
+    @pytest.mark.asyncio
     async def test_enhance_static_content_with_enhancement(self, mock_adaptive_renderer):
         """Test static content that gets enhanced with JavaScript."""
         dynamic_analysis = ContentAnalysis(is_dynamic=True, confidence_score=0.8)
@@ -434,6 +448,7 @@ class TestRenderingService:
         assert analysis == final_analysis
         mock_adaptive_renderer.render_page.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_render_page_with_fallback_static_sufficient(self, mock_adaptive_renderer):
         """Test rendering with static content being sufficient."""
         service = RenderingService()
@@ -448,6 +463,7 @@ class TestRenderingService:
             assert metadata["strategy"] == "static"
             assert metadata["enhanced"] is False
 
+    @pytest.mark.asyncio
     async def test_render_page_with_fallback_enhancement(self, mock_adaptive_renderer):
         """Test rendering with JavaScript enhancement."""
         service = RenderingService()
@@ -477,6 +493,7 @@ class TestRenderingService:
             assert "analysis" in metadata
             assert "metadata" in metadata
 
+    @pytest.mark.asyncio
     async def test_render_page_with_fallback_error(self, mock_adaptive_renderer):
         """Test rendering with error fallback."""
         service = RenderingService()
@@ -494,6 +511,7 @@ class TestRenderingService:
             assert metadata["strategy"] == "fallback_static"
             assert "error" in metadata
 
+    @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test service as context manager."""
         service = RenderingService()

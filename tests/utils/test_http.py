@@ -1,6 +1,6 @@
 """Unit tests for HTTP utilities module."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
@@ -159,11 +159,11 @@ class TestHTTPUtilities:
     async def test_safe_http_get_with_raise_http_error(self, mock_session):
         """Test safe_http_get_with_raise with HTTP error."""
         mock_response = AsyncMock()
+
         # Create a proper side effect function that can be awaited
         def raise_error():
-            raise aiohttp.ClientResponseError(
-                request_info=None, history=None, status=404
-            )
+            raise aiohttp.ClientResponseError(request_info=None, history=None, status=404)
+
         mock_response.raise_for_status = raise_error
 
         # Set up proper async context manager
@@ -232,12 +232,12 @@ class TestHTTPUtilitiesIntegration:
         success_response = HTTPResponse(200, "Success", {"Content-Type": "text/html"})
         assert success_response.is_success is True
         assert check_http_status(success_response.status, "https://example.com") is True
-        
+
         # Test error response
         error_response = HTTPResponse(404, "Not Found", {})
         assert error_response.is_success is False
         assert check_http_status(error_response.status, "https://example.com") is False
-        
+
         # Test server error
         server_error = HTTPResponse(500, "Internal Error", {})
         assert server_error.is_success is False

@@ -114,7 +114,7 @@ class TestDynamicContentDetector:
 
     def test_detect_react_framework(self, detector):
         """Test detection of React framework."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <script src="https://cdn.react.com/react.min.js"></script>
@@ -135,7 +135,7 @@ class TestDynamicContentDetector:
 
     def test_detect_vue_framework(self, detector):
         """Test detection of Vue.js framework."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -158,7 +158,7 @@ class TestDynamicContentDetector:
 
     def test_detect_angular_framework(self, detector):
         """Test detection of Angular framework."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <script src="https://angular.io/js/angular.min.js"></script>
@@ -180,7 +180,7 @@ class TestDynamicContentDetector:
 
     def test_detect_lazy_loading(self, detector):
         """Test detection of lazy loading elements."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <body>
             <img data-src="image1.jpg" class="lazyload" alt="Image 1">
@@ -199,7 +199,7 @@ class TestDynamicContentDetector:
 
     def test_detect_js_dependent_classes(self, detector):
         """Test detection of JavaScript-dependent CSS classes."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <body>
             <div class="js-toggle">Toggle</div>
@@ -218,7 +218,7 @@ class TestDynamicContentDetector:
 
     def test_detect_ajax_patterns(self, detector):
         """Test detection of AJAX patterns."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <body>
             <div data-ajax-url="/api/data">Content</div>
@@ -241,7 +241,7 @@ class TestDynamicContentDetector:
     def test_detect_low_content_density(self, detector):
         """Test detection of low content density (SPA pattern)."""
         # Very minimal HTML with mostly markup (typical SPA)
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <script src="app.js"></script>
@@ -262,7 +262,7 @@ class TestDynamicContentDetector:
 
     def test_detect_spa_meta_tags(self, detector):
         """Test detection of SPA-related meta tags."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <meta name="application-type" content="spa">
@@ -280,7 +280,7 @@ class TestDynamicContentDetector:
 
     def test_detect_empty_body_pattern(self, detector):
         """Test detection of empty body with scripts (classic SPA)."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <title>SPA App</title>
@@ -302,7 +302,7 @@ class TestDynamicContentDetector:
 
     def test_static_content_detection(self, detector):
         """Test detection of static content."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head>
             <title>Static Blog Post</title>
@@ -342,7 +342,7 @@ class TestDynamicContentDetector:
     def test_confidence_score_calculation(self, detector):
         """Test confidence score calculation logic."""
         # High confidence case - multiple strong indicators
-        high_confidence_html = """
+        high_confidence_html = """  # noqa: W291, W293
         <html>
         <head><script src="react.js"></script></head>
         <body>
@@ -356,7 +356,7 @@ class TestDynamicContentDetector:
         assert high_analysis.confidence_score > 0.7
 
         # Medium confidence case - some indicators
-        medium_confidence_html = """
+        medium_confidence_html = """  # noqa: W291, W293
         <html>
         <body>
             <div class="js-widget" data-ajax="/api">Content</div>
@@ -369,7 +369,7 @@ class TestDynamicContentDetector:
         assert 0.3 < medium_analysis.confidence_score < 0.7
 
         # Low confidence case - minimal indicators
-        low_confidence_html = """
+        low_confidence_html = """  # noqa: W291, W293
         <html>
         <body>
             <h1>Static Content</h1>
@@ -384,7 +384,7 @@ class TestDynamicContentDetector:
     def test_fallback_strategy_determination(self, detector):
         """Test fallback strategy determination."""
         # JavaScript strategy - high confidence
-        js_html = """
+        js_html = """  # noqa: W291, W293
         <html>
         <head><script src="react.js"></script><script src="vue.js"></script></head>
         <body><div id="app"></div><script>render();</script></body>
@@ -395,7 +395,7 @@ class TestDynamicContentDetector:
         assert js_analysis.fallback_strategy == "javascript"
 
         # Hybrid strategy - medium confidence
-        hybrid_html = """
+        hybrid_html = """  # noqa: W291, W293
         <html>
         <body>
             <div class="js-enhanced">Content</div>
@@ -408,7 +408,7 @@ class TestDynamicContentDetector:
         assert hybrid_analysis.fallback_strategy in ["hybrid", "standard"]
 
         # Standard strategy - low confidence
-        standard_html = """
+        standard_html = """  # noqa: W291, W293
         <html>
         <body>
             <h1>Blog Post</h1>
@@ -426,7 +426,7 @@ class TestUtilityFunctions:
 
     def test_should_use_javascript_rendering_true(self):
         """Test utility function returning True for dynamic content."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <head><script src="react.js"></script></head>
         <body><div id="react-root"></div></body>
@@ -441,7 +441,7 @@ class TestUtilityFunctions:
 
     def test_should_use_javascript_rendering_false(self):
         """Test utility function returning False for static content."""
-        html = """
+        html = """  # noqa: W291, W293
         <html>
         <body>
             <h1>Static Page</h1>

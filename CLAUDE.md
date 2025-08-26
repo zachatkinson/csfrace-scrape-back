@@ -5,8 +5,42 @@ This Python3 application converts WordPress blog content from the CSFrace websit
 
 ## MANDATORY Code Quality Standards
 
-### 1. DRY and SOLID Principles (MANDATORY)
+### 1. TDD, DRY and SOLID Principles (MANDATORY)
 **These principles are MANDATORY and must be followed without exception. NO EXCEPTIONS.**
+
+#### TDD (Test-Driven Development) - ZERO TOLERANCE
+**MANDATORY: ALL code must be developed using strict Test-Driven Development practices.**
+
+- **NEVER write implementation code without writing tests first**
+- **RED-GREEN-REFACTOR cycle must be followed religiously**
+- **ALL new features must start with failing tests**
+- **NO production code without corresponding tests**
+- **Minimum 90% test coverage required**
+
+**TDD Workflow (MANDATORY):**
+```python
+# 1. RED: Write failing test first
+def test_new_feature():
+    """Test the feature that doesn't exist yet."""
+    result = new_feature()
+    assert result == expected_value
+
+# 2. GREEN: Write minimal code to make test pass  
+def new_feature():
+    return expected_value
+
+# 3. REFACTOR: Improve code while keeping tests green
+def new_feature():
+    # Improved implementation
+    return calculate_expected_value()
+```
+
+**TDD Requirements:**
+- **Tests must be written BEFORE implementation**
+- **Each commit must include both tests and implementation**
+- **All tests must pass before any code is merged**
+- **Test names must clearly describe behavior**
+- **Tests must be independent and repeatable**
 
 #### DRY (Don't Repeat Yourself) - ZERO TOLERANCE
 - **NEVER duplicate code, values, or logic anywhere**
@@ -181,7 +215,46 @@ def convert_content(self, html: str, options: Dict[str, Any]) -> str:
     """
 ```
 
-### 5. Comprehensive Testing Standards
+### 5. Test Organization Standards (MANDATORY)
+**Test Directory Structure MUST Mirror Source Directory Structure:**
+
+```
+tests/                          # Mirror src/ structure exactly
+├── __init__.py
+├── conftest.py                # Shared test fixtures
+├── batch/                     # Mirror src/batch/
+│   ├── __init__.py
+│   └── test_processor.py      # Tests for src/batch/processor.py
+├── caching/                   # Mirror src/caching/
+│   ├── __init__.py
+│   ├── test_base.py          # Tests for src/caching/base.py
+│   ├── test_file_cache.py    # Tests for src/caching/file_cache.py
+│   └── test_manager.py       # Tests for src/caching/manager.py
+├── core/                     # Mirror src/core/
+│   ├── __init__.py
+│   ├── test_config.py        # Tests for src/core/config.py
+│   ├── test_converter.py     # Tests for src/core/converter.py
+│   └── test_exceptions.py    # Tests for src/core/exceptions.py
+├── rendering/                # Mirror src/rendering/
+│   ├── __init__.py
+│   ├── test_browser.py       # Tests for src/rendering/browser.py
+│   ├── test_detector.py      # Tests for src/rendering/detector.py
+│   └── test_renderer.py      # Tests for src/rendering/renderer.py
+└── utils/                    # Mirror src/utils/
+    ├── __init__.py
+    ├── test_html.py          # Tests for src/utils/html.py
+    ├── test_http.py          # Tests for src/utils/http.py
+    └── test_retry.py         # Tests for src/utils/retry.py
+```
+
+**Rules:**
+- **MANDATORY**: Test file names MUST correspond directly to source file names
+- **Pattern**: `test_<module_name>.py` tests `<module_name>.py`
+- **Location**: Tests MUST be in the same relative path as source files
+- **Example**: `src/rendering/browser.py` → `tests/rendering/test_browser.py`
+- **Benefits**: Easy navigation, clear test-to-code mapping, maintainability
+
+### 6. Comprehensive Testing Standards
 Modern testing approaches for reliable scraper development:
 
 **Testing Framework Setup:**
