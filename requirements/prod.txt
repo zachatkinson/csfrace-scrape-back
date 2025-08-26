@@ -15,7 +15,7 @@ gunicorn>=21.2.0,<22.0.0
 
 # Database drivers (if using database storage)
 asyncpg>=0.29.0,<1.0.0  # PostgreSQL async driver
-aioredis>=2.0.0,<3.0.0  # Redis async driver
+redis[hiredis]>=4.6.0,<6.0.0  # Redis with async support
 
 # Production utilities
 python-dotenv>=1.0.0,<2.0.0  # Environment variable loading

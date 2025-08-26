@@ -59,7 +59,7 @@ class TestHTMLProcessingPerformance:
             return asyncio.run(html_processor.process(soup))
 
         result = benchmark(process_large_content)
-        
+
         # Verify result
         assert isinstance(result, str)
         assert len(result) > 0
@@ -151,7 +151,7 @@ class TestHTMLProcessingPerformance:
 
     def test_soup_parsing_performance(self, benchmark, large_html_content):
         """Test BeautifulSoup parsing performance."""
-        
+
         def parse_html():
             return BeautifulSoup(large_html_content, "html.parser")
 

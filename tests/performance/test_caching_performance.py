@@ -214,7 +214,7 @@ class TestCachePerformance:
         """Simple benchmark test for cache operations."""
         test_key = "benchmark_test"
         test_data = "test data" * 100  # Small test data
-        
+
         def cache_operation():
             # Since benchmark doesn't handle async, we use asyncio.run
             import asyncio
