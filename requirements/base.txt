@@ -1,15 +1,15 @@
-# Core dependencies for the scraper - Updated to stable tested versions
-aiofiles>=24.1.0,<25.0.0
-aiohttp>=3.10.0,<4.0.0
-asyncio-throttle>=1.0.2,<2.0.0
-beautifulsoup4>=4.12.0,<5.0.0
-bleach>=6.1.0,<7.0.0
-click>=8.1.0,<9.0.0
-httpx[http2]>=0.25.0,<1.0.0
-lxml>=6.0.0,<7.0.0  # Updated to 6.x for Python 3.13 compatibility
-pydantic>=2.5.0,<3.0.0
-PyYAML>=6.0.1,<7.0.0
-rich>=13.7.0,<14.0.0
-structlog>=23.2.0,<24.0.0  # Keep structlog at 23.x for stability
-tenacity>=8.2.0,<9.0.0
-urllib3>=2.1.0,<3.0.0
+# Core dependencies for the scraper - Latest versions for Python 3.13
+aiofiles>=24.1.0,<25.0.0  # Latest: 24.1.0
+aiohttp>=3.12.15,<4.0.0  # Latest: 3.12.15
+asyncio-throttle>=1.0.2,<2.0.0  # Latest: 1.0.2
+beautifulsoup4>=4.13.5,<5.0.0  # Latest: 4.13.5  
+bleach>=6.2.0,<7.0.0  # Latest: 6.2.0
+click>=8.1.8,<9.0.0  # Latest: 8.1.8
+httpx[http2]>=0.28.1,<1.0.0  # Latest: 0.28.1
+lxml>=6.0.1,<7.0.0  # Latest: 6.0.1 (Python 3.13 compatible)
+pydantic>=2.11.7,<3.0.0  # Latest: 2.11.7
+PyYAML>=6.0.2,<7.0.0  # Latest: 6.0.2
+rich>=14.1.0,<15.0.0  # Latest: 14.1.0
+structlog>=25.4.0,<26.0.0  # Latest: 25.4.0
+tenacity>=9.1.2,<10.0.0  # Latest: 9.1.2
+urllib3>=2.5.0,<3.0.0  # Latest: 2.5.0
