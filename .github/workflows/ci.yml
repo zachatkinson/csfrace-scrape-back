@@ -328,12 +328,12 @@ jobs:
       - name: Install minimum dependencies
         if: matrix.deps == 'minimum'
         run: |
-          uv sync --frozen --no-editable
+          uv sync --frozen --no-editable --extra test
 
       - name: Install latest dependencies  
         if: matrix.deps == 'latest'
         run: |
-          uv sync --no-editable --upgrade
+          uv sync --no-editable --upgrade --extra test
 
       - name: Install Playwright browsers
         run: uv run playwright install chromium
