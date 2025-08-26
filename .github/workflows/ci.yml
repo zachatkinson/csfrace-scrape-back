@@ -145,16 +145,17 @@ jobs:
       - name: Install Playwright browsers
         run: uv run playwright install chromium
         
-      - name: Run unit tests with coverage
+      - name: Run unit tests with coverage (Ubuntu - parallel)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          # Run unit tests with parallel execution for faster CI (Playwright best practice)
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            # Parallel execution on Ubuntu (faster, more resources)
-            uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
-          else
-            # Sequential execution on Windows/macOS (more stable)
-            uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
-          fi
+          # Parallel execution on Ubuntu (faster, more resources)
+          uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
+      
+      - name: Run unit tests with coverage (Windows/macOS - sequential)
+        if: matrix.os != 'ubuntu-latest'
+        run: |
+          # Sequential execution on Windows/macOS (more stable)
+          uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
