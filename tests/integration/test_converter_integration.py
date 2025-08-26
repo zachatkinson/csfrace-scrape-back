@@ -18,6 +18,7 @@ class TestConverterIntegration:
     @pytest_asyncio.fixture
     async def converter(self, temp_dir):
         """Create mock converter instance for testing."""
+
         # Mock converter until AsyncWordPressConverter is implemented
         class MockConverter:
             def __init__(self):
@@ -27,7 +28,7 @@ class TestConverterIntegration:
                 self.metadata_extractor = MockExtractor()
                 self.image_downloader = MockDownloader()
                 self.cache_manager = MockCacheManager()
-                self.plugin_manager = None
+                self.plugin_manager = MockPluginManager()
 
             async def convert_url(self, url):
                 return {"status": "success", "url": url}
@@ -37,7 +38,8 @@ class TestConverterIntegration:
 
         class MockProcessor:
             async def process(self, soup):
-                return "<p>Processed content</p>"
+                # Return processed version that preserves key content
+                return str(soup)  # Simplified - returns original content
 
         class MockExtractor:
             async def extract(self, soup, url):
@@ -45,11 +47,22 @@ class TestConverterIntegration:
 
         class MockDownloader:
             async def process_and_download(self, soup, output_dir, base_url):
-                return soup, []
+                # Mock download of images found in soup
+                images = soup.find_all('img')
+                downloaded_images = [img.get('src', '') for img in images]
+                return soup, downloaded_images
 
         class MockCacheManager:
             async def stats(self):
                 return {"hits": 0, "misses": 0}
+
+        class MockPluginManager:
+            def __init__(self):
+                self.registry = MockPluginRegistry()
+
+        class MockPluginRegistry:
+            def list_plugins(self):
+                return []  # Return empty list for mock
 
         converter = MockConverter()
         yield converter

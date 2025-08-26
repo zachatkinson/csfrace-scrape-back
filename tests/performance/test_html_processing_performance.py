@@ -22,7 +22,7 @@ class TestHTMLProcessingPerformance:
     @pytest.fixture
     def metadata_extractor(self):
         """Create metadata extractor instance."""
-        return MetadataExtractor()
+        return MetadataExtractor("https://example.com")
 
     @pytest.fixture
     def large_html_content(self):

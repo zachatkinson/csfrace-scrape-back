@@ -365,6 +365,13 @@ jobs:
             --benchmark-json=benchmark.json \
             --benchmark-sort=mean
 
+      - name: Clean git state before benchmark storage
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git stash --include-untracked || true
+          git clean -fd || true
+
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -377,6 +384,7 @@ jobs:
           fail-on-alert: false
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: benchmarks
+          max-items-in-chart: 30
         continue-on-error: true
 
   # Docker build and security scan
