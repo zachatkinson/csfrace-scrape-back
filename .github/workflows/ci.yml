@@ -312,10 +312,19 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'csfrace-scraper:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'table'
           severity: 'HIGH,CRITICAL'  # Only fail CI on high/critical vulnerabilities
           exit-code: 1  # Fail CI if high/critical vulns found
+          
+      - name: Run Trivy vulnerability scanner (SARIF output)
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          image-ref: 'csfrace-scraper:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+        continue-on-error: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
