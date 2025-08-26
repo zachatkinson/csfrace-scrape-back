@@ -79,4 +79,3 @@ async def optimized_page(browser_context):
 
     yield page
     await page.close()
-
