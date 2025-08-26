@@ -36,6 +36,7 @@ class TestCachePerformance:
         return manager
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_write_performance(self, file_cache):
         """Test cache write performance with various data sizes."""
         data_sizes = [1024, 10240, 102400, 1024000]  # 1KB to 1MB
@@ -53,6 +54,7 @@ class TestCachePerformance:
             assert write_time < 1.0, f"Write of {size} bytes took {write_time:.3f}s, expected < 1s"
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_read_performance(self, file_cache):
         """Test cache read performance with various data sizes."""
         # Pre-populate cache with test data
@@ -75,6 +77,7 @@ class TestCachePerformance:
             assert read_time < 0.5, f"Read of {size} bytes took {read_time:.3f}s, expected < 0.5s"
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_concurrent_cache_operations(self, file_cache):
         """Test cache performance under concurrent load."""
         num_operations = 50
@@ -109,6 +112,7 @@ class TestCachePerformance:
         assert read_time < 2.0, f"Concurrent reads took {read_time:.2f}s, expected < 2s"
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_compression_performance(self, cache_config, temp_dir):
         """Test compression performance impact."""
         large_data = {"content": "x" * 50000, "metadata": {"size": "large"}}
@@ -136,6 +140,7 @@ class TestCachePerformance:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_cleanup_performance(self, file_cache):
         """Test cache cleanup performance with many entries."""
         num_entries = 100
@@ -157,6 +162,7 @@ class TestCachePerformance:
         assert cleanup_time < 2.0, f"Cleanup took {cleanup_time:.2f}s, expected < 2s"
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_stats_performance(self, file_cache):
         """Test cache statistics calculation performance."""
         # Add various entries
@@ -173,6 +179,7 @@ class TestCachePerformance:
         assert stats_time < 1.0, f"Stats calculation took {stats_time:.3f}s, expected < 1s"
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_manager_performance(self, cache_manager):
         """Test cache manager performance for typical operations."""
         await cache_manager.initialize()
@@ -194,6 +201,7 @@ class TestCachePerformance:
         assert get_time < 0.1, f"HTML cache get took {get_time:.3f}s, expected < 0.1s"
 
     @pytest.mark.asyncio
+    @pytest.mark.benchmark(group="cache")
     async def test_cache_key_generation_performance(self, file_cache):
         """Test cache key generation performance."""
         num_keys = 1000

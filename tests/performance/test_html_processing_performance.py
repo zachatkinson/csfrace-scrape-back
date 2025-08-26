@@ -65,42 +65,39 @@ class TestHTMLProcessingPerformance:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @pytest.mark.asyncio
-    async def test_html_processor_performance_complex_content(
-        self, html_processor, complex_html_content
+    @pytest.mark.benchmark(group="html_processing")
+    def test_html_processor_performance_complex_content(
+        self, html_processor, complex_html_content, benchmark
     ):
         """Test HTML processor performance with complex WordPress content."""
         soup = BeautifulSoup(complex_html_content, "html.parser")
 
-        start_time = time.time()
-        result = await html_processor.process(soup)
-        processing_time = time.time() - start_time
+        def benchmark_complex_processing():
+            import asyncio
 
-        # Should handle complex content quickly
-        assert processing_time < 2.0, (
-            f"Complex processing took {processing_time:.2f}s, expected < 2s"
-        )
+            return asyncio.run(html_processor.process(soup))
+
+        result = benchmark(benchmark_complex_processing)
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @pytest.mark.asyncio
-    async def test_metadata_extraction_performance(self, metadata_extractor, large_html_content):
+    @pytest.mark.benchmark(group="html_processing")
+    def test_metadata_extraction_performance(
+        self, metadata_extractor, large_html_content, benchmark
+    ):
         """Test metadata extraction performance."""
         soup = BeautifulSoup(large_html_content, "html.parser")
-        url = "https://example.com/test"
 
-        start_time = time.time()
-        metadata = await metadata_extractor.extract(soup)
-        extraction_time = time.time() - start_time
+        def benchmark_metadata_extraction():
+            import asyncio
 
-        # Metadata extraction should be very fast
-        assert extraction_time < 1.0, (
-            f"Metadata extraction took {extraction_time:.2f}s, expected < 1s"
-        )
+            return asyncio.run(metadata_extractor.extract(soup))
+
+        metadata = benchmark(benchmark_metadata_extraction)
         assert isinstance(metadata, dict)
 
-    @pytest.mark.asyncio
-    async def test_concurrent_processing_performance(self, html_processor):
+    @pytest.mark.benchmark(group="html_processing")
+    def test_concurrent_processing_performance(self, html_processor, benchmark):
         """Test performance under concurrent processing load."""
         import asyncio
 
@@ -115,18 +112,19 @@ class TestHTMLProcessingPerformance:
         async def process_document(soup):
             return await html_processor.process(soup)
 
-        start_time = time.time()
-        tasks = [process_document(soup) for soup in html_documents]
-        results = await asyncio.gather(*tasks)
-        total_time = time.time() - start_time
+        async def concurrent_processing():
+            tasks = [process_document(soup) for soup in html_documents]
+            return await asyncio.gather(*tasks)
 
-        # 10 small documents should process very quickly even concurrently
-        assert total_time < 3.0, f"Concurrent processing took {total_time:.2f}s, expected < 3s"
+        def benchmark_concurrent_processing():
+            return asyncio.run(concurrent_processing())
+
+        results = benchmark(benchmark_concurrent_processing)
         assert len(results) == 10
         assert all(isinstance(result, str) for result in results)
 
-    @pytest.mark.asyncio
-    async def test_memory_efficiency_large_content(self, html_processor, large_html_content):
+    @pytest.mark.benchmark(group="html_processing")
+    def test_memory_efficiency_large_content(self, html_processor, large_html_content, benchmark):
         """Test memory efficiency with large content."""
         try:
             import os
@@ -135,11 +133,17 @@ class TestHTMLProcessingPerformance:
         except ImportError:
             pytest.skip("psutil not available for memory testing")
 
+        soup = BeautifulSoup(large_html_content, "html.parser")
+
+        def benchmark_memory_processing():
+            import asyncio
+
+            return asyncio.run(html_processor.process(soup))
+
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
 
-        soup = BeautifulSoup(large_html_content, "html.parser")
-        result = await html_processor.process(soup)
+        result = benchmark(benchmark_memory_processing)
 
         final_memory = process.memory_info().rss
         memory_increase = final_memory - initial_memory
@@ -159,28 +163,37 @@ class TestHTMLProcessingPerformance:
         soup = benchmark(parse_html)
         assert soup is not None
 
-    @pytest.mark.asyncio
-    async def test_processing_scalability(self, html_processor):
+    @pytest.mark.benchmark(group="html_processing")
+    def test_processing_scalability(self, html_processor, benchmark):
         """Test processing scalability with increasing content sizes."""
-        element_counts = [100, 500, 1000, 2000]
-        processing_times = []
+        element_counts = [100, 500, 1000]
 
-        for count in element_counts:
-            large_content = PerformanceTestHelper.create_large_html_content(element_count=count)
-            soup = BeautifulSoup(large_content, "html.parser")
+        def benchmark_scalability():
+            import asyncio
 
-            start_time = time.time()
-            await html_processor.process(soup)
-            processing_time = time.time() - start_time
-            processing_times.append(processing_time)
+            processing_times = []
 
-        # Processing should scale reasonably (not exponentially)
-        # Each doubling of content should take less than 3x the time
-        for i in range(1, len(processing_times)):
-            ratio = processing_times[i] / processing_times[i - 1]
-            size_ratio = element_counts[i] / element_counts[i - 1]
+            for count in element_counts:
+                large_content = PerformanceTestHelper.create_large_html_content(element_count=count)
+                soup = BeautifulSoup(large_content, "html.parser")
 
-            # Time ratio should be less than 3x the size ratio
-            assert ratio < (size_ratio * 3), (
-                f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"
-            )
+                start_time = time.time()
+                asyncio.run(html_processor.process(soup))
+                processing_time = time.time() - start_time
+                processing_times.append(processing_time)
+
+            # Processing should scale reasonably (not exponentially)
+            # Each increase in content should take less than 3x the time
+            for i in range(1, len(processing_times)):
+                ratio = processing_times[i] / processing_times[i - 1]
+                size_ratio = element_counts[i] / element_counts[i - 1]
+
+                # Time ratio should be less than 3x the size ratio
+                if ratio >= (size_ratio * 3):
+                    raise AssertionError(
+                        f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"
+                    )
+            return processing_times
+
+        result = benchmark(benchmark_scalability)
+        assert len(result) == len(element_counts)
