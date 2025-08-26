@@ -2,7 +2,7 @@
 
 from typing import Any, Optional, Union
 
-from bs4 import BeautifulSoup, Tag, NavigableString
+from bs4 import BeautifulSoup, Tag
 
 
 def safe_copy_attributes(
@@ -83,11 +83,12 @@ def extract_basic_element_data(element: Tag) -> dict[str, str]:
     Returns:
         Dictionary with common attributes (src, alt, href, title, etc.)
     """
+
     def _get_str_attr(attr_name: str, default: str = "") -> str:
         """Safely get string attribute from element."""
         value = element.get(attr_name, default)
         return value if isinstance(value, str) else default
-    
+
     def _get_class_str() -> str:
         """Safely get class attribute as joined string."""
         class_attr = element.get("class", [])
@@ -96,7 +97,7 @@ def extract_basic_element_data(element: Tag) -> dict[str, str]:
         elif isinstance(class_attr, str):
             return class_attr
         return ""
-    
+
     return {
         "src": _get_str_attr("src"),
         "alt": _get_str_attr("alt"),
