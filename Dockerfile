@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set work directory
 WORKDIR /build
 
-# Copy requirements
+# Copy requirements (need both files for -r reference)
+COPY requirements/base.txt ./base.txt
 COPY requirements/prod.txt ./requirements.txt
 
 # Create virtual environment and install dependencies

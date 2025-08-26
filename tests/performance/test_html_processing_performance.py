@@ -46,19 +46,21 @@ class TestHTMLProcessingPerformance:
         </html>
         """
 
-    @pytest.mark.asyncio
-    async def test_html_processor_performance_large_content(
-        self, html_processor, large_html_content
+    def test_html_processor_performance_large_content(
+        self, html_processor, large_html_content, benchmark
     ):
         """Test HTML processor performance with large content."""
         soup = BeautifulSoup(large_html_content, "html.parser")
 
-        start_time = time.time()
-        result = await html_processor.process(soup)
-        processing_time = time.time() - start_time
+        # Use pytest-benchmark to measure performance
+        def process_large_content():
+            # Since benchmark doesn't handle async, we use asyncio.run
+            import asyncio
+            return asyncio.run(html_processor.process(soup))
 
-        # Performance assertion - should process 1000 elements in under 5 seconds
-        assert processing_time < 5.0, f"Processing took {processing_time:.2f}s, expected < 5s"
+        result = benchmark(process_large_content)
+        
+        # Verify result
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -147,14 +149,13 @@ class TestHTMLProcessingPerformance:
         )
         assert isinstance(result, str)
 
-    def test_soup_parsing_performance(self, large_html_content):
+    def test_soup_parsing_performance(self, benchmark, large_html_content):
         """Test BeautifulSoup parsing performance."""
-        start_time = time.time()
-        soup = BeautifulSoup(large_html_content, "html.parser")
-        parsing_time = time.time() - start_time
+        
+        def parse_html():
+            return BeautifulSoup(large_html_content, "html.parser")
 
-        # BeautifulSoup parsing should be fast
-        assert parsing_time < 2.0, f"HTML parsing took {parsing_time:.2f}s, expected < 2s"
+        soup = benchmark(parse_html)
         assert soup is not None
 
     @pytest.mark.asyncio

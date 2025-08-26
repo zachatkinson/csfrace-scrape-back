@@ -209,3 +209,18 @@ class TestCachePerformance:
         assert len(keys) == num_keys
         assert len(set(keys)) == num_keys  # All keys should be unique
         assert key_gen_time < 0.5, f"Key generation took {key_gen_time:.3f}s, expected < 0.5s"
+
+    def test_simple_cache_benchmark(self, benchmark, file_cache):
+        """Simple benchmark test for cache operations."""
+        test_key = "benchmark_test"
+        test_data = "test data" * 100  # Small test data
+        
+        def cache_operation():
+            # Since benchmark doesn't handle async, we use asyncio.run
+            import asyncio
+            asyncio.run(file_cache.set(test_key, test_data, ttl=3600))
+            return asyncio.run(file_cache.get(test_key))
+
+        result = benchmark(cache_operation)
+        assert result is not None
+        assert result.value == test_data

@@ -7,13 +7,13 @@ from ..constants import CONSTANTS
 from .base import BaseCacheBackend, CacheConfig, CacheEntry
 
 try:
-    import redis.asyncio as redis
+    import aioredis
 
     REDIS_AVAILABLE = True
-    RedisType = redis.Redis
+    RedisType = aioredis.Redis
 except ImportError:
     REDIS_AVAILABLE = False
-    redis = None
+    aioredis = None
     RedisType = None
 
 
@@ -31,7 +31,7 @@ class RedisCache(BaseCacheBackend):
         """
         if not REDIS_AVAILABLE:
             raise ImportError(
-                "redis package is required for Redis caching. Install with: pip install redis"
+                "aioredis package is required for Redis caching. Install with: pip install aioredis"
             )
 
         super().__init__(config)
@@ -46,7 +46,7 @@ class RedisCache(BaseCacheBackend):
     async def shutdown(self):
         """Close Redis connection."""
         if self.redis_client:
-            await self.redis_client.aclose()
+            await self.redis_client.close()
             self.redis_client = None
             self.logger.info("Redis connection closed")
 
@@ -56,11 +56,11 @@ class RedisCache(BaseCacheBackend):
             try:
                 from ..constants import CONSTANTS
 
-                self.redis_client = redis.Redis(
-                    host=self.config.redis_host,
-                    port=self.config.redis_port,
-                    db=self.config.redis_db,
-                    password=self.config.redis_password,
+                # Build Redis URL for aioredis
+                redis_url = f"redis://:{self.config.redis_password}@{self.config.redis_host}:{self.config.redis_port}/{self.config.redis_db}" if self.config.redis_password else f"redis://{self.config.redis_host}:{self.config.redis_port}/{self.config.redis_db}"
+                
+                self.redis_client = await aioredis.from_url(
+                    redis_url,
                     decode_responses=False,  # We handle encoding ourselves
                     socket_connect_timeout=CONSTANTS.REDIS_SOCKET_CONNECT_TIMEOUT,
                     socket_timeout=CONSTANTS.REDIS_SOCKET_TIMEOUT,
@@ -80,7 +80,7 @@ class RedisCache(BaseCacheBackend):
                 # Clean up failed connection attempt
                 if self.redis_client:
                     try:
-                        await self.redis_client.aclose()
+                        await self.redis_client.close()
                     except Exception as cleanup_error:
                         self.logger.warning(
                             "Failed to cleanup Redis connection", error=str(cleanup_error)

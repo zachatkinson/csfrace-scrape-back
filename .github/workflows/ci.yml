@@ -172,7 +172,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: zachatkinson/csfrace-scrape
-          file: ./coverage.xml
+          files: ./coverage.xml
           flags: unit-tests
           name: unit-tests-coverage
           fail_ci_if_error: false

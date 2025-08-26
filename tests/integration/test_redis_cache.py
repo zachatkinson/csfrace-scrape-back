@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+import pytest_asyncio
 
 from src.caching.base import CacheBackend, CacheConfig
 from src.constants import TEST_CONSTANTS
@@ -15,7 +16,7 @@ pytestmark = pytest.mark.redis
 class TestRedisCacheIntegration:
     """Test Redis cache backend integration."""
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def redis_cache(self):
         """Create Redis cache instance for testing."""
         try:
@@ -217,22 +218,29 @@ class TestRedisCacheIntegration:
 
     @pytest.mark.asyncio
     async def test_redis_error_handling(self, redis_cache):
-        """Test Redis error handling."""
-        # Test with Redis connection issues
+        """Test Redis error handling and connection recovery."""
+        # Test that cache handles operations gracefully
+        # When client is None, it should reconnect automatically
         original_client = redis_cache.redis_client
 
-        # Simulate connection failure
+        # Simulate connection lost
         redis_cache.redis_client = None
 
-        # Operations should handle errors gracefully
+        # Operations should handle errors gracefully and reconnect
         entry = await redis_cache.get("error_test")
-        assert entry is None  # Should return None on error, not raise
+        assert entry is None  # Should return None (key doesn't exist), not raise
 
+        # Should reconnect and succeed
         success = await redis_cache.set("error_test", "value")
-        assert success is False  # Should return False on error
+        assert success is True  # Should succeed after reconnection
 
-        # Restore client
-        redis_cache.redis_client = original_client
+        # Verify the operation worked
+        entry = await redis_cache.get("error_test")
+        assert entry is not None
+        assert entry.value == "value"
+
+        # Client should be reconnected
+        assert redis_cache.redis_client is not None
 
     @pytest.mark.asyncio
     async def test_redis_key_generation(self, redis_cache):
