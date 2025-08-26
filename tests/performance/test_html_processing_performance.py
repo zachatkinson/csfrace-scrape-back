@@ -1,7 +1,6 @@
 """Performance tests for HTML processing components."""
 
 import time
-from unittest.mock import AsyncMock
 
 import pytest
 from bs4 import BeautifulSoup
@@ -123,8 +122,9 @@ class TestHTMLProcessingPerformance:
     async def test_memory_efficiency_large_content(self, html_processor, large_html_content):
         """Test memory efficiency with large content."""
         try:
-            import psutil
             import os
+
+            import psutil
         except ImportError:
             pytest.skip("psutil not available for memory testing")
 
@@ -171,6 +171,6 @@ class TestHTMLProcessingPerformance:
         for i in range(1, len(processing_times)):
             ratio = processing_times[i] / processing_times[i-1]
             size_ratio = element_counts[i] / element_counts[i-1]
-            
+
             # Time ratio should be less than 3x the size ratio
             assert ratio < (size_ratio * 3), f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"
