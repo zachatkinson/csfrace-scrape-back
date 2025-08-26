@@ -703,7 +703,7 @@ class TestAuthenticationSecurity:
             "PHPSESSID=",
             "document.cookie",
             "FIXED_SESSION_ID",
-            "ATTACKER_CHOSEN_ID"
+            "ATTACKER_CHOSEN_ID",
         ]
 
         detected_patterns = []
@@ -824,12 +824,14 @@ class TestDataLeakagePrevention:
         disclosure_indicators = []
         for header_name, header_value in sensitive_headers.items():
             # Headers that commonly leak sensitive information
-            if any(keyword in header_name.lower() for keyword in
-                   ['server', 'powered-by', 'debug', 'internal', 'real-ip']):
+            if any(
+                keyword in header_name.lower()
+                for keyword in ["server", "powered-by", "debug", "internal", "real-ip"]
+            ):
                 disclosure_indicators.append(header_name)
 
             # Version information disclosure
-            if any(version in header_value for version in ['2.4.41', 'PHP/7.4.3', '192.168']):
+            if any(version in header_value for version in ["2.4.41", "PHP/7.4.3", "192.168"]):
                 disclosure_indicators.append(f"{header_name}_version")
 
         # Should detect multiple potential information disclosure vectors
