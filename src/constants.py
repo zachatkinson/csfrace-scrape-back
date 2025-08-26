@@ -117,24 +117,51 @@ class AppConstants:
     # Timeout configurations
     ROBOTS_TIMEOUT: int = int(environ.get("ROBOTS_TIMEOUT", "10"))  # Robots.txt fetch timeout
 
-    # SEO and content analysis constants
-    WORDS_PER_MINUTE_READING: int = 200  # Average reading speed
-    IFRAME_ASPECT_RATIO: str = "16/9"  # Standard video aspect ratio
 
-    # Progress tracking constants
-    PROGRESS_START: int = 0
-    PROGRESS_SETUP: int = 10
-    PROGRESS_FETCH: int = 20
-    PROGRESS_PROCESS: int = 60
-    PROGRESS_COMPLETE: int = 100
+@dataclass(frozen=True)
+class TimeoutConstants:
+    """Timeout configurations for various operations."""
+    
+    # HTTP timeouts
+    CONNECTION_TIMEOUT: float = float(environ.get("CONNECTION_TIMEOUT", "10.0"))
+    READ_TIMEOUT: float = float(environ.get("READ_TIMEOUT", "30.0"))
+    TOTAL_TIMEOUT: float = float(environ.get("TOTAL_TIMEOUT", "60.0"))
+    
+    # Browser timeouts
+    BROWSER_TIMEOUT: float = float(environ.get("BROWSER_TIMEOUT", "30.0"))
+    PAGE_LOAD_TIMEOUT: float = float(environ.get("PAGE_LOAD_TIMEOUT", "30.0"))
+    SCRIPT_TIMEOUT: float = float(environ.get("SCRIPT_TIMEOUT", "10.0"))
+    
+    # Rendering timeouts
+    RENDER_TIMEOUT: float = float(environ.get("RENDER_TIMEOUT", "60.0"))
+    SCREENSHOT_TIMEOUT: float = float(environ.get("SCREENSHOT_TIMEOUT", "10.0"))
+    
+    # Network timeouts
+    DNS_TIMEOUT: float = float(environ.get("DNS_TIMEOUT", "5.0"))
+    KEEPALIVE_TIMEOUT: float = float(environ.get("KEEPALIVE_TIMEOUT", "30.0"))
 
-    # Logging level constants
-    LOG_LEVEL_INFO: int = 20  # INFO logging level
 
-    # Logging Configuration
-    LOG_LEVEL: str = environ.get("LOG_LEVEL", "INFO")  # Configurable via env
-    # Log format is a constant (standardized format)
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Global timeout constants instance  
+TIMEOUT_CONSTANTS = TimeoutConstants()
+
+# SEO and content analysis constants  
+WORDS_PER_MINUTE_READING: int = 200  # Average reading speed
+IFRAME_ASPECT_RATIO: str = "16/9"  # Standard video aspect ratio
+
+# Progress tracking constants
+PROGRESS_START: int = 0
+PROGRESS_SETUP: int = 10
+PROGRESS_FETCH: int = 20
+PROGRESS_PROCESS: int = 60
+PROGRESS_COMPLETE: int = 100
+
+# Logging level constants
+LOG_LEVEL_INFO: int = 20  # INFO logging level
+
+# Logging Configuration
+LOG_LEVEL: str = environ.get("LOG_LEVEL", "INFO")  # Configurable via env
+# Log format is a constant (standardized format)
+LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 
 # Global constants instance
