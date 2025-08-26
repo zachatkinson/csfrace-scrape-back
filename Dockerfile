@@ -41,8 +41,8 @@ RUN --mount=type=cache,target=/tmp/.uv-cache \
 #########################
 FROM python:3.13-slim as production
 
-# Copy UV binary from builder
-COPY --from=builder /uv /uvx /bin/
+# Copy UV binary from official UV image
+COPY --from=ghcr.io/astral-sh/uv:0.8.13 /uv /uvx /bin/
 
 # Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \

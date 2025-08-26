@@ -318,12 +318,11 @@ jobs:
         if: matrix.deps == 'minimum'
         run: |
           uv sync --frozen --no-editable
-          uv add --dev pytest pytest-cov pytest-asyncio aioresponses --resolution=lowest
 
       - name: Install latest dependencies  
         if: matrix.deps == 'latest'
         run: |
-          uv sync --frozen --no-editable --upgrade
+          uv sync --no-editable --upgrade
 
       - name: Run compatibility tests
         run: |
