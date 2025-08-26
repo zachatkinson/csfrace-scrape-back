@@ -3,7 +3,7 @@
 #########################
 # Build stage
 #########################
-FROM python:3.11.11-slim-bookworm as builder
+FROM python:3.11-slim-bookworm as builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
