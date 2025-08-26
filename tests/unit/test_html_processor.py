@@ -3,8 +3,8 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from src.processors.html_processor import HTMLProcessor
 from src.core.exceptions import ProcessingError
+from src.processors.html_processor import HTMLProcessor
 
 
 class TestHTMLProcessor:
@@ -24,13 +24,13 @@ class TestHTMLProcessor:
         </p>
         <span style="font-size: 24px; color: red;">Large red text</span>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_font_formatting(soup)
-        
+
         # Check that inline styles are converted to appropriate classes or structure
         converted_html = str(result)
-        
+
         # Should preserve text content
         assert "Styled text" in converted_html
         assert "Large red text" in converted_html
@@ -43,12 +43,12 @@ class TestHTMLProcessor:
         <p class="has-text-align-center">WordPress centered</p>
         <div style="text-align: right;">Right aligned</div>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_text_alignment(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should convert alignment styles to Shopify-compatible classes
         assert "center" in converted_html or "text-align: center" in converted_html
         assert "Centered text" in converted_html
@@ -65,12 +65,12 @@ class TestHTMLProcessor:
         </div>
         <div class="wp-block-kadence-spacer" style="height: 40px;"></div>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_kadence_layouts(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should convert Kadence blocks to Shopify-compatible structure
         assert "Column content" in converted_html
         # Kadence-specific classes should be converted or removed
@@ -90,12 +90,12 @@ class TestHTMLProcessor:
             </figure>
         </div>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_image_galleries(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should convert to Shopify-compatible gallery
         assert "media-grid" in converted_html or "image1.jpg" in converted_html
         assert "Image 1" in converted_html
@@ -111,12 +111,12 @@ class TestHTMLProcessor:
         </figure>
         <img src="/another-image.png" alt="Another image">
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_simple_images(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should preserve image attributes and convert structure
         assert "test-image.jpg" in converted_html
         assert "Test image" in converted_html
@@ -138,12 +138,12 @@ class TestHTMLProcessor:
             </div>
         </div>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_buttons(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should convert to Shopify-compatible button classes
         assert "button" in converted_html
         assert "Action Button" in converted_html
@@ -162,12 +162,12 @@ class TestHTMLProcessor:
             <p>Simple blockquote</p>
         </blockquote>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_blockquotes(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should preserve blockquote structure
         assert "This is a quote" in converted_html
         assert "Quote Author" in converted_html
@@ -184,12 +184,12 @@ class TestHTMLProcessor:
         </figure>
         <iframe width="560" height="315" src="https://youtube.com/embed/abc123"></iframe>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_youtube_embeds(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should convert YouTube embeds to responsive format
         assert "dQw4w9WgXcQ" in converted_html
         assert "abc123" in converted_html
@@ -207,12 +207,12 @@ class TestHTMLProcessor:
             </div>
         </figure>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._convert_instagram_embeds(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should convert Instagram embeds appropriately
         assert "Instagram post" in converted_html
 
@@ -225,12 +225,12 @@ class TestHTMLProcessor:
         <a href="mailto:test@example.com">Email Link</a>
         <a href="tel:+1234567890">Phone Link</a>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor._fix_external_links(soup)
-        
+
         converted_html = str(result)
-        
+
         # Should add appropriate attributes to external links
         assert "External Link" in converted_html
         assert "Internal Link" in converted_html
@@ -250,10 +250,10 @@ class TestHTMLProcessor:
         </div>
         </body></html>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         converted_html = await processor.process(soup)
-        
+
         # Check what actually happens during processing
         assert "Valid content" in converted_html
         # The processor might not remove scripts/styles - check actual behavior
@@ -273,10 +273,10 @@ class TestHTMLProcessor:
         </div>
         </body></html>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         converted_html = await processor.process(soup)
-        
+
         # WordPress-specific classes should be cleaned during processing
         assert "Content with WP classes" in converted_html
         assert "WordPress image wrapper" in converted_html
@@ -286,10 +286,10 @@ class TestHTMLProcessor:
     async def test_find_main_content(self, processor, sample_soup):
         """Test main content area detection."""
         result = processor._find_main_content(sample_soup)
-        
+
         # Should find the main content area
         assert result is not None
-        
+
         # Should contain the main content
         content_text = result.get_text()
         assert "Test Blog Post" in content_text
@@ -298,11 +298,11 @@ class TestHTMLProcessor:
     async def test_full_processing_pipeline(self, processor, sample_soup):
         """Test complete processing pipeline."""
         result_html = await processor.process(sample_soup)
-        
+
         # Should return processed HTML string
         assert isinstance(result_html, str)
         assert len(result_html) > 0
-        
+
         # Should preserve main content
         assert "Test Blog Post" in result_html
         assert "Bold text" in result_html
@@ -314,7 +314,7 @@ class TestHTMLProcessor:
         # Test with invalid/malformed HTML
         malformed_html = "<div><p>Unclosed paragraph<div>Nested incorrectly</p></div>"
         soup = BeautifulSoup(malformed_html, "html.parser")
-        
+
         # Should handle malformed HTML gracefully
         try:
             result = await processor.process(soup)
@@ -328,9 +328,9 @@ class TestHTMLProcessor:
         """Test handling of empty or minimal content."""
         empty_html = "<html><body></body></html>"
         soup = BeautifulSoup(empty_html, "html.parser")
-        
+
         result = await processor.process(soup)
-        
+
         # Should handle empty content without errors
         assert isinstance(result, str)
 
@@ -340,9 +340,9 @@ class TestHTMLProcessor:
         # Create large HTML content
         large_content = "<div>" + "<p>Content paragraph.</p>" * 1000 + "</div>"
         soup = BeautifulSoup(large_content, "html.parser")
-        
+
         result = await processor.process(soup)
-        
+
         # Should handle large content efficiently
         assert isinstance(result, str)
         assert "Content paragraph" in result
@@ -350,10 +350,10 @@ class TestHTMLProcessor:
     def test_processor_initialization(self):
         """Test HTMLProcessor initialization."""
         processor = HTMLProcessor()
-        
+
         # Should initialize without errors
         assert processor is not None
-        
+
         # Should be able to process something
         assert callable(processor.process)
 
@@ -367,11 +367,12 @@ class TestHTMLProcessor:
             </div>
         </div>
         """
-        
+
         soup = BeautifulSoup(html_content, "html.parser")
         result = await processor.process(soup)
-        
+
         # Shopify classes should be preserved
         assert "center" in result
         assert "media-grid" in result
         assert "button" in result
+

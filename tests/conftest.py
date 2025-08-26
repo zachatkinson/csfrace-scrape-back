@@ -11,10 +11,9 @@ import pytest_asyncio
 from aioresponses import aioresponses
 from bs4 import BeautifulSoup
 
-from src.constants import CONSTANTS, TEST_CONSTANTS
 from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
-from src.core.config import config
+from src.constants import TEST_CONSTANTS
 
 
 @pytest.fixture(scope="session")
@@ -179,7 +178,7 @@ def mock_wordpress_server(mock_responses):
         f"{TEST_CONSTANTS.BASE_TEST_URL}/robots.txt",
         body="User-agent: *\nAllow: /\nCrawl-delay: 1"
     )
-    
+
     # Mock sample post
     mock_responses.get(
         TEST_CONSTANTS.SAMPLE_POST_URL,
@@ -199,14 +198,14 @@ def mock_wordpress_server(mock_responses):
         </html>
         """
     )
-    
+
     # Mock image
     mock_responses.get(
         f"{TEST_CONSTANTS.BASE_TEST_URL}{TEST_CONSTANTS.SAMPLE_IMAGE_URL}",
         body=TEST_CONSTANTS.TEST_IMAGE_CONTENT,
         headers={"Content-Type": "image/jpeg"}
     )
-    
+
     return mock_responses
 
 
@@ -214,7 +213,7 @@ def mock_wordpress_server(mock_responses):
 def plugin_config():
     """Sample plugin configuration."""
     from src.plugins.base import PluginConfig, PluginType
-    
+
     return PluginConfig(
         name="test_plugin",
         version="1.0.0",
@@ -267,12 +266,9 @@ def pytest_configure(config):
 # Skip Redis tests if not available
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to handle missing dependencies."""
-    try:
-        import redis
-        redis_available = True
-    except ImportError:
-        redis_available = False
-    
+    import importlib.util
+    redis_available = importlib.util.find_spec("redis") is not None
+
     if not redis_available:
         skip_redis = pytest.mark.skip(reason="Redis not available")
         for item in items:

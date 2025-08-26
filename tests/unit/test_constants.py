@@ -1,7 +1,6 @@
 """Tests for centralized constants module."""
 
 import os
-from unittest.mock import patch
 
 import pytest
 
@@ -21,7 +20,7 @@ class TestAppConstants:
         # Since dataclass is frozen and values are evaluated at class definition,
         # we test that the current values match what would be in environment
         # or use the expected defaults
-        
+
         # Test that defaults are used when env vars aren't set
         assert CONSTANTS.DEFAULT_TIMEOUT == 30  # Default value
         assert CONSTANTS.MAX_CONCURRENT == 10   # Default value
@@ -55,10 +54,10 @@ class TestAppConstants:
     def test_shopify_preserve_classes(self):
         """Test Shopify-compatible CSS classes."""
         expected_classes = {
-            "center", "media-grid", "media-grid-2", "media-grid-4", 
+            "center", "media-grid", "media-grid-2", "media-grid-4",
             "media-grid-5", "button", "button--primary"
         }
-        
+
         # Check that our expected classes are in the preserve set
         for css_class in expected_classes:
             assert css_class in CONSTANTS.SHOPIFY_PRESERVE_CLASSES
@@ -131,12 +130,12 @@ class TestEnvironmentVariableHandling:
         # Test string environment variables
         assert isinstance(CONSTANTS.DEFAULT_OUTPUT_DIR, str)
         assert isinstance(CONSTANTS.DEFAULT_USER_AGENT, str)
-        
+
         # Test numeric environment variables
         assert isinstance(CONSTANTS.DEFAULT_TIMEOUT, int)
         assert isinstance(CONSTANTS.RATE_LIMIT_DELAY, float)
         assert isinstance(CONSTANTS.MAX_CONCURRENT, int)
-        
+
         # Test boolean environment variables
         assert isinstance(CONSTANTS.RESPECT_ROBOTS_TXT, bool)
 
@@ -153,7 +152,7 @@ class TestEnvironmentVariableHandling:
             ("", False),  # Empty string
             ("invalid", False),  # Invalid value
         ]
-        
+
         for env_value, expected in test_cases:
             # Test the logic that constants.py actually uses
             result = env_value.lower() == "true" if env_value else False
@@ -164,23 +163,22 @@ class TestEnvironmentVariableHandling:
         # Test int conversion
         assert int("45") == 45
         assert float("3.5") == 3.5
-        
+
         # Test that invalid conversion raises ValueError
         with pytest.raises(ValueError):
             int("not_a_number")
-            
+
         with pytest.raises(ValueError):
             float("also_not_a_number")
 
     def test_environment_variable_defaults(self):
         """Test that proper defaults are used when environment variables aren't set."""
         # These should be the actual default values
-        import os
-        
+
         # Test with environment variable not set
         default_timeout = os.environ.get("DEFAULT_TIMEOUT", "30")
         assert int(default_timeout) == 30
-        
+
         default_output = os.environ.get("OUTPUT_DIR", "converted_content")
         assert default_output == "converted_content"
 
@@ -205,9 +203,10 @@ class TestConstantImmutability:
         # This should work since it's a regular dict in a field
         original_types = CONSTANTS.IMAGE_CONTENT_TYPES.copy()
         CONSTANTS.IMAGE_CONTENT_TYPES["image/test"] = ".test"
-        
+
         assert "image/test" in CONSTANTS.IMAGE_CONTENT_TYPES
-        
+
         # Clean up
         del CONSTANTS.IMAGE_CONTENT_TYPES["image/test"]
-        assert CONSTANTS.IMAGE_CONTENT_TYPES == original_types
+        assert original_types == CONSTANTS.IMAGE_CONTENT_TYPES
+
