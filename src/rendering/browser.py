@@ -5,7 +5,7 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, Literal, cast
 
 import structlog
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
@@ -114,7 +114,7 @@ class BrowserPool:
                 raise ValueError(f"Unsupported browser type: {self.config.browser_type}")
 
             # Launch browser with configuration
-            launch_options = {
+            launch_options: dict[str, Any] = {
                 "headless": self.config.headless,
                 "args": [
                     "--no-sandbox",
@@ -166,7 +166,7 @@ class BrowserPool:
         if not self._browser:
             await self.initialize()
 
-        context_options = {
+        context_options: dict[str, Any] = {
             "viewport": {
                 "width": self.config.viewport_width,
                 "height": self.config.viewport_height,
@@ -179,6 +179,8 @@ class BrowserPool:
         if self.config.extra_http_headers:
             context_options["extra_http_headers"] = self.config.extra_http_headers
 
+        if not self._browser:
+            raise RuntimeError("Browser not initialized")
         context = await self._browser.new_context(**context_options)
 
         # Set default timeout
@@ -295,7 +297,7 @@ class JavaScriptRenderer:
         additional_wait_time: float = 0.0,
     ) -> RenderResult:
         """Render a page with JavaScript execution."""
-        if not self._pool:
+        if self._pool is None:
             await self.initialize()
 
         async def _render():
@@ -331,6 +333,8 @@ class JavaScriptRenderer:
         start_time = time.time()
         network_requests = []
 
+        if not self._pool:
+            raise RuntimeError("Browser pool not initialized")
         async with self._pool.get_context() as context:
             page = await context.new_page()
 
@@ -352,8 +356,12 @@ class JavaScriptRenderer:
 
                 # Navigate to page
                 logger.debug("Navigating to URL", url=url)
+                wait_until_literal = cast(
+                    Literal["commit", "domcontentloaded", "load", "networkidle"],
+                    self.config.wait_until,
+                )
                 response = await page.goto(
-                    url, wait_until=self.config.wait_until, timeout=self.config.timeout * 1000
+                    url, wait_until=wait_until_literal, timeout=self.config.timeout * 1000
                 )
 
                 if not response:
@@ -394,7 +402,7 @@ class JavaScriptRenderer:
                 screenshots = {}
                 if take_screenshot:
                     logger.debug("Taking screenshot")
-                    screenshot_options = {"full_page": full_page_screenshot}
+                    screenshot_options: dict[str, Any] = {"full_page": full_page_screenshot}
                     screenshots["main"] = await page.screenshot(**screenshot_options)
 
                 # Calculate load time

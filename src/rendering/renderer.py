@@ -253,7 +253,8 @@ class AdaptiveRenderer:
                 )
                 results[url] = (error_result, error_analysis)
             else:
-                results[url] = task_result
+                # Task succeeded, result is guaranteed to be tuple
+                results[url] = task_result  # type: ignore[assignment]
 
         success_count = sum(1 for r, a in results.values() if r.status_code < 400)
         logger.info(

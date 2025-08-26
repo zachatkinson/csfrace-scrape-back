@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import structlog
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
@@ -145,7 +145,7 @@ class DynamicContentDetector:
             reasons.append(
                 f"Low content density ({content_density:.2f}) suggests client-side rendering"
             )
-            metadata["content_density"] = content_density
+            metadata["content_density"] = int(content_density)
 
         # Check for meta tags suggesting SPA
         spa_meta = self._detect_spa_meta_tags(soup)
@@ -314,6 +314,8 @@ class DynamicContentDetector:
             return False
 
         # Count non-script elements in body
+        if not isinstance(body, Tag):
+            return False
         non_script_elements = [
             elem
             for elem in body.find_all()
@@ -321,6 +323,8 @@ class DynamicContentDetector:
         ]
 
         # Check if body is mostly empty except for scripts
+        if not isinstance(body, Tag):
+            return False
         script_count = len(body.find_all("script"))
 
         return len(non_script_elements) <= 2 and script_count >= 1
@@ -397,7 +401,11 @@ def get_recommended_wait_conditions(analysis: ContentAnalysis) -> dict[str, Any]
         conditions["wait_for_function"] = "() => document.readyState === 'complete'"
 
     if "ajax_patterns" in analysis.indicators_found:
-        conditions["additional_wait_time"] = max(conditions["additional_wait_time"], 1.5)
+        current_wait = conditions.get("additional_wait_time", 0.0)
+        if isinstance(current_wait, (int, float)):
+            conditions["additional_wait_time"] = max(float(current_wait), 1.5)
+        else:
+            conditions["additional_wait_time"] = 1.5
 
     if any(fw in ["react", "vue", "angular"] for fw in analysis.frameworks_detected):
         conditions["wait_until"] = "networkidle"

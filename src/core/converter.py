@@ -9,7 +9,7 @@ import aiohttp
 import structlog
 from bs4 import BeautifulSoup
 
-from ..constants import CONSTANTS
+from ..constants import CONSTANTS, PROGRESS_CONSTANTS
 from ..processors.html_processor import HTMLProcessor
 from ..processors.image_downloader import AsyncImageDownloader
 from ..processors.metadata_extractor import MetadataExtractor
@@ -278,7 +278,7 @@ class AsyncWordPressConverter:
             await self._setup_directories()
 
             if progress_callback:
-                progress_callback(CONSTANTS.PROGRESS_SETUP)
+                progress_callback(PROGRESS_CONSTANTS.SETUP)
 
             # Create HTTP session with proper headers
             connector = aiohttp.TCPConnector(limit=self.config.max_concurrent_downloads)
@@ -288,7 +288,7 @@ class AsyncWordPressConverter:
                 connector=connector, timeout=timeout, headers={"User-Agent": self.config.user_agent}
             ) as session:
                 if progress_callback:
-                    progress_callback(CONSTANTS.PROGRESS_FETCH)
+                    progress_callback(PROGRESS_CONSTANTS.FETCH)
 
                 # Fetch webpage content
                 html_content = await self._fetch_content(session)
@@ -300,7 +300,7 @@ class AsyncWordPressConverter:
                 metadata, processed_html, image_urls = await self._process_content(html_content)
 
                 if progress_callback:
-                    progress_callback(CONSTANTS.PROGRESS_PROCESS)
+                    progress_callback(PROGRESS_CONSTANTS.PROCESS)
 
                 # Save converted content
                 await self._save_content(metadata, processed_html)
@@ -319,7 +319,7 @@ class AsyncWordPressConverter:
                     )
 
                 if progress_callback:
-                    progress_callback(CONSTANTS.PROGRESS_COMPLETE)
+                    progress_callback(PROGRESS_CONSTANTS.COMPLETE)
 
             logger.info(
                 "Conversion completed successfully",

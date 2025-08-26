@@ -144,16 +144,24 @@ class TimeoutConstants:
 # Global timeout constants instance
 TIMEOUT_CONSTANTS = TimeoutConstants()
 
+
+@dataclass(frozen=True)
+class ProgressConstants:
+    """Progress tracking constants."""
+
+    START: int = 0
+    SETUP: int = 10
+    FETCH: int = 20
+    PROCESS: int = 60
+    COMPLETE: int = 100
+
+
+# Global progress constants instance
+PROGRESS_CONSTANTS = ProgressConstants()
+
 # SEO and content analysis constants
 WORDS_PER_MINUTE_READING: int = 200  # Average reading speed
 IFRAME_ASPECT_RATIO: str = "16/9"  # Standard video aspect ratio
-
-# Progress tracking constants
-PROGRESS_START: int = 0
-PROGRESS_SETUP: int = 10
-PROGRESS_FETCH: int = 20
-PROGRESS_PROCESS: int = 60
-PROGRESS_COMPLETE: int = 100
 
 # Logging level constants
 LOG_LEVEL_INFO: int = 20  # INFO logging level
