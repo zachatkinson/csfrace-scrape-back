@@ -40,7 +40,7 @@ class TestRenderingStrategy:
             confidence_threshold=0.8,
             browser_config=browser_config,
             enable_screenshots=True,
-            max_concurrent_renders=5
+            max_concurrent_renders=5,
         )
 
         assert strategy.force_javascript is True
@@ -75,7 +75,7 @@ class TestAdaptiveRenderer:
             frameworks_detected=["react"],
             indicators_found=["js_frameworks_in_scripts"],
             fallback_strategy="javascript",
-            reasons=["React framework detected"]
+            reasons=["React framework detected"],
         )
 
     @pytest.fixture
@@ -87,7 +87,7 @@ class TestAdaptiveRenderer:
             frameworks_detected=[],
             indicators_found=[],
             fallback_strategy="standard",
-            reasons=[]
+            reasons=[],
         )
 
     def test_adaptive_renderer_initialization(self):
@@ -111,7 +111,9 @@ class TestAdaptiveRenderer:
         strategy = RenderingStrategy(force_javascript=True)
         renderer = AdaptiveRenderer(strategy=strategy, detector=mock_detector)
 
-        should_use_js, analysis = await renderer.analyze_content("<html></html>", "https://example.com")
+        should_use_js, analysis = await renderer.analyze_content(
+            "<html></html>", "https://example.com"
+        )
 
         assert should_use_js is True
         assert analysis.is_dynamic is True
@@ -127,7 +129,9 @@ class TestAdaptiveRenderer:
         strategy = RenderingStrategy(force_static=True)
         renderer = AdaptiveRenderer(strategy=strategy, detector=mock_detector)
 
-        should_use_js, analysis = await renderer.analyze_content("<html></html>", "https://example.com")
+        should_use_js, analysis = await renderer.analyze_content(
+            "<html></html>", "https://example.com"
+        )
 
         assert should_use_js is False
         assert analysis.is_dynamic is False
@@ -164,7 +168,7 @@ class TestAdaptiveRenderer:
         assert should_use_js is False  # 0.2 < 0.5 threshold
         assert analysis == static_analysis
 
-    @patch('src.rendering.renderer.JavaScriptRenderer')
+    @patch("src.rendering.renderer.JavaScriptRenderer")
     async def test_ensure_js_renderer(self, mock_js_renderer_class, mock_detector):
         """Test JavaScript renderer initialization."""
         mock_js_renderer = AsyncMock()
@@ -185,8 +189,10 @@ class TestAdaptiveRenderer:
         assert js_renderer2 == mock_js_renderer
         assert mock_js_renderer.initialize.call_count == 1  # Not called again
 
-    @patch('src.rendering.renderer.get_recommended_wait_conditions')
-    async def test_render_page_with_static_html(self, mock_wait_conditions, mock_detector, static_analysis):
+    @patch("src.rendering.renderer.get_recommended_wait_conditions")
+    async def test_render_page_with_static_html(
+        self, mock_wait_conditions, mock_detector, static_analysis
+    ):
         """Test rendering with provided static HTML."""
         mock_detector.analyze_html.return_value = static_analysis
         mock_wait_conditions.return_value = {"wait_until": "load"}
@@ -194,7 +200,9 @@ class TestAdaptiveRenderer:
         renderer = AdaptiveRenderer(detector=mock_detector)
 
         static_html = "<html><body>Static content</body></html>"
-        result, analysis = await renderer.render_page("https://example.com", static_html=static_html)
+        result, analysis = await renderer.render_page(
+            "https://example.com", static_html=static_html
+        )
 
         # Should use static HTML directly
         assert result.html == static_html
@@ -206,13 +214,15 @@ class TestAdaptiveRenderer:
         # Should analyze the provided HTML
         mock_detector.analyze_html.assert_called_with(static_html, "https://example.com")
 
-    @patch('src.rendering.renderer.get_recommended_wait_conditions')
-    async def test_render_page_javascript_rendering(self, mock_wait_conditions, mock_detector, sample_analysis):
+    @patch("src.rendering.renderer.get_recommended_wait_conditions")
+    async def test_render_page_javascript_rendering(
+        self, mock_wait_conditions, mock_detector, sample_analysis
+    ):
         """Test JavaScript rendering."""
         mock_detector.analyze_html.return_value = sample_analysis
         mock_wait_conditions.return_value = {
             "wait_until": "networkidle",
-            "additional_wait_time": 2.0
+            "additional_wait_time": 2.0,
         }
 
         # Mock JavaScript renderer
@@ -224,17 +234,16 @@ class TestAdaptiveRenderer:
             final_url="https://example.com",
             load_time=1.5,
             javascript_executed=True,
-            metadata={}
+            metadata={},
         )
         mock_js_renderer.render_page.return_value = mock_render_result
 
-        with patch.object(AdaptiveRenderer, '_ensure_js_renderer', return_value=mock_js_renderer):
+        with patch.object(AdaptiveRenderer, "_ensure_js_renderer", return_value=mock_js_renderer):
             renderer = AdaptiveRenderer(detector=mock_detector)
 
             static_html = "<html><script src='react.js'></script></html>"
             result, final_analysis = await renderer.render_page(
-                "https://example.com",
-                static_html=static_html
+                "https://example.com", static_html=static_html
             )
 
             # Should use JavaScript rendering
@@ -246,7 +255,7 @@ class TestAdaptiveRenderer:
                 "take_screenshot": False,
                 "capture_network": False,
                 "wait_until": "networkidle",
-                "additional_wait_time": 2.0
+                "additional_wait_time": 2.0,
             }
             mock_js_renderer.render_page.assert_called_once_with(
                 "https://example.com", **expected_options
@@ -263,11 +272,20 @@ class TestAdaptiveRenderer:
 
         urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
 
-        with patch.object(renderer, 'render_page') as mock_render:
+        with patch.object(renderer, "render_page") as mock_render:
             # Mock successful renders
             mock_render.side_effect = [
-                (RenderResult(html=f"Content {i}", url=url, status_code=200, final_url=url,
-                            load_time=1.0, javascript_executed=False), static_analysis)
+                (
+                    RenderResult(
+                        html=f"Content {i}",
+                        url=url,
+                        status_code=200,
+                        final_url=url,
+                        load_time=1.0,
+                        javascript_executed=False,
+                    ),
+                    static_analysis,
+                )
                 for i, url in enumerate(urls, 1)
             ]
 
@@ -285,13 +303,21 @@ class TestAdaptiveRenderer:
 
         urls = ["https://example.com/1", "https://example.com/2"]
 
-        with patch.object(renderer, 'render_page') as mock_render:
+        with patch.object(renderer, "render_page") as mock_render:
             # First succeeds, second fails
             mock_render.side_effect = [
-                (RenderResult(html="Success", url=urls[0], status_code=200, final_url=urls[0],
-                            load_time=1.0, javascript_executed=False),
-                 ContentAnalysis(is_dynamic=False, confidence_score=0.2)),
-                Exception("Render failed")
+                (
+                    RenderResult(
+                        html="Success",
+                        url=urls[0],
+                        status_code=200,
+                        final_url=urls[0],
+                        load_time=1.0,
+                        javascript_executed=False,
+                    ),
+                    ContentAnalysis(is_dynamic=False, confidence_score=0.2),
+                ),
+                Exception("Render failed"),
             ]
 
             results = await renderer.render_multiple(urls)
@@ -391,7 +417,7 @@ class TestRenderingService:
             status_code=200,
             final_url="https://example.com",
             load_time=2.0,
-            javascript_executed=True
+            javascript_executed=True,
         )
         final_analysis = ContentAnalysis(is_dynamic=True, confidence_score=0.9)
         mock_adaptive_renderer.render_page.return_value = (enhanced_result, final_analysis)
@@ -412,10 +438,9 @@ class TestRenderingService:
         service = RenderingService()
         service.adaptive_renderer = mock_adaptive_renderer
 
-        with patch.object(service, 'enhance_static_content', return_value="<html>Static</html>"):
+        with patch.object(service, "enhance_static_content", return_value="<html>Static</html>"):
             html, metadata = await service.render_page_with_fallback(
-                "https://example.com",
-                static_html="<html>Original</html>"
+                "https://example.com", static_html="<html>Original</html>"
             )
 
             assert html == "<html>Static</html>"
@@ -434,14 +459,15 @@ class TestRenderingService:
             final_url="https://example.com",
             load_time=1.0,
             javascript_executed=True,
-            metadata={"test": "data"}
+            metadata={"test": "data"},
         )
         analysis = ContentAnalysis(is_dynamic=True, confidence_score=0.8)
 
-        with patch.object(service, 'enhance_static_content', return_value=(enhanced_result, analysis)):
+        with patch.object(
+            service, "enhance_static_content", return_value=(enhanced_result, analysis)
+        ):
             html, metadata = await service.render_page_with_fallback(
-                "https://example.com",
-                static_html="<html>Original</html>"
+                "https://example.com", static_html="<html>Original</html>"
             )
 
             assert html == "<html>Enhanced</html>"
@@ -455,10 +481,11 @@ class TestRenderingService:
         service = RenderingService()
         service.adaptive_renderer = mock_adaptive_renderer
 
-        with patch.object(service, 'enhance_static_content', side_effect=Exception("Render failed")):
+        with patch.object(
+            service, "enhance_static_content", side_effect=Exception("Render failed")
+        ):
             html, metadata = await service.render_page_with_fallback(
-                "https://example.com",
-                static_html="<html>Fallback</html>"
+                "https://example.com", static_html="<html>Fallback</html>"
             )
 
             # Should fallback to static content
@@ -470,7 +497,7 @@ class TestRenderingService:
         """Test service as context manager."""
         service = RenderingService()
 
-        with patch.object(service, 'cleanup') as mock_cleanup:
+        with patch.object(service, "cleanup") as mock_cleanup:
             async with service:
                 pass
 
@@ -487,7 +514,7 @@ class TestFactoryFunctions:
             headless=False,
             timeout=60.0,
             confidence_threshold=0.8,
-            enable_screenshots=True
+            enable_screenshots=True,
         )
 
         assert isinstance(renderer, AdaptiveRenderer)
@@ -499,10 +526,7 @@ class TestFactoryFunctions:
 
     def test_create_rendering_service(self):
         """Test rendering service factory."""
-        service = create_rendering_service(
-            browser_type="webkit",
-            confidence_threshold=0.7
-        )
+        service = create_rendering_service(browser_type="webkit", confidence_threshold=0.7)
 
         assert isinstance(service, RenderingService)
         assert isinstance(service.adaptive_renderer, AdaptiveRenderer)

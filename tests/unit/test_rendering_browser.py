@@ -37,7 +37,7 @@ class TestBrowserConfig:
             viewport_width=1366,
             viewport_height=768,
             timeout=60.0,
-            wait_until="load"
+            wait_until="load",
         )
 
         assert config.browser_type == "firefox"
@@ -81,7 +81,7 @@ class TestRenderResult:
             status_code=200,
             final_url="https://example.com/",
             load_time=1.5,
-            javascript_executed=True
+            javascript_executed=True,
         )
 
         assert result.html == "<html></html>"
@@ -109,7 +109,7 @@ class TestRenderResult:
             javascript_executed=True,
             metadata=metadata,
             screenshots=screenshots,
-            network_requests=network_requests
+            network_requests=network_requests,
         )
 
         assert result.metadata == metadata
@@ -130,10 +130,7 @@ class TestBrowserPool:
     def browser_pool(self, browser_config):
         """Create test browser pool."""
         return BrowserPool(
-            config=browser_config,
-            max_contexts=3,
-            context_reuse_limit=5,
-            cleanup_interval=60.0
+            config=browser_config, max_contexts=3, context_reuse_limit=5, cleanup_interval=60.0
         )
 
     async def test_browser_pool_initialization(self, browser_pool):
@@ -144,7 +141,7 @@ class TestBrowserPool:
         assert browser_pool.max_contexts == 3
         assert browser_pool.context_reuse_limit == 5
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_browser_pool_initialize(self, mock_playwright, browser_pool):
         """Test browser pool initialization process."""
         # Mock Playwright components
@@ -165,7 +162,7 @@ class TestBrowserPool:
         mock_playwright.return_value.start.assert_called_once()
         mock_browser_type.launch.assert_called_once()
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_browser_pool_cleanup(self, mock_playwright, browser_pool):
         """Test browser pool cleanup."""
         # Setup mocks
@@ -191,7 +188,7 @@ class TestBrowserPool:
         mock_browser.close.assert_called_once()
         mock_pw_instance.stop.assert_called_once()
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_browser_pool_context_creation(self, mock_playwright, browser_pool):
         """Test browser context creation."""
         # Setup mocks
@@ -210,7 +207,7 @@ class TestBrowserPool:
         mock_browser.new_context.assert_called_once()
         mock_context.set_default_timeout.assert_called_once_with(30000)  # 30 seconds in ms
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_browser_pool_get_context(self, mock_playwright, browser_pool):
         """Test getting context from pool."""
         # Setup mocks
@@ -269,7 +266,7 @@ class TestJavaScriptRenderer:
         assert renderer._pool is None
 
         # Test actual initialization with mocked pool class
-        with patch('src.rendering.browser.BrowserPool') as mock_pool_class:
+        with patch("src.rendering.browser.BrowserPool") as mock_pool_class:
             mock_pool = AsyncMock()
             mock_pool.initialize = AsyncMock()
             mock_pool_class.return_value = mock_pool
@@ -291,7 +288,7 @@ class TestJavaScriptRenderer:
         mock_pool.cleanup.assert_called_once()
         assert renderer._pool is None
 
-    @patch('src.rendering.browser.BrowserPool')
+    @patch("src.rendering.browser.BrowserPool")
     async def test_renderer_render_page(self, mock_pool_class, renderer):
         """Test page rendering functionality."""
         # Setup mocks
@@ -322,7 +319,7 @@ class TestJavaScriptRenderer:
 
         # Set pool and mock initialize to avoid creating new pool
         renderer._pool = mock_pool
-        with patch.object(renderer, 'initialize', new_callable=AsyncMock) as mock_init:
+        with patch.object(renderer, "initialize", new_callable=AsyncMock) as mock_init:
             # Test rendering
             result = await renderer.render_page("https://example.com")
 
@@ -340,7 +337,7 @@ class TestJavaScriptRenderer:
             mock_page.content.assert_called_once()
             mock_page.close.assert_called_once()
 
-    @patch('src.rendering.browser.BrowserPool')
+    @patch("src.rendering.browser.BrowserPool")
     async def test_renderer_with_custom_options(self, mock_pool_class, renderer):
         """Test rendering with custom options."""
         # Setup mocks similar to previous test
@@ -376,7 +373,7 @@ class TestJavaScriptRenderer:
         # Set pool and mock initialize to avoid creating new pool
         renderer._pool = mock_pool
 
-        with patch.object(renderer, 'initialize', new_callable=AsyncMock) as mock_init:
+        with patch.object(renderer, "initialize", new_callable=AsyncMock) as mock_init:
             # Test with custom options
             result = await renderer.render_page(
                 url="https://example.com",
@@ -384,7 +381,7 @@ class TestJavaScriptRenderer:
                 execute_script="return document.title;",
                 take_screenshot=True,
                 capture_network=True,
-                additional_wait_time=1.0
+                additional_wait_time=1.0,
             )
 
             # Verify custom options were used
@@ -398,8 +395,8 @@ class TestJavaScriptRenderer:
 
     async def test_renderer_context_manager(self, renderer):
         """Test renderer as async context manager."""
-        with patch.object(renderer, 'initialize', new_callable=AsyncMock) as mock_init:
-            with patch.object(renderer, 'cleanup', new_callable=AsyncMock) as mock_cleanup:
+        with patch.object(renderer, "initialize", new_callable=AsyncMock) as mock_init:
+            with patch.object(renderer, "cleanup", new_callable=AsyncMock) as mock_cleanup:
                 async with renderer:
                     mock_init.assert_called_once()
 
@@ -421,10 +418,7 @@ class TestRendererFactory:
     def test_create_renderer_custom(self):
         """Test creating renderer with custom config."""
         renderer = create_renderer(
-            browser_type="firefox",
-            headless=False,
-            timeout=60.0,
-            viewport_width=1366
+            browser_type="firefox", headless=False, timeout=60.0, viewport_width=1366
         )
 
         assert renderer.config.browser_type == "firefox"
@@ -446,7 +440,7 @@ class TestRendererIntegration:
         assert renderer._pool is None
 
         # Mock the pool creation
-        with patch('src.rendering.browser.BrowserPool') as mock_pool_class:
+        with patch("src.rendering.browser.BrowserPool") as mock_pool_class:
             mock_pool = AsyncMock()
             mock_pool_class.return_value = mock_pool
 
@@ -465,7 +459,7 @@ class TestRendererIntegration:
         """Test that multiple renders reuse the same pool."""
         renderer = create_renderer()
 
-        with patch('src.rendering.browser.BrowserPool') as mock_pool_class:
+        with patch("src.rendering.browser.BrowserPool") as mock_pool_class:
             mock_pool = AsyncMock()
             mock_pool_class.return_value = mock_pool
 

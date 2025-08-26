@@ -1,6 +1,5 @@
 """Unit tests for dynamic content detection."""
 
-
 import pytest
 
 from src.rendering.detector import (
@@ -20,7 +19,16 @@ class TestDynamicContentIndicators:
         indicators = DynamicContentIndicators()
 
         # Verify JS frameworks
-        expected_frameworks = ["react", "vue", "angular", "svelte", "ember", "backbone", "knockout", "jquery"]
+        expected_frameworks = [
+            "react",
+            "vue",
+            "angular",
+            "svelte",
+            "ember",
+            "backbone",
+            "knockout",
+            "jquery",
+        ]
         for framework in expected_frameworks:
             assert framework in indicators.js_frameworks
 
@@ -44,7 +52,7 @@ class TestDynamicContentIndicators:
             spa_indicators=["custom-spa"],
             lazy_loading_selectors=[".custom-lazy"],
             js_dependent_classes=["custom-js-"],
-            ajax_indicators=["custom-ajax"]
+            ajax_indicators=["custom-ajax"],
         )
 
         assert custom_indicators.js_frameworks == ["custom-framework"]
@@ -66,7 +74,7 @@ class TestContentAnalysis:
             frameworks_detected=["react"],
             fallback_strategy="javascript",
             reasons=["React framework detected"],
-            metadata={"content_density": 0.5}
+            metadata={"content_density": 0.5},
         )
 
         assert analysis.is_dynamic is True
@@ -459,9 +467,7 @@ class TestUtilityFunctions:
     def test_get_recommended_wait_conditions_lazy_loading(self):
         """Test wait conditions for lazy loading content."""
         analysis = ContentAnalysis(
-            is_dynamic=True,
-            confidence_score=0.6,
-            indicators_found=["lazy_loading"]
+            is_dynamic=True, confidence_score=0.6, indicators_found=["lazy_loading"]
         )
 
         conditions = get_recommended_wait_conditions(analysis)
@@ -476,7 +482,7 @@ class TestUtilityFunctions:
             is_dynamic=True,
             confidence_score=0.8,
             frameworks_detected=["react"],
-            indicators_found=["js_frameworks_in_scripts"]
+            indicators_found=["js_frameworks_in_scripts"],
         )
 
         conditions = get_recommended_wait_conditions(analysis)
@@ -491,7 +497,7 @@ class TestUtilityFunctions:
             is_dynamic=True,
             confidence_score=0.8,
             frameworks_detected=["vue"],
-            indicators_found=["js_frameworks_in_scripts", "spa_attributes"]
+            indicators_found=["js_frameworks_in_scripts", "spa_attributes"],
         )
 
         conditions = get_recommended_wait_conditions(analysis)
@@ -506,7 +512,7 @@ class TestUtilityFunctions:
             is_dynamic=True,
             confidence_score=0.8,
             frameworks_detected=["angular"],
-            indicators_found=["js_frameworks_in_scripts", "spa_attributes"]
+            indicators_found=["js_frameworks_in_scripts", "spa_attributes"],
         )
 
         conditions = get_recommended_wait_conditions(analysis)
@@ -518,9 +524,7 @@ class TestUtilityFunctions:
     def test_get_recommended_wait_conditions_ajax(self):
         """Test wait conditions for AJAX-heavy content."""
         analysis = ContentAnalysis(
-            is_dynamic=True,
-            confidence_score=0.6,
-            indicators_found=["ajax_patterns"]
+            is_dynamic=True, confidence_score=0.6, indicators_found=["ajax_patterns"]
         )
 
         conditions = get_recommended_wait_conditions(analysis)
@@ -533,7 +537,7 @@ class TestUtilityFunctions:
             is_dynamic=True,
             confidence_score=0.9,
             frameworks_detected=["react"],
-            indicators_found=["lazy_loading", "ajax_patterns", "js_frameworks_in_scripts"]
+            indicators_found=["lazy_loading", "ajax_patterns", "js_frameworks_in_scripts"],
         )
 
         conditions = get_recommended_wait_conditions(analysis)

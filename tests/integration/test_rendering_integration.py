@@ -26,7 +26,7 @@ class TestRenderingIntegration:
             headless=True,
             timeout=10.0,
             viewport_width=1280,
-            viewport_height=720
+            viewport_height=720,
         )
 
     @pytest.fixture
@@ -124,7 +124,9 @@ class TestRenderingIntegration:
         assert "js_frameworks_in_scripts" in analysis.indicators_found
         assert len(analysis.reasons) > 0
 
-    async def test_should_use_javascript_rendering_utility(self, sample_static_html, sample_spa_html):
+    async def test_should_use_javascript_rendering_utility(
+        self, sample_static_html, sample_spa_html
+    ):
         """Test utility function for determining JavaScript rendering need."""
         # Static content
         should_use_js, static_analysis = should_use_javascript_rendering(
@@ -140,7 +142,7 @@ class TestRenderingIntegration:
         assert should_use_js is True
         assert spa_analysis.is_dynamic is True
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_renderer_initialization_lifecycle(self, mock_playwright, renderer_config):
         """Test complete renderer initialization and cleanup lifecycle."""
         # Setup mocks
@@ -170,7 +172,7 @@ class TestRenderingIntegration:
         await renderer.cleanup()
         assert renderer._pool is None
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_renderer_context_manager_lifecycle(self, mock_playwright, renderer_config):
         """Test renderer as async context manager."""
         # Setup mocks
@@ -191,7 +193,7 @@ class TestRenderingIntegration:
         # Should be cleaned up after context exit
         assert renderer._pool is None
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_full_rendering_workflow(self, mock_playwright, renderer_config, sample_spa_html):
         """Test complete rendering workflow from detection to rendering."""
         # Setup comprehensive mocks
@@ -279,7 +281,7 @@ class TestRenderingIntegration:
                 </html>
                 """,
                 "expected_dynamic": False,
-                "expected_strategy": "standard"
+                "expected_strategy": "standard",
             },
             {
                 "name": "Vue.js app",
@@ -296,7 +298,7 @@ class TestRenderingIntegration:
                 </html>
                 """,
                 "expected_dynamic": True,
-                "expected_strategy": ["javascript", "hybrid"]
+                "expected_strategy": ["javascript", "hybrid"],
             },
             {
                 "name": "jQuery enhanced page",
@@ -316,7 +318,7 @@ class TestRenderingIntegration:
                 </html>
                 """,
                 "expected_dynamic": True,
-                "expected_strategy": ["hybrid", "javascript"]
+                "expected_strategy": ["hybrid", "javascript"],
             },
             {
                 "name": "Lazy loading images",
@@ -331,8 +333,8 @@ class TestRenderingIntegration:
                 </html>
                 """,
                 "expected_dynamic": True,  # Lazy loading indicates dynamic content
-                "expected_strategy": ["standard", "hybrid"]
-            }
+                "expected_strategy": ["standard", "hybrid"],
+            },
         ]
 
         for case in test_cases:
@@ -361,7 +363,7 @@ class TestRenderingIntegration:
         # Test rendering without initialization
         with pytest.raises(Exception):
             # Should auto-initialize, but if it fails, should raise
-            with patch.object(renderer, 'initialize', side_effect=Exception("Init failed")):
+            with patch.object(renderer, "initialize", side_effect=Exception("Init failed")):
                 await renderer.render_page("https://example.com")
 
     async def test_browser_config_validation_integration(self):
@@ -373,7 +375,7 @@ class TestRenderingIntegration:
             BrowserConfig(browser_type="webkit"),
             BrowserConfig(wait_until="load"),
             BrowserConfig(wait_until="domcontentloaded"),
-            BrowserConfig(wait_until="networkidle")
+            BrowserConfig(wait_until="networkidle"),
         ]
 
         for config in valid_configs:
@@ -395,11 +397,7 @@ class TestRenderingIntegration:
         assert renderer1.config.headless is True
 
         # Custom renderer
-        renderer2 = create_renderer(
-            browser_type="firefox",
-            headless=False,
-            timeout=60.0
-        )
+        renderer2 = create_renderer(browser_type="firefox", headless=False, timeout=60.0)
         assert renderer2.config.browser_type == "firefox"
         assert renderer2.config.headless is False
         assert renderer2.config.timeout == 60.0
@@ -408,7 +406,7 @@ class TestRenderingIntegration:
         assert renderer1 is not renderer2
         assert renderer1.config != renderer2.config
 
-    @patch('src.rendering.browser.async_playwright')
+    @patch("src.rendering.browser.async_playwright")
     async def test_concurrent_rendering_workflow(self, mock_playwright, renderer_config):
         """Test concurrent rendering operations."""
         # Setup mocks
@@ -443,6 +441,7 @@ class TestRenderingIntegration:
 
             # Mock the pool to return different contexts
             from contextlib import asynccontextmanager
+
             context_iter = iter(mock_contexts)
 
             @asynccontextmanager
@@ -453,7 +452,11 @@ class TestRenderingIntegration:
             renderer._pool.get_context = mock_get_context
 
             # Render multiple pages concurrently
-            urls = ["https://example.com/page0", "https://example.com/page1", "https://example.com/page2"]
+            urls = [
+                "https://example.com/page0",
+                "https://example.com/page1",
+                "https://example.com/page2",
+            ]
 
             tasks = [renderer.render_page(url) for url in urls]
             results = await asyncio.gather(*tasks)
