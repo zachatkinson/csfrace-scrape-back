@@ -5,7 +5,7 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Optional, Literal, cast
+from typing import Any, Literal, Optional, cast
 
 import structlog
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
@@ -357,7 +357,7 @@ class JavaScriptRenderer:
                 # Navigate to page
                 logger.debug("Navigating to URL", url=url)
                 wait_until_literal = cast(
-                    Literal["commit", "domcontentloaded", "load", "networkidle"],
+                    "Literal['commit', 'domcontentloaded', 'load', 'networkidle']",
                     self.config.wait_until,
                 )
                 response = await page.goto(
