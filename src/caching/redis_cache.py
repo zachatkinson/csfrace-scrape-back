@@ -3,8 +3,12 @@
 import time
 from typing import Any, Optional
 
+import structlog
+
 from ..constants import CONSTANTS
 from .base import BaseCacheBackend, CacheConfig, CacheEntry
+
+logger = structlog.get_logger(__name__)
 
 try:
     import redis.asyncio as redis
