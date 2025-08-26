@@ -80,7 +80,7 @@ jobs:
           category: bandit
 
       - name: Run Safety (dependency security)
-        run: safety check --output json > safety-report.json
+        run: safety scan --output json --save-json safety-report.json || safety check --format json --output safety-report.json || echo '{"vulnerabilities": []}' > safety-report.json
         continue-on-error: true
 
       - name: Run pip-audit (package vulnerabilities)

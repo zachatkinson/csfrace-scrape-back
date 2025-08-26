@@ -242,7 +242,9 @@ class RedisCache(BaseCacheBackend):
                         data = await client.get(key)
                         if data:
                             sample_sizes.append(len(data))
-                    except Exception:
+                    except (redis.RedisError, OSError) as e:
+                        # Skip keys that cause Redis errors or network issues
+                        logger.debug(f"Failed to sample key {key}: {e}")
                         continue
 
                 if sample_sizes:
