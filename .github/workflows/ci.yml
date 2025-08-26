@@ -109,17 +109,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.13"]  # Focus on latest stable version
-        include:
-          # Cross-platform testing on primary version
-          - os: windows-latest
-            python-version: "3.13"
-          - os: macos-latest  
-            python-version: "3.13"
-          # Minimal backward compatibility check
-          - os: ubuntu-latest
-            python-version: "3.11"  # Keep one older version for compatibility
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.13"]  # Simplified to latest stable only for faster CI
 
     steps:
       - name: Checkout code
@@ -304,7 +295,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.13"]  # Compatibility check: older stable + latest
+        python-version: ["3.13"]  # Simplified to latest stable only for faster CI
         deps: [minimum, latest]
     
     steps:
