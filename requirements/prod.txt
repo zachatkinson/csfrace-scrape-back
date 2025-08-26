@@ -1,21 +1,21 @@
-# Production dependencies - Updated to latest stable versions
+# Production dependencies - Stable tested versions
 -r base.txt
 
 # Production monitoring and observability
-prometheus-client>=0.21.1,<1.0.0
-sentry-sdk>=2.20.0,<3.0.0
-opentelemetry-api>=1.30.0,<2.0.0
-opentelemetry-sdk>=1.30.0,<2.0.0
-opentelemetry-instrumentation-aiohttp-client>=0.51b0,<1.0.0
-opentelemetry-instrumentation-httpx>=0.51b0,<1.0.0
+prometheus-client>=0.19.0,<1.0.0
+sentry-sdk>=1.38.0,<2.0.0
+opentelemetry-api>=1.21.0,<2.0.0
+opentelemetry-sdk>=1.21.0,<2.0.0
+opentelemetry-instrumentation-aiohttp-client>=0.42b0,<1.0.0
+opentelemetry-instrumentation-httpx>=0.42b0,<1.0.0
 
 # Production web server (if API mode is needed)
-uvicorn[standard]>=0.35.0,<1.0.0
-gunicorn>=23.0.0,<24.0.0
+uvicorn[standard]>=0.24.0,<1.0.0
+gunicorn>=21.2.0,<22.0.0
 
 # Database drivers (if using database storage)
-asyncpg>=0.30.0,<1.0.0  # PostgreSQL async driver
-redis>=5.2.1,<6.0.0  # Redis client (replacing aioredis which is deprecated)
+asyncpg>=0.29.0,<1.0.0  # PostgreSQL async driver
+aioredis>=2.0.0,<3.0.0  # Redis async driver
 
 # Production utilities
-python-dotenv>=1.0.1,<2.0.0  # Environment variable loading
+python-dotenv>=1.0.0,<2.0.0  # Environment variable loading
