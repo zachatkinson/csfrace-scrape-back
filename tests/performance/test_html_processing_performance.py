@@ -77,9 +77,9 @@ class TestHTMLProcessingPerformance:
         processing_time = time.time() - start_time
 
         # Should handle complex content quickly
-        assert processing_time < 2.0, (
-            f"Complex processing took {processing_time:.2f}s, expected < 2s"
-        )
+        assert (
+            processing_time < 2.0
+        ), f"Complex processing took {processing_time:.2f}s, expected < 2s"
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -94,9 +94,9 @@ class TestHTMLProcessingPerformance:
         extraction_time = time.time() - start_time
 
         # Metadata extraction should be very fast
-        assert extraction_time < 1.0, (
-            f"Metadata extraction took {extraction_time:.2f}s, expected < 1s"
-        )
+        assert (
+            extraction_time < 1.0
+        ), f"Metadata extraction took {extraction_time:.2f}s, expected < 1s"
         assert isinstance(metadata, dict)
 
     @pytest.mark.asyncio
@@ -145,9 +145,9 @@ class TestHTMLProcessingPerformance:
         memory_increase = final_memory - initial_memory
 
         # Memory increase should be reasonable (less than 50MB)
-        assert memory_increase < 50 * 1024 * 1024, (
-            f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
-        )
+        assert (
+            memory_increase < 50 * 1024 * 1024
+        ), f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
         assert isinstance(result, str)
 
     def test_soup_parsing_performance(self, benchmark, large_html_content):
@@ -181,6 +181,6 @@ class TestHTMLProcessingPerformance:
             size_ratio = element_counts[i] / element_counts[i - 1]
 
             # Time ratio should be less than 3x the size ratio
-            assert ratio < (size_ratio * 3), (
-                f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"
-            )
+            assert ratio < (
+                size_ratio * 3
+            ), f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"

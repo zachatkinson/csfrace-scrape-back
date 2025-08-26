@@ -410,9 +410,9 @@ class HTMLProcessor:
 
         # Responsive iframe
         new_iframe = soup_root.new_tag("iframe")
-        new_iframe["style"] = (
-            f"aspect-ratio: {CONSTANTS.IFRAME_ASPECT_RATIO}; width: 100% !important;"
-        )
+        new_iframe[
+            "style"
+        ] = f"aspect-ratio: {CONSTANTS.IFRAME_ASPECT_RATIO}; width: 100% !important;"
         safe_copy_attributes(
             iframe, new_iframe, {"src": "src", "title": ("title", "YouTube Video")}
         )
