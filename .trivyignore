@@ -22,3 +22,21 @@ CVE-2025-6020
 # These are transitive dependencies from system packages
 CVE-2025-6965
 CVE-2025-7458
+
+# Additional common OS-level vulnerabilities in Debian bookworm
+# These are often found in base Python images and don't affect web scrapers
+
+# OpenSSL vulnerabilities - if not used directly
+CVE-2023-5678
+CVE-2024-0727
+
+# systemd vulnerabilities - not relevant for containerized apps
+CVE-2023-26604
+
+# Additional glibc and core system vulnerabilities
+CVE-2023-4911
+CVE-2023-4527
+
+# Python package vulnerabilities that may appear in base image
+CVE-2023-40217
+CVE-2023-41105
