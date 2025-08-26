@@ -314,7 +314,8 @@ jobs:
           image-ref: 'csfrace-scraper:${{ github.sha }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
-        continue-on-error: true
+          severity: 'HIGH,CRITICAL'  # Only fail CI on high/critical vulnerabilities
+          exit-code: 1  # Fail CI if high/critical vulns found
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
