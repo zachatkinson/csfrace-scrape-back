@@ -142,6 +142,9 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium
+        
       - name: Run unit tests with coverage
         run: |
           # Run unit tests from reorganized test structure (tests now mirror src/ structure)
@@ -325,6 +328,9 @@ jobs:
         run: |
           uv sync --no-editable --upgrade
 
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium
+
       - name: Run compatibility tests
         run: |
           uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-fail-under=25 -x --tb=short
@@ -361,6 +367,9 @@ jobs:
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
+
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium
 
       - name: Run performance tests
         run: |
