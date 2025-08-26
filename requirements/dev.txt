@@ -19,6 +19,12 @@ safety>=2.3.0,<3.0.0
 pip-audit>=2.6.0,<3.0.0
 detect-secrets>=1.4.0,<2.0.0
 
+# Testing framework
+pytest>=7.4.0,<8.0.0
+pytest-asyncio>=0.21.0,<1.0.0
+pytest-benchmark>=4.0.0,<5.0.0
+pytest-cov>=4.1.0,<5.0.0
+
 # Pre-commit hooks
 pre-commit>=3.6.0,<4.0.0
 

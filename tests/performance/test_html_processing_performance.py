@@ -74,14 +74,14 @@ class TestHTMLProcessingPerformance:
         processing_time = time.time() - start_time
 
         # Should handle complex content quickly
-        assert processing_time < 2.0, f"Complex processing took {processing_time:.2f}s, expected < 2s"
+        assert processing_time < 2.0, (
+            f"Complex processing took {processing_time:.2f}s, expected < 2s"
+        )
         assert isinstance(result, str)
         assert len(result) > 0
 
     @pytest.mark.asyncio
-    async def test_metadata_extraction_performance(
-        self, metadata_extractor, large_html_content
-    ):
+    async def test_metadata_extraction_performance(self, metadata_extractor, large_html_content):
         """Test metadata extraction performance."""
         soup = BeautifulSoup(large_html_content, "html.parser")
         url = "https://example.com/test"
@@ -91,7 +91,9 @@ class TestHTMLProcessingPerformance:
         extraction_time = time.time() - start_time
 
         # Metadata extraction should be very fast
-        assert extraction_time < 1.0, f"Metadata extraction took {extraction_time:.2f}s, expected < 1s"
+        assert extraction_time < 1.0, (
+            f"Metadata extraction took {extraction_time:.2f}s, expected < 1s"
+        )
         assert isinstance(metadata, dict)
 
     @pytest.mark.asyncio
@@ -102,7 +104,9 @@ class TestHTMLProcessingPerformance:
         # Create multiple HTML documents to process concurrently
         html_documents = []
         for i in range(10):
-            content = f"<html><body><h1>Document {i}</h1><p>Content for document {i}</p></body></html>"
+            content = (
+                f"<html><body><h1>Document {i}</h1><p>Content for document {i}</p></body></html>"
+            )
             html_documents.append(BeautifulSoup(content, "html.parser"))
 
         async def process_document(soup):
@@ -138,7 +142,9 @@ class TestHTMLProcessingPerformance:
         memory_increase = final_memory - initial_memory
 
         # Memory increase should be reasonable (less than 50MB)
-        assert memory_increase < 50 * 1024 * 1024, f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
+        assert memory_increase < 50 * 1024 * 1024, (
+            f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
+        )
         assert isinstance(result, str)
 
     def test_soup_parsing_performance(self, large_html_content):
@@ -169,8 +175,10 @@ class TestHTMLProcessingPerformance:
         # Processing should scale reasonably (not exponentially)
         # Each doubling of content should take less than 3x the time
         for i in range(1, len(processing_times)):
-            ratio = processing_times[i] / processing_times[i-1]
-            size_ratio = element_counts[i] / element_counts[i-1]
+            ratio = processing_times[i] / processing_times[i - 1]
+            size_ratio = element_counts[i] / element_counts[i - 1]
 
             # Time ratio should be less than 3x the size ratio
-            assert ratio < (size_ratio * 3), f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"
+            assert ratio < (size_ratio * 3), (
+                f"Processing time increased by {ratio:.2f}x for {size_ratio}x more content"
+            )
