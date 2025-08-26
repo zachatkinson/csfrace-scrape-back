@@ -388,7 +388,11 @@ class JavaScriptRenderer:
                 script_result = None
                 if execute_script:
                     logger.debug("Executing custom script")
-                    script_result = await page.evaluate(execute_script)
+                    try:
+                        script_result = await page.evaluate(execute_script)
+                    except Exception as e:
+                        logger.warning("JavaScript execution failed", error=str(e))
+                        script_result = None
 
                 # Additional wait time for dynamic content
                 if additional_wait_time > 0:

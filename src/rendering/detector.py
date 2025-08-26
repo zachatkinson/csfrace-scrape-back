@@ -99,6 +99,18 @@ class DynamicContentDetector:
 
     def analyze_html(self, html: str, url: Optional[str] = None) -> ContentAnalysis:
         """Analyze HTML content to detect dynamic content requirements."""
+        # Handle empty or minimal HTML content
+        if not html or html.strip() == "":
+            return ContentAnalysis(
+                is_dynamic=False,
+                confidence_score=0.0,
+                indicators_found=[],
+                frameworks_detected=[],
+                fallback_strategy="standard",
+                reasons=["Empty HTML content"],
+                metadata={},
+            )
+
         soup = BeautifulSoup(html, "html.parser")
 
         indicators_found = []

@@ -561,11 +561,11 @@ class TestDetectorEdgeCases:
         analysis = detector.analyze_html("")
 
         assert analysis.is_dynamic is False
-        # Empty HTML gets flagged for low content density (0.2 score)
-        assert analysis.confidence_score == 0.2
-        assert "low_content_density" in analysis.indicators_found
+        # Empty HTML should have 0.0 confidence since there's nothing to render
+        assert analysis.confidence_score == 0.0
+        assert analysis.indicators_found == []
         assert analysis.fallback_strategy == "standard"
-        assert analysis.metadata["content_density"] == 0.0
+        assert "Empty HTML content" in analysis.reasons
 
     def test_malformed_html(self, detector):
         """Test analysis of malformed HTML."""

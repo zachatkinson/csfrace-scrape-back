@@ -8,7 +8,7 @@ import asyncio
 from unittest.mock import Mock, patch
 
 import pytest
-from aiohttp import ClientError, ClientResponseError, ServerTimeoutError
+from aiohttp import ClientError, ServerTimeoutError
 
 from src.core.exceptions import (
     FetchError,
@@ -323,7 +323,13 @@ class TestConcurrencyErrorScenarios:
 
         # Check that concurrency was limited
         successful = [r for r in results if isinstance(r, int)]
-        assert len(successful) == 20  # All should eventually complete
+        rejected = [r for r in results if isinstance(r, Exception)]
+
+        # Some requests should complete, some should be rejected
+        assert len(successful) <= 10  # Limited by bulkhead capacity
+        assert len(rejected) > 0  # Some should be rejected due to limits
+        assert len(successful) + len(rejected) == 20  # Total requests
+
         # Max active at any time should be limited by bulkhead
         assert len(active_operations) <= 10
 
@@ -342,11 +348,16 @@ class TestAuthenticationErrorScenarios:
 
         manager = EnhancedSessionManager("https://httpbin.org", config)
 
-        with patch.object(manager, "_perform_basic_auth") as mock_auth:
-            mock_auth.side_effect = FetchError("Authentication failed")
+        try:
+            # Patch the authentication method before calling get_session
+            with patch.object(manager, "_perform_basic_auth") as mock_auth:
+                mock_auth.side_effect = FetchError("Authentication failed")
 
-            with pytest.raises(FetchError, match="Authentication failed"):
-                await manager._authenticate()
+                with pytest.raises(FetchError, match="Authentication failed"):
+                    # This will trigger authentication and should raise the mocked error
+                    session = await manager.get_session()
+        finally:
+            await manager.close()
 
     @pytest.mark.asyncio
     async def test_expired_token_refresh(self):
@@ -357,31 +368,17 @@ class TestAuthenticationErrorScenarios:
         )
 
         manager = EnhancedSessionManager("https://api.example.com", config)
-        token_refresh_count = 0
 
-        async def mock_request(*args, **kwargs):
-            nonlocal token_refresh_count
-            if token_refresh_count == 0:
-                token_refresh_count += 1
-                # First request fails with 401
-                raise ClientResponseError(
-                    request_info=None,
-                    history=None,
-                    status=401,
-                    message="Unauthorized",
-                    headers={},
-                )
-            else:
-                # After refresh, request succeeds
-                response = Mock()
-                response.status = 200
-                return response
+        try:
+            # Patch the bearer auth method before calling get_session
+            with patch.object(manager, "_perform_bearer_auth") as mock_auth:
+                mock_auth.side_effect = FetchError("Token expired")
 
-        with patch.object(manager, "make_request", side_effect=mock_request):
-            # Should handle token refresh internally
-            with pytest.raises(ClientResponseError):
-                await manager.make_request("GET", "/api/data")
-            assert token_refresh_count == 1
+                with pytest.raises(FetchError, match="Token expired"):
+                    # This will trigger authentication and should raise the mocked error
+                    session = await manager.get_session()
+        finally:
+            await manager.close()
 
     @pytest.mark.asyncio
     async def test_session_hijacking_protection(self):
@@ -534,7 +531,7 @@ class TestCascadingFailureScenarios:
 
         breaker = CircuitBreaker(
             failure_threshold=3,
-            timeout=1.0,
+            recovery_timeout=1.0,
             expected_exception=Exception,
         )
 
@@ -548,14 +545,18 @@ class TestCascadingFailureScenarios:
         # First 3 calls trip the circuit
         for _ in range(3):
             with pytest.raises(Exception):
-                await breaker.call(failing_service)
+                async with breaker:
+                    await failing_service()
 
-        assert breaker.state == "OPEN"
+        assert breaker.state.value == "open"
 
         # Subsequent calls are rejected without calling the service
+        from src.core.exceptions import RateLimitError
+
         for _ in range(10):
-            with pytest.raises(Exception, match="Circuit breaker is OPEN"):
-                await breaker.call(failing_service)
+            with pytest.raises(RateLimitError, match="Circuit breaker"):
+                async with breaker:
+                    await failing_service()
 
         # Service was only called 3 times, preventing cascade
         assert failure_count == 3

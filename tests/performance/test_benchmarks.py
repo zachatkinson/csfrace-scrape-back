@@ -13,6 +13,7 @@ import memory_profiler
 import psutil
 import pytest
 from aioresponses import aioresponses
+from bs4 import BeautifulSoup
 
 from src.processors.html_processor import HTMLProcessor
 from src.utils.retry import CircuitBreaker, ResilienceManager, RetryConfig
@@ -195,7 +196,11 @@ class TestMemoryProfiler:
 
         for i in range(0, len(html_documents), batch_size):
             batch = html_documents[i : i + batch_size]
-            batch_results = [processor.process_html(html) for html in batch]
+            batch_results = []
+            for html in batch:
+                soup = BeautifulSoup(html, "html.parser")
+                result = asyncio.run(processor.process(soup))
+                batch_results.append(result)
             results.extend(batch_results)
 
             # Force garbage collection after each batch
