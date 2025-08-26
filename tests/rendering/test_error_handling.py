@@ -635,7 +635,7 @@ class TestRenderingEdgeCases:
         comment_html = """  # noqa: W291, W293
         <!-- This is a comment -->
         <!-- Another comment with <script>alert('fake')</script> -->
-        <!-- 
+        <!--
         Multi-line comment
         with lots of content
         and fake <div>elements</div>
@@ -844,21 +844,21 @@ class TestRenderingEdgeCases:
             <script></script>
             <script>   </script>
             <script>
-            
+
             </script>
         </head>
         <body>
             <div></div>
             <div>   </div>
             <div>
-            
+
             </div>
             <p></p>
             <span>     </span>
             <script>
                 // Empty function
                 function empty() {
-                    
+
                 }
             </script>
         </body>
@@ -917,7 +917,7 @@ class TestRenderingEdgeCases:
         hidden_script_html = """  # noqa: W291, W293
         <html>
         <body>
-            <!-- 
+            <!--
             <script>
                 alert('Hidden in comment');
                 // This shouldn't be detected as active JavaScript
@@ -949,7 +949,7 @@ class TestRenderingEdgeCases:
                 alert('IE specific script');
             </script>
             <![endif]-->
-            
+
             <!--[if lt IE 9]>
             <script src="ie8-polyfills.js"></script>
             <![endif]-->

