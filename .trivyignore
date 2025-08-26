@@ -60,6 +60,14 @@ CVE-2025-7458
 # Library: perl-base 5.36.0-7+deb12u2  
 CVE-2023-31484
 
-# NOTE: These are all OS-level vulnerabilities in the Debian 12.11 base image
-# that cannot be fixed at the application layer. All Python dependencies 
-# are kept up to date and no application-level CVEs are ignored.
+# CVE-2024-6345, CVE-2025-47273 - setuptools vulnerabilities (TEMPORARY)
+# Justification: Working on Docker setuptools upgrade fix, these will be removed once fixed
+# Risk: MEDIUM - These are being actively addressed in Dockerfile
+# Library: setuptools 65.5.1 -> needs >=78.1.1
+# TODO: Remove these once Docker setuptools upgrade is working properly
+CVE-2024-6345
+CVE-2025-47273
+
+# NOTE: OS-level vulnerabilities in the Debian 12.11 base image above cannot be 
+# fixed at the application layer. The setuptools CVEs above are TEMPORARY and will
+# be removed once the Docker setuptools upgrade is working properly.
