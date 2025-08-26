@@ -407,15 +407,15 @@ class TestBrowserEdgeCases:
                 div:nth-child(3n+1):not(.excluded):has(> .child:nth-of-type(odd)):where(.complex) {
                     color: red;
                 }
-                
+
                 @container sidebar (min-width: 700px) {
                     .card { font-size: 2em; }
                 }
-                
+
                 @supports (display: grid) {
                     .grid { display: grid; }
                 }
-                
+
                 /* Ultra-complex selector */
                 body > main:is(.homepage, .landing) ~ aside:has(.widget:not(:empty)):where(:hover, :focus-within) .content::before {
                     content: "Complex!";
@@ -456,7 +456,7 @@ class TestBrowserEdgeCases:
                     </menu>
                 </nav>
             </header>
-            
+
             <main>
                 <article>
                     <section>
@@ -464,61 +464,61 @@ class TestBrowserEdgeCases:
                             <summary>Details Summary</summary>
                             <p>Details content</p>
                         </details>
-                        
+
                         <figure>
                             <img src="test.jpg" alt="Test">
                             <figcaption>Figure Caption</figcaption>
                         </figure>
-                        
+
                         <audio controls>
                             <source src="audio.mp3" type="audio/mpeg">
                         </audio>
-                        
+
                         <video controls width="250">
                             <source src="video.mp4" type="video/mp4">
                             <track kind="subtitles" src="subs.vtt" srclang="en">
                         </video>
-                        
+
                         <canvas id="canvas" width="200" height="100"></canvas>
-                        
+
                         <progress value="70" max="100">70%</progress>
                         <meter value="6" min="0" max="10">6 out of 10</meter>
-                        
+
                         <time datetime="2023-12-25">Christmas</time>
-                        
+
                         <mark>Highlighted text</mark>
-                        
+
                         <dialog open>
                             <p>Dialog content</p>
                         </dialog>
                     </section>
                 </article>
-                
+
                 <aside>
                     <template id="template">
                         <div class="template-content">Template</div>
                     </template>
                 </aside>
             </main>
-            
+
             <footer>
                 <address>
                     Contact: <a href="mailto:test@example.com">test@example.com</a>
                 </address>
             </footer>
-            
+
             <script>
                 // Use modern JavaScript features
                 const canvas = document.getElementById('canvas');
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = 'red';
                 ctx.fillRect(10, 10, 50, 50);
-                
+
                 // Service worker registration
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.register('/sw.js');
                 }
-                
+
                 // Web API usage
                 if ('geolocation' in navigator) {
                     navigator.geolocation.getCurrentPosition(() => {});
