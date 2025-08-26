@@ -28,29 +28,29 @@ class TestConverterIntegration:
                 self.image_downloader = MockDownloader()
                 self.cache_manager = MockCacheManager()
                 self.plugin_manager = None
-            
+
             async def convert_url(self, url):
                 return {"status": "success", "url": url}
-            
+
             async def cleanup(self):
                 pass
-        
+
         class MockProcessor:
             async def process(self, soup):
                 return "<p>Processed content</p>"
-        
+
         class MockExtractor:
             async def extract(self, soup, url):
                 return {"title": "Test", "description": "Test", "url": url}
-        
+
         class MockDownloader:
             async def process_and_download(self, soup, output_dir, base_url):
                 return soup, []
-        
+
         class MockCacheManager:
             async def stats(self):
                 return {"hits": 0, "misses": 0}
-        
+
         converter = MockConverter()
         yield converter
 
@@ -70,7 +70,7 @@ class TestConverterIntegration:
 
         # Mock tests don't create actual files, just verify the conversion worked
         # In a real implementation, this would create files in temp_dir
-        
+
         # For now, just verify the conversion returned success
         # TODO: When AsyncWordPressConverter is implemented, test actual file creation
 
@@ -245,10 +245,10 @@ class TestConverterIntegration:
         # Check that conversion completed successfully
         assert result["status"] == "success"
         assert result["url"] == url
-        
+
         # Check output directory exists
         assert temp_dir.exists()
-        
+
         # TODO: Test actual file creation when AsyncWordPressConverter is implemented
 
     @pytest.mark.asyncio
