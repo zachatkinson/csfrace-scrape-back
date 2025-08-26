@@ -131,9 +131,9 @@ class TestCachePerformance:
         compress_time = time.time() - start_time
 
         # Compression shouldn't add too much overhead
-        assert compress_time < (
-            no_compress_time * 3
-        ), f"Compression added too much overhead: {compress_time:.3f}s vs {no_compress_time:.3f}s"
+        assert compress_time < (no_compress_time * 3), (
+            f"Compression added too much overhead: {compress_time:.3f}s vs {no_compress_time:.3f}s"
+        )
 
     @pytest.mark.asyncio
     async def test_cache_cleanup_performance(self, file_cache):
