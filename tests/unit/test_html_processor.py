@@ -375,4 +375,3 @@ class TestHTMLProcessor:
         assert "center" in result
         assert "media-grid" in result
         assert "button" in result
-

@@ -1,5 +1,6 @@
 """HTTP utilities to eliminate DRY violations in request handling."""
 
+import asyncio
 from typing import Optional
 
 import aiohttp
@@ -65,7 +66,7 @@ async def safe_http_get(
                     )
                 return HTTPResponse(status=response.status, content=content)
 
-    except aiohttp.ClientTimeout:
+    except asyncio.TimeoutError:
         if log_errors:
             logger.error("HTTP request timeout", url=url, timeout=timeout)
         raise

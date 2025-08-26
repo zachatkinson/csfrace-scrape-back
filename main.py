@@ -19,10 +19,10 @@ sys.path.insert(0, str(src_path))
 try:
     # Import and run the new async main
     from src.main import main
-    
+
     if __name__ == "__main__":
         main()
-        
+
 except ImportError as e:
     print(f"Error importing async implementation: {e}")
     print("Please ensure all dependencies are installed:")

@@ -24,7 +24,7 @@ class TestCacheEntry:
             created_at=time.time(),
             ttl=3600,
             content_type="html",
-            size_bytes=100
+            size_bytes=100,
         )
 
         assert entry.key == "test_key"
@@ -42,7 +42,7 @@ class TestCacheEntry:
             value="value",
             created_at=current_time,
             ttl=3600,  # 1 hour
-            content_type="html"
+            content_type="html",
         )
         assert not entry.is_expired
 
@@ -52,7 +52,7 @@ class TestCacheEntry:
             value="value",
             created_at=current_time - 7200,  # 2 hours ago
             ttl=3600,  # 1 hour TTL
-            content_type="html"
+            content_type="html",
         )
         assert expired_entry.is_expired
 
@@ -63,7 +63,7 @@ class TestCacheEntry:
             value="value",
             created_at=time.time() - 10000,  # Long time ago
             ttl=0,  # No expiration
-            content_type="html"
+            content_type="html",
         )
         assert not entry.is_expired
 
@@ -71,11 +71,7 @@ class TestCacheEntry:
         """Test cache entry age calculation."""
         created_time = time.time() - 100  # 100 seconds ago
         entry = CacheEntry(
-            key="test",
-            value="value",
-            created_at=created_time,
-            ttl=3600,
-            content_type="html"
+            key="test", value="value", created_at=created_time, ttl=3600, content_type="html"
         )
 
         # Age should be approximately 100 seconds
@@ -90,7 +86,7 @@ class TestCacheEntry:
             ttl=3600,
             content_type="json",
             size_bytes=50,
-            compressed=True
+            compressed=True,
         )
 
         # Test serialization
@@ -129,7 +125,7 @@ class TestCacheConfig:
             ttl_default=7200,
             compress=False,
             redis_host="custom-redis",
-            redis_port=6380
+            redis_port=6380,
         )
 
         assert config.backend == CacheBackend.REDIS
@@ -169,7 +165,7 @@ class TestBaseCacheBackend:
         backend = self.MockCacheBackend(cache_config)
 
         assert backend.config == cache_config
-        assert hasattr(backend, 'logger')
+        assert hasattr(backend, "logger")
 
     def test_generate_key(self, cache_config):
         """Test cache key generation."""
@@ -420,7 +416,7 @@ class TestCacheManager:
     @pytest.mark.asyncio
     async def test_cache_manager_initialization(self, cache_config, mock_cache_backend):
         """Test cache manager initialization."""
-        with patch('src.caching.manager.FileCache', return_value=mock_cache_backend):
+        with patch("src.caching.manager.FileCache", return_value=mock_cache_backend):
             manager = CacheManager(cache_config)
             await manager.initialize()
 
@@ -429,7 +425,7 @@ class TestCacheManager:
     @pytest.mark.asyncio
     async def test_cache_manager_operations(self, cache_config, mock_cache_backend):
         """Test cache manager operations."""
-        with patch('src.caching.manager.FileCache', return_value=mock_cache_backend):
+        with patch("src.caching.manager.FileCache", return_value=mock_cache_backend):
             manager = CacheManager(cache_config)
             await manager.initialize()
 
@@ -443,7 +439,7 @@ class TestCacheManager:
             mock_cache_backend.set.assert_called()
 
             # Test stats (CacheManager may not have stats method)
-            if hasattr(manager, 'stats'):
+            if hasattr(manager, "stats"):
                 await manager.stats()
                 mock_cache_backend.stats.assert_called()
 
@@ -454,7 +450,7 @@ class TestCacheManager:
         cache_config.backend = CacheBackend.FILE
         manager = CacheManager(cache_config)
 
-        with patch('src.caching.manager.FileCache') as mock_file_cache:
+        with patch("src.caching.manager.FileCache") as mock_file_cache:
             mock_instance = AsyncMock()
             mock_instance.cleanup_expired = AsyncMock(return_value=0)
             mock_file_cache.return_value = mock_instance
@@ -468,9 +464,8 @@ class TestCacheManager:
         manager = CacheManager(cache_config)
 
         # Should raise error when Redis unavailable but requested
-        with patch('src.caching.manager.REDIS_AVAILABLE', False):
-            with pytest.raises(ValueError, match="Redis backend requested but redis package not available"):
+        with patch("src.caching.manager.REDIS_AVAILABLE", False):
+            with pytest.raises(
+                ValueError, match="Redis backend requested but redis package not available"
+            ):
                 await manager.initialize()
-
-
-

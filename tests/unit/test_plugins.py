@@ -28,7 +28,7 @@ class TestPluginConfig:
             version="1.0.0",
             plugin_type=PluginType.HTML_PROCESSOR,
             enabled=True,
-            priority=100
+            priority=100,
         )
 
         assert config.name == "test_plugin"
@@ -45,7 +45,7 @@ class TestPluginConfig:
             name="test_plugin",
             version="1.0.0",
             plugin_type=PluginType.CONTENT_FILTER,
-            settings=settings
+            settings=settings,
         )
 
         assert config.settings == settings
@@ -53,9 +53,7 @@ class TestPluginConfig:
     def test_plugin_config_defaults(self):
         """Test plugin configuration defaults."""
         config = PluginConfig(
-            name="minimal_plugin",
-            version="1.0.0",
-            plugin_type=PluginType.POST_PROCESSOR
+            name="minimal_plugin", version="1.0.0", plugin_type=PluginType.POST_PROCESSOR
         )
 
         assert config.enabled is True
@@ -76,7 +74,7 @@ class TestBasePlugin:
                 "version": "1.0.0",
                 "description": "Mock plugin for testing",
                 "author": "Test Author",
-                "plugin_type": PluginType.HTML_PROCESSOR
+                "plugin_type": PluginType.HTML_PROCESSOR,
             }
 
         async def initialize(self):
@@ -90,7 +88,7 @@ class TestBasePlugin:
         plugin = self.MockPlugin(plugin_config)
 
         assert plugin.config == plugin_config
-        assert hasattr(plugin, 'logger')
+        assert hasattr(plugin, "logger")
         assert plugin._initialized is False
 
     def test_plugin_info_property(self, plugin_config):
@@ -183,7 +181,7 @@ class TestHTMLProcessorPlugin:
                 "version": "1.0.0",
                 "description": "Mock HTML processor",
                 "author": "Test Author",
-                "plugin_type": PluginType.HTML_PROCESSOR
+                "plugin_type": PluginType.HTML_PROCESSOR,
             }
 
         async def initialize(self):
@@ -197,10 +195,7 @@ class TestHTMLProcessorPlugin:
         """Test HTML processor plugin functionality."""
         plugin = self.MockHTMLProcessor(plugin_config)
 
-        data = {
-            "html": "<p>This is old content</p>",
-            "metadata": {"title": "Test"}
-        }
+        data = {"html": "<p>This is old content</p>", "metadata": {"title": "Test"}}
         context = {"url": "http://example.com"}
 
         result = await plugin.process(data, context)
@@ -234,7 +229,7 @@ class TestContentFilterPlugin:
                 "version": "1.0.0",
                 "description": "Mock content filter",
                 "author": "Test Author",
-                "plugin_type": PluginType.CONTENT_FILTER
+                "plugin_type": PluginType.CONTENT_FILTER,
             }
 
         async def initialize(self):
@@ -250,10 +245,7 @@ class TestContentFilterPlugin:
         """Test content filter plugin functionality."""
         plugin = self.MockContentFilter(plugin_config)
 
-        data = {
-            "content": "<p>This is bad content</p>",
-            "content_type": "html"
-        }
+        data = {"content": "<p>This is bad content</p>", "content_type": "html"}
         context = {}
 
         result = await plugin.process(data, context)
@@ -283,7 +275,7 @@ class TestImageProcessorPlugin:
                 "version": "1.0.0",
                 "description": "Mock image processor",
                 "author": "Test Author",
-                "plugin_type": PluginType.IMAGE_PROCESSOR
+                "plugin_type": PluginType.IMAGE_PROCESSOR,
             }
 
         async def initialize(self):
@@ -294,7 +286,7 @@ class TestImageProcessorPlugin:
                 "data": image_data + b"_processed",
                 "metadata": {**metadata, "processed": True},
                 "format": "jpeg",
-                "size": (100, 100)
+                "size": (100, 100),
             }
 
     @pytest.mark.asyncio
@@ -305,7 +297,7 @@ class TestImageProcessorPlugin:
         data = {
             "url": "http://example.com/image.jpg",
             "image_data": b"image_data",
-            "metadata": {"alt": "test image"}
+            "metadata": {"alt": "test image"},
         }
         context = {}
 
@@ -321,7 +313,9 @@ class TestImageProcessorPlugin:
         """Test image processor with invalid data."""
         plugin = self.MockImageProcessor(plugin_config)
 
-        with pytest.raises(ValueError, match="ImageProcessorPlugin expects dict with 'image_data' key"):
+        with pytest.raises(
+            ValueError, match="ImageProcessorPlugin expects dict with 'image_data' key"
+        ):
             await plugin.process({"no_image_data": "data"}, {})
 
 
@@ -338,17 +332,14 @@ class TestMetadataExtractorPlugin:
                 "version": "1.0.0",
                 "description": "Mock metadata extractor",
                 "author": "Test Author",
-                "plugin_type": PluginType.METADATA_EXTRACTOR
+                "plugin_type": PluginType.METADATA_EXTRACTOR,
             }
 
         async def initialize(self):
             pass
 
         async def extract_metadata(self, html_content, url, context):
-            return {
-                "extracted_title": "Test Title",
-                "word_count": len(html_content.split())
-            }
+            return {"extracted_title": "Test Title", "word_count": len(html_content.split())}
 
     @pytest.mark.asyncio
     async def test_metadata_extractor_plugin(self, plugin_config):
@@ -358,7 +349,7 @@ class TestMetadataExtractorPlugin:
         data = {
             "html": "<p>This is test content</p>",
             "url": "http://example.com/page",
-            "metadata": {"existing": "value"}
+            "metadata": {"existing": "value"},
         }
         context = {}
 
@@ -382,7 +373,7 @@ class TestOutputFormatterPlugin:
                 "version": "1.0.0",
                 "description": "Mock output formatter",
                 "author": "Test Author",
-                "plugin_type": PluginType.OUTPUT_FORMATTER
+                "plugin_type": PluginType.OUTPUT_FORMATTER,
             }
 
         async def initialize(self):
@@ -401,7 +392,7 @@ class TestOutputFormatterPlugin:
         data = {
             "content": "This is content",
             "metadata": {"title": "Test Page"},
-            "output_format": "markdown"
+            "output_format": "markdown",
         }
         context = {}
 
@@ -423,17 +414,14 @@ class TestPostProcessorPlugin:
                 "version": "1.0.0",
                 "description": "Mock post processor",
                 "author": "Test Author",
-                "plugin_type": PluginType.POST_PROCESSOR
+                "plugin_type": PluginType.POST_PROCESSOR,
             }
 
         async def initialize(self):
             pass
 
         async def post_process(self, output_dir, files, metadata, context):
-            return {
-                "processed_files": len(files),
-                "output_dir": str(output_dir)
-            }
+            return {"processed_files": len(files), "output_dir": str(output_dir)}
 
     @pytest.mark.asyncio
     async def test_post_processor_plugin(self, plugin_config, temp_dir):
@@ -443,7 +431,7 @@ class TestPostProcessorPlugin:
         data = {
             "output_dir": str(temp_dir),
             "files": ["file1.html", "file2.txt"],
-            "metadata": {"title": "Test"}
+            "metadata": {"title": "Test"},
         }
         context = {}
 
@@ -478,9 +466,17 @@ class TestPluginRegistry:
         class TestPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "test",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         registry.register_plugin(TestPlugin, plugin_config)
 
@@ -494,16 +490,32 @@ class TestPluginRegistry:
         class TestPlugin1(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "test",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         class TestPlugin2(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "2.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "test",
+                    "version": "2.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         registry.register_plugin(TestPlugin1, plugin_config)
         assert registry.get_plugin_class("test") == TestPlugin1
@@ -519,9 +531,17 @@ class TestPluginRegistry:
         class TestPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "test",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         registry.register_plugin(TestPlugin, plugin_config)
 
@@ -538,16 +558,32 @@ class TestPluginRegistry:
         class HTMLPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "html", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "html",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         class FilterPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "filter", "version": "1.0.0", "plugin_type": PluginType.CONTENT_FILTER}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "filter",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.CONTENT_FILTER,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         html_config = PluginConfig("html", "1.0.0", PluginType.HTML_PROCESSOR)
         filter_config = PluginConfig("filter", "1.0.0", PluginType.CONTENT_FILTER)
@@ -570,9 +606,17 @@ class TestPluginRegistry:
         class TestPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "test",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         registry.register_plugin(TestPlugin, plugin_config)
 
@@ -587,9 +631,17 @@ class TestPluginRegistry:
         class TestPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
-            async def process(self, data, context): return data
+                return {
+                    "name": "test",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
+            async def process(self, data, context):
+                return data
 
         registry.register_plugin(TestPlugin, plugin_config)
 
@@ -618,13 +670,21 @@ class TestPluginManager:
     @pytest.mark.asyncio
     async def test_load_plugin_through_registry(self, manager, plugin_config):
         """Test loading plugins through registry."""
+
         class TestPlugin(BasePlugin):
             @property
             def plugin_info(self):
-                return {"name": "test", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
+                return {
+                    "name": "test",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
             async def initialize(self):
                 self._test_initialized = True
-            async def process(self, data, context): return data
+
+            async def process(self, data, context):
+                return data
 
         # Register plugin in the registry
         manager.registry.register_plugin(TestPlugin, plugin_config)
@@ -635,16 +695,24 @@ class TestPluginManager:
         # Plugin should be loaded and initialized
         assert "test" in manager._plugins
         plugin_instance = manager._plugins["test"]
-        assert hasattr(plugin_instance, '_test_initialized')
+        assert hasattr(plugin_instance, "_test_initialized")
 
     @pytest.mark.asyncio
     async def test_process_with_plugins(self, manager, plugin_config):
         """Test processing data through plugins."""
+
         class TestHTMLProcessor(HTMLProcessorPlugin):
             @property
             def plugin_info(self):
-                return {"name": "test_html", "version": "1.0.0", "plugin_type": PluginType.HTML_PROCESSOR}
-            async def initialize(self): pass
+                return {
+                    "name": "test_html",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.HTML_PROCESSOR,
+                }
+
+            async def initialize(self):
+                pass
+
             async def process_html(self, html, metadata, context):
                 return html.replace("test", "processed")
 
@@ -656,6 +724,7 @@ class TestPluginManager:
         from pathlib import Path
 
         from src.plugins.manager import PluginExecutionContext
+
         context = PluginExecutionContext("http://test.com", Path("/tmp"))
 
         result = await manager.execute_pipeline(PluginType.HTML_PROCESSOR, data, context)
@@ -665,6 +734,7 @@ class TestPluginManager:
     @pytest.mark.asyncio
     async def test_plugin_priority_ordering(self, manager):
         """Test that plugins are processed in priority order."""
+
         class HighPriorityPlugin(BasePlugin):
             def __init__(self, config):
                 config.priority = 1  # High priority
@@ -672,8 +742,15 @@ class TestPluginManager:
 
             @property
             def plugin_info(self):
-                return {"name": "high", "version": "1.0.0", "plugin_type": PluginType.CONTENT_FILTER}
-            async def initialize(self): pass
+                return {
+                    "name": "high",
+                    "version": "1.0.0",
+                    "plugin_type": PluginType.CONTENT_FILTER,
+                }
+
+            async def initialize(self):
+                pass
+
             async def process(self, data, context):
                 data["processed"] = data.get("processed", "") + "high"
                 return data
@@ -686,7 +763,10 @@ class TestPluginManager:
             @property
             def plugin_info(self):
                 return {"name": "low", "version": "1.0.0", "plugin_type": PluginType.CONTENT_FILTER}
-            async def initialize(self): pass
+
+            async def initialize(self):
+                pass
+
             async def process(self, data, context):
                 data["processed"] = data.get("processed", "") + "low"
                 return data
@@ -702,10 +782,10 @@ class TestPluginManager:
         from pathlib import Path
 
         from src.plugins.manager import PluginExecutionContext
+
         context = PluginExecutionContext("http://test.com", Path("/tmp"))
 
         result = await manager.execute_pipeline(PluginType.CONTENT_FILTER, data, context)
 
         # High priority should run first
         assert result["processed"] == "highlow"
-

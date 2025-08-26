@@ -30,7 +30,7 @@ class TestRedisCacheIntegration:
                 redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
                 redis_db=TEST_CONSTANTS.TEST_REDIS_DB,
                 redis_key_prefix=TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX,
-                ttl_default=30  # Short TTL for testing
+                ttl_default=30,  # Short TTL for testing
             )
 
             cache = RedisCache(config)
@@ -110,7 +110,7 @@ class TestRedisCacheIntegration:
             "list": [1, 2, 3, "four"],
             "dict": {"nested": "value", "count": 456},
             "boolean": True,
-            "null": None
+            "null": None,
         }
 
         await redis_cache.set("complex_key", complex_data, ttl=60)
@@ -192,6 +192,7 @@ class TestRedisCacheIntegration:
     @pytest.mark.asyncio
     async def test_redis_concurrent_operations(self, redis_cache):
         """Test concurrent Redis operations."""
+
         # Perform multiple operations concurrently
         async def set_data(key, value):
             return await redis_cache.set(f"concurrent_{key}", f"value_{value}", ttl=60)
@@ -332,6 +333,7 @@ class TestRedisCacheIntegration:
 
         try:
             from src.caching.redis_cache import RedisCache
+
             different_cache = RedisCache(different_config)
             await different_cache.initialize()
 
@@ -344,4 +346,3 @@ class TestRedisCacheIntegration:
         except Exception:
             # If we can't test database isolation, that's ok
             pass
-

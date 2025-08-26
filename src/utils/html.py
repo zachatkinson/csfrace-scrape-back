@@ -2,7 +2,7 @@
 
 from typing import Any, Optional, Union
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 
 def safe_copy_attributes(
@@ -51,7 +51,10 @@ def find_meta_content(
     else:
         return None
 
-    return meta_tag.get("content", "") if meta_tag else None
+    if meta_tag and isinstance(meta_tag, Tag):
+        content = meta_tag.get("content")
+        return content if isinstance(content, str) else ""
+    return None
 
 
 def find_multiple_selectors(soup: BeautifulSoup, selectors: list[str]) -> Optional[Tag]:
@@ -80,13 +83,27 @@ def extract_basic_element_data(element: Tag) -> dict[str, str]:
     Returns:
         Dictionary with common attributes (src, alt, href, title, etc.)
     """
+    def _get_str_attr(attr_name: str, default: str = "") -> str:
+        """Safely get string attribute from element."""
+        value = element.get(attr_name, default)
+        return value if isinstance(value, str) else default
+    
+    def _get_class_str() -> str:
+        """Safely get class attribute as joined string."""
+        class_attr = element.get("class", [])
+        if isinstance(class_attr, list):
+            return " ".join(str(cls) for cls in class_attr)
+        elif isinstance(class_attr, str):
+            return class_attr
+        return ""
+    
     return {
-        "src": element.get("src", ""),
-        "alt": element.get("alt", ""),
-        "href": element.get("href", ""),
-        "title": element.get("title", ""),
-        "class": " ".join(element.get("class", [])),
-        "id": element.get("id", ""),
+        "src": _get_str_attr("src"),
+        "alt": _get_str_attr("alt"),
+        "href": _get_str_attr("href"),
+        "title": _get_str_attr("title"),
+        "class": _get_class_str(),
+        "id": _get_str_attr("id"),
     }
 
 

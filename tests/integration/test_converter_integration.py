@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 from src.constants import TEST_CONSTANTS
 from src.core.config import config
-from src.core.converter import WordPressToShopifyConverter
+from src.core.converter import AsyncWordPressConverter
 
 
 @pytest.mark.integration
@@ -18,7 +18,7 @@ class TestConverterIntegration:
     @pytest.fixture
     async def converter(self, temp_dir):
         """Create converter instance with test configuration."""
-        converter = WordPressToShopifyConverter()
+        converter = AsyncWordPressConverter()
         converter.output_dir = temp_dir
         await converter.initialize()
         yield converter
@@ -31,7 +31,7 @@ class TestConverterIntegration:
 
         # Mock the HTTP session
         async with aiohttp.ClientSession() as session:
-            with patch.object(converter, 'session', session):
+            with patch.object(converter, "session", session):
                 result = await converter.convert_url(url)
 
         # Check that conversion completed
@@ -102,13 +102,16 @@ class TestConverterIntegration:
         mock_wordpress_server.get(
             f"{TEST_CONSTANTS.BASE_TEST_URL}/another-image.jpg",
             body=b"another fake image data",
-            headers={"Content-Type": "image/jpeg"}
+            headers={"Content-Type": "image/jpeg"},
         )
 
         # Process images
         async with aiohttp.ClientSession() as session:
-            with patch.object(converter, 'session', session):
-                processed_soup, downloaded_images = await converter.image_downloader.process_and_download(
+            with patch.object(converter, "session", session):
+                (
+                    processed_soup,
+                    downloaded_images,
+                ) = await converter.image_downloader.process_and_download(
                     soup, temp_dir, TEST_CONSTANTS.BASE_TEST_URL
                 )
 
@@ -128,7 +131,7 @@ class TestConverterIntegration:
 
         # First conversion - should cache results
         async with aiohttp.ClientSession() as session:
-            with patch.object(converter, 'session', session):
+            with patch.object(converter, "session", session):
                 result1 = await converter.convert_url(url)
 
         # Check cache statistics
@@ -156,7 +159,7 @@ class TestConverterIntegration:
     @pytest.mark.asyncio
     async def test_plugin_integration(self, converter):
         """Test plugin system integration."""
-        if hasattr(converter, 'plugin_manager'):
+        if hasattr(converter, "plugin_manager"):
             # Test that plugins are loaded
             plugins = converter.plugin_manager.registry.list_plugins()
 
@@ -173,14 +176,14 @@ class TestConverterIntegration:
         invalid_url = "https://nonexistent.example.com/invalid"
 
         async with aiohttp.ClientSession() as session:
-            with patch.object(converter, 'session', session):
+            with patch.object(converter, "session", session):
                 try:
                     result = await converter.convert_url(invalid_url)
                     # Should handle errors gracefully
                     assert result.get("status") in ["error", "failed"]
                 except Exception as e:
                     # Exceptions should be properly typed
-                    assert hasattr(e, '__class__')
+                    assert hasattr(e, "__class__")
 
     @pytest.mark.asyncio
     async def test_concurrent_conversion(self, converter, mock_wordpress_server):
@@ -188,18 +191,17 @@ class TestConverterIntegration:
         urls = [
             TEST_CONSTANTS.SAMPLE_POST_URL,
             f"{TEST_CONSTANTS.BASE_TEST_URL}/page2",
-            f"{TEST_CONSTANTS.BASE_TEST_URL}/page3"
+            f"{TEST_CONSTANTS.BASE_TEST_URL}/page3",
         ]
 
         # Mock additional pages
         for url in urls[1:]:
             mock_wordpress_server.get(
-                url,
-                body=f"<html><body><h1>Page {url.split('/')[-1]}</h1></body></html>"
+                url, body=f"<html><body><h1>Page {url.split('/')[-1]}</h1></body></html>"
             )
 
         async with aiohttp.ClientSession() as session:
-            with patch.object(converter, 'session', session):
+            with patch.object(converter, "session", session):
                 # This would test batch processing if implemented
                 results = []
                 for url in urls:
@@ -214,18 +216,14 @@ class TestConverterIntegration:
         url = TEST_CONSTANTS.SAMPLE_POST_URL
 
         async with aiohttp.ClientSession() as session:
-            with patch.object(converter, 'session', session):
+            with patch.object(converter, "session", session):
                 await converter.convert_url(url)
 
         # Check output directory structure
         assert temp_dir.exists()
 
         # Check for expected files
-        expected_files = [
-            config.html_file,
-            config.shopify_file,
-            config.metadata_file
-        ]
+        expected_files = [config.html_file, config.shopify_file, config.metadata_file]
 
         for filename in expected_files:
             file_path = temp_dir / filename
@@ -240,7 +238,7 @@ class TestConverterIntegration:
         assert converter.output_dir is not None
 
         # Test timeout configuration
-        if hasattr(converter, 'timeout'):
+        if hasattr(converter, "timeout"):
             assert converter.timeout > 0
 
         # Test other configuration integration
@@ -251,9 +249,9 @@ class TestConverterIntegration:
         """Test that logging works throughout the conversion process."""
         url = TEST_CONSTANTS.SAMPLE_POST_URL
 
-        with patch('src.utils.logging.logger') as mock_logger:
+        with patch("src.utils.logging.logger") as mock_logger:
             async with aiohttp.ClientSession() as session:
-                with patch.object(converter, 'session', session):
+                with patch.object(converter, "session", session):
                     await converter.convert_url(url)
 
             # Should have logged various steps
@@ -282,7 +280,8 @@ class TestLargeContentIntegration:
         """Generate large HTML content for testing."""
         blocks = []
         for i in range(100):
-            blocks.append(f"""
+            blocks.append(
+                f"""
             <div class="wp-block-group">
                 <h2>Section {i}</h2>
                 <p>This is paragraph {i} with some content that should be processed.</p>
@@ -293,7 +292,8 @@ class TestLargeContentIntegration:
                     <a class="wp-block-button__link" href="/link_{i}">Button {i}</a>
                 </div>
             </div>
-            """)
+            """
+            )
 
         return f"<html><body>{''.join(blocks)}</body></html>"
 
@@ -307,6 +307,7 @@ class TestLargeContentIntegration:
 
         # Should handle large content without performance issues
         import time
+
         start_time = time.time()
 
         result = await processor.process(soup)
@@ -329,6 +330,7 @@ class TestLargeContentIntegration:
         initial_memory = process.memory_info().rss
 
         from src.processors.html_processor import HTMLProcessor
+
         processor = HTMLProcessor()
         soup = BeautifulSoup(large_html_content, "html.parser")
 
@@ -340,4 +342,3 @@ class TestLargeContentIntegration:
         # Memory increase should be reasonable (adjust threshold as needed)
         # This is a rough check - exact values depend on system
         assert memory_increase < 100 * 1024 * 1024  # Less than 100MB increase
-

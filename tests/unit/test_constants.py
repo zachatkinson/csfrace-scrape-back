@@ -23,7 +23,7 @@ class TestAppConstants:
 
         # Test that defaults are used when env vars aren't set
         assert CONSTANTS.DEFAULT_TIMEOUT == 30  # Default value
-        assert CONSTANTS.MAX_CONCURRENT == 10   # Default value
+        assert CONSTANTS.MAX_CONCURRENT == 10  # Default value
 
     def test_default_values(self):
         """Test that default values are set correctly."""
@@ -54,8 +54,13 @@ class TestAppConstants:
     def test_shopify_preserve_classes(self):
         """Test Shopify-compatible CSS classes."""
         expected_classes = {
-            "center", "media-grid", "media-grid-2", "media-grid-4",
-            "media-grid-5", "button", "button--primary"
+            "center",
+            "media-grid",
+            "media-grid-2",
+            "media-grid-4",
+            "media-grid-5",
+            "button",
+            "button--primary",
         }
 
         # Check that our expected classes are in the preserve set
@@ -209,4 +214,3 @@ class TestConstantImmutability:
         # Clean up
         del CONSTANTS.IMAGE_CONTENT_TYPES["image/test"]
         assert original_types == CONSTANTS.IMAGE_CONTENT_TYPES
-

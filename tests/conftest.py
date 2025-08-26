@@ -175,8 +175,7 @@ def mock_wordpress_server(mock_responses):
     """Mock WordPress server responses."""
     # Mock robots.txt
     mock_responses.get(
-        f"{TEST_CONSTANTS.BASE_TEST_URL}/robots.txt",
-        body="User-agent: *\nAllow: /\nCrawl-delay: 1"
+        f"{TEST_CONSTANTS.BASE_TEST_URL}/robots.txt", body="User-agent: *\nAllow: /\nCrawl-delay: 1"
     )
 
     # Mock sample post
@@ -196,14 +195,14 @@ def mock_wordpress_server(mock_responses):
             </article>
         </body>
         </html>
-        """
+        """,
     )
 
     # Mock image
     mock_responses.get(
         f"{TEST_CONSTANTS.BASE_TEST_URL}{TEST_CONSTANTS.SAMPLE_IMAGE_URL}",
         body=TEST_CONSTANTS.TEST_IMAGE_CONTENT,
-        headers={"Content-Type": "image/jpeg"}
+        headers={"Content-Type": "image/jpeg"},
     )
 
     return mock_responses
@@ -220,7 +219,7 @@ def plugin_config():
         plugin_type=PluginType.HTML_PROCESSOR,
         enabled=True,
         priority=100,
-        settings={"test_setting": "test_value"}
+        settings={"test_setting": "test_value"},
     )
 
 
@@ -229,14 +228,13 @@ async def mock_redis_cache():
     """Mock Redis cache for testing."""
     try:
         from src.caching.redis_cache import RedisCache
+
         cache = MagicMock(spec=RedisCache)
         cache.get = AsyncMock(return_value=None)
         cache.set = AsyncMock(return_value=True)
         cache.delete = AsyncMock(return_value=True)
         cache.clear = AsyncMock(return_value=True)
-        cache.stats = AsyncMock(return_value={
-            "hits": 0, "misses": 0, "total_entries": 0
-        })
+        cache.stats = AsyncMock(return_value={"hits": 0, "misses": 0, "total_entries": 0})
         return cache
     except ImportError:
         # Redis not available, return None
@@ -249,24 +247,17 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "performance: marks tests as performance tests"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: marks tests as end-to-end tests"
-    )
-    config.addinivalue_line(
-        "markers", "redis: marks tests that require Redis"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "performance: marks tests as performance tests")
+    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
+    config.addinivalue_line("markers", "redis: marks tests that require Redis")
 
 
 # Skip Redis tests if not available
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to handle missing dependencies."""
     import importlib.util
+
     redis_available = importlib.util.find_spec("redis") is not None
 
     if not redis_available:

@@ -27,16 +27,12 @@ class MockHTTPResponse:
 
     async def read(self) -> bytes:
         """Return response bytes."""
-        return self.content.encode('utf-8') if isinstance(self.content, str) else self.content
+        return self.content.encode("utf-8") if isinstance(self.content, str) else self.content
 
     def raise_for_status(self):
         """Raise exception for HTTP error status codes."""
         if self.status >= 400:
-            raise aiohttp.ClientResponseError(
-                request_info=None,
-                history=None,
-                status=self.status
-            )
+            raise aiohttp.ClientResponseError(request_info=None, history=None, status=self.status)
 
 
 class AsyncContextManager:
@@ -107,7 +103,11 @@ def assert_html_contains(html: str, expected_elements: list[str]):
     soup = BeautifulSoup(html, "html.parser")
 
     for element in expected_elements:
-        if element.startswith('.') or element.startswith('#') or element in ['p', 'h1', 'h2', 'div']:
+        if (
+            element.startswith(".")
+            or element.startswith("#")
+            or element in ["p", "h1", "h2", "div"]
+        ):
             # CSS selector
             assert soup.select(element), f"Element '{element}' not found in HTML"
         else:
@@ -125,7 +125,11 @@ def assert_html_not_contains(html: str, unwanted_elements: list[str]):
     soup = BeautifulSoup(html, "html.parser")
 
     for element in unwanted_elements:
-        if element.startswith('.') or element.startswith('#') or element in ['script', 'style', 'noscript']:
+        if (
+            element.startswith(".")
+            or element.startswith("#")
+            or element in ["script", "style", "noscript"]
+        ):
             # CSS selector
             assert not soup.select(element), f"Unwanted element '{element}' found in HTML"
         else:
@@ -267,7 +271,7 @@ class FileTestHelper:
             Path to created file
         """
         file_path = directory / filename
-        file_path.write_text(content, encoding='utf-8')
+        file_path.write_text(content, encoding="utf-8")
         return file_path
 
     @staticmethod
@@ -302,6 +306,7 @@ class CacheTestHelper:
             Cache entry data dictionary
         """
         import time
+
         return {
             "key": key,
             "value": value,
@@ -309,7 +314,7 @@ class CacheTestHelper:
             "ttl": 3600,
             "content_type": "generic",
             "size_bytes": len(str(value)),
-            "compressed": False
+            "compressed": False,
         }
 
 
@@ -333,7 +338,7 @@ class PluginTestHelper:
             "version": "1.0.0",
             "description": f"Test plugin: {name}",
             "author": "Test Author",
-            "plugin_type": PluginType.HTML_PROCESSOR
+            "plugin_type": PluginType.HTML_PROCESSOR,
         }
 
     @staticmethod
@@ -350,7 +355,7 @@ class PluginTestHelper:
             "url": url or TEST_CONSTANTS.SAMPLE_POST_URL,
             "timestamp": "2024-01-15T10:00:00Z",
             "user_agent": "test-converter/1.0",
-            "processing_stage": "html_processing"
+            "processing_stage": "html_processing",
         }
 
 
@@ -393,8 +398,8 @@ def extract_urls_from_html(html: str) -> list[str]:
     urls = []
 
     # Extract from various elements
-    for element in soup.find_all(['a', 'img', 'iframe', 'script', 'link']):
-        for attr in ['href', 'src', 'data-src']:
+    for element in soup.find_all(["a", "img", "iframe", "script", "link"]):
+        for attr in ["href", "src", "data-src"]:
             if element.get(attr):
                 urls.append(element[attr])
 
@@ -425,7 +430,7 @@ def get_html_text_content(html: str) -> str:
         Extracted text content
     """
     soup = BeautifulSoup(html, "html.parser")
-    return soup.get_text(separator=' ', strip=True)
+    return soup.get_text(separator=" ", strip=True)
 
 
 # Performance testing helpers
@@ -435,17 +440,20 @@ class PerformanceTestHelper:
     @staticmethod
     def time_async_operation(operation):
         """Decorator to time async operations."""
+
         async def wrapper(*args, **kwargs):
             import time
+
             start_time = time.time()
             result = await operation(*args, **kwargs)
             end_time = time.time()
 
             # Attach timing info to result if possible
-            if hasattr(result, '__dict__'):
+            if hasattr(result, "__dict__"):
                 result._execution_time = end_time - start_time
 
             return result
+
         return wrapper
 
     @staticmethod
@@ -463,4 +471,3 @@ class PerformanceTestHelper:
             elements.append(f"<p>This is paragraph number {i} with some content.</p>")
 
         return f"<html><body>{''.join(elements)}</body></html>"
-
