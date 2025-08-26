@@ -11,11 +11,14 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies for building
+# Install system dependencies for building (including lxml requirements for Python 3.13)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     g++ \
+    libxml2-dev \
+    libxslt1-dev \
+    pkg-config \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
