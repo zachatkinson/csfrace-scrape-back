@@ -266,7 +266,7 @@ class BatchProcessor:
             url=url,
             output_directory=str(self.config.output_directory),
             batch_id=batch_id,
-            priority=priority.name.lower()
+            priority=priority.name.lower(),
         )
 
         # Update job status to running
@@ -320,7 +320,7 @@ class BatchProcessor:
 
             stmt = select(ScrapingJob).where(
                 ScrapingJob.batch_id == batch_id,
-                ScrapingJob.status.in_([JobStatus.PENDING, JobStatus.FAILED])
+                ScrapingJob.status.in_([JobStatus.PENDING, JobStatus.FAILED]),
             )
             jobs = session.execute(stmt).scalars().all()
             pending_urls = [job.url for job in jobs]
