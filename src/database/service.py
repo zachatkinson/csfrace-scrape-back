@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import structlog
-from sqlalchemy import and_, desc, func, or_, select, update
+from sqlalchemy import and_, case, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
@@ -132,13 +132,24 @@ class DatabaseService:
                     path_parts = parsed.path.strip("/").split("/")
                     slug = path_parts[-1] if path_parts and path_parts[-1] else "homepage"
 
+                # Convert string priority to enum if needed
+                from .models import JobPriority
+
+                if isinstance(priority, str):
+                    try:
+                        priority_enum = JobPriority(priority.lower())
+                    except ValueError:
+                        priority_enum = JobPriority.NORMAL
+                else:
+                    priority_enum = priority
+
                 job = ScrapingJob(
                     url=url,
                     domain=domain,
                     slug=slug,
                     output_directory=output_directory,
                     batch_id=batch_id,
-                    priority=priority,
+                    priority=priority_enum,
                     **kwargs,
                 )
 
@@ -238,15 +249,22 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                # Order by priority (HIGH -> NORMAL -> LOW) then by creation time
-                priority_order = {"urgent": 4, "high": 3, "normal": 2, "low": 1}
+                # Order by priority (URGENT -> HIGH -> NORMAL -> LOW) then by creation time
+                from .models import JobPriority
+
+                priority_order = {
+                    JobPriority.URGENT: 4,
+                    JobPriority.HIGH: 3,
+                    JobPriority.NORMAL: 2,
+                    JobPriority.LOW: 1,
+                }
 
                 stmt = (
                     select(ScrapingJob)
                     .where(ScrapingJob.status == JobStatus.PENDING)
                     .order_by(
                         desc(
-                            func.case(
+                            case(
                                 *[
                                     (ScrapingJob.priority == k, v)
                                     for k, v in priority_order.items()
@@ -363,6 +381,7 @@ class DatabaseService:
                     description=description,
                     output_base_directory=output_base_directory,
                     batch_config=config,
+                    **config,  # Pass config parameters directly to model
                 )
 
                 session.add(batch)
@@ -412,18 +431,18 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                # Get current job counts
+                # Get current job counts using case statements for conditional counting
                 counts_stmt = select(
                     func.count(ScrapingJob.id).label("total"),
-                    func.count(ScrapingJob.id)
-                    .filter(ScrapingJob.status == JobStatus.COMPLETED)
-                    .label("completed"),
-                    func.count(ScrapingJob.id)
-                    .filter(ScrapingJob.status == JobStatus.FAILED)
-                    .label("failed"),
-                    func.count(ScrapingJob.id)
-                    .filter(ScrapingJob.status == JobStatus.SKIPPED)
-                    .label("skipped"),
+                    func.sum(case((ScrapingJob.status == JobStatus.COMPLETED, 1), else_=0)).label(
+                        "completed"
+                    ),
+                    func.sum(case((ScrapingJob.status == JobStatus.FAILED, 1), else_=0)).label(
+                        "failed"
+                    ),
+                    func.sum(case((ScrapingJob.status == JobStatus.SKIPPED, 1), else_=0)).label(
+                        "skipped"
+                    ),
                 ).where(ScrapingJob.batch_id == batch_id)
 
                 counts = session.execute(counts_stmt).one()
@@ -552,7 +571,7 @@ class DatabaseService:
 
                 return log_entry
 
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error("Failed to add job log", job_id=job_id, error=str(e))
             # Don't raise here - logging failures shouldn't break the main process
             return None

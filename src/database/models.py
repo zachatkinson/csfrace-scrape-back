@@ -370,7 +370,11 @@ def get_database_url(database_path: Optional[Path] = None) -> str:
     # Ensure parent directory exists
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    return f"sqlite:///{database_path}"
+    from ..utils.path_utils import normalize_path_separators
+
+    # Use our cross-platform path utility for consistent forward slashes
+    path_str = normalize_path_separators(database_path)
+    return f"sqlite:///{path_str}"
 
 
 def create_database_engine(database_path: Optional[Path] = None, echo: bool = False):
@@ -385,15 +389,29 @@ def create_database_engine(database_path: Optional[Path] = None, echo: bool = Fa
     """
     database_url = get_database_url(database_path)
 
-    return create_engine(
-        database_url,
-        echo=echo,
-        # SQLite-specific optimizations
-        connect_args={
-            "check_same_thread": False,  # Allow sharing connection across threads
-            "timeout": 30,  # Connection timeout in seconds
-        },
-        # Connection pooling settings
-        pool_pre_ping=True,  # Validate connections before use
-        pool_recycle=3600,  # Recycle connections every hour
-    )
+    # Import pooling classes for SQLite thread safety
+    from sqlalchemy.pool import NullPool, StaticPool
+
+    # Configure for SQLite threading
+    if database_url.startswith("sqlite:///"):
+        return create_engine(
+            database_url,
+            echo=echo,
+            # SQLite-specific thread safety configuration
+            connect_args={
+                "check_same_thread": False,  # Allow sharing connection across threads
+                "timeout": 30,  # Connection timeout in seconds
+            },
+            # Use StaticPool for in-memory databases, NullPool for file databases to avoid threading issues
+            poolclass=StaticPool if ":memory:" in database_url else NullPool,
+            pool_pre_ping=":memory:" not in database_url,  # No ping for memory db
+            pool_recycle=-1 if ":memory:" in database_url else 3600,  # No recycle for memory db
+        )
+    else:
+        # Non-SQLite configuration
+        return create_engine(
+            database_url,
+            echo=echo,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+        )
