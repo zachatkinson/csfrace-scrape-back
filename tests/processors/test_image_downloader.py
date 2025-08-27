@@ -232,9 +232,11 @@ class TestAsyncImageDownloader:
         mock_request_info.real_url = url
 
         # Mock raise_for_status as a regular method that raises the exception immediately
-        mock_response.raise_for_status = Mock(side_effect=aiohttp.ClientResponseError(
-            request_info=mock_request_info, history=None, status=404
-        ))
+        mock_response.raise_for_status = Mock(
+            side_effect=aiohttp.ClientResponseError(
+                request_info=mock_request_info, history=None, status=404
+            )
+        )
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -256,9 +258,11 @@ class TestAsyncImageDownloader:
         mock_response.raise_for_status.return_value = None
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
+
         # Mock chunked content as async generator
         async def mock_iter_chunked(size):
             yield b"data"
+
         mock_response.content.iter_chunked = mock_iter_chunked
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
@@ -399,9 +403,11 @@ class TestAsyncImageDownloader:
         mock_response.raise_for_status.return_value = None
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
+
         # Mock chunked content as async generator
         async def mock_iter_chunked(size):
             yield b"data"
+
         mock_response.content.iter_chunked = mock_iter_chunked
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
@@ -429,9 +435,11 @@ class TestAsyncImageDownloader:
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
         mock_response.headers = {"content-type": "image/jpeg"}
+
         # Mock chunked content as async generator
         async def mock_iter_chunked(size):
             yield b"data"
+
         mock_response.content.iter_chunked = mock_iter_chunked
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
