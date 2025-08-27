@@ -1,6 +1,7 @@
 """Comprehensive tests for async image downloader."""
 
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -509,10 +510,8 @@ class TestAsyncImageDownloaderEdgeCases:
                     mock_timeout_instance = MagicMock()
                     mock_timeout.return_value = mock_timeout_instance
 
-                    try:
+                    with contextlib.suppress(Exception):
                         await downloader._download_image(mock_session, url)
-                    except Exception:
-                        pass  # We're testing timeout creation, not the full flow
 
                     # Should create timeout with correct value
                     mock_timeout.assert_called_with(total=10)

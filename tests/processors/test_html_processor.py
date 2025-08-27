@@ -772,7 +772,7 @@ class TestHTMLProcessorAdvanced:
     async def test_convert_instagram_embeds_with_attributes(self, processor):
         """Test Instagram embed conversion preserving all attributes."""
         html_content = """
-        <iframe class="instagram-media" src="https://instagram.com/embed" 
+        <iframe class="instagram-media" src="https://instagram.com/embed"
                 width="540" height="700" frameborder="0"></iframe>
         """
 
