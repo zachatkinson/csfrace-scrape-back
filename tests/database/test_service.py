@@ -32,6 +32,15 @@ class TestDatabaseService:
             # Create database service using PostgreSQL
             service = DatabaseService(echo=False)
             service.initialize_database()
+
+            # Clean up database state before each test for test isolation
+            with service.get_session() as session:
+                # Delete all records from tables to ensure clean state
+                from src.database.models import ScrapingJob
+
+                session.query(ScrapingJob).delete()
+                session.commit()
+
             yield service
         finally:
             # Clean up environment variables
@@ -665,6 +674,15 @@ class TestDatabaseServiceErrorHandling:
             # Create database service using PostgreSQL
             service = DatabaseService(echo=False)
             service.initialize_database()
+
+            # Clean up database state before each test for test isolation
+            with service.get_session() as session:
+                # Delete all records from tables to ensure clean state
+                from src.database.models import ScrapingJob
+
+                session.query(ScrapingJob).delete()
+                session.commit()
+
             yield service
         finally:
             # Clean up environment variables

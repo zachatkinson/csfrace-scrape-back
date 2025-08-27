@@ -409,10 +409,11 @@ def create_database_engine(echo: bool = False):
     def _reset_postgresql(dbapi_connection, _connection_record, reset_state):
         """Reset PostgreSQL connections properly following best practices."""
         if not reset_state.terminate_only:
-            # Clean up any session-level state
-            dbapi_connection.execute("CLOSE ALL")  # Close cursors
-            dbapi_connection.execute("RESET ALL")  # Reset session variables
-            dbapi_connection.execute("DISCARD TEMP")  # Clean up temp tables
+            # Use cursor for SQL commands - psycopg2 connection doesn't have execute method
+            with dbapi_connection.cursor() as cursor:
+                cursor.execute("CLOSE ALL")  # Close cursors
+                cursor.execute("RESET ALL")  # Reset session variables
+                cursor.execute("DISCARD TEMP")  # Clean up temp tables
         dbapi_connection.rollback()  # Ensure clean transaction state
 
     return engine
