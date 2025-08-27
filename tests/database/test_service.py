@@ -730,7 +730,6 @@ class TestDatabaseServiceErrorHandling:
         import threading
         import time
 
-
         # PostgreSQL supports concurrent access - this test should pass
 
         # Initialize database first
