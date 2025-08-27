@@ -35,10 +35,16 @@ class TestDatabaseService:
 
             # Clean up database state before each test for test isolation
             with service.get_session() as session:
-                # Delete all records from tables to ensure clean state
-                from src.database.models import ScrapingJob
+                # Delete in proper order: child tables first, then parent tables
+                # With CASCADE foreign keys, deleting parent should cascade to children
+                from src.database.models import Batch, ContentResult, JobLog, ScrapingJob
 
+                # Delete child records first (although CASCADE should handle this)
+                session.query(ContentResult).delete()
+                session.query(JobLog).delete()
+                # Then delete parent records
                 session.query(ScrapingJob).delete()
+                session.query(Batch).delete()
                 session.commit()
 
             yield service
@@ -677,10 +683,16 @@ class TestDatabaseServiceErrorHandling:
 
             # Clean up database state before each test for test isolation
             with service.get_session() as session:
-                # Delete all records from tables to ensure clean state
-                from src.database.models import ScrapingJob
+                # Delete in proper order: child tables first, then parent tables
+                # With CASCADE foreign keys, deleting parent should cascade to children
+                from src.database.models import Batch, ContentResult, JobLog, ScrapingJob
 
+                # Delete child records first (although CASCADE should handle this)
+                session.query(ContentResult).delete()
+                session.query(JobLog).delete()
+                # Then delete parent records
                 session.query(ScrapingJob).delete()
+                session.query(Batch).delete()
                 session.commit()
 
             yield service

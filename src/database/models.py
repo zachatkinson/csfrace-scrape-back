@@ -120,10 +120,10 @@ class ScrapingJob(Base):
     batch: Mapped[Optional["Batch"]] = relationship("Batch", back_populates="jobs")
 
     content_results: Mapped[list["ContentResult"]] = relationship(
-        "ContentResult", back_populates="job", cascade="all, delete-orphan"
+        "ContentResult", back_populates="job", cascade="all, delete-orphan", passive_deletes=True
     )
     job_logs: Mapped[list["JobLog"]] = relationship(
-        "JobLog", back_populates="job", cascade="all, delete-orphan"
+        "JobLog", back_populates="job", cascade="all, delete-orphan", passive_deletes=True
     )
 
     def __repr__(self) -> str:
@@ -219,7 +219,9 @@ class ContentResult(Base):
 
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("scraping_jobs.id"), nullable=False, index=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("scraping_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Content storage
     original_html: Mapped[Optional[str]] = mapped_column(Text)
@@ -285,7 +287,9 @@ class JobLog(Base):
 
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("scraping_jobs.id"), nullable=False, index=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("scraping_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Log entry details
     level: Mapped[str] = mapped_column(
