@@ -230,7 +230,7 @@ class TestAsyncImageDownloader:
         # Create a mock request_info to avoid AttributeError
         mock_request_info = Mock()
         mock_request_info.real_url = url
-        
+
         # Mock raise_for_status as a regular method that raises the exception immediately
         mock_response.raise_for_status = Mock(side_effect=aiohttp.ClientResponseError(
             request_info=mock_request_info, history=None, status=404

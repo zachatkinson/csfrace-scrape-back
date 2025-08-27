@@ -1,6 +1,6 @@
 """Tests for HTML processing and conversion."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -850,7 +850,7 @@ class TestHTMLProcessorAdvanced:
         # Create a mock config with preserve_classes set
         mock_config = MagicMock()
         mock_config.preserve_classes = ["center", "media-grid", "button"]
-        
+
         with patch("src.processors.html_processor.config", mock_config):
             result = await processor._cleanup_wordpress_artifacts(soup)
             result_html = str(result)
@@ -869,7 +869,7 @@ class TestHTMLProcessorAdvanced:
         # Create a mock config with empty preserve_classes
         mock_config = MagicMock()
         mock_config.preserve_classes = []
-        
+
         with patch("src.processors.html_processor.config", mock_config):
             result = await processor._cleanup_wordpress_artifacts(soup)
             result_html = str(result)
