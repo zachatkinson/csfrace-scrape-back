@@ -41,6 +41,7 @@ class JobStatus(Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     CANCELLED = "cancelled"
+    PARTIAL = "partial"
 
 
 class JobPriority(Enum):

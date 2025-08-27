@@ -67,3 +67,22 @@ class DatabaseError(Exception):
         if self.cause:
             msg = f"{msg} (Caused by: {self.cause})"
         return msg
+
+
+class BatchProcessingError(Exception):
+    """Exception raised during batch processing operations."""
+
+    def __init__(
+        self, message: str, batch_id: Optional[int] = None, cause: Optional[Exception] = None
+    ):
+        super().__init__(message)
+        self.batch_id = batch_id
+        self.cause = cause
+
+    def __str__(self) -> str:
+        msg = super().__str__()
+        if self.batch_id:
+            msg = f"{msg} (Batch ID: {self.batch_id})"
+        if self.cause:
+            msg = f"{msg} (Caused by: {self.cause})"
+        return msg
