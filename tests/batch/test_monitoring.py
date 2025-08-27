@@ -294,7 +294,11 @@ class TestBatchMonitor:
         mock_session.query.return_value.filter.return_value.first.return_value = mock_batch
 
         # Mock jobs with no completed ones
-        mock_jobs = [Mock(spec=ScrapingJob, status=JobStatus.PENDING, duration_seconds=None, completed_at=None)]
+        mock_jobs = [
+            Mock(
+                spec=ScrapingJob, status=JobStatus.PENDING, duration_seconds=None, completed_at=None
+            )
+        ]
         mock_session.query.return_value.filter.return_value.all.return_value = mock_jobs
 
         details = batch_monitor.get_batch_details(1)

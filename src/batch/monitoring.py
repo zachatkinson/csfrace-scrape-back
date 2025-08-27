@@ -224,12 +224,12 @@ class BatchMonitor:
                         func.sum(
                             case((ScrapingJob.status == JobStatus.COMPLETED, 1), else_=0)
                         ).label("completed"),
-                        func.sum(
-                            case((ScrapingJob.status == JobStatus.RUNNING, 1), else_=0)
-                        ).label("running"),
-                        func.sum(
-                            case((ScrapingJob.status == JobStatus.FAILED, 1), else_=0)
-                        ).label("failed"),
+                        func.sum(case((ScrapingJob.status == JobStatus.RUNNING, 1), else_=0)).label(
+                            "running"
+                        ),
+                        func.sum(case((ScrapingJob.status == JobStatus.FAILED, 1), else_=0)).label(
+                            "failed"
+                        ),
                     )
                     .filter(ScrapingJob.batch_id == batch.id)
                     .first()

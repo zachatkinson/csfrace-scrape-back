@@ -293,7 +293,10 @@ class BatchProcessor:
         )
 
         # Save checkpoint if configured
-        if self.config.save_checkpoints and (self.completed_count + self.failed_count) % self.config.checkpoint_interval == 0:
+        if (
+            self.config.save_checkpoints
+            and (self.completed_count + self.failed_count) % self.config.checkpoint_interval == 0
+        ):
             await self._save_checkpoint(batch_id)
 
         return result
