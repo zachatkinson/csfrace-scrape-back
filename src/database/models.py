@@ -399,7 +399,6 @@ def create_database_engine(echo: bool = False):
         connect_args={
             "connect_timeout": 10,  # Connection establishment timeout
             "application_name": "csfrace-scraper",  # For monitoring/debugging
-            "options": "-c default_transaction_isolation='read committed'",  # Optimal for OLTP
         },
         # Performance optimizations
         execution_options={
