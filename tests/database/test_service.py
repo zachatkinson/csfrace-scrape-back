@@ -23,7 +23,7 @@ class TestDatabaseService:
         """Create temporary database service for testing with PostgreSQL."""
         # Set environment variables for PostgreSQL connection
         os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
-        os.environ["DATABASE_PORT"] = postgres_container.get_exposed_port(5432)
+        os.environ["DATABASE_PORT"] = str(postgres_container.get_exposed_port(5432))
         os.environ["DATABASE_NAME"] = "test_db"
         os.environ["DATABASE_USER"] = "test_user"
         os.environ["DATABASE_PASSWORD"] = "test_password"
@@ -48,7 +48,7 @@ class TestDatabaseService:
         """Test DatabaseService initialization with PostgreSQL."""
         # Set environment variables for PostgreSQL connection
         os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
-        os.environ["DATABASE_PORT"] = postgres_container.get_exposed_port(5432)
+        os.environ["DATABASE_PORT"] = str(postgres_container.get_exposed_port(5432))
         os.environ["DATABASE_NAME"] = "test_db"
         os.environ["DATABASE_USER"] = "test_user"
         os.environ["DATABASE_PASSWORD"] = "test_password"
@@ -656,7 +656,7 @@ class TestDatabaseServiceErrorHandling:
         """Create temporary database service for testing with PostgreSQL."""
         # Set environment variables for PostgreSQL connection
         os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
-        os.environ["DATABASE_PORT"] = postgres_container.get_exposed_port(5432)
+        os.environ["DATABASE_PORT"] = str(postgres_container.get_exposed_port(5432))
         os.environ["DATABASE_NAME"] = "test_db"
         os.environ["DATABASE_USER"] = "test_user"
         os.environ["DATABASE_PASSWORD"] = "test_password"
