@@ -355,7 +355,7 @@ class BatchMonitor:
                 session.query(ScrapingJob).filter(ScrapingJob.created_at >= one_hour_ago).all()
             )
 
-            recent_error_rate = 0
+            recent_error_rate = 0.0
             if recent_jobs:
                 failed_recent = len([j for j in recent_jobs if j.status == JobStatus.FAILED])
                 recent_error_rate = failed_recent / len(recent_jobs) * 100
@@ -428,7 +428,7 @@ class BatchMonitor:
                 }
 
             # Top domains by processing count
-            domain_counts = {}
+            domain_counts: dict[str, int] = {}
             for job in jobs:
                 domain = job.domain
                 domain_counts[domain] = domain_counts.get(domain, 0) + 1
@@ -436,7 +436,7 @@ class BatchMonitor:
             top_domains = sorted(domain_counts.items(), key=lambda x: x[1], reverse=True)[:10]
 
             # Error analysis
-            error_types = {}
+            error_types: dict[str, int] = {}
             for job in jobs:
                 if job.status == JobStatus.FAILED and job.error_type:
                     error_types[job.error_type] = error_types.get(job.error_type, 0) + 1

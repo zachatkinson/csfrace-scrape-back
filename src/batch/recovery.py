@@ -253,7 +253,7 @@ class BatchRecoveryManager:
 
             # Analyze failure patterns
             failed_jobs = [j for j in jobs if j.status == JobStatus.FAILED]
-            error_patterns = {}
+            error_patterns: dict[str, int] = {}
             for job in failed_jobs:
                 error_type = job.error_type or "unknown"
                 error_patterns[error_type] = error_patterns.get(error_type, 0) + 1
@@ -266,7 +266,7 @@ class BatchRecoveryManager:
             # Load checkpoint if available
             checkpoint = self.checkpoint_manager.load_checkpoint(batch_id)
 
-            analysis = {
+            analysis: dict[str, Any] = {
                 "batch_info": {
                     "id": batch.id,
                     "name": batch.name,
@@ -292,14 +292,16 @@ class BatchRecoveryManager:
                 },
                 "recovery_options": recovery_strategy,
                 "checkpoint_available": checkpoint is not None,
-                "checkpoint_timestamp": (checkpoint["timestamp"] if checkpoint else None),
+                "checkpoint_timestamp": (checkpoint.get("timestamp") if checkpoint else None),
             }
 
+            completion_rate = analysis["job_analysis"]["completion_rate"]
+            failure_rate = analysis["failure_analysis"]["failure_rate"]
             logger.info(
                 "Analyzed batch failure",
                 batch_id=batch_id,
-                completion_rate=analysis["job_analysis"]["completion_rate"],
-                failure_rate=analysis["failure_analysis"]["failure_rate"],
+                completion_rate=completion_rate,
+                failure_rate=failure_rate,
             )
 
             return analysis

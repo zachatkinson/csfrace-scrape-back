@@ -134,7 +134,7 @@ class BatchProcessor:
         while retries <= self.config.retry_attempts:
             try:
                 # Apply rate limiting if configured
-                if self.rate_limiter:
+                if self.rate_limiter and self.config.rate_limit_per_second:
                     async with self.rate_limiter:
                         await asyncio.sleep(1.0 / self.config.rate_limit_per_second)
 
@@ -231,13 +231,8 @@ class BatchProcessor:
         end_time = datetime.now(timezone.utc)
         results.duration = (end_time - start_time).total_seconds()
 
-        # Update batch status
-        self.database_service.update_batch_status(
-            batch.id,
-            JobStatus.COMPLETED if not results.failed else JobStatus.PARTIAL,
-            completed_jobs=len(results.successful),
-            failed_jobs=len(results.failed),
-        )
+        # Update batch progress (the database service doesn't have update_batch_status method)
+        self.database_service.update_batch_progress(batch.id)
 
         # Generate statistics
         results.statistics = self.get_statistics()
@@ -267,7 +262,12 @@ class BatchProcessor:
             ProcessingResult
         """
         # Create job in database
-        job = self.database_service.create_job(url=url, batch_id=batch_id, priority=priority.value)
+        job = self.database_service.create_job(
+            url=url, 
+            output_directory=str(self.config.output_directory),
+            batch_id=batch_id, 
+            priority=priority.name.lower()
+        )
 
         # Update job status to running
         self.database_service.update_job_status(job.id, JobStatus.RUNNING)
@@ -279,7 +279,7 @@ class BatchProcessor:
         if result.success:
             self.completed_count += 1
             self.database_service.update_job_status(
-                job.id, JobStatus.COMPLETED, result_data=result.data
+                job.id, JobStatus.COMPLETED, duration=result.duration
             )
         else:
             self.failed_count += 1
@@ -288,9 +288,7 @@ class BatchProcessor:
             )
 
         # Update batch progress
-        self.database_service.update_batch_progress(
-            batch_id, self.completed_count, self.failed_count
-        )
+        self.database_service.update_batch_progress(batch_id)
 
         # Save checkpoint if configured
         if (
@@ -314,11 +312,17 @@ class BatchProcessor:
         if not batch:
             raise ValueError(f"Batch {batch_id} not found")
 
-        # Get pending and failed jobs
-        jobs = self.database_service.get_batch_jobs(batch_id)
-        pending_urls = [
-            job.url for job in jobs if job.status in [JobStatus.PENDING, JobStatus.FAILED]
-        ]
+        # Get pending and failed jobs for this batch
+        with self.database_service.get_session() as session:
+            from sqlalchemy import select
+            from src.database.models import ScrapingJob
+            
+            stmt = select(ScrapingJob).where(
+                ScrapingJob.batch_id == batch_id,
+                ScrapingJob.status.in_([JobStatus.PENDING, JobStatus.FAILED])
+            )
+            jobs = session.execute(stmt).scalars().all()
+            pending_urls = [job.url for job in jobs]
 
         logger.info(
             "Resuming batch",
