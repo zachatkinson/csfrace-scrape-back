@@ -28,7 +28,7 @@ def get_path_parts(path: PathLike) -> list[str]:
     Returns:
         List of path parts
     """
-    return Path(path).parts
+    return list(Path(path).parts)
 
 
 def join_path_parts(*parts: str) -> str:

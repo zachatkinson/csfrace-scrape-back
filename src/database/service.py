@@ -200,7 +200,7 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 now = datetime.utcnow()
-                update_data = {"status": status}
+                update_data: dict[str, Any] = {"status": status}
 
                 if status == JobStatus.RUNNING:
                     update_data["started_at"] = now
@@ -522,7 +522,7 @@ class DatabaseService:
         component: Optional[str] = None,
         operation: Optional[str] = None,
         context_data: Optional[dict[str, Any]] = None,
-    ) -> JobLog:
+    ) -> Optional[JobLog]:
         """Add a log entry for a job.
 
         Args:

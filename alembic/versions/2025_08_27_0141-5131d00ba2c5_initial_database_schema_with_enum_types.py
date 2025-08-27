@@ -1,8 +1,8 @@
-"""Initial database schema
+"""initial database schema with enum types
 
-Revision ID: c03c3cb97656
+Revision ID: 5131d00ba2c5
 Revises:
-Create Date: 2025-08-27 01:23:15.824189
+Create Date: 2025-08-27 01:41:31.884014
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "c03c3cb97656"
+revision: str = "5131d00ba2c5"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -27,7 +27,19 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("status", sa.String(length=20), nullable=False),
+        sa.Column(
+            "status",
+            sa.Enum(
+                "PENDING",
+                "RUNNING",
+                "COMPLETED",
+                "FAILED",
+                "SKIPPED",
+                "CANCELLED",
+                name="jobstatus",
+            ),
+            nullable=False,
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("started_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
@@ -74,8 +86,24 @@ def upgrade() -> None:
         sa.Column("url", sa.String(length=2048), nullable=False),
         sa.Column("domain", sa.String(length=255), nullable=False),
         sa.Column("slug", sa.String(length=255), nullable=True),
-        sa.Column("status", sa.String(length=20), nullable=False),
-        sa.Column("priority", sa.String(length=10), nullable=False),
+        sa.Column(
+            "status",
+            sa.Enum(
+                "PENDING",
+                "RUNNING",
+                "COMPLETED",
+                "FAILED",
+                "SKIPPED",
+                "CANCELLED",
+                name="jobstatus",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "priority",
+            sa.Enum("LOW", "NORMAL", "HIGH", "URGENT", name="jobpriority"),
+            nullable=False,
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("started_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),

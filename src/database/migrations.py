@@ -114,6 +114,9 @@ class MigrationManager:
         """Get current database revision."""
         try:
             database_url = self.config.get_main_option("sqlalchemy.url")
+            if database_url is None:
+                logger.error("Database URL not configured")
+                return None
             engine = create_engine(database_url)
             with engine.connect() as connection:
                 migration_ctx = MigrationContext.configure(connection)
@@ -192,38 +195,39 @@ if __name__ == "__main__":
         sys.exit(1)
 
     manager = get_migration_manager()
-    command = sys.argv[1]
+    cmd = sys.argv[1]
 
     try:
-        if command == "init":
-            manager.init_migrations()
-        elif command == "create":
+        if cmd == "init":
+            print("Error: Alembic initialization must be done manually with 'alembic init alembic'")
+            sys.exit(1)
+        elif cmd == "create":
             if len(sys.argv) < 3:
                 print("Error: Migration message required")
                 sys.exit(1)
             message = " ".join(sys.argv[2:])
             manager.create_migration(message)
-        elif command == "upgrade":
+        elif cmd == "upgrade":
             revision = sys.argv[2] if len(sys.argv) > 2 else "head"
             manager.upgrade_database(revision)
-        elif command == "downgrade":
+        elif cmd == "downgrade":
             if len(sys.argv) < 3:
                 print("Error: Target revision required")
                 sys.exit(1)
             revision = sys.argv[2]
             manager.downgrade_database(revision)
-        elif command == "current":
+        elif cmd == "current":
             current = manager.get_current_revision()
             print(f"Current revision: {current}")
-        elif command == "history":
+        elif cmd == "history":
             history = manager.get_migration_history()
             for item in history:
                 print(item)
-        elif command == "head":
+        elif cmd == "head":
             head = manager.show_current_head()
             print(f"Head revision: {head}")
         else:
-            print(f"Unknown command: {command}")
+            print(f"Unknown command: {cmd}")
             sys.exit(1)
 
     except Exception as e:

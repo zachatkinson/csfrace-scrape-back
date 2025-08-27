@@ -19,6 +19,9 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
+from sqlalchemy import (
+    Enum as SQLEnum,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ..constants import CONSTANTS
@@ -67,10 +70,10 @@ class ScrapingJob(Base):
 
     # Job management
     status: Mapped[JobStatus] = mapped_column(
-        String(20), default=JobStatus.PENDING, nullable=False, index=True
+        SQLEnum(JobStatus), default=JobStatus.PENDING, nullable=False, index=True
     )
     priority: Mapped[JobPriority] = mapped_column(
-        String(10), default=JobPriority.NORMAL, nullable=False
+        SQLEnum(JobPriority), default=JobPriority.NORMAL, nullable=False
     )
 
     # Timing information
@@ -96,7 +99,9 @@ class ScrapingJob(Base):
     error_type: Mapped[Optional[str]] = mapped_column(String(255))
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # Performance metrics
+    # Performance metrics (Unix timestamps)
+    start_time: Mapped[Optional[float]] = mapped_column()
+    end_time: Mapped[Optional[float]] = mapped_column()
     duration_seconds: Mapped[Optional[float]] = mapped_column()
     content_size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
     images_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -134,6 +139,13 @@ class ScrapingJob(Base):
         """Check if job can be retried."""
         return self.status == JobStatus.FAILED and self.retry_count < self.max_retries
 
+    @property
+    def duration(self) -> Optional[float]:
+        """Calculate job duration in seconds."""
+        if self.start_time is None or self.end_time is None:
+            return None
+        return self.end_time - self.start_time
+
 
 class Batch(Base):
     """Model for batch processing operations.
@@ -151,7 +163,7 @@ class Batch(Base):
 
     # Batch status and timing
     status: Mapped[JobStatus] = mapped_column(
-        String(20), default=JobStatus.PENDING, nullable=False, index=True
+        SQLEnum(JobStatus), default=JobStatus.PENDING, nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
@@ -186,7 +198,9 @@ class Batch(Base):
     @property
     def success_rate(self) -> float:
         """Calculate batch success rate."""
-        if self.total_jobs == 0:
+        if self.total_jobs is None or self.total_jobs == 0:
+            return 0.0
+        if self.completed_jobs is None:
             return 0.0
         return self.completed_jobs / self.total_jobs
 
