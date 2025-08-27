@@ -159,7 +159,7 @@ class BatchProcessor:
             # Clean domain for filesystem
             domain = parsed.netloc.lower()
             domain = re.sub(r"^www\.", "", domain)  # Remove www prefix
-            domain = safe_filename(domain)
+            domain = safe_filename(domain, replacement="-", include_dots=True)
 
             if custom_slug:
                 slug = custom_slug

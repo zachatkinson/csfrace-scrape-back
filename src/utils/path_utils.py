@@ -179,17 +179,20 @@ def get_filename_without_extension(path: PathLike) -> str:
     return Path(path).stem
 
 
-def safe_filename(filename: str, replacement: str = "_") -> str:
+def safe_filename(filename: str, replacement: str = "_", include_dots: bool = False) -> str:
     """Create a safe filename by replacing unsafe characters.
 
     Args:
         filename: Original filename
         replacement: Character to use for replacement
+        include_dots: Whether to treat dots as unsafe characters
 
     Returns:
         Safe filename
     """
     unsafe_chars = '<>:"/\\|?*'
+    if include_dots:
+        unsafe_chars += "."
     safe_name = filename
     for char in unsafe_chars:
         safe_name = safe_name.replace(char, replacement)
