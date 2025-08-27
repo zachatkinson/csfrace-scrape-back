@@ -1,6 +1,6 @@
 """Tests for database service layer functionality."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
@@ -360,7 +360,7 @@ class TestDatabaseService:
         temp_db_service.update_job_status(job.id, JobStatus.FAILED)
 
         # Set future retry time
-        future_time = datetime.utcnow() + timedelta(hours=1)
+        future_time = datetime.now(timezone.utc) + timedelta(hours=1)
         with temp_db_service.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
                 {"next_retry_at": future_time}
@@ -371,7 +371,7 @@ class TestDatabaseService:
         assert len(retry_jobs) == 0
 
         # Set past retry time
-        past_time = datetime.utcnow() - timedelta(minutes=1)
+        past_time = datetime.now(timezone.utc) - timedelta(minutes=1)
         with temp_db_service.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
                 {"next_retry_at": past_time}
@@ -537,7 +537,7 @@ class TestDatabaseService:
     def test_get_job_statistics(self, temp_db_service):
         """Test job statistics calculation for time period."""
         # Create jobs with different statuses and timing
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Recent jobs (within 7 days)
         job1 = temp_db_service.create_job(
@@ -600,7 +600,7 @@ class TestDatabaseService:
         temp_db_service.update_job_status(recent_job.id, JobStatus.COMPLETED)
 
         # Manually set old completion date
-        old_date = datetime.utcnow() - timedelta(days=35)
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
         with temp_db_service.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).update(
                 {"completed_at": old_date}

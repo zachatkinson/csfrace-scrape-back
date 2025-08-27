@@ -5,7 +5,7 @@ with proper error handling, transaction management, and connection pooling.
 """
 
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -199,7 +199,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 update_data: dict[str, Any] = {"status": status}
 
                 if status == JobStatus.RUNNING:
@@ -309,7 +309,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
 
                 stmt = (
                     select(ScrapingJob)
@@ -570,7 +570,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                cutoff_date = datetime.utcnow() - timedelta(days=days)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
                 # Overall statistics
                 stats_stmt = select(
@@ -623,7 +623,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                cutoff_date = datetime.utcnow() - timedelta(days=days)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
                 # Delete old completed jobs and their associated data
                 deleted_count = session.execute(
