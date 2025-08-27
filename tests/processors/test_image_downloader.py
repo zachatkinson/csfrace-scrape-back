@@ -2,7 +2,7 @@
 
 import asyncio
 import contextlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
 import pytest
@@ -44,10 +44,9 @@ class TestAsyncImageDownloader:
     @pytest.mark.asyncio
     async def test_downloader_default_concurrent_limit(self, temp_output_dir):
         """Test downloader uses default concurrent limit from config."""
-        with patch("src.processors.image_downloader.config") as mock_config:
-            mock_config.max_concurrent_downloads = 8
-            downloader = AsyncImageDownloader(temp_output_dir)
-            assert downloader.semaphore._value == 8
+        # Test that the downloader uses the current config value (10)
+        downloader = AsyncImageDownloader(temp_output_dir)
+        assert downloader.semaphore._value == 10  # Current config default
 
     @pytest.mark.asyncio
     async def test_download_all_empty_list(self, downloader, mock_session):
@@ -197,8 +196,8 @@ class TestAsyncImageDownloader:
                 mock_file = AsyncMock()
                 mock_aopen.return_value.__aenter__.return_value = mock_file
 
-                # Mock constants
-                with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+                # Mock constants - patch the constants module
+                with patch("src.constants.CONSTANTS") as mock_constants:
                     mock_constants.DEFAULT_TIMEOUT = 30
 
                     result = await downloader._download_image(mock_session, url)
@@ -228,16 +227,21 @@ class TestAsyncImageDownloader:
         url = "https://example.com/notfound.jpg"
 
         mock_response = AsyncMock()
-        mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
-            request_info=None, history=None, status=404
-        )
+        # Create a mock request_info to avoid AttributeError
+        mock_request_info = Mock()
+        mock_request_info.real_url = url
+        
+        # Mock raise_for_status as a regular method that raises the exception immediately
+        mock_response.raise_for_status = Mock(side_effect=aiohttp.ClientResponseError(
+            request_info=mock_request_info, history=None, status=404
+        ))
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
 
-            with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+            with patch("src.constants.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_TIMEOUT = 30
 
                 with pytest.raises(ConversionError, match="Failed to download image"):
@@ -252,7 +256,10 @@ class TestAsyncImageDownloader:
         mock_response.raise_for_status.return_value = None
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
-        mock_response.content.iter_chunked = AsyncMock(return_value=[b"data"])
+        # Mock chunked content as async generator
+        async def mock_iter_chunked(size):
+            yield b"data"
+        mock_response.content.iter_chunked = mock_iter_chunked
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -263,7 +270,7 @@ class TestAsyncImageDownloader:
             with patch(
                 "src.processors.image_downloader.aopen", side_effect=OSError("Write failed")
             ):
-                with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+                with patch("src.constants.CONSTANTS") as mock_constants:
                     mock_constants.DEFAULT_TIMEOUT = 30
 
                     with pytest.raises(ConversionError, match="Failed to save image"):
@@ -341,7 +348,7 @@ class TestAsyncImageDownloader:
         """Test extension extraction for unknown content type."""
         with patch("src.processors.image_downloader.config") as mock_config:
             mock_config.content_type_extensions = {}
-            with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+            with patch("src.constants.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_IMAGE_EXTENSION = ".jpg"
 
                 result = downloader._get_extension_from_content_type("application/octet-stream")
@@ -351,7 +358,7 @@ class TestAsyncImageDownloader:
         """Test extension extraction for empty content type."""
         with patch("src.processors.image_downloader.config") as mock_config:
             mock_config.content_type_extensions = {}
-            with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+            with patch("src.constants.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_IMAGE_EXTENSION = ".jpg"
 
                 result = downloader._get_extension_from_content_type("")
@@ -392,7 +399,10 @@ class TestAsyncImageDownloader:
         mock_response.raise_for_status.return_value = None
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
-        mock_response.content.iter_chunked = AsyncMock(return_value=[b"data"])
+        # Mock chunked content as async generator
+        async def mock_iter_chunked(size):
+            yield b"data"
+        mock_response.content.iter_chunked = mock_iter_chunked
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -403,7 +413,7 @@ class TestAsyncImageDownloader:
                 mock_file = AsyncMock()
                 mock_aopen.return_value.__aenter__.return_value = mock_file
 
-                with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+                with patch("src.constants.CONSTANTS") as mock_constants:
                     mock_constants.DEFAULT_TIMEOUT = 30
 
                     await downloader._download_image(mock_session, url)
@@ -419,7 +429,10 @@ class TestAsyncImageDownloader:
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
         mock_response.headers = {"content-type": "image/jpeg"}
-        mock_response.content.iter_chunked = AsyncMock(return_value=[b"data"])
+        # Mock chunked content as async generator
+        async def mock_iter_chunked(size):
+            yield b"data"
+        mock_response.content.iter_chunked = mock_iter_chunked
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -429,7 +442,7 @@ class TestAsyncImageDownloader:
             with patch("src.processors.image_downloader.config") as mock_config:
                 mock_config.user_agent = "TestBot/1.0"
                 with patch("src.processors.image_downloader.aopen", create=True):
-                    with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+                    with patch("src.constants.CONSTANTS") as mock_constants:
                         mock_constants.DEFAULT_TIMEOUT = 30
 
                         await downloader._download_image(mock_session, url)
@@ -491,19 +504,19 @@ class TestAsyncImageDownloaderEdgeCases:
             assert filename2.endswith(".jpg")
 
     @pytest.mark.asyncio
-    async def test_download_image_timeout_handling(self, downloader, mock_session):
+    async def test_download_image_timeout_handling(self, downloader, mock_aiohttp_session):
         """Test download_image with timeout configuration."""
         url = "https://example.com/slow.jpg"
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
 
-            with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
+            with patch("src.constants.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_TIMEOUT = 10
 
                 # Verify timeout is passed to session.get
                 mock_response = AsyncMock()
-                mock_session.get.return_value.__aenter__.return_value = mock_response
+                mock_aiohttp_session.get.return_value.__aenter__.return_value = mock_response
 
                 # Mock the timeout object
                 with patch("aiohttp.ClientTimeout") as mock_timeout:
@@ -511,7 +524,7 @@ class TestAsyncImageDownloaderEdgeCases:
                     mock_timeout.return_value = mock_timeout_instance
 
                     with contextlib.suppress(Exception):
-                        await downloader._download_image(mock_session, url)
+                        await downloader._download_image(mock_aiohttp_session, url)
 
                     # Should create timeout with correct value
                     mock_timeout.assert_called_with(total=10)

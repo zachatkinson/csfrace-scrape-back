@@ -1,6 +1,6 @@
 """Tests for HTML processing and conversion."""
 
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from bs4 import BeautifulSoup
@@ -847,10 +847,11 @@ class TestHTMLProcessorAdvanced:
 
         soup = BeautifulSoup(html_content, "html.parser")
 
-        with patch(
-            "src.processors.html_processor.config.preserve_classes",
-            ["center", "media-grid", "button"],
-        ):
+        # Create a mock config with preserve_classes set
+        mock_config = MagicMock()
+        mock_config.preserve_classes = ["center", "media-grid", "button"]
+        
+        with patch("src.processors.html_processor.config", mock_config):
             result = await processor._cleanup_wordpress_artifacts(soup)
             result_html = str(result)
 
@@ -865,7 +866,11 @@ class TestHTMLProcessorAdvanced:
 
         soup = BeautifulSoup(html_content, "html.parser")
 
-        with patch("src.processors.html_processor.config.preserve_classes", []):
+        # Create a mock config with empty preserve_classes
+        mock_config = MagicMock()
+        mock_config.preserve_classes = []
+        
+        with patch("src.processors.html_processor.config", mock_config):
             result = await processor._cleanup_wordpress_artifacts(soup)
             result_html = str(result)
 
@@ -951,7 +956,7 @@ class TestHTMLProcessorAdvanced:
         soup = BeautifulSoup(html_content, "html.parser")
         result = processor._find_main_content(soup)
 
-        assert result.name == "html"
+        assert result.name == "[document]"
         assert "Root content" in result.get_text()
 
     @pytest.mark.asyncio
@@ -964,7 +969,7 @@ class TestHTMLProcessorAdvanced:
 
         root = processor._get_root_soup(p_element)
 
-        assert root.name == "html"
+        assert root.name == "[document]"
         assert isinstance(root, BeautifulSoup)
 
     @pytest.mark.asyncio

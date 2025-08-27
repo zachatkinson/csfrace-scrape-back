@@ -500,7 +500,7 @@ class TestMetadataExtractorEdgeCases:
             metadata = await extractor.extract(soup)
 
             assert metadata["title"] == long_title.strip()
-            assert metadata["meta_description"] == long_description
+            assert metadata["meta_description"] == long_description.strip()
 
     @pytest.mark.asyncio
     async def test_url_slug_with_special_characters(self):
