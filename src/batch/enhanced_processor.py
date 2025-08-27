@@ -263,9 +263,9 @@ class BatchProcessor:
         """
         # Create job in database
         job = self.database_service.create_job(
-            url=url, 
+            url=url,
             output_directory=str(self.config.output_directory),
-            batch_id=batch_id, 
+            batch_id=batch_id,
             priority=priority.name.lower()
         )
 
@@ -315,8 +315,9 @@ class BatchProcessor:
         # Get pending and failed jobs for this batch
         with self.database_service.get_session() as session:
             from sqlalchemy import select
+
             from src.database.models import ScrapingJob
-            
+
             stmt = select(ScrapingJob).where(
                 ScrapingJob.batch_id == batch_id,
                 ScrapingJob.status.in_([JobStatus.PENDING, JobStatus.FAILED])
