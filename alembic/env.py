@@ -5,12 +5,15 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# Import our database models
-from src.database.models import Base
+# Import our database models and configuration
+from src.database.models import Base, get_database_url
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Override the database URL with our environment-based configuration
+config.set_main_option("sqlalchemy.url", get_database_url())
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -61,10 +64,21 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Use PostgreSQL-optimized connection configuration
+    configuration = config.get_section(config.config_ini_section, {})
+    
+    # Add PostgreSQL-specific connection arguments for migrations
+    configuration["sqlalchemy.connect_args"] = {
+        "connect_timeout": 10,
+        "application_name": "csfrace-scraper-migrations",
+    }
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+        # Use standard connection pooling for PostgreSQL migrations
+        pool_pre_ping=True,
+        pool_recycle=3600,
     )
 
     with connectable.connect() as connection:

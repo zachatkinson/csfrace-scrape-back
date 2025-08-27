@@ -6,7 +6,6 @@ following CLAUDE.md standards with proper relationships and constraints.
 
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Any, Optional
 
 from sqlalchemy import (
@@ -355,63 +354,68 @@ class SystemMetrics(Base):
 
 
 # Database configuration and utilities
-def get_database_url(database_path: Optional[Path] = None) -> str:
-    """Generate SQLite database URL.
-
-    Args:
-        database_path: Optional path to SQLite database file
+def get_database_url() -> str:
+    """Generate PostgreSQL database URL from environment variables.
 
     Returns:
-        SQLite database URL string
+        PostgreSQL database URL string for PostgreSQL 17.6+
     """
-    if database_path is None:
-        database_path = Path("data") / "scraper.db"
+    import os
 
-    # Ensure parent directory exists
-    database_path.parent.mkdir(parents=True, exist_ok=True)
+    # Get database configuration from environment variables with secure defaults
+    host = os.getenv("DATABASE_HOST", "localhost")
+    port = os.getenv("DATABASE_PORT", "5432")
+    database = os.getenv("DATABASE_NAME", "scraper_db")
+    username = os.getenv("DATABASE_USER", "scraper_user")
+    password = os.getenv("DATABASE_PASSWORD", "scraper_password")
 
-    from ..utils.path_utils import normalize_path_separators
-
-    # Use our cross-platform path utility for consistent forward slashes
-    path_str = normalize_path_separators(database_path)
-    return f"sqlite:///{path_str}"
+    return f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{database}"
 
 
-def create_database_engine(database_path: Optional[Path] = None, echo: bool = False):
-    """Create SQLAlchemy engine for the database.
+def create_database_engine(echo: bool = False):
+    """Create SQLAlchemy engine optimized for PostgreSQL 17.6.
 
     Args:
-        database_path: Optional path to SQLite database file
         echo: Whether to echo SQL statements (for debugging)
 
     Returns:
-        SQLAlchemy Engine instance
+        SQLAlchemy Engine instance configured for PostgreSQL 17.6+
     """
-    database_url = get_database_url(database_path)
+    from sqlalchemy import event
 
-    # Import pooling classes for SQLite thread safety
-    from sqlalchemy.pool import NullPool, StaticPool
+    database_url = get_database_url()
 
-    # Configure for SQLite threading
-    if database_url.startswith("sqlite:///"):
-        return create_engine(
-            database_url,
-            echo=echo,
-            # SQLite-specific thread safety configuration
-            connect_args={
-                "check_same_thread": False,  # Allow sharing connection across threads
-                "timeout": 30,  # Connection timeout in seconds
-            },
-            # Use StaticPool for in-memory databases, NullPool for file databases to avoid threading issues
-            poolclass=StaticPool if ":memory:" in database_url else NullPool,
-            pool_pre_ping=":memory:" not in database_url,  # No ping for memory db
-            pool_recycle=-1 if ":memory:" in database_url else 3600,  # No recycle for memory db
-        )
-    else:
-        # Non-SQLite configuration
-        return create_engine(
-            database_url,
-            echo=echo,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-        )
+    # PostgreSQL 17.6 optimized configuration following 2025 best practices
+    engine = create_engine(
+        database_url,
+        echo=echo,
+        # Connection pool settings optimized for concurrent web scraping
+        pool_size=20,  # Base connections (increased for concurrent scraping)
+        max_overflow=30,  # Additional connections under load
+        pool_timeout=30,  # Timeout to get connection from pool
+        pool_recycle=3600,  # Recycle connections every hour
+        pool_pre_ping=True,  # Validate connections before use
+        # PostgreSQL 17.6 specific optimizations
+        connect_args={
+            "connect_timeout": 10,  # Connection establishment timeout
+            "application_name": "csfrace-scraper",  # For monitoring/debugging
+            "options": "-c default_transaction_isolation=read_committed",  # Optimal for OLTP
+        },
+        # Performance optimizations
+        execution_options={
+            "isolation_level": "READ_COMMITTED",  # Best for concurrent operations
+        },
+    )
+
+    # PostgreSQL connection reset handler for proper resource management
+    @event.listens_for(engine, "reset")
+    def _reset_postgresql(dbapi_connection, _connection_record, reset_state):
+        """Reset PostgreSQL connections properly following best practices."""
+        if not reset_state.terminate_only:
+            # Clean up any session-level state
+            dbapi_connection.execute("CLOSE ALL")  # Close cursors
+            dbapi_connection.execute("RESET ALL")  # Reset session variables
+            dbapi_connection.execute("DISCARD TEMP")  # Clean up temp tables
+        dbapi_connection.rollback()  # Ensure clean transaction state
+
+    return engine

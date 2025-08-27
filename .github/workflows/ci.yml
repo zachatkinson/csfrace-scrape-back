@@ -139,14 +139,14 @@ jobs:
       - name: Run unit tests with coverage (Ubuntu - parallel)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          # Parallel execution on Ubuntu (faster, more resources)
-          uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
+          # Parallel execution on Ubuntu (faster, more resources) - exclude database tests (run separately)
+          uv run pytest tests/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
       
       - name: Run unit tests with coverage (Windows/macOS - sequential)
         if: matrix.os != 'ubuntu-latest'
         run: |
-          # Sequential execution on Windows/macOS (more stable)
-          uv run pytest tests/ -k "not integration and not performance and not e2e" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
+          # Sequential execution on Windows/macOS (more stable) - exclude database tests (run separately)
+          uv run pytest tests/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -233,6 +233,87 @@ jobs:
         with:
           name: test-results-redis-integration-py${{ matrix.python-version }}
           path: junit-redis-integration-${{ matrix.python-version }}.xml
+          retention-days: 30
+
+  # Database Integration Tests (with PostgreSQL service container)
+  database-integration-tests:
+    name: Database Integration Tests - Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: write
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]  # Focus on primary version for database tests
+
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: database-integration-${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
+
+      - name: Verify PostgreSQL connection
+        run: |
+          pg_isready -h localhost -p 5432 -U test_user -d test_db
+          psql -h localhost -p 5432 -U test_user -d test_db -c "SELECT version();"
+        env:
+          PGPASSWORD: test_password
+
+      - name: Run database integration tests
+        run: |
+          uv run pytest tests/database/ -m "database" --junit-xml=junit-database-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_NAME: test_db
+          DATABASE_USER: test_user
+          DATABASE_PASSWORD: test_password
+
+      - name: Upload database integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-database-integration-py${{ matrix.python-version }}
+          path: junit-database-integration-${{ matrix.python-version }}.xml
           retention-days: 30
 
   # Converter Integration Tests (standalone)

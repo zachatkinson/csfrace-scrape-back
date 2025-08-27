@@ -2,6 +2,7 @@
 
 import asyncio
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -10,6 +11,7 @@ import pytest
 import pytest_asyncio
 from aioresponses import aioresponses
 from bs4 import BeautifulSoup
+from testcontainers.postgres import PostgresContainer
 
 from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
@@ -22,6 +24,21 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
+
+@pytest.fixture(scope="session")
+def postgres_container():
+    """Create PostgreSQL test container for database tests."""
+    with PostgresContainer(
+        image="postgres:17.6",
+        dbname="test_db",
+        username="test_user",
+        password="test_password",
+        port=5432,
+    ) as postgres:
+        # Wait for container to be fully ready
+        time.sleep(3)
+        yield postgres
 
 
 @pytest.fixture
@@ -251,17 +268,33 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "performance: marks tests as performance tests")
     config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
     config.addinivalue_line("markers", "redis: marks tests that require Redis")
+    config.addinivalue_line("markers", "database: marks tests that require PostgreSQL container")
 
 
-# Skip Redis tests if not available
+# Skip tests if dependencies not available
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to handle missing dependencies."""
     import importlib.util
+    import subprocess
 
     redis_available = importlib.util.find_spec("redis") is not None
+
+    # Check if Docker is available for testcontainers
+    docker_available = False
+    try:
+        subprocess.run(["docker", "--version"], check=True, capture_output=True, timeout=5)
+        docker_available = True
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        docker_available = False
 
     if not redis_available:
         skip_redis = pytest.mark.skip(reason="Redis not available")
         for item in items:
             if "redis" in item.keywords:
                 item.add_marker(skip_redis)
+
+    if not docker_available:
+        skip_docker = pytest.mark.skip(reason="Docker not available for testcontainers")
+        for item in items:
+            if "database" in item.keywords:
+                item.add_marker(skip_docker)

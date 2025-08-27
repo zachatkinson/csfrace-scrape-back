@@ -6,7 +6,6 @@ with proper error handling, transaction management, and connection pooling.
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, Optional
 
 import structlog
@@ -35,15 +34,13 @@ class DatabaseService:
     connection management, and performance optimizations.
     """
 
-    def __init__(self, database_path: Optional[Path] = None, echo: bool = False):
-        """Initialize database service.
+    def __init__(self, echo: bool = False):
+        """Initialize database service for PostgreSQL.
 
         Args:
-            database_path: Path to SQLite database file
             echo: Whether to echo SQL statements for debugging
         """
-        self.database_path = database_path
-        self.engine = create_database_engine(database_path, echo=echo)
+        self.engine = create_database_engine(echo=echo)
         self.SessionLocal = sessionmaker(
             bind=self.engine,
             autocommit=False,
@@ -52,8 +49,8 @@ class DatabaseService:
         )
 
         logger.info(
-            "Initialized database service",
-            database_path=str(database_path) if database_path else "default",
+            "Initialized PostgreSQL database service",
+            database_url=self.engine.url.render_as_string(hide_password=True),
             echo=echo,
         )
 

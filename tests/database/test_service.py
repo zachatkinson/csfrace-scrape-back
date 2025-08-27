@@ -1,53 +1,74 @@
-"""Tests for database service layer functionality."""
+"""Tests for database service layer functionality with PostgreSQL containers."""
 
+import os
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from src.core.exceptions import DatabaseError
 from src.database.models import (
-    Base,
     JobStatus,
     ScrapingJob,
 )
 from src.database.service import DatabaseService
 
 
+@pytest.mark.database
 class TestDatabaseService:
     """Test database service operations and transaction management."""
 
     @pytest.fixture
-    def temp_db_service(self):
-        """Create temporary database service for testing."""
-        engine = create_engine("sqlite:///:memory:", echo=False)
-        Base.metadata.create_all(engine)
+    def temp_db_service(self, postgres_container):
+        """Create temporary database service for testing with PostgreSQL."""
+        # Set environment variables for PostgreSQL connection
+        os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
+        os.environ["DATABASE_PORT"] = postgres_container.get_exposed_port(5432)
+        os.environ["DATABASE_NAME"] = "test_db"
+        os.environ["DATABASE_USER"] = "test_user"
+        os.environ["DATABASE_PASSWORD"] = "test_password"
 
-        service = DatabaseService.__new__(DatabaseService)  # Bypass __init__
-        service.database_path = None
-        service.engine = engine
-        service.SessionLocal = sessionmaker(
-            bind=engine,
-            autocommit=False,
-            autoflush=False,
-            expire_on_commit=False,
-        )
+        try:
+            # Create database service using PostgreSQL
+            service = DatabaseService(echo=False)
+            service.initialize_database()
+            yield service
+        finally:
+            # Clean up environment variables
+            for key in [
+                "DATABASE_HOST",
+                "DATABASE_PORT",
+                "DATABASE_NAME",
+                "DATABASE_USER",
+                "DATABASE_PASSWORD",
+            ]:
+                os.environ.pop(key, None)
 
-        return service
+    def test_database_service_initialization(self, postgres_container):
+        """Test DatabaseService initialization with PostgreSQL."""
+        # Set environment variables for PostgreSQL connection
+        os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
+        os.environ["DATABASE_PORT"] = postgres_container.get_exposed_port(5432)
+        os.environ["DATABASE_NAME"] = "test_db"
+        os.environ["DATABASE_USER"] = "test_user"
+        os.environ["DATABASE_PASSWORD"] = "test_password"
 
-    def test_database_service_initialization(self):
-        """Test DatabaseService initialization with different configurations."""
-        with TemporaryDirectory() as temp_dir:
-            db_path = Path(temp_dir) / "test.db"
-
-            service = DatabaseService(database_path=db_path, echo=True)
-            assert service.database_path == db_path
+        try:
+            service = DatabaseService(echo=True)
             assert service.engine is not None
             assert service.SessionLocal is not None
+            # Verify PostgreSQL connection
+            assert "postgresql" in str(service.engine.url)
+        finally:
+            # Clean up environment variables
+            for key in [
+                "DATABASE_HOST",
+                "DATABASE_PORT",
+                "DATABASE_NAME",
+                "DATABASE_USER",
+                "DATABASE_PASSWORD",
+            ]:
+                os.environ.pop(key, None)
 
     def test_initialize_database(self, temp_db_service):
         """Test database table creation."""
@@ -626,26 +647,35 @@ class TestDatabaseService:
         assert updated_recent_job.status == JobStatus.COMPLETED
 
 
+@pytest.mark.database
 class TestDatabaseServiceErrorHandling:
     """Test database service error handling and transaction management."""
 
     @pytest.fixture
-    def temp_db_service(self):
-        """Create temporary database service for testing."""
-        engine = create_engine("sqlite:///:memory:", echo=False)
-        Base.metadata.create_all(engine)
+    def temp_db_service(self, postgres_container):
+        """Create temporary database service for testing with PostgreSQL."""
+        # Set environment variables for PostgreSQL connection
+        os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
+        os.environ["DATABASE_PORT"] = postgres_container.get_exposed_port(5432)
+        os.environ["DATABASE_NAME"] = "test_db"
+        os.environ["DATABASE_USER"] = "test_user"
+        os.environ["DATABASE_PASSWORD"] = "test_password"
 
-        service = DatabaseService.__new__(DatabaseService)
-        service.database_path = None
-        service.engine = engine
-        service.SessionLocal = sessionmaker(
-            bind=engine,
-            autocommit=False,
-            autoflush=False,
-            expire_on_commit=False,
-        )
-
-        return service
+        try:
+            # Create database service using PostgreSQL
+            service = DatabaseService(echo=False)
+            service.initialize_database()
+            yield service
+        finally:
+            # Clean up environment variables
+            for key in [
+                "DATABASE_HOST",
+                "DATABASE_PORT",
+                "DATABASE_NAME",
+                "DATABASE_USER",
+                "DATABASE_PASSWORD",
+            ]:
+                os.environ.pop(key, None)
 
     def test_database_error_handling_in_operations(self, temp_db_service):
         """Test proper exception handling and DatabaseError wrapping."""
@@ -700,11 +730,8 @@ class TestDatabaseServiceErrorHandling:
         import threading
         import time
 
-        import pytest
 
-        # Skip this test for SQLite due to threading limitations
-        if "sqlite" in str(temp_db_service.engine.url).lower():
-            pytest.skip("SQLite has fundamental threading limitations for concurrent access")
+        # PostgreSQL supports concurrent access - this test should pass
 
         # Initialize database first
         temp_db_service.initialize_database()
