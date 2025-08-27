@@ -14,6 +14,10 @@ from rich.table import Table
 
 from ..constants import CONSTANTS
 from ..core.converter import AsyncWordPressConverter
+from ..utils.path_utils import (
+    safe_filename,
+    truncate_path_component,
+)
 
 logger = structlog.get_logger(__name__)
 console = Console()
@@ -155,8 +159,7 @@ class BatchProcessor:
             # Clean domain for filesystem
             domain = parsed.netloc.lower()
             domain = re.sub(r"^www\.", "", domain)  # Remove www prefix
-            domain = re.sub(r"[^a-zA-Z0-9.-]", "-", domain)  # Safe characters
-            domain = domain.replace(".", "-")  # Replace dots
+            domain = safe_filename(domain)
 
             if custom_slug:
                 slug = custom_slug
@@ -172,11 +175,9 @@ class BatchProcessor:
                 else:
                     slug = "homepage"
 
-            # Clean slug for filesystem
-            slug = re.sub(r"[^a-zA-Z0-9-_]", "-", slug)  # Safe characters only
-            slug = re.sub(r"-+", "-", slug)  # Collapse multiple dashes
-            slug = slug.strip("-")  # Remove leading/trailing dashes
-            slug = slug[:50] if len(slug) > 50 else slug  # Limit length
+            # Clean slug for filesystem and truncate
+            slug = safe_filename(slug)
+            slug = truncate_path_component(slug, 50)
 
             if not slug:  # Fallback if slug is empty after cleaning
                 slug = "post"

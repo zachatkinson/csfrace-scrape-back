@@ -1,0 +1,17 @@
+{
+  "total": 1,
+  "successful": 0,
+  "failed": 1,
+  "skipped": 0,
+  "jobs": [
+    {
+      "url": "https://example.com/test",
+      "status": "failed",
+      "output_dir": "batch_output/example-com_test",
+      "duration": 7.404107600450516e-05,
+      "error": "Test error"
+    }
+  ],
+  "total_duration": 0.0,
+  "average_duration": 0.0
+}

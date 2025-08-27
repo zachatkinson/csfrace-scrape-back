@@ -48,3 +48,22 @@ class ConfigurationError(ConversionError):
     """Exception raised for configuration-related errors."""
 
     pass
+
+
+class DatabaseError(Exception):
+    """Exception raised for database-related errors."""
+
+    def __init__(
+        self, message: str, operation: Optional[str] = None, cause: Optional[Exception] = None
+    ):
+        super().__init__(message)
+        self.operation = operation
+        self.cause = cause
+
+    def __str__(self) -> str:
+        msg = super().__str__()
+        if self.operation:
+            msg = f"{msg} (Operation: {self.operation})"
+        if self.cause:
+            msg = f"{msg} (Caused by: {self.cause})"
+        return msg

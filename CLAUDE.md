@@ -5,42 +5,65 @@ This Python3 application converts WordPress blog content from the CSFrace websit
 
 ## MANDATORY Code Quality Standards
 
-### 1. TDD, DRY and SOLID Principles (MANDATORY)
+### 1. IDT, DRY and SOLID Principles (MANDATORY)
 **These principles are MANDATORY and must be followed without exception. NO EXCEPTIONS.**
 
-#### TDD (Test-Driven Development) - ZERO TOLERANCE
-**MANDATORY: ALL code must be developed using strict Test-Driven Development practices.**
+#### IDT (Implementation-Driven Testing) - PRACTICAL APPROACH
+**MANDATORY: ALL code must be developed using comprehensive Implementation-Driven Testing practices.**
 
-- **NEVER write implementation code without writing tests first**
-- **RED-GREEN-REFACTOR cycle must be followed religiously**
-- **ALL new features must start with failing tests**
-- **NO production code without corresponding tests**
+- **Design interfaces and APIs first for clear contracts**
+- **Implement core functionality following SOLID principles**
+- **Create comprehensive test coverage immediately after implementation**
+- **Refactor based on test feedback and discovered edge cases**
 - **Minimum 90% test coverage required**
 
-**TDD Workflow (MANDATORY):**
+**IDT Workflow (MANDATORY):**
 ```python
-# 1. RED: Write failing test first
-def test_new_feature():
-    """Test the feature that doesn't exist yet."""
-    result = new_feature()
-    assert result == expected_value
+# 1. DESIGN: Plan the interface/API structure first
+class DataProcessor:
+    def process_data(self, input_data: List[Dict]) -> ProcessedResult:
+        """Process input data and return structured results."""
+        pass
 
-# 2. GREEN: Write minimal code to make test pass  
-def new_feature():
-    return expected_value
+# 2. IMPLEMENT: Write core functionality following standards
+class DataProcessor:
+    def process_data(self, input_data: List[Dict]) -> ProcessedResult:
+        validated_data = self._validate_input(input_data)
+        processed = self._transform_data(validated_data)
+        return self._format_results(processed)
 
-# 3. REFACTOR: Improve code while keeping tests green
-def new_feature():
-    # Improved implementation
-    return calculate_expected_value()
+# 3. TEST: Create comprehensive test coverage
+def test_data_processor_handles_valid_input():
+    processor = DataProcessor()
+    result = processor.process_data([{"key": "value"}])
+    assert result.success is True
+    assert len(result.items) == 1
+
+def test_data_processor_handles_edge_cases():
+    processor = DataProcessor()
+    result = processor.process_data([])  # Empty input
+    assert result.success is True
+    assert len(result.items) == 0
+
+# 4. REFACTOR: Improve based on test feedback
+class DataProcessor:
+    def process_data(self, input_data: List[Dict]) -> ProcessedResult:
+        # Enhanced implementation with better error handling
+        if not input_data:
+            return ProcessedResult.empty()
+        
+        validated_data = self._validate_input(input_data)
+        processed = self._transform_data(validated_data)
+        return self._format_results(processed)
 ```
 
-**TDD Requirements:**
-- **Tests must be written BEFORE implementation**
-- **Each commit must include both tests and implementation**
+**IDT Requirements:**
+- **Design clear interfaces before implementation**
+- **Each feature must have comprehensive test coverage**
 - **All tests must pass before any code is merged**
-- **Test names must clearly describe behavior**
+- **Test names must clearly describe behavior and edge cases**
 - **Tests must be independent and repeatable**
+- **Include unit, integration, and performance tests as appropriate**
 
 #### DRY (Don't Repeat Yourself) - ZERO TOLERANCE
 - **NEVER duplicate code, values, or logic anywhere**

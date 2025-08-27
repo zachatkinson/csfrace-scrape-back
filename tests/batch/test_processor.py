@@ -259,13 +259,14 @@ class TestBatchProcessorURLParsing:
 
     def test_generate_output_directory_length_limit(self, processor):
         """Test slug length limiting."""
+        from src.utils.path_utils import get_directory_name
+
         long_slug = "a" * 100  # Very long slug
         url = f"https://example.com/{long_slug}"
         output_dir = processor._generate_output_directory(url)
 
         # Should limit slug to 50 characters
-        dir_parts = str(output_dir).split("/")
-        dir_name = dir_parts[-1]  # Get the actual directory name
+        dir_name = get_directory_name(output_dir)  # Get the actual directory name
         slug_part = dir_name.split("_", 1)[1] if "_" in dir_name else dir_name
         assert len(slug_part) <= 50
 
