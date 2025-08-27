@@ -24,9 +24,9 @@ class TestDatabaseService:
         # Set environment variables for PostgreSQL connection
         os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
         os.environ["DATABASE_PORT"] = str(postgres_container.get_exposed_port(5432))
-        os.environ["DATABASE_NAME"] = "test_db"
-        os.environ["DATABASE_USER"] = "test_user"
-        os.environ["DATABASE_PASSWORD"] = "test_password"
+        os.environ["DATABASE_NAME"] = postgres_container.dbname
+        os.environ["DATABASE_USER"] = postgres_container.username
+        os.environ["DATABASE_PASSWORD"] = postgres_container.password
 
         try:
             # Create database service using PostgreSQL
@@ -49,9 +49,9 @@ class TestDatabaseService:
         # Set environment variables for PostgreSQL connection
         os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
         os.environ["DATABASE_PORT"] = str(postgres_container.get_exposed_port(5432))
-        os.environ["DATABASE_NAME"] = "test_db"
-        os.environ["DATABASE_USER"] = "test_user"
-        os.environ["DATABASE_PASSWORD"] = "test_password"
+        os.environ["DATABASE_NAME"] = postgres_container.dbname
+        os.environ["DATABASE_USER"] = postgres_container.username
+        os.environ["DATABASE_PASSWORD"] = postgres_container.password
 
         try:
             service = DatabaseService(echo=True)
@@ -657,9 +657,9 @@ class TestDatabaseServiceErrorHandling:
         # Set environment variables for PostgreSQL connection
         os.environ["DATABASE_HOST"] = postgres_container.get_container_host_ip()
         os.environ["DATABASE_PORT"] = str(postgres_container.get_exposed_port(5432))
-        os.environ["DATABASE_NAME"] = "test_db"
-        os.environ["DATABASE_USER"] = "test_user"
-        os.environ["DATABASE_PASSWORD"] = "test_password"
+        os.environ["DATABASE_NAME"] = postgres_container.dbname
+        os.environ["DATABASE_USER"] = postgres_container.username
+        os.environ["DATABASE_PASSWORD"] = postgres_container.password
 
         try:
             # Create database service using PostgreSQL

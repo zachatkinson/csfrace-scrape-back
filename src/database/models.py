@@ -395,14 +395,12 @@ def create_database_engine(echo: bool = False):
         pool_timeout=30,  # Timeout to get connection from pool
         pool_recycle=3600,  # Recycle connections every hour
         pool_pre_ping=True,  # Validate connections before use
+        # Set isolation level directly on engine (SQLAlchemy 2.0 way)
+        isolation_level="READ_COMMITTED",
         # PostgreSQL 17.6 specific optimizations
         connect_args={
             "connect_timeout": 10,  # Connection establishment timeout
             "application_name": "csfrace-scraper",  # For monitoring/debugging
-        },
-        # Performance optimizations
-        execution_options={
-            "isolation_level": "READ_COMMITTED",  # Best for concurrent operations
         },
     )
 
