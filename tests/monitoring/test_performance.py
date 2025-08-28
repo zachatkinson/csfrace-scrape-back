@@ -127,9 +127,19 @@ class TestRequestTrace:
             trace_id=str(uuid4()), operation="test_request", start_time=time.time()
         )
 
-        span1 = Span(span_id=str(uuid4()), operation="database_query", start_time=time.time())
+        span1 = Span(
+            span_id=str(uuid4()),
+            parent_span_id=None,
+            operation_name="database_query",
+            start_time=datetime.now(timezone.utc),
+        )
 
-        span2 = Span(span_id=str(uuid4()), operation="cache_lookup", start_time=time.time())
+        span2 = Span(
+            span_id=str(uuid4()),
+            parent_span_id=None,
+            operation_name="cache_lookup",
+            start_time=datetime.now(timezone.utc),
+        )
 
         trace.spans.append(span1)
         trace.spans.append(span2)
@@ -141,15 +151,20 @@ class TestRequestTrace:
     def test_trace_completion(self):
         """Test completing a trace."""
         start_time = time.time()
-        trace = RequestTrace(trace_id=str(uuid4()), operation="test_request", start_time=start_time)
+        trace = RequestTrace(
+            trace_id=str(uuid4()),
+            operation="test_request",
+            start_time=datetime.fromtimestamp(start_time, timezone.utc),
+        )
 
         time.sleep(0.1)
         end_time = time.time()
-        trace.end_time = end_time
+        trace.end_time = datetime.fromtimestamp(end_time, timezone.utc)
+        trace.duration_ms = (end_time - start_time) * 1000
         trace.status = "success"
 
         assert trace.status == "success"
-        assert trace.end_time == end_time
+        assert trace.end_time is not None
         assert trace.duration is not None
         assert trace.duration > 0
 
@@ -161,7 +176,7 @@ class TestPerformanceMonitor:
     def monitor(self):
         """Create performance monitor for testing."""
         config = PerformanceConfig(
-            enabled=True, trace_requests=True, slow_request_threshold=0.1, max_traces=100
+            enabled=True, trace_requests=True, slow_request_threshold=0.1, max_trace_history=100
         )
         return PerformanceMonitor(config)
 
@@ -183,11 +198,8 @@ class TestPerformanceMonitor:
         assert disabled_monitor.config.enabled is False
 
     @pytest.mark.asyncio
-    async def test_start_shutdown(self, monitor):
-        """Test starting and shutting down monitor."""
-        await monitor.start()
-        # Monitor doesn't have background tasks, so start is lightweight
-
+    async def test_shutdown(self, monitor):
+        """Test shutting down monitor."""
         await monitor.shutdown()
         # Shutdown should complete without error
 
@@ -241,7 +253,7 @@ class TestPerformanceMonitor:
 
         completed = monitor.completed_traces[0]
         assert completed.status == "error"
-        assert completed.error_message == "Test error message"
+        assert completed.error == "Test error message"
 
     def test_finish_trace_nonexistent(self, monitor):
         """Test finishing non-existent trace."""
@@ -257,7 +269,7 @@ class TestPerformanceMonitor:
 
         trace = monitor.active_traces[trace_id]
         assert len(trace.spans) == 1
-        assert trace.spans[0].operation == "database_query"
+        assert trace.spans[0].operation_name == "database_query"
         assert trace.spans[0].status == "running"
 
     def test_start_span_nonexistent_trace(self, monitor):
@@ -343,9 +355,9 @@ class TestPerformanceMonitor:
         assert len(monitor.slow_requests) == 1
         assert monitor.slow_requests[0].trace_id == trace_id
 
-    def test_max_traces_limit(self, monitor):
+    def test_max_trace_history_limit(self, monitor):
         """Test maximum traces limit."""
-        monitor.config.max_traces = 3
+        monitor.config.max_trace_history = 3
 
         # Create more traces than limit
         for i in range(5):

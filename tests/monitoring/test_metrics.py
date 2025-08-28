@@ -238,18 +238,20 @@ class TestMetricsCollector:
 
     def test_export_prometheus_metrics_enabled(self, prometheus_collector):
         """Test Prometheus export when enabled."""
-        with patch("src.monitoring.metrics.generate_latest") as mock_generate:
-            mock_generate.return_value = b"# Test metrics\n"
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
+            with patch("src.monitoring.metrics.generate_latest") as mock_generate:
+                mock_generate.return_value = b"# Test metrics\n"
 
-            metrics_data = prometheus_collector.export_prometheus_metrics()
-            assert metrics_data == b"# Test metrics\n"
-            mock_generate.assert_called_once_with(prometheus_collector.registry)
+                metrics_data = prometheus_collector.export_prometheus_metrics()
+                assert metrics_data == b"# Test metrics\n"
+                mock_generate.assert_called_once_with(prometheus_collector.registry)
 
     def test_export_prometheus_metrics_error(self, prometheus_collector):
         """Test Prometheus export with error."""
-        with patch("src.monitoring.metrics.generate_latest", side_effect=Exception("Export error")):
-            metrics_data = prometheus_collector.export_prometheus_metrics()
-            assert b"Export failed" in metrics_data
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
+            with patch("src.monitoring.metrics.generate_latest", side_effect=Exception("Export error")):
+                metrics_data = prometheus_collector.export_prometheus_metrics()
+                assert b"Export failed" in metrics_data
 
     @pytest.mark.asyncio
     async def test_shutdown(self, collector):

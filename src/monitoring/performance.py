@@ -35,10 +35,16 @@ class RequestTrace:
     start_time: datetime
     end_time: Optional[datetime] = None
     duration_ms: Optional[float] = None
-    status: str = "in_progress"
+    status: str = "running"
     metadata: dict[str, Any] = field(default_factory=dict)
     spans: list["Span"] = field(default_factory=list)
     error: Optional[str] = None
+    correlation_id: Optional[str] = None
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Get duration in seconds (compatibility alias for duration_ms)."""
+        return self.duration_ms / 1000 if self.duration_ms is not None else None
 
 
 @dataclass
@@ -51,8 +57,14 @@ class Span:
     start_time: datetime
     end_time: Optional[datetime] = None
     duration_ms: Optional[float] = None
+    status: str = "running"
     tags: dict[str, Any] = field(default_factory=dict)
     logs: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Get duration in seconds (compatibility alias for duration_ms)."""
+        return self.duration_ms / 1000 if self.duration_ms is not None else None
 
 
 class PerformanceMonitor:
@@ -91,14 +103,14 @@ class PerformanceMonitor:
             Trace ID
         """
         if not self.config.enabled or not self.config.trace_requests:
-            return ""
+            return None
 
         # Sample based on configured rate
         if (
             self.config.trace_sampling_rate < 1.0
             and secrets.SystemRandom().random() > self.config.trace_sampling_rate
         ):
-            return ""
+            return None
 
         trace_id = str(uuid.uuid4())
         trace = RequestTrace(
@@ -201,7 +213,7 @@ class PerformanceMonitor:
             Span ID
         """
         if not self.config.enabled or not trace_id:
-            return ""
+            return None
 
         span_id = str(uuid.uuid4())
         span = Span(
