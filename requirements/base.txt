@@ -13,3 +13,11 @@ rich>=14.1.0,<15.0.0  # Latest: 14.1.0
 structlog>=25.4.0,<26.0.0  # Latest: 25.4.0
 tenacity>=9.1.2,<10.0.0  # Latest: 9.1.2
 urllib3>=2.5.0,<3.0.0  # Latest: 2.5.0
+
+# FastAPI and async database dependencies - Latest for 2025
+fastapi[standard]>=0.116.1,<1.0.0  # Latest: 0.116.1 (includes uvicorn, pydantic, starlette)
+sqlalchemy[asyncio]>=2.0.0,<3.0.0  # Latest: 2.0.x with async support
+alembic>=1.14.3,<2.0.0  # Latest: 1.14.3
+psycopg[binary]>=3.1.0,<4.0.0  # For async PostgreSQL
+email-validator>=2.2.0,<3.0.0  # Latest: 2.2.0
+python-multipart>=0.0.20,<1.0.0  # Latest: 0.0.20
