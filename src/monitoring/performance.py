@@ -92,7 +92,9 @@ class PerformanceMonitor:
             tracing=self.config.trace_requests,
         )
 
-    def start_trace(self, operation: str, metadata: Optional[dict[str, Any]] = None) -> Optional[str]:
+    def start_trace(
+        self, operation: str, metadata: Optional[dict[str, Any]] = None
+    ) -> Optional[str]:
         """Start a new request trace.
 
         Args:
@@ -293,7 +295,7 @@ class PerformanceMonitor:
             Trace ID
         """
         trace_id = self.start_trace(operation, metadata)
-        
+
         if trace_id is None:
             # Tracing is disabled or sampled out
             yield None
@@ -326,7 +328,7 @@ class PerformanceMonitor:
             Span ID
         """
         span_id = self.start_span(trace_id, operation_name, parent_span_id, tags)
-        
+
         if span_id is None:
             # Tracing is disabled
             yield None
