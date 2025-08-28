@@ -246,10 +246,10 @@ class TestMetricsCollector:
         """Test Prometheus export when enabled."""
         # Mock the registry to make it appear Prometheus is available
         prometheus_collector.registry = MagicMock()
-        
+
         with patch("src.monitoring.metrics.generate_latest") as mock_generate:
             mock_generate.return_value = b"# Test metrics\n"
-            
+
             metrics_data = prometheus_collector.export_prometheus_metrics()
             assert metrics_data == b"# Test metrics\n"
             mock_generate.assert_called_once_with(prometheus_collector.registry)
@@ -258,7 +258,7 @@ class TestMetricsCollector:
         """Test Prometheus export with error."""
         # Mock the registry to make it appear Prometheus is available
         prometheus_collector.registry = MagicMock()
-        
+
         with patch("src.monitoring.metrics.generate_latest", side_effect=Exception("Export error")):
             metrics_data = prometheus_collector.export_prometheus_metrics()
             assert b"Export failed" in metrics_data

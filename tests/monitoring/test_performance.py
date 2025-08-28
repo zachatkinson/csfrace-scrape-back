@@ -61,10 +61,10 @@ class TestSpan:
         span_id = str(uuid4())
         start_time = datetime.now(timezone.utc)
         span = Span(
-            span_id=span_id, 
+            span_id=span_id,
             parent_span_id=None,
-            operation_name="test_operation", 
-            start_time=start_time
+            operation_name="test_operation",
+            start_time=start_time,
         )
 
         assert span.span_id == span_id
@@ -78,10 +78,10 @@ class TestSpan:
         """Test completing a trace span."""
         start_time = datetime.now(timezone.utc)
         span = Span(
-            span_id=str(uuid4()), 
+            span_id=str(uuid4()),
             parent_span_id=None,
-            operation_name="test_operation", 
-            start_time=start_time
+            operation_name="test_operation",
+            start_time=start_time,
         )
 
         time.sleep(0.1)  # Small delay
@@ -97,11 +97,11 @@ class TestSpan:
         """Test span with tags."""
         tags = {"user_id": "123", "endpoint": "/api/test"}
         span = Span(
-            span_id=str(uuid4()), 
+            span_id=str(uuid4()),
             parent_span_id=None,
-            operation_name="api_request", 
+            operation_name="api_request",
             start_time=datetime.now(timezone.utc),
-            tags=tags
+            tags=tags,
         )
 
         assert span.tags == tags
