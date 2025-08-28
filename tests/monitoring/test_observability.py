@@ -408,7 +408,21 @@ class TestObservabilityManager:
         manager.metrics_collector._collecting = False  # Problem
         manager.alert_manager._evaluating = False  # Another problem
 
-        diagnostic = await manager.run_diagnostic()
+        # Mock health checker to return healthy status so degraded issues are visible
+        mock_health_results = {
+            "system": MagicMock(status=MagicMock(value="healthy")),
+            "database": MagicMock(status=MagicMock(value="healthy")),
+        }
+
+        with patch.object(
+            manager.health_checker, "run_all_checks", return_value=mock_health_results
+        ):
+            with patch.object(
+                manager.health_checker,
+                "get_overall_status",
+                return_value=MagicMock(value="healthy"),
+            ):
+                diagnostic = await manager.run_diagnostic()
 
         assert diagnostic["overall_status"] == "degraded"
         assert len(diagnostic["issues"]) > 0
@@ -540,10 +554,22 @@ class TestObservabilityManager:
         await manager.shutdown()
         assert manager._initialized is False
 
-    def test_shutdown_event_handling(self, manager):
+    @pytest.mark.asyncio
+    async def test_shutdown_event_handling(self, manager):
         """Test shutdown event is set properly."""
+        # Initialize manager so shutdown doesn't early return
+        manager._initialized = True
+
         assert not manager._shutdown_event.is_set()
 
-        asyncio.create_task(manager.shutdown())
+        # Start shutdown as a task but don't complete it yet
+        shutdown_task = asyncio.create_task(manager.shutdown())
+
+        # Give it a moment to start and set the event
+        await asyncio.sleep(0.01)
+
         # Event should be set during shutdown
         assert manager._shutdown_event.is_set()
+
+        # Now complete the shutdown
+        await shutdown_task
