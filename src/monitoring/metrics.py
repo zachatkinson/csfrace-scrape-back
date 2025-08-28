@@ -14,7 +14,13 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 try:
-    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest  # type: ignore[import-not-found]
+    from prometheus_client import (  # type: ignore[import-not-found]
+        CollectorRegistry,
+        Counter,
+        Gauge,
+        Histogram,
+        generate_latest,
+    )
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:

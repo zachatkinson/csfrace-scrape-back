@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -356,13 +356,13 @@ class PerformanceMonitor:
             logger.error("Memory profiling failed", error=str(e))
             return {}
 
-    def get_performance_summary(self) -> Dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Any]:
         """Get performance monitoring summary.
 
         Returns:
             Performance summary dictionary
         """
-        summary: Dict[str, Any] = {
+        summary: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "active_traces": len(self.active_traces),
             "completed_traces": len(self.completed_traces),
@@ -462,13 +462,13 @@ class PerformanceMonitor:
             ],
         }
 
-    def identify_bottlenecks(self) -> Dict[str, Any]:
+    def identify_bottlenecks(self) -> dict[str, Any]:
         """Identify performance bottlenecks based on collected data.
 
         Returns:
             Bottleneck analysis
         """
-        bottlenecks: Dict[str, Any] = {
+        bottlenecks: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "slow_operations": [],
             "high_variance_operations": [],

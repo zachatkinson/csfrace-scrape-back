@@ -316,7 +316,7 @@ class HealthChecker:
                     timestamp=datetime.now(timezone.utc),
                     details={"error": "Backend is None"},
                 )
-            
+
             # Try to set and get a value
             success = await cache_manager.backend.set(test_key, test_value, ttl=10)
             if success:
