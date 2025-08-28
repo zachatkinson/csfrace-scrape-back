@@ -115,11 +115,14 @@ class PerformanceMonitor:
             return None
 
         trace_id = str(uuid.uuid4())
+        metadata = metadata or {}
+
         trace = RequestTrace(
             trace_id=trace_id,
             operation=operation,
             start_time=datetime.now(timezone.utc),
-            metadata=metadata or {},
+            metadata=metadata,
+            correlation_id=metadata.get("correlation_id"),
         )
 
         self.active_traces[trace_id] = trace
@@ -247,6 +250,12 @@ class PerformanceMonitor:
         span = self.active_spans[span_id]
         span.end_time = datetime.now(timezone.utc)
         span.duration_ms = (span.end_time - span.start_time).total_seconds() * 1000
+
+        # Set status to success if not error
+        if tags and "error" in tags:
+            span.status = "error"
+        else:
+            span.status = "success"
 
         if tags:
             span.tags.update(tags)
@@ -386,11 +395,22 @@ class PerformanceMonitor:
         Returns:
             Performance summary dictionary
         """
+        # Calculate overall statistics
+        all_durations = []
+        total_requests = 0
+        for durations in self.request_durations.values():
+            all_durations.extend(durations)
+            total_requests += len(durations)
+
         summary: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "active_traces": len(self.active_traces),
             "completed_traces": len(self.completed_traces),
+            "total_traces": total_requests,
             "slow_requests": len(self.slow_requests),
+            "avg_duration": sum(all_durations) / len(all_durations) if all_durations else 0,
+            "p95_duration": self._percentile(all_durations, 95) if all_durations else 0,
+            "p99_duration": self._percentile(all_durations, 99) if all_durations else 0,
             "operations": {},
         }
 
@@ -557,6 +577,61 @@ class PerformanceMonitor:
             )
 
         return bottlenecks
+
+    def cleanup_old_traces(self, max_age_hours: float = 24.0) -> None:
+        """Clean up old completed traces.
+
+        Args:
+            max_age_hours: Maximum age in hours for keeping traces
+        """
+        from datetime import timedelta
+
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+
+        # Filter out old traces
+        self.completed_traces = [
+            trace for trace in self.completed_traces if trace.start_time >= cutoff_time
+        ]
+
+        # Also clean up old slow requests
+        self.slow_requests = [
+            trace for trace in self.slow_requests if trace.start_time >= cutoff_time
+        ]
+
+    def get_slow_requests_summary(self) -> dict[str, Any]:
+        """Get summary of slow requests.
+
+        Returns:
+            Summary of slow request statistics
+        """
+        summary = {
+            "count": len(self.slow_requests),
+            "threshold": self.config.slow_request_threshold,
+            "operations": {},
+            "recent_requests": [],
+        }
+
+        # Group by operation
+        operation_counts = {}
+        for trace in self.slow_requests:
+            if trace.operation not in operation_counts:
+                operation_counts[trace.operation] = 0
+            operation_counts[trace.operation] += 1
+
+        summary["operations"] = operation_counts
+
+        # Recent requests (last 10)
+        summary["recent_requests"] = [
+            {
+                "trace_id": trace.trace_id,
+                "operation": trace.operation,
+                "duration_ms": trace.duration_ms,
+                "timestamp": trace.start_time.isoformat(),
+            }
+            for trace in self.slow_requests[-10:]
+        ]
+
+        return summary
 
     async def shutdown(self) -> None:
         """Shutdown performance monitor."""
