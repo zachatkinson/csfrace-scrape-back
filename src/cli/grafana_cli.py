@@ -225,8 +225,10 @@ def clean(
             try:
                 if directory.exists() and not any(directory.iterdir()):
                     directory.rmdir()
-            except Exception:
-                pass  # Directory not empty or other issue
+            except OSError as e:
+                logger.debug(f"Could not remove directory {directory}: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error removing directory {directory}: {e}")
 
         typer.echo(f"✅ Cleaned up {removed_count} files")
 
