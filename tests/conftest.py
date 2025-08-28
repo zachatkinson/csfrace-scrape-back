@@ -28,17 +28,44 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    """Create PostgreSQL test container for database tests."""
-    with PostgresContainer(
-        image="postgres:17.6",
-        dbname="test_db",
-        username="test_user",
-        password="test_password",
-        port=5432,
-    ) as postgres:
-        # Wait for container to be fully ready
-        time.sleep(3)
-        yield postgres
+    """Create PostgreSQL connection for database tests.
+
+    Uses GitHub Actions service container in CI, testcontainers locally.
+    """
+    import os
+
+    # Check if running in CI with service container
+    if all(
+        env_var in os.environ for env_var in ["DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME"]
+    ):
+        # Use CI service container
+        class CIPostgresContainer:
+            def __init__(self):
+                self.host = os.environ["DATABASE_HOST"]
+                self.port = int(os.environ["DATABASE_PORT"])
+                self.dbname = os.environ["DATABASE_NAME"]
+                self.username = os.environ["DATABASE_USER"]
+                self.password = os.environ["DATABASE_PASSWORD"]
+
+            def get_container_host_ip(self):
+                return self.host
+
+            def get_exposed_port(self, port):
+                return self.port
+
+        yield CIPostgresContainer()
+    else:
+        # Use testcontainers for local development
+        with PostgresContainer(
+            image="postgres:17.6",
+            dbname="test_db",
+            username="test_user",
+            password="test_password",
+            port=5432,
+        ) as postgres:
+            # Wait for container to be fully ready
+            time.sleep(3)
+            yield postgres
 
 
 @pytest.fixture
