@@ -344,7 +344,10 @@ class ObservabilityManager:
 
             # Performance monitor diagnostic
             perf_status = "healthy"
-            if self.performance_monitor.config.enabled and len(self.performance_monitor.slow_requests) > 10:
+            if (
+                self.performance_monitor.config.enabled
+                and len(self.performance_monitor.slow_requests) > 10
+            ):
                 perf_status = "warning"
                 diagnostic["issues"].append("High number of slow requests detected")
 

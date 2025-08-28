@@ -583,16 +583,16 @@ Time: {alert.timestamp.isoformat()}
                     self.config.webhook_url,
                     json=payload,
                     timeout=aiohttp.ClientTimeout(total=self.config.webhook_timeout),
-                ) as response
+                ) as response,
             ):
-                    if response.status < 400:
-                        logger.debug("Webhook notification sent", alert=alert.rule_name)
-                    else:
-                        logger.error(
-                            "Webhook notification failed",
-                            alert=alert.rule_name,
-                            status=response.status,
-                        )
+                if response.status < 400:
+                    logger.debug("Webhook notification sent", alert=alert.rule_name)
+                else:
+                    logger.error(
+                        "Webhook notification failed",
+                        alert=alert.rule_name,
+                        status=response.status,
+                    )
 
         except Exception as e:
             logger.error("Failed to send webhook notification", error=str(e))

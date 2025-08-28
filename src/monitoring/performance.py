@@ -94,7 +94,10 @@ class PerformanceMonitor:
             return ""
 
         # Sample based on configured rate
-        if self.config.trace_sampling_rate < 1.0 and secrets.SystemRandom().random() > self.config.trace_sampling_rate:
+        if (
+            self.config.trace_sampling_rate < 1.0
+            and secrets.SystemRandom().random() > self.config.trace_sampling_rate
+        ):
             return ""
 
         trace_id = str(uuid.uuid4())
