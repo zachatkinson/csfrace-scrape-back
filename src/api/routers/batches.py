@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..crud import BatchCRUD
 from ..dependencies import DBSession
-from ..schemas import BatchCreate, BatchListResponse, BatchResponse
+from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 
@@ -70,8 +70,8 @@ async def list_batches(
         )
 
 
-@router.get("/{batch_id}", response_model=BatchResponse)
-async def get_batch(batch_id: int, db: DBSession) -> BatchResponse:
+@router.get("/{batch_id}", response_model=BatchWithJobsResponse)
+async def get_batch(batch_id: int, db: DBSession) -> BatchWithJobsResponse:
     """Get a specific batch by ID.
 
     Args:
@@ -90,7 +90,7 @@ async def get_batch(batch_id: int, db: DBSession) -> BatchResponse:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Batch {batch_id} not found"
             )
-        return BatchResponse.model_validate(batch)
+        return BatchWithJobsResponse.model_validate(batch)
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

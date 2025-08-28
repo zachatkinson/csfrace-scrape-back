@@ -85,7 +85,7 @@ class BatchCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    urls: list[HttpUrl] = Field(..., min_length=1, max_length=1000)
+    urls: list[HttpUrl] = Field(..., max_length=1000)
     max_concurrent: int = Field(default=5, ge=1, le=20)
     continue_on_error: bool = True
     output_base_directory: Optional[str] = None
@@ -115,7 +115,12 @@ class BatchResponse(BaseSchema):
     skipped_jobs: int
     success_rate: float
     batch_config: Optional[dict[str, Any]] = None
-    jobs: list[JobResponse] = []
+
+
+class BatchWithJobsResponse(BatchResponse):
+    """Schema for batch responses that include jobs."""
+
+    jobs: list[JobResponse]
 
 
 class BatchListResponse(BaseModel):
