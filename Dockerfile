@@ -73,21 +73,21 @@ COPY --chown=scraper:scraper . .
 RUN mkdir -p /app/output /app/logs && \
     chown -R scraper:scraper /app
 
-# Health check using uv
+# Health check for API mode
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD uv run python -c "import sys; sys.exit(0)" || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 # Switch to non-root user
 USER scraper
 
-# Expose port (if running API mode)
+# Expose port for API mode
 EXPOSE 8000
 
-# Set entrypoint using uv
-ENTRYPOINT ["uv", "run", "python", "-m", "src.main"]
+# Set flexible entrypoint that supports both CLI and API modes
+ENTRYPOINT ["uv", "run"]
 
-# Default command
-CMD ["--help"]
+# Default to API server mode in production
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Labels for metadata
 LABEL org.opencontainers.image.title="CSFrace Scraper" \

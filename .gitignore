@@ -193,3 +193,7 @@ main.py.bak
 test_output/
 test_results/
 batch_output/
+benchmark.json
+test.db
+*.db
+junit-*.xml

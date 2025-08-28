@@ -14,9 +14,6 @@ from src.api.dependencies import get_db_session
 from src.api.main import app
 from src.database.models import Base, Batch, JobPriority, JobStatus, ScrapingJob
 
-# Test database URL
-TEST_DATABASE_URL = "sqlite+aiosqlite:///test.db"
-
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -27,9 +24,15 @@ def event_loop():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+async def test_db_session(postgres_container) -> AsyncGenerator[AsyncSession, None]:
+    """Create a test database session using PostgreSQL testcontainer."""
+    # Build PostgreSQL async URL from container
+    db_url = (
+        f"postgresql+asyncpg://{postgres_container.username}:{postgres_container.password}"
+        f"@{postgres_container.get_container_host_ip()}:{postgres_container.get_exposed_port(5432)}"
+        f"/{postgres_container.dbname}"
+    )
+    engine = create_async_engine(db_url, echo=False)
 
     # Create tables
     async with engine.begin() as conn:
