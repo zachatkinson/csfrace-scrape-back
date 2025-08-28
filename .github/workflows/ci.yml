@@ -407,7 +407,9 @@ jobs:
 
       - name: Run performance tests
         run: |
-          uv run pytest tests/performance/ --benchmark-only --benchmark-json=benchmark.json --benchmark-sort=mean
+          # Run all performance tests including memory profiling and benchmarks
+          # Don't use --benchmark-only as it skips non-benchmark tests (memory profiler, cache tests)
+          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean -v
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
