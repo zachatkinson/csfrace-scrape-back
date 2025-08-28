@@ -192,3 +192,4 @@ main.py.bak
 # Test outputs
 test_output/
 test_results/
+batch_output/

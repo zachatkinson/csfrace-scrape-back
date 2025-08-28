@@ -29,10 +29,8 @@ def mock_database_service():
     service.create_batch = Mock(return_value=Mock(id=1))
     service.create_job = Mock(return_value=Mock(id=1))
     service.update_job_status = Mock()
-    service.update_batch_status = Mock()
     service.update_batch_progress = Mock()
     service.get_batch = Mock()
-    service.get_batch_jobs = Mock()
 
     return service
 
@@ -343,7 +341,8 @@ class TestBatchProcessor:
 
         # Verify database calls
         batch_processor.database_service.create_batch.assert_called_once()
-        batch_processor.database_service.update_batch_status.assert_called_once()
+        # update_batch_progress is called once per job + once at end, so 4 times total for 3 URLs
+        assert batch_processor.database_service.update_batch_progress.call_count == 4
 
     @pytest.mark.asyncio
     async def test_process_batch_with_priorities(self, batch_processor, mock_converter):
@@ -462,20 +461,26 @@ class TestBatchProcessor:
         """Test resuming an interrupted batch."""
         batch_id = 1
 
-        # Mock batch and jobs
+        # Mock batch
         mock_batch = Mock()
         mock_batch.id = batch_id
         mock_batch.name = "resume_test"
         mock_batch.total_jobs = 5
 
-        mock_jobs = [
-            Mock(url="pending_url1", status=JobStatus.PENDING),
-            Mock(url="failed_url", status=JobStatus.FAILED),
-            Mock(url="completed_url", status=JobStatus.COMPLETED),
-        ]
+        # Mock jobs for SQLAlchemy query
+        mock_pending_job = Mock(url="pending_url1")
+        mock_failed_job = Mock(url="failed_url")
+
+        # Mock SQLAlchemy session and query
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [mock_pending_job, mock_failed_job]
+        mock_session.execute.return_value = mock_result
+        mock_session.__enter__ = Mock(return_value=mock_session)
+        mock_session.__exit__ = Mock(return_value=None)
 
         batch_processor.database_service.get_batch.return_value = mock_batch
-        batch_processor.database_service.get_batch_jobs.return_value = mock_jobs
+        batch_processor.database_service.get_session.return_value = mock_session
 
         # Mock process_batch to avoid actual processing
         with patch.object(batch_processor, "process_batch", new_callable=AsyncMock) as mock_process:
@@ -492,7 +497,7 @@ class TestBatchProcessor:
             processed_urls = mock_process.call_args[0][1]
             assert "pending_url1" in processed_urls
             assert "failed_url" in processed_urls
-            assert "completed_url" not in processed_urls
+            assert len(processed_urls) == 2
 
     @pytest.mark.asyncio
     async def test_resume_batch_not_found(self, batch_processor):
