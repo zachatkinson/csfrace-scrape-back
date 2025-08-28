@@ -1,15 +1,17 @@
-"""Advanced monitoring and observability system for Phase 4C.
+"""Advanced monitoring and observability system for Phase 4F.
 
 This module provides comprehensive monitoring capabilities including:
-- System and application metrics collection
+- System and application metrics collection with Prometheus export
 - Health check system with dependency validation
 - Performance monitoring with request tracing
 - Alerting system with configurable thresholds
-- Prometheus metrics export
+- Grafana dashboard provisioning and management
 - Structured logging with correlation tracking
 """
 
 from .alerts import AlertConfig, AlertManager, alert_manager
+from .dashboard_provisioner import GrafanaDashboardProvisioner
+from .grafana import GrafanaConfig, GrafanaDashboardManager
 from .health import HealthChecker, HealthConfig, health_checker
 from .metrics import MetricsCollector, MetricsConfig, metrics_collector
 from .observability import ObservabilityConfig, ObservabilityManager, observability_manager
@@ -31,4 +33,7 @@ __all__ = [
     "ObservabilityManager",
     "ObservabilityConfig",
     "observability_manager",
+    "GrafanaDashboardManager",
+    "GrafanaDashboardProvisioner",
+    "GrafanaConfig",
 ]
