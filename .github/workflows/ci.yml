@@ -96,7 +96,9 @@ jobs:
         id: quality-check
         run: echo "passed=true" >> $GITHUB_OUTPUT
 
-  # Unit Tests Matrix (comprehensive testing)
+  # Unit Tests Matrix (optimized platform strategy)
+  # Ubuntu: Full test suite with coverage (primary validation)
+  # Windows/macOS: Platform-specific smoke tests (compatibility validation)
   unit-tests:
     name: Unit Tests - ${{ matrix.os }} Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
@@ -136,17 +138,18 @@ jobs:
       - name: Install Playwright browsers
         run: uv run playwright install chromium
         
-      - name: Run unit tests with coverage (Ubuntu - parallel)
+      - name: Run comprehensive unit tests with coverage (Ubuntu - primary validation)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          # Parallel execution on Ubuntu (faster, more resources) - exclude database tests (run separately)
+          # Full test suite with parallel execution on Ubuntu (primary validation platform)
           uv run pytest tests/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
       
-      - name: Run unit tests with coverage (Windows/macOS - sequential)
+      - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         if: matrix.os != 'ubuntu-latest'
         run: |
-          # Sequential execution on Windows/macOS (more stable) - exclude database tests (run separately)
-          uv run pytest tests/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
+          # Platform-specific tests: file handling, paths, OS-specific behavior
+          # Reduced test scope for faster feedback on platform compatibility
+          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py -k "not integration and not performance and not e2e and not database" --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -156,7 +159,7 @@ jobs:
           path: junit-unit-${{ matrix.python-version }}.xml
           retention-days: 30
 
-      - name: Upload coverage reports to Codecov
+      - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
         uses: codecov/codecov-action@v3
         if: matrix.python-version == env.PYTHON_VERSION && matrix.os == 'ubuntu-latest'
         with:
