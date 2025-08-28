@@ -485,6 +485,7 @@ dev = [
     { name = "pre-commit" },
     { name = "ruff" },
     { name = "safety" },
+    { name = "types-psutil" },
 ]
 docs = [
     { name = "myst-parser" },
@@ -558,6 +559,7 @@ dev = [
     { name = "testcontainers" },
     { name = "twine" },
     { name = "types-beautifulsoup4" },
+    { name = "types-psutil" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
     { name = "urllib3" },
@@ -612,6 +614,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=23.0.0" },
     { name = "tenacity", specifier = ">=8.2.0" },
     { name = "testcontainers", marker = "extra == 'test'", specifier = ">=4.0.0" },
+    { name = "types-psutil", marker = "extra == 'dev'", specifier = ">=5.9.0" },
     { name = "urllib3", specifier = ">=2.0.0" },
 ]
 provides-extras = ["dev", "test", "monitoring", "docs"]
@@ -661,6 +664,7 @@ dev = [
     { name = "testcontainers", specifier = ">=4.12.0" },
     { name = "twine", specifier = ">=6.1.0,<7.0.0" },
     { name = "types-beautifulsoup4", specifier = ">=4.12.0" },
+    { name = "types-psutil", specifier = ">=7.0.0.20250822" },
     { name = "types-pyyaml", specifier = ">=6.0.0" },
     { name = "types-requests", specifier = ">=2.31.0" },
     { name = "urllib3", specifier = ">=2.5.0,<3.0.0" },
@@ -2662,6 +2666,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/70/ab/6aa4c487ae6f4f9da5153143bdc9e9b4fbc2b105df7ef8127fb920dc1f21/types_html5lib-1.1.11.20250809.tar.gz", hash = "sha256:7976ec7426bb009997dc5e072bca3ed988dd747d0cbfe093c7dfbd3d5ec8bf57", size = 16793, upload-time = "2025-08-09T03:14:20.819Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/05/328a2d6ecbd8aa3e16512600da78b1fe4605125896794a21824f3cac6f14/types_html5lib-1.1.11.20250809-py3-none-any.whl", hash = "sha256:e5f48ab670ae4cdeafd88bbc47113d8126dcf08318e0b8d70df26ecc13eca9b6", size = 22867, upload-time = "2025-08-09T03:14:20.048Z" },
+]
+
+[[package]]
+name = "types-psutil"
+version = "7.0.0.20250822"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/aa/09699c829d7cc4624138d3ae67eecd4de9574e55729b1c63ca3e5a657f86/types_psutil-7.0.0.20250822.tar.gz", hash = "sha256:226cbc0c0ea9cc0a50b8abcc1d91a26c876dcb40be238131f697883690419698", size = 20358, upload-time = "2025-08-22T03:02:04.556Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/46/45006309e20859e12c024d91bb913e6b89a706cd6f9377031c9f7e274ece/types_psutil-7.0.0.20250822-py3-none-any.whl", hash = "sha256:81c82f01aba5a4510b9d8b28154f577b780be75a08954aed074aa064666edc09", size = 23110, upload-time = "2025-08-22T03:02:03.38Z" },
 ]
 
 [[package]]

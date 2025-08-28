@@ -306,6 +306,17 @@ class HealthChecker:
             test_key = "health_check_test"
             test_value = f"test_{int(time.time())}"
 
+            # Check if backend is available
+            if cache_manager.backend is None:
+                return HealthCheckResult(
+                    name="cache_backend",
+                    status=HealthStatus.UNHEALTHY,
+                    message="Cache backend not initialized",
+                    duration_ms=0.0,
+                    timestamp=datetime.now(timezone.utc),
+                    details={"error": "Backend is None"},
+                )
+            
             # Try to set and get a value
             success = await cache_manager.backend.set(test_key, test_value, ttl=10)
             if success:
