@@ -374,7 +374,7 @@ def get_database_url() -> str:
     username = os.getenv("DATABASE_USER", "scraper_user")
     password = os.getenv("DATABASE_PASSWORD", "scraper_password")
 
-    return f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{database}"
+    return f"postgresql+psycopg://{username}:{password}@{host}:{port}/{database}"
 
 
 def create_database_engine(echo: bool = False):

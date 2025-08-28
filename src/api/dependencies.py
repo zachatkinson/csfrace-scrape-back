@@ -10,7 +10,7 @@ from ..database.models import get_database_url
 
 # Database engine and session factory
 engine = create_async_engine(
-    get_database_url().replace("postgresql+psycopg2://", "postgresql+asyncpg://"),
+    get_database_url().replace("postgresql+psycopg://", "postgresql+asyncpg://"),
     echo=False,  # Set to True for SQL debugging
     pool_size=20,
     max_overflow=30,
