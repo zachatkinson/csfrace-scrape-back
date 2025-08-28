@@ -12,8 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.dependencies import get_db_session
 from src.api.main import app
-from src.database.base import Base
-from src.database.models import Batch, JobPriority, JobStatus, ScrapingJob
+from src.database.models import Base, Batch, JobPriority, JobStatus, ScrapingJob
 
 # Test database URL
 TEST_DATABASE_URL = "sqlite+aiosqlite:///test.db"
