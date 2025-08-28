@@ -55,7 +55,10 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
         overall_status = "healthy"
         if database_status["status"] != "healthy":
             overall_status = "unhealthy"
-        elif health_summary.get("status") not in ["healthy", "degraded"] or cache_status["status"] == "error":
+        elif (
+            health_summary.get("status") not in ["healthy", "degraded"]
+            or cache_status["status"] == "error"
+        ):
             overall_status = "degraded"
 
         response = HealthCheckResponse(
