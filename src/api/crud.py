@@ -55,8 +55,8 @@ class JobCRUD:
         )
 
         db.add(job)
+        # Session dependency handles commit - just refresh to get ID
         await db.flush()
-        await db.refresh(job)
         return job
 
     @staticmethod

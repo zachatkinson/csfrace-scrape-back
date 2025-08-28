@@ -77,7 +77,8 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
         # Return appropriate HTTP status
         if overall_status == "unhealthy":
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=response.model_dump()
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=response.model_dump(mode="json"),
             )
 
         return response

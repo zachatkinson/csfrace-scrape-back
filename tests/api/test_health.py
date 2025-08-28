@@ -88,18 +88,27 @@ class TestHealthEndpoints:
         assert data["database"]["status"] == "healthy"
         assert data["database"]["connected"] is True
 
-    @patch("src.api.dependencies.get_db_session")
-    def test_health_check_database_failure(self, mock_get_db, client: TestClient):
+    def test_health_check_database_failure(self, client: TestClient):
         """Test health check with database failure."""
-        # Mock database session that fails
-        mock_session = AsyncMock()
-        mock_session.execute.side_effect = Exception("Database error")
-        mock_get_db.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        from src.api.dependencies import get_db_session
+        from src.api.main import app
 
-        response = client.get("/health/")
+        # Create a mock session that raises an exception on execute
+        async def failing_db_session():
+            mock_session = AsyncMock()
+            mock_session.execute.side_effect = Exception("Database connection failed")
+            yield mock_session
 
-        # Database failure should make overall status unhealthy
-        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        # Override the dependency
+        app.dependency_overrides[get_db_session] = failing_db_session
+
+        try:
+            response = client.get("/health/")
+            # Database failure should make overall status unhealthy
+            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        finally:
+            # Clean up override
+            app.dependency_overrides.pop(get_db_session, None)
 
     @patch("src.monitoring.health.health_checker.get_health_summary")
     def test_health_check_degraded_system(self, mock_health_summary, client: TestClient):
