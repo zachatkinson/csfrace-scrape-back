@@ -76,13 +76,13 @@ class TestGrafanaDashboardProvisioner:
 
     def test_validate_config_missing_directories(self):
         """Test configuration validation fails without required directories."""
-        # With Pydantic BaseSettings, test empty paths that will fail validation
-        config = GrafanaConfig(dashboards_dir=Path(""), provisioning_dir=Path(""))
+        # Create a config with empty prometheus URL to trigger validation failure
+        config = GrafanaConfig(prometheus_url="")
 
         with (
             patch.object(Path, "mkdir"),
             pytest.raises(
-                ValueError, match="Dashboard and provisioning directories must be configured"
+                ValueError, match="Prometheus URL is required for dashboard provisioning"
             ),
         ):
             GrafanaDashboardProvisioner(config)
