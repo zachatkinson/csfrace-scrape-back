@@ -44,7 +44,10 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
             from ...caching.manager import cache_manager
 
             await cache_manager.initialize()
-            cache_status = {"status": "healthy", "backend": getattr(cache_manager, "backend_type", "unknown")}
+            cache_status = {
+                "status": "healthy",
+                "backend": getattr(cache_manager, "backend_type", "unknown"),
+            }
         except Exception as e:
             cache_status = {"status": "error", "error": str(e)}
 
