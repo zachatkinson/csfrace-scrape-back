@@ -24,7 +24,7 @@ def provision(
     config_file: Optional[Path] = typer.Option(
         None, "--config", "-c", help="Path to Grafana configuration file"
     ),
-    prometheus_url: Optional[str] = typer.Option(
+    prometheus_url: str = typer.Option(
         "http://prometheus:9090", "--prometheus-url", "-p", help="Prometheus server URL"
     ),
     grafana_port: int = typer.Option(3000, "--port", help="Grafana server port"),

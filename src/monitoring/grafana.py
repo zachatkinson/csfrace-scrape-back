@@ -61,7 +61,7 @@ class GrafanaDashboardManager:
         """
         self.config = config or GrafanaConfig()
         self._ensure_directories()
-        self._dashboard_templates = {}
+        self._dashboard_templates: dict[str, Any] = {}
 
     def _ensure_directories(self) -> None:
         """Create necessary directories for Grafana provisioning."""
