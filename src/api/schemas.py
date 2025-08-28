@@ -67,6 +67,8 @@ class JobResponse(BaseSchema):
     content_size_bytes: Optional[int] = None
     images_downloaded: int
     batch_id: Optional[int] = None
+    converter_config: Optional[dict[str, Any]] = None
+    processing_options: Optional[dict[str, Any]] = None
 
 
 class JobListResponse(BaseModel):

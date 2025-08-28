@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -70,7 +70,9 @@ def client(override_get_db) -> TestClient:
 @pytest_asyncio.fixture
 async def async_client(override_get_db) -> AsyncGenerator[AsyncClient, None]:
     """Create an async test client."""
-    async with AsyncClient(app=app, base_url="http://testserver") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
         yield client
 
 
@@ -86,6 +88,7 @@ async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
         max_retries=3,
         timeout_seconds=30,
         skip_existing=False,
+        output_directory="converted_content/example.com_test-page",  # Required field
     )
     test_db_session.add(job)
     await test_db_session.commit()

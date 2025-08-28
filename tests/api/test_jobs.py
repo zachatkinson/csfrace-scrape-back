@@ -211,6 +211,7 @@ class TestJobEndpoints:
             retry_count=0,
             max_retries=3,
             error_message="Test error",
+            output_directory="converted_content/example.com_failed-page",
         )
         test_db_session.add(job)
         await test_db_session.commit()

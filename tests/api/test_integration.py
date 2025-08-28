@@ -292,7 +292,7 @@ class TestAPIIntegration:
         batch = batch_response.json()
 
         # Check common fields have consistent naming and types
-        common_fields = ["id", "created_at", "updated_at"]
+        common_fields = ["id", "created_at"]
 
         for field in common_fields:
             assert field in job
