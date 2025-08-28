@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -419,8 +419,6 @@ class TestPerformanceMonitor:
     def test_cleanup_old_traces(self, monitor):
         """Test cleaning up old traces."""
         # Create traces with old timestamps
-        from datetime import datetime, timezone, timedelta
-
         old_time = datetime.now(timezone.utc) - timedelta(hours=25)
 
         trace = RequestTrace(trace_id=str(uuid4()), operation="old_operation", start_time=old_time)
