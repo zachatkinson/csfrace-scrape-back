@@ -4,46 +4,46 @@ This module provides comprehensive Grafana integration following industry best p
 for metrics visualization and dashboard management.
 """
 
-import os
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 import structlog
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..constants import CONSTANTS
 
 logger = structlog.get_logger(__name__)
 
-# Security: Default password that forces users to set proper credentials
-DEFAULT_PLACEHOLDER_PASSWORD = "CHANGE_ME_IN_PRODUCTION"
 
+class GrafanaConfig(BaseSettings):
+    """Configuration for Grafana integration with environment variable support.
 
-@dataclass(frozen=True)
-class GrafanaConfig:
-    """Configuration for Grafana integration."""
+    Follows Pydantic BaseSettings best practices for configuration management.
+    Environment variables with GRAFANA_ prefix override defaults.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="GRAFANA_",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     enabled: bool = True
     host: str = "localhost"
     port: int = 3000
     protocol: str = "http"
     admin_user: str = "admin"
-    admin_password: str = DEFAULT_PLACEHOLDER_PASSWORD
+    admin_password: str = Field(
+        default="CHANGE_ME_IN_PRODUCTION",
+        description="Admin password - set GRAFANA_ADMIN_PASSWORD env var for production",
+    )
     dashboards_dir: Path = Path(CONSTANTS.DEFAULT_OUTPUT_DIR) / "grafana" / "dashboards"
     provisioning_dir: Path = Path(CONSTANTS.DEFAULT_OUTPUT_DIR) / "grafana" / "provisioning"
     prometheus_url: str = "http://prometheus:9090"
     refresh_interval: str = "30s"
     time_range: str = "1h"
-    custom_labels: dict[str, str] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Apply environment variable overrides after initialization."""
-        # Use object.__setattr__ because the dataclass is frozen
-        if admin_user_env := os.environ.get("GRAFANA_ADMIN_USER"):
-            object.__setattr__(self, "admin_user", admin_user_env)
-
-        if admin_password_env := os.environ.get("GRAFANA_ADMIN_PASSWORD"):
-            object.__setattr__(self, "admin_password", admin_password_env)
+    custom_labels: dict[str, str] = Field(default_factory=dict)
 
 
 class GrafanaDashboardManager:

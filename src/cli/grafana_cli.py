@@ -85,7 +85,9 @@ def provision(
         typer.echo("\n🎯 Next steps:")
         typer.echo("   1. Run: docker-compose up -d")
         typer.echo(f"   2. Access Grafana: http://localhost:{config.port}")
-        typer.echo(f"   3. Login: {config.admin_user}/<password from GRAFANA_ADMIN_PASSWORD env var>")
+        typer.echo(
+            f"   3. Login: {config.admin_user}/<password from GRAFANA_ADMIN_PASSWORD env var>"
+        )
 
     except Exception as e:
         logger.error("Dashboard provisioning failed", error=str(e))

@@ -1,6 +1,5 @@
 """Tests for Grafana dashboard management functionality."""
 
-from dataclasses import FrozenInstanceError
 from pathlib import Path
 from unittest.mock import patch
 
@@ -67,15 +66,23 @@ class TestGrafanaConfig:
         assert config.time_range == "6h"
         assert config.custom_labels == custom_labels
 
-    def test_grafana_config_immutable(self):
-        """Test GrafanaConfig is properly immutable."""
+    def test_grafana_config_mutable(self):
+        """Test GrafanaConfig is mutable (Pydantic BaseSettings design)."""
         config = GrafanaConfig()
 
-        with pytest.raises(FrozenInstanceError):
-            config.enabled = False
+        # Pydantic BaseSettings are mutable by design for configuration flexibility
+        original_enabled = config.enabled
+        original_port = config.port
 
-        with pytest.raises(FrozenInstanceError):
-            config.port = 8080
+        config.enabled = False
+        config.port = 8080
+
+        assert config.enabled is False
+        assert config.port == 8080
+
+        # Restore for other tests
+        config.enabled = original_enabled
+        config.port = original_port
 
 
 class TestGrafanaDashboardManager:

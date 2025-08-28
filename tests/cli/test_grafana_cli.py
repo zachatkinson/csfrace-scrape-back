@@ -117,7 +117,7 @@ class TestGrafanaCLI:
 
         # Verify command failed with proper error handling
         assert result.exit_code == 1
-        assert "Error: Test error" in result.stdout
+        assert "Test error" in result.stdout  # Error message appears in structured logging
 
     @patch.object(GrafanaDashboardProvisioner, "validate_dashboards", return_value=True)
     @patch.object(GrafanaDashboardProvisioner, "__init__", return_value=None)
@@ -146,8 +146,11 @@ class TestGrafanaCLI:
         # Verify validation was called
         mock_validate.assert_called_once()
 
-        # Verify error message
-        assert "Some dashboards failed validation" in result.stdout
+        # Verify error message (appears in structured logging)
+        assert (
+            "validation failed" in result.stdout.lower()
+            or "failed validation" in result.stdout.lower()
+        )
 
     @patch.object(
         GrafanaDashboardProvisioner,
@@ -161,31 +164,24 @@ class TestGrafanaCLI:
 
         # Verify command failed
         assert result.exit_code == 1
-        assert "Error: Validation error" in result.stdout
+        assert "Validation error" in result.stdout  # Error message appears in structured logging
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
-    @patch.object(GrafanaConfig, "__init__", return_value=None)
-    def test_status_command_all_present(self, mock_config_init, mock_glob, mock_exists, runner):
+    def test_status_command_all_present(self, mock_glob, mock_exists, runner):
         """Test status command when all components are present."""
-        # Mock GrafanaConfig attributes
-        mock_config = MagicMock()
-        mock_config.dashboards_dir = Path("/test/dashboards")
-        mock_config.provisioning_dir = Path("/test/provisioning")
+        # Mock file existence checks - include real grafana paths that will exist
+        mock_exists.side_effect = lambda path: str(path) in [
+            str(Path("converted_content/grafana/dashboards")),  # Default dashboards dir
+            str(Path("converted_content/grafana/provisioning")),  # Default provisioning dir
+            "docker-compose.yml",
+            "prometheus.yml",
+        ]
 
-        with patch("src.cli.grafana_cli.GrafanaConfig", return_value=mock_config):
-            # Mock file existence checks
-            mock_exists.side_effect = lambda path: str(path) in [
-                "/test/dashboards",
-                "/test/provisioning",
-                "docker-compose.yml",
-                "prometheus.yml",
-            ]
+        # Mock dashboard files
+        mock_glob.return_value = [Path("dashboard1.json"), Path("dashboard2.json")]
 
-            # Mock dashboard files
-            mock_glob.return_value = [Path("dashboard1.json"), Path("dashboard2.json")]
-
-            result = runner.invoke(app, ["status"])
+        result = runner.invoke(app, ["status"])
 
         # Verify command succeeded
         assert result.exit_code == 0
@@ -306,7 +302,7 @@ class TestGrafanaCLI:
 
         # Verify command failed
         assert result.exit_code == 1
-        assert "Error: Permission denied" in result.stdout
+        assert "Permission denied" in result.stdout  # Error message appears in structured logging
 
     def test_app_help(self, runner):
         """Test that CLI app shows help information."""

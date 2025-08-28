@@ -76,7 +76,8 @@ class TestGrafanaDashboardProvisioner:
 
     def test_validate_config_missing_directories(self):
         """Test configuration validation fails without required directories."""
-        config = GrafanaConfig(dashboards_dir=None, provisioning_dir=Path("/test/provisioning"))
+        # With Pydantic BaseSettings, test empty paths that will fail validation
+        config = GrafanaConfig(dashboards_dir=Path(""), provisioning_dir=Path(""))
 
         with (
             patch.object(Path, "mkdir"),
