@@ -249,7 +249,9 @@ class TestMetricsCollector:
     def test_export_prometheus_metrics_error(self, prometheus_collector):
         """Test Prometheus export with error."""
         with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
-            with patch("src.monitoring.metrics.generate_latest", side_effect=Exception("Export error")):
+            with patch(
+                "src.monitoring.metrics.generate_latest", side_effect=Exception("Export error")
+            ):
                 metrics_data = prometheus_collector.export_prometheus_metrics()
                 assert b"Export failed" in metrics_data
 
