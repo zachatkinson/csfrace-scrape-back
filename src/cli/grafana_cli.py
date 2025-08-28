@@ -85,7 +85,7 @@ def provision(
         typer.echo("\n🎯 Next steps:")
         typer.echo("   1. Run: docker-compose up -d")
         typer.echo(f"   2. Access Grafana: http://localhost:{config.port}")
-        typer.echo(f"   3. Login: {config.admin_user}/{config.admin_password}")
+        typer.echo(f"   3. Login: {config.admin_user}/<password from GRAFANA_ADMIN_PASSWORD env var>")
 
     except Exception as e:
         logger.error("Dashboard provisioning failed", error=str(e))
@@ -258,11 +258,13 @@ enabled: true
 host: localhost
 port: 3000
 protocol: http
-admin_user: admin
-admin_password: admin
 prometheus_url: http://prometheus:9090
 refresh_interval: 30s
 time_range: 1h
+
+# Security Note: Set these environment variables instead of hardcoding
+# export GRAFANA_ADMIN_USER=admin
+# export GRAFANA_ADMIN_PASSWORD=your-secure-password
 """
 
         with open(config_file, "w") as f:

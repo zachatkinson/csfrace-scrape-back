@@ -22,7 +22,7 @@ class TestGrafanaConfig:
         assert config.port == 3000
         assert config.protocol == "http"
         assert config.admin_user == "admin"
-        assert config.admin_password == "admin"
+        assert config.admin_password == "CHANGE_ME_IN_PRODUCTION"  # Security-conscious default
         assert config.prometheus_url == "http://prometheus:9090"
         assert config.refresh_interval == "30s"
         assert config.time_range == "1h"
