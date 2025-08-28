@@ -174,7 +174,7 @@ class Batch(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     # Configuration
-    max_concurrent: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    max_concurrent: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     continue_on_error: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     output_base_directory: Mapped[str] = mapped_column(String(1024), nullable=False)
     create_archives: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

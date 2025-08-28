@@ -40,18 +40,32 @@ class TestHealthEndpoints:
 
         assert data["status"] == "ready"
 
-    @patch("src.api.routers.health.db.execute")
-    def test_readiness_check_unhealthy(self, mock_execute, client: TestClient):
+    def test_readiness_check_unhealthy(self, client: TestClient, override_get_db):
         """Test readiness check when database is unavailable."""
-        # Mock database connection failure
-        mock_execute.side_effect = Exception("Database connection failed")
+        from unittest.mock import AsyncMock
 
-        response = client.get("/health/ready")
+        from src.api.dependencies import get_db_session
+        from src.api.main import app
 
-        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-        data = response.json()
+        # Create a mock session that fails
+        async def mock_failing_db():
+            mock_session = AsyncMock()
+            mock_session.execute.side_effect = Exception("Database connection failed")
+            yield mock_session
 
-        assert "Service not ready" in data["detail"]
+        # Override the dependency with failing mock
+        app.dependency_overrides[get_db_session] = mock_failing_db
+
+        try:
+            response = client.get("/health/ready")
+
+            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+            data = response.json()
+
+            assert "Service not ready" in data["detail"]
+        finally:
+            # Clean up override
+            app.dependency_overrides.clear()
 
     @patch("src.monitoring.health.health_checker.get_health_summary")
     @patch("src.monitoring.observability.observability_manager.get_component_status")

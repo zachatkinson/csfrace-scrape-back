@@ -31,11 +31,9 @@ class JobCRUD:
         parsed_url = urlparse(str(job_data.url))
         domain = parsed_url.netloc
 
-        # Generate slug if not provided
-        slug = job_data.slug or job_data.custom_slug
-        if not slug:
-            path = parsed_url.path.strip("/")
-            slug = path.split("/")[-1] if path else "index"
+        # Generate slug from URL (always auto-generated)
+        path = parsed_url.path.strip("/")
+        slug = path.split("/")[-1] if path else "index"
 
         # Generate output directory if not provided
         output_directory = job_data.output_directory
@@ -288,9 +286,13 @@ class BatchCRUD:
         Returns:
             Tuple of (batches list, total count)
         """
-        # Get batches
+        # Get batches with jobs loaded
         batches_result = await db.execute(
-            select(Batch).order_by(Batch.created_at.desc()).offset(skip).limit(limit)
+            select(Batch)
+            .options(selectinload(Batch.jobs))
+            .order_by(Batch.created_at.desc())
+            .offset(skip)
+            .limit(limit)
         )
 
         # Get total count
