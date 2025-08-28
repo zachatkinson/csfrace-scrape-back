@@ -1,5 +1,6 @@
 """Tests for Grafana CLI interface."""
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,12 @@ from typer.testing import CliRunner
 from src.cli.grafana_cli import app
 from src.monitoring.dashboard_provisioner import GrafanaDashboardProvisioner
 from src.monitoring.grafana import GrafanaConfig
+
+
+def strip_ansi_codes(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 class TestGrafanaCLI:
@@ -280,34 +287,38 @@ class TestGrafanaCLI:
     def test_provision_command_help(self, runner):
         """Test provision command help."""
         result = runner.invoke(app, ["provision", "--help"])
+        clean_output = strip_ansi_codes(result.stdout)
 
         assert result.exit_code == 0
-        assert "Provision Grafana dashboards" in result.stdout
-        assert "--prometheus-url" in result.stdout
-        assert "--port" in result.stdout
-        assert "--output" in result.stdout
-        assert "--force" in result.stdout
+        assert "Provision Grafana dashboards" in clean_output
+        assert "--prometheus-url" in clean_output
+        assert "--port" in clean_output
+        assert "--output" in clean_output
+        assert "--force" in clean_output
 
     def test_validate_command_help(self, runner):
         """Test validate command help."""
         result = runner.invoke(app, ["validate", "--help"])
+        clean_output = strip_ansi_codes(result.stdout)
 
         assert result.exit_code == 0
-        assert "Validate existing dashboard configurations" in result.stdout
-        assert "--dashboards-dir" in result.stdout
+        assert "Validate existing dashboard configurations" in clean_output
+        assert "--dashboards-dir" in clean_output
 
     def test_clean_command_help(self, runner):
         """Test clean command help."""
         result = runner.invoke(app, ["clean", "--help"])
+        clean_output = strip_ansi_codes(result.stdout)
 
         assert result.exit_code == 0
-        assert "Clean up generated dashboard" in result.stdout
-        assert "--force" in result.stdout
+        assert "Clean up generated dashboard" in clean_output
+        assert "--force" in clean_output
 
     def test_init_command_help(self, runner):
         """Test init command help."""
         result = runner.invoke(app, ["init", "--help"])
+        clean_output = strip_ansi_codes(result.stdout)
 
         assert result.exit_code == 0
-        assert "Initialize Grafana configuration" in result.stdout
-        assert "--output" in result.stdout
+        assert "Initialize Grafana configuration" in clean_output
+        assert "--output" in clean_output
