@@ -92,7 +92,7 @@ class PerformanceMonitor:
             tracing=self.config.trace_requests,
         )
 
-    def start_trace(self, operation: str, metadata: Optional[dict[str, Any]] = None) -> str:
+    def start_trace(self, operation: str, metadata: Optional[dict[str, Any]] = None) -> Optional[str]:
         """Start a new request trace.
 
         Args:
@@ -200,7 +200,7 @@ class PerformanceMonitor:
         operation_name: str,
         parent_span_id: Optional[str] = None,
         tags: Optional[dict[str, Any]] = None,
-    ) -> str:
+    ) -> Optional[str]:
         """Start a new span within a trace.
 
         Args:
@@ -282,7 +282,7 @@ class PerformanceMonitor:
     @asynccontextmanager
     async def trace_request(
         self, operation: str, metadata: Optional[dict[str, Any]] = None
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[Optional[str], None]:
         """Context manager for tracing requests.
 
         Args:
@@ -293,6 +293,11 @@ class PerformanceMonitor:
             Trace ID
         """
         trace_id = self.start_trace(operation, metadata)
+        
+        if trace_id is None:
+            # Tracing is disabled or sampled out
+            yield None
+            return
 
         try:
             yield trace_id
@@ -308,7 +313,7 @@ class PerformanceMonitor:
         operation_name: str,
         parent_span_id: Optional[str] = None,
         tags: Optional[dict[str, Any]] = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[Optional[str], None]:
         """Context manager for tracing spans.
 
         Args:
@@ -321,6 +326,11 @@ class PerformanceMonitor:
             Span ID
         """
         span_id = self.start_span(trace_id, operation_name, parent_span_id, tags)
+        
+        if span_id is None:
+            # Tracing is disabled
+            yield None
+            return
 
         try:
             yield span_id
