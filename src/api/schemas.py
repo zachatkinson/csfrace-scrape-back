@@ -85,7 +85,7 @@ class BatchCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    urls: list[HttpUrl] = Field(..., min_items=1, max_items=1000)
+    urls: list[HttpUrl] = Field(..., min_length=1, max_length=1000)
     max_concurrent: int = Field(default=3, ge=1, le=20)
     continue_on_error: bool = True
     output_base_directory: Optional[str] = None
