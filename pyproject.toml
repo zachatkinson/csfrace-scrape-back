@@ -225,6 +225,7 @@ module = [
     "src.plugins.manager",
     "src.processors.image_downloader",
     "src.core.config",
+    "src.api.*",
 ]
 ignore_errors = true
 
