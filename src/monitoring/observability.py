@@ -184,8 +184,10 @@ class ObservabilityManager:
             logger.warning(
                 "Observability shutdown timed out", timeout=self.config.graceful_shutdown_timeout
             )
+            self._initialized = False
         except Exception as e:
             logger.error("Error during observability shutdown", error=str(e))
+            self._initialized = False
 
     def get_system_overview(self) -> dict[str, Any]:
         """Get comprehensive system overview.

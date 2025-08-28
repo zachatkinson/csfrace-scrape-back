@@ -107,7 +107,7 @@ class TestObservabilityManager:
         metrics_config = MetricsConfig(collection_interval=60.0)
         health_config = HealthConfig(check_interval=120.0)
         alerts_config = AlertConfig(evaluation_interval=90.0)
-        performance_config = PerformanceConfig(max_traces=2000)
+        performance_config = PerformanceConfig(max_trace_history=2000)
 
         config = ObservabilityConfig(
             metrics_config=metrics_config,

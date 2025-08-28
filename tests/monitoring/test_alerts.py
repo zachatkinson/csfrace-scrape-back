@@ -249,7 +249,7 @@ class TestAlertManager:
     @pytest.mark.asyncio
     async def test_get_current_metrics(self, alert_manager):
         """Test getting current metrics for evaluation."""
-        with patch("src.monitoring.alerts.metrics_collector") as mock_metrics:
+        with patch("src.monitoring.metrics.metrics_collector") as mock_metrics:
             mock_metrics.get_metrics_snapshot.return_value = {
                 "system_metrics": {
                     "cpu_percent": 75.0,
@@ -259,7 +259,7 @@ class TestAlertManager:
                 }
             }
 
-            with patch("src.monitoring.alerts.health_checker") as mock_health:
+            with patch("src.monitoring.health.health_checker") as mock_health:
                 mock_result = MagicMock()
                 mock_result.status.value = "healthy"
                 mock_health._results = {"database": mock_result}

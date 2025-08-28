@@ -58,21 +58,16 @@ class TestMetricsCollector:
     @pytest.fixture
     def prometheus_collector(self):
         """Create collector with Prometheus enabled."""
-        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
-            with patch("src.monitoring.metrics.Counter") as mock_counter:
-                with patch("src.monitoring.metrics.Gauge") as mock_gauge:
-                    with patch("src.monitoring.metrics.Histogram") as mock_histogram:
-                        with patch("src.monitoring.metrics.CollectorRegistry") as mock_registry:
-                            with patch("src.monitoring.metrics.generate_latest") as mock_generate:
-                                config = MetricsConfig(prometheus_enabled=True)
-                                collector = MetricsCollector(config)
-                                # Store mock references for tests
-                                collector._mock_counter = mock_counter
-                                collector._mock_gauge = mock_gauge
-                                collector._mock_histogram = mock_histogram
-                                collector._mock_registry = mock_registry
-                                collector._mock_generate = mock_generate
-                                return collector
+        config = MetricsConfig(prometheus_enabled=True)
+        collector = MetricsCollector(config)
+        # Simulate Prometheus being available by setting up the registry
+        collector.registry = MagicMock()
+        collector.metrics = {
+            "requests_total": MagicMock(),
+            "request_duration": MagicMock(),
+            "system_cpu": MagicMock(),
+        }
+        return collector
 
     def test_initialization_prometheus_disabled(self, collector):
         """Test initialization with Prometheus disabled."""
@@ -155,13 +150,13 @@ class TestMetricsCollector:
 
     def test_record_request_prometheus_enabled(self, prometheus_collector):
         """Test recording request metrics with Prometheus."""
-        with patch.object(prometheus_collector.metrics, "get") as mock_get:
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
             mock_counter = MagicMock()
             mock_histogram = MagicMock()
-            mock_get.side_effect = lambda key: {
+            prometheus_collector.metrics = {
                 "requests_total": mock_counter,
                 "request_duration": mock_histogram,
-            }.get(key)
+            }
 
             prometheus_collector.record_request("GET", "/api/test", 200, 0.5)
 
@@ -171,13 +166,13 @@ class TestMetricsCollector:
 
     def test_record_batch_job(self, prometheus_collector):
         """Test recording batch job metrics."""
-        with patch.object(prometheus_collector.metrics, "get") as mock_get:
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
             mock_counter = MagicMock()
             mock_histogram = MagicMock()
-            mock_get.side_effect = lambda key: {
+            prometheus_collector.metrics = {
                 "batch_jobs_processed": mock_counter,
                 "batch_processing_duration": mock_histogram,
-            }.get(key)
+            }
 
             prometheus_collector.record_batch_job("completed", 2.5)
 
@@ -186,18 +181,17 @@ class TestMetricsCollector:
 
     def test_record_cache_metrics(self, prometheus_collector):
         """Test recording cache metrics."""
-        with patch.object(prometheus_collector.metrics, "get") as mock_get:
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
             mock_hits = MagicMock()
             mock_misses = MagicMock()
             mock_size = MagicMock()
             mock_entries = MagicMock()
-
-            mock_get.side_effect = lambda key: {
+            prometheus_collector.metrics = {
                 "cache_hits": mock_hits,
                 "cache_misses": mock_misses,
                 "cache_size": mock_size,
                 "cache_entries": mock_entries,
-            }.get(key)
+            }
 
             prometheus_collector.record_cache_hit("html")
             prometheus_collector.record_cache_miss("image")
@@ -210,13 +204,13 @@ class TestMetricsCollector:
 
     def test_record_database_query(self, prometheus_collector):
         """Test recording database query metrics."""
-        with patch.object(prometheus_collector.metrics, "get") as mock_get:
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
             mock_counter = MagicMock()
             mock_histogram = MagicMock()
-            mock_get.side_effect = lambda key: {
+            prometheus_collector.metrics = {
                 "db_queries": mock_counter,
                 "db_query_duration": mock_histogram,
-            }.get(key)
+            }
 
             prometheus_collector.record_database_query("select", "success", 0.1)
 
@@ -244,9 +238,6 @@ class TestMetricsCollector:
 
     def test_export_prometheus_metrics_enabled(self, prometheus_collector):
         """Test Prometheus export when enabled."""
-        # Mock the registry to make it appear Prometheus is available
-        prometheus_collector.registry = MagicMock()
-
         with patch("src.monitoring.metrics.generate_latest") as mock_generate:
             mock_generate.return_value = b"# Test metrics\n"
 
@@ -256,9 +247,6 @@ class TestMetricsCollector:
 
     def test_export_prometheus_metrics_error(self, prometheus_collector):
         """Test Prometheus export with error."""
-        # Mock the registry to make it appear Prometheus is available
-        prometheus_collector.registry = MagicMock()
-
         with patch("src.monitoring.metrics.generate_latest", side_effect=Exception("Export error")):
             metrics_data = prometheus_collector.export_prometheus_metrics()
             assert b"Export failed" in metrics_data

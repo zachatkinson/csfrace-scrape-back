@@ -274,7 +274,7 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_database_check_success(self, health_checker):
         """Test database connection check success."""
-        with patch("src.monitoring.health.DatabaseService") as mock_db_service:
+        with patch("src.database.service.DatabaseService") as mock_db_service:
             mock_session = MagicMock()
             mock_session.execute.return_value.fetchone.return_value = [1]
             mock_db_service.return_value.get_session.return_value.__enter__ = MagicMock(
@@ -292,7 +292,7 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_database_check_failure(self, health_checker):
         """Test database connection check failure."""
-        with patch("src.monitoring.health.DatabaseService") as mock_db_service:
+        with patch("src.database.service.DatabaseService") as mock_db_service:
             mock_db_service.return_value.get_session.side_effect = Exception("Connection failed")
 
             result = await health_checker._check_database()
@@ -303,23 +303,25 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_cache_check_success(self, health_checker):
         """Test cache backend check success."""
-        with patch("src.monitoring.health.cache_manager") as mock_cache:
-            mock_entry = MagicMock()
-            mock_entry.value = "test_123456789"
-            mock_cache.backend.set = AsyncMock(return_value=True)
-            mock_cache.backend.get = AsyncMock(return_value=mock_entry)
-            mock_cache.backend.delete = AsyncMock(return_value=True)
-            mock_cache.config.backend.value = "file"
+        with patch("src.caching.manager.cache_manager") as mock_cache:
+            with patch("time.time", return_value=123456789):
+                mock_entry = MagicMock()
+                mock_entry.value = "test_123456789"
+                mock_cache.initialize = AsyncMock()
+                mock_cache.backend.set = AsyncMock(return_value=True)
+                mock_cache.backend.get = AsyncMock(return_value=mock_entry)
+                mock_cache.backend.delete = AsyncMock(return_value=True)
+                mock_cache.config.backend.value = "file"
 
-            result = await health_checker._check_cache()
+                result = await health_checker._check_cache()
 
-            assert result.status == HealthStatus.HEALTHY
-            assert "operational" in result.message
+                assert result.status == HealthStatus.HEALTHY
+                assert "operational" in result.message
 
     @pytest.mark.asyncio
     async def test_cache_check_failure(self, health_checker):
         """Test cache backend check failure."""
-        with patch("src.monitoring.health.cache_manager") as mock_cache:
+        with patch("src.caching.manager.cache_manager") as mock_cache:
             mock_cache.initialize = AsyncMock(side_effect=Exception("Cache error"))
 
             result = await health_checker._check_cache()
