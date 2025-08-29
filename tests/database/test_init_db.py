@@ -317,15 +317,10 @@ class TestInitDbIntegration:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_init_db_cancellation(self):
-        """Test init_db task cancellation behavior."""
+    async def test_init_db_completes_immediately(self):
+        """Test that init_db completes immediately (placeholder implementation)."""
         task = asyncio.create_task(init_db())
 
-        # Let it start
-        await asyncio.sleep(0.001)
-
-        # Cancel the task
-        task.cancel()
-
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        # Task should complete immediately since it's just a placeholder
+        result = await task
+        assert result is None  # Function returns None

@@ -1,7 +1,7 @@
 """Tests for database base module."""
 
 import pytest
-from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy import Column, DateTime, Integer, String, create_engine, text
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker
 
@@ -77,7 +77,9 @@ class TestDatabaseBase:
             with engine.connect() as conn:
                 # Try to query the table (will fail if it doesn't exist)
                 result = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='create_all_test'"
+                    text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='create_all_test'"
+                    )
                 )
                 tables = result.fetchall()
                 assert len(tables) == 1
@@ -108,7 +110,9 @@ class TestDatabaseBase:
             # Verify table was dropped
             with engine.connect() as conn:
                 result = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='drop_all_test'"
+                    text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='drop_all_test'"
+                    )
                 )
                 tables = result.fetchall()
                 assert len(tables) == 0
@@ -234,7 +238,7 @@ class TestDatabaseBase:
 
     def test_base_with_complex_columns(self):
         """Test Base with various column types and constraints."""
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         from sqlalchemy import Boolean, Text, UniqueConstraint
 
@@ -244,7 +248,7 @@ class TestDatabaseBase:
             name = Column(String(100), nullable=False)
             description = Column(Text)
             is_active = Column(Boolean, default=True)
-            created_at = Column(DateTime, default=datetime.utcnow)
+            created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
             __table_args__ = (UniqueConstraint("name", name="uq_complex_model_name"),)
 
@@ -351,28 +355,31 @@ class TestDatabaseBaseEdgeCases:
 
     def test_base_with_invalid_tablename(self):
         """Test behavior with invalid table names."""
-        # SQLAlchemy should handle this, but let's test our Base works
-        with pytest.raises(Exception):
+        engine = create_engine("sqlite:///:memory:")
 
-            class InvalidTable(Base):
-                __tablename__ = ""  # Empty tablename should cause issues
-                id = Column(Integer, primary_key=True)
+        class InvalidTable(Base):
+            __tablename__ = ""  # Empty tablename should cause issues
+            id = Column(Integer, primary_key=True)
+
+        try:
+            # The error occurs during table creation
+            with pytest.raises(Exception):
+                Base.metadata.create_all(engine, tables=[Base.metadata.tables[""]])
+        finally:
+            # Clean up the problematic table from metadata
+            if "" in Base.metadata.tables:
+                Base.metadata.remove(Base.metadata.tables[""])
+            engine.dispose()
 
     def test_base_without_primary_key(self):
         """Test model without primary key."""
 
-        # This should work but might cause issues later
-        class NoPrimaryKey(Base):
-            __tablename__ = "no_primary_key"
-            name = Column(String(50))
+        # SQLAlchemy requires primary keys, so this should fail during class definition
+        with pytest.raises(Exception):  # SQLAlchemy will raise ArgumentError
 
-        try:
-            # Should create without immediate error
-            assert NoPrimaryKey.__tablename__ == "no_primary_key"
-
-        finally:
-            if "no_primary_key" in Base.metadata.tables:
-                Base.metadata.remove(Base.metadata.tables["no_primary_key"])
+            class NoPrimaryKey(Base):
+                __tablename__ = "no_primary_key"
+                name = Column(String(50))
 
     def test_base_with_duplicate_tablename(self):
         """Test creating models with duplicate table names."""
@@ -405,13 +412,13 @@ class TestDatabaseBaseEdgeCases:
             id = Column(Integer, primary_key=True)
 
         try:
-            # Should be able to create table
-            Base.metadata.create_all()
+            # Should be able to create table (explicitly pass bind in modern SQLAlchemy)
+            Base.metadata.create_all(bind=engine)
 
             # Verify table exists
             with engine.connect() as conn:
                 result = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='bound_test'"
+                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='bound_test'")
                 )
                 tables = result.fetchall()
                 assert len(tables) == 1
@@ -429,7 +436,7 @@ class TestDatabaseBaseIntegration:
 
     def test_base_with_real_models(self):
         """Test Base with models similar to actual application models."""
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         from sqlalchemy import Boolean, Text
 
@@ -438,8 +445,12 @@ class TestDatabaseBaseIntegration:
             id = Column(Integer, primary_key=True)
             url = Column(String(500), nullable=False)
             status = Column(String(50), default="pending")
-            created_at = Column(DateTime, default=datetime.utcnow)
-            updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+            created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+            updated_at = Column(
+                DateTime,
+                default=lambda: datetime.now(timezone.utc),
+                onupdate=lambda: datetime.now(timezone.utc),
+            )
             is_active = Column(Boolean, default=True)
             metadata_json = Column(Text)
 
