@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from ..constants import CONSTANTS, IFRAME_ASPECT_RATIO
 from ..core.config import config
 from ..core.exceptions import ProcessingError
+from ..security.sanitization import HTMLSanitizer
 from ..utils.html import safe_copy_attributes
 
 logger = structlog.get_logger(__name__)
@@ -15,6 +16,14 @@ logger = structlog.get_logger(__name__)
 
 class HTMLProcessor:
     """Processes and converts WordPress HTML to Shopify-compatible format."""
+
+    def __init__(self, enable_sanitization: bool = True):
+        """Initialize HTML processor with optional sanitization.
+
+        Args:
+            enable_sanitization: Whether to enable HTML sanitization for XSS prevention
+        """
+        self.sanitizer = HTMLSanitizer(strict_mode=True) if enable_sanitization else None
 
     async def process(self, soup: BeautifulSoup) -> str:
         """Main processing method that applies all conversion rules.
@@ -52,9 +61,14 @@ class HTMLProcessor:
             # Final cleanup
             content = await self._cleanup_wordpress_artifacts(content)
 
+            # Apply HTML sanitization for XSS prevention
             result = str(content)
-            logger.info("HTML processing completed", output_size=len(result))
+            if self.sanitizer:
+                logger.info("Applying HTML sanitization for XSS prevention")
+                result = self.sanitizer.sanitize_html(result)
+                logger.info("HTML sanitization completed")
 
+            logger.info("HTML processing completed", output_size=len(result))
             return result
 
         except Exception as e:
