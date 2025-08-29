@@ -18,7 +18,13 @@ class TestMigrationManager:
 
         assert manager.config_file == Path("alembic.ini")
         assert manager.config is not None
-        assert manager.config.get_main_option("sqlalchemy.url").startswith("sqlite")
+
+        # Test that PostgreSQL database URL is configured (production standard)
+        db_url = manager.config.get_main_option("sqlalchemy.url")
+        assert db_url is not None
+        assert len(db_url) > 0
+        # Verify it's PostgreSQL URL format
+        assert db_url.startswith("postgresql")
 
     def test_migration_manager_custom_config(self):
         """Test MigrationManager with custom config file."""
