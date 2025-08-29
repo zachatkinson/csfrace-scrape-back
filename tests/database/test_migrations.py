@@ -307,16 +307,17 @@ class TestMigrationManagerIntegration:
             pytest.skip("Alembic not initialized in test environment")
 
     def test_database_url_override(self):
-        """Test that database URL is correctly overridden."""
+        """Test that database URL is correctly configured."""
         try:
             manager = MigrationManager()
 
             # Get the configured URL
             configured_url = manager.config.get_main_option("sqlalchemy.url")
 
-            # Should be SQLite URL from our models
-            assert configured_url.startswith("sqlite")
-            assert "scraper.db" in configured_url
+            # Should be PostgreSQL URL (production standard)
+            assert configured_url.startswith("postgresql")
+            # Verify it contains expected database components
+            assert "scraper" in configured_url
 
         except FileNotFoundError:
             pytest.skip("Alembic not initialized in test environment")
