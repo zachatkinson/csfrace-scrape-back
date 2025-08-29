@@ -435,7 +435,7 @@ class TestConcurrencyPerformance:
                 result, analysis = results[url]
                 if result.status_code == 200:
                     successful_renders += 1
-        
+
         # All renders should be successful since we're using mocks
         assert successful_renders == num_urls, f"Only {successful_renders}/{num_urls} renders succeeded"
 
