@@ -17,7 +17,7 @@ from src.database.models import (
 from src.database.service import DatabaseService
 
 
-@pytest.mark.database
+@pytest.mark.unit  # Mark as unit test, not database integration test
 class TestDatabaseServiceComprehensive:
     """Comprehensive test suite for database service operations."""
 
