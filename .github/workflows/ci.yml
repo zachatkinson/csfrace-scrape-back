@@ -313,12 +313,12 @@ jobs:
             uv run pytest ${{ matrix.test-path }} --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
           fi
         env:
-          ${{ matrix.test-type == 'redis' && 'REDIS_URL' || '' }}: ${{ matrix.test-type == 'redis' && 'redis://localhost:6379' || '' }}
-          ${{ matrix.test-type == 'database' && 'DATABASE_HOST' || '' }}: ${{ matrix.test-type == 'database' && 'localhost' || '' }}
-          ${{ matrix.test-type == 'database' && 'DATABASE_PORT' || '' }}: ${{ matrix.test-type == 'database' && '5432' || '' }}
-          ${{ matrix.test-type == 'database' && 'DATABASE_NAME' || '' }}: ${{ matrix.test-type == 'database' && 'test_db' || '' }}
-          ${{ matrix.test-type == 'database' && 'DATABASE_USER' || '' }}: ${{ matrix.test-type == 'database' && 'test_user' || '' }}
-          ${{ matrix.test-type == 'database' && 'DATABASE_PASSWORD' || '' }}: ${{ matrix.test-type == 'database' && 'test_password' || '' }}
+          REDIS_URL: ${{ matrix.test-type == 'redis' && 'redis://localhost:6379' || '' }}
+          DATABASE_HOST: ${{ matrix.test-type == 'database' && 'localhost' || '' }}
+          DATABASE_PORT: ${{ matrix.test-type == 'database' && '5432' || '' }}
+          DATABASE_NAME: ${{ matrix.test-type == 'database' && 'test_db' || '' }}
+          DATABASE_USER: ${{ matrix.test-type == 'database' && 'test_user' || '' }}
+          DATABASE_PASSWORD: ${{ matrix.test-type == 'database' && 'test_password' || '' }}
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v4
