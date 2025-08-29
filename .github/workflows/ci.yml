@@ -122,18 +122,18 @@ jobs:
         shell: bash
 
   # Unit Tests Matrix (optimized platform strategy)
-  # Ubuntu: Full test suite with coverage (primary validation)
+  # Ubuntu: Full test suite with coverage (primary validation) + PostgreSQL service
   # Windows/macOS: Platform-specific smoke tests (compatibility validation)
-  unit-tests:
-    name: Unit Tests - ${{ matrix.os }} Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
+  unit-tests-linux:
+    name: Unit Tests - Ubuntu Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
     needs: quality
-    timeout-minutes: 30  # Reduced from 60 - tests should not take this long
+    timeout-minutes: 30
     permissions:
       contents: read
-      checks: write  # For test reporting
+      checks: write
     
-    # PostgreSQL service container for database unit tests (Ubuntu only)
+    # PostgreSQL service container for database unit tests
     services:
       postgres:
         image: postgres:13
@@ -152,8 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.13"]  # Simplified to latest stable only for faster CI
+        python-version: ["3.13"]
 
     steps:
       - name: Record job start time
@@ -192,8 +191,7 @@ jobs:
       - name: Install Playwright browsers
         run: uv run playwright install chromium
         
-      - name: Run comprehensive unit tests with coverage (Ubuntu - primary validation)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Run comprehensive unit tests with coverage (Ubuntu with PostgreSQL)
         env:
           # PostgreSQL connection settings for database unit tests
           TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
@@ -215,19 +213,12 @@ jobs:
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
-      
-      - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
-        if: matrix.os != 'ubuntu-latest'
-        run: |
-          # Platform-specific tests: file handling, paths, OS-specific behavior
-          # Reduced test scope for faster feedback on platform compatibility
-          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py -k "not integration and not performance and not e2e and not database" --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-unit-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: test-results-unit-ubuntu-py${{ matrix.python-version }}
           path: |
             junit-unit*-${{ matrix.python-version }}.xml
             coverage.xml
@@ -235,13 +226,89 @@ jobs:
 
       - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
         uses: codecov/codecov-action@v3
-        if: matrix.python-version == env.PYTHON_VERSION && matrix.os == 'ubuntu-latest'
+        if: matrix.python-version == env.PYTHON_VERSION
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: unit-tests
           name: unit-tests-coverage
           fail_ci_if_error: false
+
+      - name: Calculate and report job duration
+        if: always()
+        run: |
+          end_time=$(date +%s)
+          duration=$((end_time - ${{ steps.start-time.outputs.start_time }}))
+          echo "::notice title=Unit Tests Duration (Ubuntu)::Unit tests completed in ${duration} seconds"
+        shell: bash
+
+  # Cross-platform compatibility tests (Windows/macOS)
+  unit-tests-cross-platform:
+    name: Unit Tests - ${{ matrix.os }} Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    needs: quality
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: write
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        python-version: ["3.13"]
+
+    steps:
+      - name: Record job start time
+        id: start-time
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-suffix: unit-tests-${{ matrix.os }}-${{ matrix.python-version }}
+
+      - name: Install dependencies with UV
+        run: uv sync --frozen --no-editable
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium
+        
+      - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
+        run: |
+          # Platform-specific tests: file handling, paths, OS-specific behavior
+          # Exclude database tests since PostgreSQL service containers are not available
+          # Reduced test scope for faster feedback on platform compatibility
+          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-unit-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: junit-unit*-${{ matrix.python-version }}.xml
+          retention-days: 30
 
       - name: Calculate and report job duration
         if: always()
