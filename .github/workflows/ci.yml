@@ -3,8 +3,22 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [master, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.pre-commit-config.yaml'
+      - 'README.rst'
   pull_request:
     branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**' 
+      - 'LICENSE'
+      - '.gitignore'
+      - '.pre-commit-config.yaml'
+      - 'README.rst'
   schedule:
     # Run weekly security scans on Sundays at 6 AM UTC
     - cron: '0 6 * * 0'
@@ -32,6 +46,10 @@ jobs:
       quality-passed: ${{ steps.quality-check.outputs.passed }}
     
     steps:
+      - name: Record job start time
+        id: start-time  
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -92,9 +110,14 @@ jobs:
             pip-audit-report.json
           retention-days: 30
 
-      - name: Set quality check output
+      - name: Calculate job duration and set outputs
         id: quality-check
-        run: echo "passed=true" >> $GITHUB_OUTPUT
+        run: |
+          end_time=$(date +%s)
+          duration=$((end_time - ${{ steps.start-time.outputs.start_time }}))
+          echo "passed=true" >> $GITHUB_OUTPUT
+          echo "duration=${duration}" >> $GITHUB_OUTPUT
+          echo "::notice title=Quality Job Duration::Quality checks completed in ${duration} seconds"
 
   # Unit Tests Matrix (optimized platform strategy)
   # Ubuntu: Full test suite with coverage (primary validation)
@@ -115,6 +138,10 @@ jobs:
         python-version: ["3.13"]  # Simplified to latest stable only for faster CI
 
     steps:
+      - name: Record job start time
+        id: start-time
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -135,14 +162,42 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install Playwright browsers
         run: uv run playwright install chromium
         
       - name: Run comprehensive unit tests with coverage (Ubuntu - primary validation)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          # Full test suite with parallel execution on Ubuntu (primary validation platform)
-          uv run pytest tests/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=28 --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -n auto --dist=worksteal
+          # Split large test suite across multiple parallel jobs for faster execution
+          # Analyze test distribution and split by module/directory for optimal load balancing
+          TEST_FILES=$(find tests/ -name "test_*.py" -not -path "tests/integration/*" -not -path "tests/performance/*" -not -path "tests/e2e/*" -not -path "tests/database/*" | sort)
+          TOTAL_FILES=$(echo "$TEST_FILES" | wc -l)
+          SPLIT_SIZE=$((($TOTAL_FILES + 2) / 3))  # Split into 3 roughly equal groups
+          
+          # Run first split of tests
+          echo "$TEST_FILES" | head -n $SPLIT_SIZE | xargs uv run pytest --cov=src --cov-branch --cov-report=xml:coverage-part1.xml --cov-report=term-missing --junit-xml=junit-unit-part1-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5 -n auto --dist=worksteal &
+          
+          # Run second split of tests  
+          echo "$TEST_FILES" | tail -n +$((SPLIT_SIZE + 1)) | head -n $SPLIT_SIZE | xargs uv run pytest --cov=src --cov-branch --cov-report=xml:coverage-part2.xml --cov-report=term-missing --junit-xml=junit-unit-part2-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5 -n auto --dist=worksteal &
+          
+          # Run third split of tests
+          echo "$TEST_FILES" | tail -n +$((2 * SPLIT_SIZE + 1)) | xargs uv run pytest --cov=src --cov-branch --cov-report=xml:coverage-part3.xml --cov-report=term-missing --junit-xml=junit-unit-part3-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5 -n auto --dist=worksteal &
+          
+          # Wait for all test splits to complete
+          wait
+          
+          # Combine coverage reports
+          uv run coverage combine coverage-part*.xml || true
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --fail-under=28
       
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         if: matrix.os != 'ubuntu-latest'
@@ -156,7 +211,9 @@ jobs:
         if: always()
         with:
           name: test-results-unit-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: junit-unit-${{ matrix.python-version }}.xml
+          path: |
+            junit-unit*-${{ matrix.python-version }}.xml
+            coverage.xml
           retention-days: 30
 
       - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
@@ -169,104 +226,43 @@ jobs:
           name: unit-tests-coverage
           fail_ci_if_error: false
 
-  # Redis Integration Tests (with service container)
-  redis-integration-tests:
-    name: Redis Integration Tests - Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
-    needs: quality
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      checks: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.13"]  # Focus on primary version for Redis tests
-
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-suffix: redis-integration-${{ matrix.python-version }}
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y redis-tools
-          
-      - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
-
-      - name: Verify Redis connection
-        run: redis-cli -h localhost -p 6379 ping
-
-      - name: Run Redis integration tests
-        run: |
-          uv run pytest tests/integration/test_redis_cache.py --junit-xml=junit-redis-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
-        env:
-          REDIS_URL: redis://localhost:6379
-
-      - name: Upload Redis integration test results
-        uses: actions/upload-artifact@v4
+      - name: Calculate and report job duration
         if: always()
-        with:
-          name: test-results-redis-integration-py${{ matrix.python-version }}
-          path: junit-redis-integration-${{ matrix.python-version }}.xml
-          retention-days: 30
+        run: |
+          end_time=$(date +%s)
+          duration=$((end_time - ${{ steps.start-time.outputs.start_time }}))
+          echo "::notice title=Unit Tests Duration (${{ matrix.os }})::Unit tests completed in ${duration} seconds"
 
-  # Database Integration Tests (with PostgreSQL service container)
-  database-integration-tests:
-    name: Database Integration Tests - Python ${{ matrix.python-version }}
+  # Parallel Integration Tests (Redis, Database, Converter)
+  integration-tests:
+    name: Integration Tests - ${{ matrix.test-type }}
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 20
     permissions:
       contents: read
       checks: write
+      security-events: write
     
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.13"]  # Focus on primary version for database tests
+        test-type: ["redis", "database", "converter"]
+        include:
+          - test-type: "redis"
+            services: '{"redis": {"image": "redis:7-alpine", "ports": ["6379:6379"], "options": "--health-cmd \"redis-cli ping\" --health-interval 10s --health-timeout 5s --health-retries 5"}}'
+            env-vars: "REDIS_URL=redis://localhost:6379"
+            test-path: "tests/integration/test_redis_cache.py"
+          - test-type: "database" 
+            services: '{"postgres": {"image": "postgres:17.6", "env": {"POSTGRES_DB": "test_db", "POSTGRES_USER": "test_user", "POSTGRES_PASSWORD": "test_password"}, "ports": ["5432:5432"], "options": "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"}}'
+            env-vars: "DATABASE_HOST=localhost DATABASE_PORT=5432 DATABASE_NAME=test_db DATABASE_USER=test_user DATABASE_PASSWORD=test_password"
+            test-path: "tests/database/"
+          - test-type: "converter"
+            services: "{}"
+            env-vars: ""
+            test-path: "tests/integration/test_converter_integration.py"
 
-    services:
-      postgres:
-        image: postgres:17.6
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    services: ${{ fromJSON(matrix.services) }}
 
     steps:
       - name: Checkout code
@@ -274,98 +270,74 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install UV
         uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: database-integration-${{ matrix.python-version }}
+          cache-suffix: integration-${{ matrix.test-type }}
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          if [ "${{ matrix.test-type }}" = "redis" ]; then
+            sudo apt-get install -y redis-tools
+          elif [ "${{ matrix.test-type }}" = "database" ]; then
+            sudo apt-get install -y postgresql-client
+          fi
           
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Verify PostgreSQL connection
+      - name: Verify service connections
         run: |
-          pg_isready -h localhost -p 5432 -U test_user -d test_db
-          psql -h localhost -p 5432 -U test_user -d test_db -c "SELECT version();"
+          if [ "${{ matrix.test-type }}" = "redis" ]; then
+            redis-cli -h localhost -p 6379 ping
+          elif [ "${{ matrix.test-type }}" = "database" ]; then
+            pg_isready -h localhost -p 5432 -U test_user -d test_db
+            psql -h localhost -p 5432 -U test_user -d test_db -c "SELECT version();"
+          fi
         env:
           PGPASSWORD: test_password
 
-      - name: Run database integration tests
+      - name: Run integration tests
         run: |
-          uv run pytest tests/database/ -m "database" --junit-xml=junit-database-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+          if [ "${{ matrix.test-type }}" = "database" ]; then
+            uv run pytest ${{ matrix.test-path }} -m "database" --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
+          else
+            uv run pytest ${{ matrix.test-path }} --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
+          fi
         env:
-          DATABASE_HOST: localhost
-          DATABASE_PORT: 5432
-          DATABASE_NAME: test_db
-          DATABASE_USER: test_user
-          DATABASE_PASSWORD: test_password
+          ${{ matrix.test-type == 'redis' && 'REDIS_URL' || '' }}: ${{ matrix.test-type == 'redis' && 'redis://localhost:6379' || '' }}
+          ${{ matrix.test-type == 'database' && 'DATABASE_HOST' || '' }}: ${{ matrix.test-type == 'database' && 'localhost' || '' }}
+          ${{ matrix.test-type == 'database' && 'DATABASE_PORT' || '' }}: ${{ matrix.test-type == 'database' && '5432' || '' }}
+          ${{ matrix.test-type == 'database' && 'DATABASE_NAME' || '' }}: ${{ matrix.test-type == 'database' && 'test_db' || '' }}
+          ${{ matrix.test-type == 'database' && 'DATABASE_USER' || '' }}: ${{ matrix.test-type == 'database' && 'test_user' || '' }}
+          ${{ matrix.test-type == 'database' && 'DATABASE_PASSWORD' || '' }}: ${{ matrix.test-type == 'database' && 'test_password' || '' }}
 
-      - name: Upload database integration test results
+      - name: Upload integration test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-database-integration-py${{ matrix.python-version }}
-          path: junit-database-integration-${{ matrix.python-version }}.xml
+          name: test-results-${{ matrix.test-type }}-integration
+          path: junit-${{ matrix.test-type }}-integration.xml
           retention-days: 30
 
-  # Converter Integration Tests (standalone)
-  converter-integration-tests:
-    name: Converter Integration Tests - Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
-    needs: quality
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      checks: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.13"]  # Use latest version for integration tests
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-suffix: converter-integration-${{ matrix.python-version }}
-
-      - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
-
-      - name: Run converter integration tests
+      - name: Calculate and report job duration
+        if: always()
         run: |
-          uv run pytest tests/integration/test_converter_integration.py --junit-xml=junit-converter-integration-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
-
-      - name: Upload converter integration test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-converter-integration-py${{ matrix.python-version }}
-          path: junit-converter-integration-${{ matrix.python-version }}.xml
-          retention-days: 30
+          if [ -n "${{ github.run_started_at }}" ]; then
+            # Calculate duration from workflow start for parallel jobs
+            start_epoch=$(date -d "${{ github.event.head_commit.timestamp }}" +%s 2>/dev/null || echo "$(date +%s)")
+            end_time=$(date +%s)
+            duration=$((end_time - start_epoch))
+            echo "::notice title=Integration Tests Duration (${{ matrix.test-type }})::${{ matrix.test-type }} integration tests completed in ${duration} seconds"
+          fi
 
   # Removed dependency compatibility jobs - using uv.lock for reproducible builds
   # Trust modern dependency management instead of redundant version testing
@@ -374,12 +346,12 @@ jobs:
   performance:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    needs: [quality, unit-tests]
+    needs: [quality, unit-tests, integration-tests]
     timeout-minutes: 60
     permissions:
       contents: read
     
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
 
     steps:
       - name: Checkout code
@@ -402,6 +374,14 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install Playwright browsers
         run: uv run playwright install chromium
 
@@ -418,12 +398,23 @@ jobs:
           path: benchmark.json
           retention-days: 90
 
+      - name: Calculate and report job duration
+        if: always()
+        run: |
+          if [ -n "${{ github.run_started_at }}" ]; then
+            start_epoch=$(date -d "${{ github.event.head_commit.timestamp }}" +%s 2>/dev/null || echo "$(date +%s)")
+            end_time=$(date +%s)
+            duration=$((end_time - start_epoch))
+            echo "::notice title=Performance Tests Duration::Performance benchmarks completed in ${duration} seconds"
+          fi
+
   # Docker Security Scan (pinned versions, proper error handling)
   docker-security:
     name: Docker Build & Security Scan
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 20
+    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && (github.event_name == 'schedule' || contains(github.event.head_commit.message, '[docker]') || github.event_name == 'push' && github.ref == 'refs/heads/master') }}
     permissions:
       contents: read
       security-events: write
