@@ -133,6 +133,22 @@ jobs:
       contents: read
       checks: write  # For test reporting
     
+    # PostgreSQL service container for database unit tests (Ubuntu only)
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     strategy:
       fail-fast: false
       matrix:
@@ -178,9 +194,13 @@ jobs:
         
       - name: Run comprehensive unit tests with coverage (Ubuntu - primary validation)
         if: matrix.os == 'ubuntu-latest'
+        env:
+          # PostgreSQL connection settings for database unit tests
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
         run: |
           # Run unit tests excluding integration tests, API tests (require database), and performance tests
-          # Include database unit tests but exclude API tests that require database connections
+          # Include database unit tests now that PostgreSQL service is available
           uv run pytest tests/ \
             --ignore=tests/integration/ \
             --ignore=tests/performance/ \
