@@ -343,10 +343,8 @@ class TestConcurrencyPerformance:
                         javascript_executed=False,
                     ),
                     ContentAnalysis(
-                        is_dynamic=False,
-                        confidence_score=0.1,
-                        fallback_strategy="standard"
-                    )
+                        is_dynamic=False, confidence_score=0.1, fallback_strategy="standard"
+                    ),
                 )
 
             # Mock render_page directly to avoid external HTTP requests
@@ -400,10 +398,8 @@ class TestConcurrencyPerformance:
                     javascript_executed=False,
                 ),
                 ContentAnalysis(
-                    is_dynamic=False,
-                    confidence_score=0.1,
-                    fallback_strategy="standard"
-                )
+                    is_dynamic=False, confidence_score=0.1, fallback_strategy="standard"
+                ),
             )
 
         # Mock render_page directly to avoid external HTTP requests
@@ -437,7 +433,9 @@ class TestConcurrencyPerformance:
                     successful_renders += 1
 
         # All renders should be successful since we're using mocks
-        assert successful_renders == num_urls, f"Only {successful_renders}/{num_urls} renders succeeded"
+        assert successful_renders == num_urls, (
+            f"Only {successful_renders}/{num_urls} renders succeeded"
+        )
 
         # Performance and reliability assertions
         success_rate = successful_renders / num_urls
