@@ -1,6 +1,5 @@
 """Tests for database base module."""
 
-
 import pytest
 from sqlalchemy import Column, DateTime, Integer, String, create_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
