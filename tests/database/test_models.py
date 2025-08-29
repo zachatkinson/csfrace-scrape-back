@@ -129,7 +129,7 @@ class TestDatabaseModels:
 
         assert batch.id is not None
         assert batch.status == JobStatus.PENDING
-        assert batch.max_concurrent == 3
+        assert batch.max_concurrent == 5
         assert batch.continue_on_error is True
         assert batch.total_jobs == 0
         assert batch.completed_jobs == 0
