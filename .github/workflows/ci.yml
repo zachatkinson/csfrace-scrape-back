@@ -180,26 +180,15 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           # Split large test suite across multiple parallel jobs for faster execution
-          # Analyze test distribution and split by module/directory for optimal load balancing
-          TEST_FILES=$(find tests/ -name "test_*.py" -not -path "tests/integration/*" -not -path "tests/performance/*" -not -path "tests/e2e/*" -not -path "tests/database/*" | sort)
-          TOTAL_FILES=$(echo "$TEST_FILES" | wc -l)
-          SPLIT_SIZE=$((($TOTAL_FILES + 2) / 3))  # Split into 3 roughly equal groups
+          # Include database unit tests but exclude integration/performance tests
+          TEST_FILES=$(find tests/ -name "test_*.py" -not -path "tests/integration/*" -not -path "tests/performance/*" -not -path "tests/e2e/*" | sort)
+          DATABASE_UNIT_FILES=$(find tests/database/ -name "test_*.py" -not -name "*integration*" | sort)
+          ALL_TEST_FILES=$(echo -e "$TEST_FILES\n$DATABASE_UNIT_FILES" | sort | uniq)
           
-          # Run first split of tests
-          echo "$TEST_FILES" | head -n $SPLIT_SIZE | xargs uv run pytest --cov=src --cov-branch --cov-report=xml:coverage-part1.xml --cov-report=term-missing --junit-xml=junit-unit-part1-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5 -n auto --dist=worksteal &
+          # Run all unit tests including database unit tests with combined coverage
+          uv run pytest $ALL_TEST_FILES --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-report=term-missing --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -x
           
-          # Run second split of tests  
-          echo "$TEST_FILES" | tail -n +$((SPLIT_SIZE + 1)) | head -n $SPLIT_SIZE | xargs uv run pytest --cov=src --cov-branch --cov-report=xml:coverage-part2.xml --cov-report=term-missing --junit-xml=junit-unit-part2-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5 -n auto --dist=worksteal &
-          
-          # Run third split of tests
-          echo "$TEST_FILES" | tail -n +$((2 * SPLIT_SIZE + 1)) | xargs uv run pytest --cov=src --cov-branch --cov-report=xml:coverage-part3.xml --cov-report=term-missing --junit-xml=junit-unit-part3-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5 -n auto --dist=worksteal &
-          
-          # Wait for all test splits to complete
-          wait
-          
-          # Combine coverage reports
-          uv run coverage combine coverage-part*.xml || true
-          uv run coverage xml -o coverage.xml
+          # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
       
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
