@@ -432,7 +432,7 @@ jobs:
   performance:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    needs: [quality, unit-tests, integration-tests]
+    needs: [quality, unit-tests-linux, unit-tests-cross-platform, integration-tests]
     timeout-minutes: 60
     permissions:
       contents: read
