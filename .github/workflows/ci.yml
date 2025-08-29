@@ -49,6 +49,7 @@ jobs:
       - name: Record job start time
         id: start-time  
         run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,6 +119,7 @@ jobs:
           echo "passed=true" >> $GITHUB_OUTPUT
           echo "duration=${duration}" >> $GITHUB_OUTPUT
           echo "::notice title=Quality Job Duration::Quality checks completed in ${duration} seconds"
+        shell: bash
 
   # Unit Tests Matrix (optimized platform strategy)
   # Ubuntu: Full test suite with coverage (primary validation)
@@ -141,6 +143,7 @@ jobs:
       - name: Record job start time
         id: start-time
         run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -232,6 +235,7 @@ jobs:
           end_time=$(date +%s)
           duration=$((end_time - ${{ steps.start-time.outputs.start_time }}))
           echo "::notice title=Unit Tests Duration (${{ matrix.os }})::Unit tests completed in ${duration} seconds"
+        shell: bash
 
   # Parallel Integration Tests (Redis, Database, Converter)
   integration-tests:
@@ -338,6 +342,7 @@ jobs:
             duration=$((end_time - start_epoch))
             echo "::notice title=Integration Tests Duration (${{ matrix.test-type }})::${{ matrix.test-type }} integration tests completed in ${duration} seconds"
           fi
+        shell: bash
 
   # Removed dependency compatibility jobs - using uv.lock for reproducible builds
   # Trust modern dependency management instead of redundant version testing
@@ -407,6 +412,7 @@ jobs:
             duration=$((end_time - start_epoch))
             echo "::notice title=Performance Tests Duration::Performance benchmarks completed in ${duration} seconds"
           fi
+        shell: bash
 
   # Docker Security Scan (pinned versions, proper error handling)
   docker-security:
