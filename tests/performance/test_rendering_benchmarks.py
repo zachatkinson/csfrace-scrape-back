@@ -325,37 +325,35 @@ class TestConcurrencyPerformance:
         """Test performance limits of concurrent rendering operations."""
         renderer = AdaptiveRenderer()
 
-        # Mock components
-        mock_detector = MagicMock()
-        mock_detector.analyze_html.return_value = ContentAnalysis(
-            is_dynamic=False, confidence_score=0.1, fallback_strategy="standard"
-        )
-        renderer.detector = mock_detector
-
-        mock_static_renderer = AsyncMock()
-        renderer._static_renderer = mock_static_renderer
-
         # Test different concurrency levels
         concurrency_levels = [1, 5, 10, 20]
         performance_results = {}
 
         for concurrency in concurrency_levels:
-            # Configure mock to simulate realistic delay
-            async def mock_render_with_delay(url, **kwargs):
+            # Mock the entire render_page method to avoid external dependencies
+            async def mock_render_page(url, **kwargs):
                 await asyncio.sleep(0.1)  # Simulate 100ms processing time
-                return RenderResult(
-                    html="<html>Test content</html>",
-                    url=url,
-                    status_code=200,
-                    final_url=url,
-                    load_time=0.1,
-                    javascript_executed=False,
+                return (
+                    RenderResult(
+                        html="<html>Test content</html>",
+                        url=url,
+                        status_code=200,
+                        final_url=url,
+                        load_time=0.1,
+                        javascript_executed=False,
+                    ),
+                    ContentAnalysis(
+                        is_dynamic=False,
+                        confidence_score=0.1,
+                        fallback_strategy="standard"
+                    )
                 )
 
-            mock_static_renderer.render_page.side_effect = mock_render_with_delay
+            # Mock render_page directly to avoid external HTTP requests
+            renderer.render_page = mock_render_page
 
             # Generate URLs for testing
-            urls = [f"https://example.com/page{i}" for i in range(10)]
+            urls = [f"https://test-domain.example/page{i}" for i in range(10)]
 
             # Measure concurrent rendering time
             start_time = time.time()
@@ -382,39 +380,38 @@ class TestConcurrencyPerformance:
         """Stress test the rendering system with high load."""
         renderer = AdaptiveRenderer()
 
-        # Mock components with realistic behavior
-        mock_detector = MagicMock()
-        mock_detector.analyze_html.return_value = ContentAnalysis(
-            is_dynamic=False, confidence_score=0.1, fallback_strategy="standard"
-        )
-        renderer.detector = mock_detector
-
         # Simulate varying response times
         response_times = [0.05, 0.1, 0.2, 0.15, 0.08]  # Mix of fast and slow responses
         call_count = 0
 
-        async def mock_render_varying_speed(url, **kwargs):
+        async def mock_render_page(url, **kwargs):
             nonlocal call_count
             delay = response_times[call_count % len(response_times)]
             await asyncio.sleep(delay)
             call_count += 1
 
-            return RenderResult(
-                html=f"<html>Content for {url}</html>",
-                url=url,
-                status_code=200,
-                final_url=url,
-                load_time=delay,
-                javascript_executed=False,
+            return (
+                RenderResult(
+                    html=f"<html>Content for {url}</html>",
+                    url=url,
+                    status_code=200,
+                    final_url=url,
+                    load_time=delay,
+                    javascript_executed=False,
+                ),
+                ContentAnalysis(
+                    is_dynamic=False,
+                    confidence_score=0.1,
+                    fallback_strategy="standard"
+                )
             )
 
-        mock_static_renderer = AsyncMock()
-        mock_static_renderer.render_page.side_effect = mock_render_varying_speed
-        renderer._static_renderer = mock_static_renderer
+        # Mock render_page directly to avoid external HTTP requests
+        renderer.render_page = mock_render_page
 
         # Generate large number of URLs for stress testing
         num_urls = 50
-        urls = [f"https://example.com/stress-test/{i}" for i in range(num_urls)]
+        urls = [f"https://test-domain.example/stress-test/{i}" for i in range(num_urls)]
 
         # Measure memory before stress test
         gc.collect()
@@ -438,6 +435,9 @@ class TestConcurrencyPerformance:
                 result, analysis = results[url]
                 if result.status_code == 200:
                     successful_renders += 1
+        
+        # All renders should be successful since we're using mocks
+        assert successful_renders == num_urls, f"Only {successful_renders}/{num_urls} renders succeeded"
 
         # Performance and reliability assertions
         success_rate = successful_renders / num_urls
