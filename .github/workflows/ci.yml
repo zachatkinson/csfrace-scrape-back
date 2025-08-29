@@ -179,14 +179,19 @@ jobs:
       - name: Run comprehensive unit tests with coverage (Ubuntu - primary validation)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          # Split large test suite across multiple parallel jobs for faster execution
-          # Include database unit tests but exclude integration/performance tests
-          TEST_FILES=$(find tests/ -name "test_*.py" -not -path "tests/integration/*" -not -path "tests/performance/*" -not -path "tests/e2e/*" | sort)
-          DATABASE_UNIT_FILES=$(find tests/database/ -name "test_*.py" -not -name "*integration*" | sort)
-          ALL_TEST_FILES=$(echo -e "$TEST_FILES\n$DATABASE_UNIT_FILES" | sort | uniq)
-          
-          # Run all unit tests including database unit tests with combined coverage
-          uv run pytest $ALL_TEST_FILES --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-report=term-missing --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10 -x
+          # Run unit tests excluding integration tests, API tests (require database), and performance tests
+          # Include database unit tests but exclude API tests that require database connections
+          uv run pytest tests/ \
+            --ignore=tests/integration/ \
+            --ignore=tests/performance/ \
+            --ignore=tests/e2e/ \
+            --ignore=tests/api/ \
+            --cov=src \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
+            -v --tb=short --maxfail=10 -x
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
