@@ -461,6 +461,14 @@ class TestDatabaseBaseEdgeCases:
 class TestDatabaseBaseIntegration:
     """Integration tests for database base functionality."""
 
+    def _get_test_db_url(self):
+        """Get PostgreSQL test database URL."""
+        # Use environment variables or default PostgreSQL test configuration
+        return os.getenv(
+            "TEST_DATABASE_URL",
+            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        )
+
     def test_base_with_real_models(self):
         """Test Base with models similar to actual application models."""
         from datetime import datetime, timezone
