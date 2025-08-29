@@ -45,13 +45,28 @@ class TestDatabaseServiceComprehensive:
                 return service
 
     @pytest.fixture
-    def real_service(self):
+    def real_service(self, monkeypatch):
         """Create a real database service for integration tests."""
-        # Use in-memory SQLite for fast tests
-        os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+        # Check if we're in CI environment with PostgreSQL
+        if os.environ.get("DATABASE_HOST") == "localhost" and os.environ.get("DATABASE_USER") == "test_user":
+            # In CI, skip tests that require real database as they're tested separately
+            pytest.skip("Skipping real database tests in CI - tested in dedicated integration tests")
+        
+        # For local testing, use in-memory SQLite for fast tests
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+        
+        # Need to reload the models module to pick up the new DATABASE_URL
+        import importlib
+        import src.database.models
+        importlib.reload(src.database.models)
+        
+        # Now create the service with the SQLite database
+        from src.database.service import DatabaseService
+        
         service = DatabaseService(echo=False)
         service.initialize_database()
         yield service
+        
         # Clean up
         if hasattr(service, "engine"):
             service.engine.dispose()
