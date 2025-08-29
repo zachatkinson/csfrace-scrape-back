@@ -1,7 +1,6 @@
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
-from sqlalchemy import pool
 
 from alembic import context
 
@@ -66,13 +65,13 @@ def run_migrations_online() -> None:
     """
     # Use PostgreSQL-optimized connection configuration
     configuration = config.get_section(config.config_ini_section, {})
-    
+
     # Add PostgreSQL-specific connection arguments for migrations
     configuration["sqlalchemy.connect_args"] = {
         "connect_timeout": 10,
         "application_name": "csfrace-scraper-migrations",
     }
-    
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
@@ -83,7 +82,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, 
+            connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
