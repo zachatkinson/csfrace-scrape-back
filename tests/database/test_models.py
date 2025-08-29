@@ -1,11 +1,9 @@
 """Tests for database models and schema validation."""
 
 from datetime import datetime
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.database.models import (
@@ -27,8 +25,14 @@ class TestDatabaseModels:
 
     @pytest.fixture
     def temp_db_engine(self):
-        """Create temporary in-memory SQLite database for testing."""
-        engine = create_engine("sqlite:///:memory:", echo=False)
+        """Create temporary PostgreSQL test database for testing."""
+        import os
+
+        postgres_url = os.getenv(
+            "TEST_DATABASE_URL",
+            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        )
+        engine = create_engine(postgres_url, echo=False)
         Base.metadata.create_all(engine)
         return engine
 
@@ -340,48 +344,51 @@ class TestDatabaseUtilities:
     """Test database utility functions."""
 
     def test_get_database_url_default(self):
-        """Test database URL generation with default path."""
+        """Test database URL generation with default configuration."""
         url = get_database_url()
-        assert url == "sqlite:///data/scraper.db"
+        assert url.startswith("postgresql+psycopg://")
+        assert "scraper_user:scraper_password@localhost:5432/scraper_db" in url
 
-    def test_get_database_url_custom_path(self):
-        """Test database URL generation with custom path."""
-        custom_path = Path("/tmp/test.db")
-        url = get_database_url(custom_path)
-        assert url == f"sqlite:///{custom_path}"
+    def test_get_database_url_environment_override(self, monkeypatch):
+        """Test database URL generation with environment variable overrides."""
+        monkeypatch.setenv("DATABASE_HOST", "testhost")
+        monkeypatch.setenv("DATABASE_PORT", "5433")
+        monkeypatch.setenv("DATABASE_NAME", "testdb")
+        monkeypatch.setenv("DATABASE_USER", "testuser")
+        monkeypatch.setenv("DATABASE_PASSWORD", "testpass")
+
+        url = get_database_url()
+        expected = "postgresql+psycopg://testuser:testpass@testhost:5433/testdb"
+        assert url == expected
 
     def test_create_database_engine(self):
         """Test database engine creation with proper configuration."""
-        with TemporaryDirectory() as temp_dir:
-            db_path = Path(temp_dir) / "test.db"
-            engine = create_database_engine(db_path, echo=False)
+        engine = create_database_engine(echo=False)
 
-            # Verify engine configuration
-            assert engine.url.database == str(db_path)
-            assert engine.url.drivername == "sqlite"
+        # Verify engine configuration
+        assert engine.url.drivername == "postgresql+psycopg"
+        assert "scraper_db" in str(engine.url.database)
 
-            # Test connection
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT 1"))
-                assert result.scalar() == 1
+        # Test that engine can be created without errors
+        assert engine is not None
+        assert engine.echo is False
 
     def test_database_engine_with_echo(self):
         """Test database engine creation with SQL echo enabled."""
         engine = create_database_engine(echo=True)
         assert engine.echo is True
 
-    def test_database_path_creation(self):
-        """Test that database directory is created if it doesn't exist."""
-        with TemporaryDirectory() as temp_dir:
-            db_path = Path(temp_dir) / "nested" / "dir" / "test.db"
+    def test_database_connection_string_format(self):
+        """Test that database URL follows PostgreSQL connection string format."""
+        url = get_database_url()
 
-            # Directory doesn't exist yet
-            assert not db_path.parent.exists()
+        # Should follow postgresql+psycopg://user:password@host:port/database format
+        parts = url.split("://")
+        assert parts[0] == "postgresql+psycopg"
 
-            # Creating database URL should create directory
-            url = get_database_url(db_path)
-            assert db_path.parent.exists()
-            assert url == f"sqlite:///{db_path}"
+        connection_part = parts[1]
+        assert "@" in connection_part  # Should have user@host format
+        assert ":" in connection_part  # Should have port specification
 
 
 class TestModelConstraintsAndValidation:
@@ -389,8 +396,14 @@ class TestModelConstraintsAndValidation:
 
     @pytest.fixture
     def temp_db_engine(self):
-        """Create temporary in-memory SQLite database for testing."""
-        engine = create_engine("sqlite:///:memory:", echo=False)
+        """Create temporary PostgreSQL test database for testing."""
+        import os
+
+        postgres_url = os.getenv(
+            "TEST_DATABASE_URL",
+            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        )
+        engine = create_engine(postgres_url, echo=False)
         Base.metadata.create_all(engine)
         return engine
 

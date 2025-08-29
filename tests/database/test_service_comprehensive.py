@@ -57,8 +57,10 @@ class TestDatabaseServiceComprehensive:
                 "Skipping real database tests in CI - tested in dedicated integration tests"
             )
 
-        # For local testing, use in-memory SQLite for fast tests
-        monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+        # For local testing, use PostgreSQL test database
+        monkeypatch.setenv(
+            "DATABASE_URL", "postgresql+psycopg://test_user:test_password@localhost:5432/test_db"
+        )
 
         # Need to reload the models module to pick up the new DATABASE_URL
         import importlib
@@ -67,7 +69,7 @@ class TestDatabaseServiceComprehensive:
 
         importlib.reload(src.database.models)
 
-        # Now create the service with the SQLite database
+        # Now create the service with the PostgreSQL test database
         from src.database.service import DatabaseService
 
         service = DatabaseService(echo=False)

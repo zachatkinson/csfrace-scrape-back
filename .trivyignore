@@ -47,12 +47,6 @@ CVE-2023-2953
 # Library: libpam-modules, libpam-modules-bin, libpam-runtime, libpam0g 1.5.2-6+deb12u1
 CVE-2025-6020
 
-# CVE-2025-6965, CVE-2025-7458 - SQLite vulnerabilities
-# Justification: Integer truncation and overflow vulnerabilities
-# Risk: LOW - SQLite used read-only for local data, not exposed to web input
-# Library: libsqlite3-0 3.40.1-2+deb12u1
-CVE-2025-6965
-CVE-2025-7458
 
 # CVE-2023-31484 - Perl vulnerability
 # Justification: CPAN.pm TLS certificate verification issue

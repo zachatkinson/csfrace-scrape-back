@@ -8,7 +8,7 @@
       "url": "https://example.com/test",
       "status": "failed",
       "output_dir": "batch_output/example-com_test",
-      "duration": 0.00018862495198845863,
+      "duration": 7.087504491209984e-05,
       "error": "Test error"
     }
   ],

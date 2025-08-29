@@ -1,5 +1,7 @@
 """Tests for database base module."""
 
+import os
+
 import pytest
 from sqlalchemy import Column, DateTime, Integer, String, create_engine, text
 from sqlalchemy.ext.declarative import DeclarativeMeta
@@ -10,6 +12,14 @@ from src.database.base import Base
 
 class TestDatabaseBase:
     """Test cases for database base functionality."""
+
+    def _get_test_db_url(self):
+        """Get PostgreSQL test database URL."""
+        # Use environment variables or default PostgreSQL test configuration
+        return os.getenv(
+            "TEST_DATABASE_URL",
+            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        )
 
     def test_base_exists(self):
         """Test that Base is defined and accessible."""
@@ -60,8 +70,9 @@ class TestDatabaseBase:
 
     def test_base_create_all(self):
         """Test creating tables using Base.metadata.create_all."""
-        # Create in-memory SQLite database for testing
-        engine = create_engine("sqlite:///:memory:")
+        # Create PostgreSQL test database
+        postgres_url = self._get_test_db_url()
+        engine = create_engine(postgres_url)
 
         # Create a test model
         class CreateAllTest(Base):
@@ -78,7 +89,7 @@ class TestDatabaseBase:
                 # Try to query the table (will fail if it doesn't exist)
                 result = conn.execute(
                     text(
-                        "SELECT name FROM sqlite_master WHERE type='table' AND name='create_all_test'"
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='create_all_test'"
                     )
                 )
                 tables = result.fetchall()
@@ -92,8 +103,9 @@ class TestDatabaseBase:
 
     def test_base_drop_all(self):
         """Test dropping tables using Base.metadata.drop_all."""
-        # Create in-memory SQLite database for testing
-        engine = create_engine("sqlite:///:memory:")
+        # Create PostgreSQL test database
+        postgres_url = self._get_test_db_url()
+        engine = create_engine(postgres_url)
 
         # Create a test model
         class DropAllTest(Base):
@@ -111,7 +123,7 @@ class TestDatabaseBase:
             with engine.connect() as conn:
                 result = conn.execute(
                     text(
-                        "SELECT name FROM sqlite_master WHERE type='table' AND name='drop_all_test'"
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='drop_all_test'"
                     )
                 )
                 tables = result.fetchall()
@@ -125,7 +137,8 @@ class TestDatabaseBase:
     def test_base_with_session(self):
         """Test using Base-derived models with SQLAlchemy sessions."""
         # Create in-memory database
-        engine = create_engine("sqlite:///:memory:")
+        postgres_url = self._get_test_db_url()
+        engine = create_engine(postgres_url)
         Session = sessionmaker(bind=engine)
 
         # Create test model
@@ -208,7 +221,8 @@ class TestDatabaseBase:
             assert hasattr(Child, "parent")
 
             # Test with in-memory database
-            engine = create_engine("sqlite:///:memory:")
+            postgres_url = self._get_test_db_url()
+            engine = create_engine(postgres_url)
             Base.metadata.create_all(engine)
 
             Session = sessionmaker(bind=engine)
@@ -257,7 +271,8 @@ class TestDatabaseBase:
             assert ComplexModel.__tablename__ == "complex_model"
 
             # Test with database
-            engine = create_engine("sqlite:///:memory:")
+            postgres_url = self._get_test_db_url()
+            engine = create_engine(postgres_url)
             Base.metadata.create_all(engine)
 
             Session = sessionmaker(bind=engine)
@@ -355,7 +370,8 @@ class TestDatabaseBaseEdgeCases:
 
     def test_base_with_invalid_tablename(self):
         """Test behavior with invalid table names."""
-        engine = create_engine("sqlite:///:memory:")
+        postgres_url = self._get_test_db_url()
+        engine = create_engine(postgres_url)
 
         class InvalidTable(Base):
             __tablename__ = ""  # Empty tablename should cause issues
@@ -402,7 +418,8 @@ class TestDatabaseBaseEdgeCases:
 
     def test_base_metadata_bound_engine(self):
         """Test Base.metadata with bound engine."""
-        engine = create_engine("sqlite:///:memory:")
+        postgres_url = self._get_test_db_url()
+        engine = create_engine(postgres_url)
 
         # Bind metadata to engine
         Base.metadata.bind = engine
@@ -418,7 +435,9 @@ class TestDatabaseBaseEdgeCases:
             # Verify table exists
             with engine.connect() as conn:
                 result = conn.execute(
-                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='bound_test'")
+                    text(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='bound_test'"
+                    )
                 )
                 tables = result.fetchall()
                 assert len(tables) == 1
@@ -456,7 +475,8 @@ class TestDatabaseBaseIntegration:
 
         try:
             # Test database operations
-            engine = create_engine("sqlite:///:memory:")
+            postgres_url = self._get_test_db_url()
+            engine = create_engine(postgres_url)
             Base.metadata.create_all(engine)
 
             Session = sessionmaker(bind=engine)

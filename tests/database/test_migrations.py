@@ -34,7 +34,7 @@ class TestMigrationManager:
             # Create minimal alembic.ini
             config_content = """[alembic]
 script_location = alembic
-sqlalchemy.url = sqlite:///test.db
+sqlalchemy.url = postgresql+psycopg://test_user:test_password@localhost:5432/test_db
 """
             config_file.write_text(config_content)
 
