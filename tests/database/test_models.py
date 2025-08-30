@@ -21,33 +21,15 @@ from src.database.models import (
 
 
 class TestDatabaseModels:
-    """Test database model definitions and relationships."""
+    """Test database model definitions and relationships using Testcontainers.
 
-    @pytest.fixture
-    def temp_db_engine(self):
-        """Create temporary PostgreSQL test database for testing."""
-        import os
+    Following 2025 best practices:
+    - Use real PostgreSQL instead of mocks for higher confidence
+    - Testcontainers provide automatic container lifecycle management
+    - No more skipping tests when database unavailable
+    """
 
-        postgres_url = (
-            os.getenv("TEST_DATABASE_URL")
-            or os.getenv("DATABASE_URL")
-            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
-        )
-        engine = create_engine(postgres_url, echo=False)
-        Base.metadata.create_all(engine)
-        return engine
-
-    @pytest.fixture
-    def db_session(self, temp_db_engine):
-        """Create database session for testing."""
-        SessionLocal = sessionmaker(bind=temp_db_engine)
-        session = SessionLocal()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    def test_scraping_job_model_creation(self, db_session):
+    def test_scraping_job_model_creation(self, postgres_session):
         """Test ScrapingJob model creation with required fields."""
         job = ScrapingJob(
             url="https://example.com/test-post",
@@ -56,8 +38,8 @@ class TestDatabaseModels:
             output_directory="/tmp/output",
         )
 
-        db_session.add(job)
-        db_session.commit()
+        postgres_session.add(job)
+        postgres_session.commit()
 
         # Verify job was created with correct defaults
         assert job.id is not None
@@ -69,7 +51,7 @@ class TestDatabaseModels:
         assert job.created_at is not None
         assert isinstance(job.created_at, datetime)
 
-    def test_scraping_job_properties(self, db_session):
+    def test_scraping_job_properties(self, postgres_session):
         """Test ScrapingJob computed properties."""
         job = ScrapingJob(
             url="https://example.com/test",
@@ -96,7 +78,7 @@ class TestDatabaseModels:
         job.status = JobStatus.RUNNING
         assert not job.is_finished
 
-    def test_scraping_job_can_retry_property(self, db_session):
+    def test_scraping_job_can_retry_property(self, postgres_session):
         """Test ScrapingJob can_retry property logic."""
         job = ScrapingJob(
             url="https://example.com/test",
@@ -117,7 +99,7 @@ class TestDatabaseModels:
         job.retry_count = 3
         assert not job.can_retry
 
-    def test_batch_model_creation(self, db_session):
+    def test_batch_model_creation(self, postgres_session):
         """Test Batch model creation and defaults."""
         batch = Batch(
             name="Test Batch",
@@ -125,8 +107,8 @@ class TestDatabaseModels:
             output_base_directory="/tmp/batch_output",
         )
 
-        db_session.add(batch)
-        db_session.commit()
+        postgres_session.add(batch)
+        postgres_session.commit()
 
         assert batch.id is not None
         assert batch.status == JobStatus.PENDING
@@ -138,7 +120,7 @@ class TestDatabaseModels:
         assert batch.skipped_jobs == 0
         assert batch.created_at is not None
 
-    def test_batch_success_rate_property(self, db_session):
+    def test_batch_success_rate_property(self, postgres_session):
         """Test Batch success_rate property calculation."""
         batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
 
@@ -154,12 +136,12 @@ class TestDatabaseModels:
         batch.completed_jobs = 10
         assert batch.success_rate == 1.0
 
-    def test_job_batch_relationship(self, db_session):
+    def test_job_batch_relationship(self, postgres_session):
         """Test relationship between jobs and batches."""
         # Create batch
         batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
-        db_session.add(batch)
-        db_session.flush()
+        postgres_session.add(batch)
+        postgres_session.flush()
 
         # Create jobs in batch
         job1 = ScrapingJob(
@@ -175,16 +157,16 @@ class TestDatabaseModels:
             batch_id=batch.id,
         )
 
-        db_session.add_all([job1, job2])
-        db_session.commit()
+        postgres_session.add_all([job1, job2])
+        postgres_session.commit()
 
         # Test relationships
-        db_session.refresh(batch)
+        postgres_session.refresh(batch)
         assert len(batch.jobs) == 2
         assert job1.batch == batch
         assert job2.batch == batch
 
-    def test_content_result_model(self, db_session):
+    def test_content_result_model(self, postgres_session):
         """Test ContentResult model creation and relationships."""
         # Create job first
         job = ScrapingJob(
@@ -192,8 +174,8 @@ class TestDatabaseModels:
             domain="example.com",
             output_directory="/tmp/output",
         )
-        db_session.add(job)
-        db_session.flush()
+        postgres_session.add(job)
+        postgres_session.flush()
 
         # Create content result
         content = ContentResult(
@@ -204,8 +186,8 @@ class TestDatabaseModels:
             word_count=100,
             image_count=5,
         )
-        db_session.add(content)
-        db_session.commit()
+        postgres_session.add(content)
+        postgres_session.commit()
 
         # Verify creation and relationships
         assert content.id is not None
@@ -214,11 +196,11 @@ class TestDatabaseModels:
         assert content.updated_at is not None
 
         # Test job relationship
-        db_session.refresh(job)
+        postgres_session.refresh(job)
         assert len(job.content_results) == 1
         assert job.content_results[0] == content
 
-    def test_job_log_model(self, db_session):
+    def test_job_log_model(self, postgres_session):
         """Test JobLog model creation and relationships."""
         # Create job first
         job = ScrapingJob(
@@ -226,8 +208,8 @@ class TestDatabaseModels:
             domain="example.com",
             output_directory="/tmp/output",
         )
-        db_session.add(job)
-        db_session.flush()
+        postgres_session.add(job)
+        postgres_session.flush()
 
         # Create log entries
         log1 = JobLog(
@@ -246,8 +228,8 @@ class TestDatabaseModels:
             exception_type="ProcessingError",
         )
 
-        db_session.add_all([log1, log2])
-        db_session.commit()
+        postgres_session.add_all([log1, log2])
+        postgres_session.commit()
 
         # Verify creation and relationships
         assert log1.id is not None
@@ -256,10 +238,10 @@ class TestDatabaseModels:
         assert log2.job == job
 
         # Test job relationship
-        db_session.refresh(job)
+        postgres_session.refresh(job)
         assert len(job.job_logs) == 2
 
-    def test_system_metrics_model(self, db_session):
+    def test_system_metrics_model(self, postgres_session):
         """Test SystemMetrics model creation and data types."""
         metrics = [
             SystemMetrics(
@@ -284,8 +266,8 @@ class TestDatabaseModels:
             ),
         ]
 
-        db_session.add_all(metrics)
-        db_session.commit()
+        postgres_session.add_all(metrics)
+        postgres_session.commit()
 
         # Verify all metrics were created
         for metric in metrics:
@@ -309,12 +291,12 @@ class TestDatabaseModels:
         assert JobPriority.HIGH.value == "high"
         assert JobPriority.URGENT.value == "urgent"
 
-    def test_cascade_deletion(self, db_session):
+    def test_cascade_deletion(self, postgres_session):
         """Test cascade deletion of related records."""
         # Create batch with jobs
         batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
-        db_session.add(batch)
-        db_session.flush()
+        postgres_session.add(batch)
+        postgres_session.flush()
 
         job = ScrapingJob(
             url="https://example.com/test",
@@ -322,14 +304,14 @@ class TestDatabaseModels:
             output_directory="/tmp/output",
             batch_id=batch.id,
         )
-        db_session.add(job)
-        db_session.flush()
+        postgres_session.add(job)
+        postgres_session.flush()
 
         # Add content result and log
         content = ContentResult(job_id=job.id, title="Test")
         log_entry = JobLog(job_id=job.id, level="INFO", message="Test log")
-        db_session.add_all([content, log_entry])
-        db_session.commit()
+        postgres_session.add_all([content, log_entry])
+        postgres_session.commit()
 
         # Store IDs before deletion (objects will be detached after cascade deletion)
         batch_id = batch.id
@@ -338,13 +320,13 @@ class TestDatabaseModels:
         log_entry_id = log_entry.id
 
         # Delete batch - should cascade to jobs and their related data
-        db_session.delete(batch)
-        db_session.commit()
+        postgres_session.delete(batch)
+        postgres_session.commit()
 
         # Verify cascade deletion using stored IDs
-        assert db_session.get(ScrapingJob, job_id) is None
-        assert db_session.get(ContentResult, content_id) is None
-        assert db_session.get(JobLog, log_entry_id) is None
+        assert postgres_session.get(ScrapingJob, job_id) is None
+        assert postgres_session.get(ContentResult, content_id) is None
+        assert postgres_session.get(JobLog, log_entry_id) is None
 
 
 class TestDatabaseUtilities:
@@ -421,7 +403,7 @@ class TestModelConstraintsAndValidation:
         return engine
 
     @pytest.fixture
-    def db_session(self, temp_db_engine):
+    def postgres_session(self, temp_db_engine):
         """Create database session for testing."""
         SessionLocal = sessionmaker(bind=temp_db_engine)
         session = SessionLocal()
@@ -430,15 +412,15 @@ class TestModelConstraintsAndValidation:
         finally:
             session.close()
 
-    def test_required_fields_validation(self, db_session):
+    def test_required_fields_validation(self, postgres_session):
         """Test that required fields are enforced."""
         # ScrapingJob missing required url
         with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError or similar
             job = ScrapingJob(domain="example.com", output_directory="/tmp/output")
-            db_session.add(job)
-            db_session.commit()
+            postgres_session.add(job)
+            postgres_session.commit()
 
-    def test_string_length_limits(self, db_session):
+    def test_string_length_limits(self, postgres_session):
         """Test string field length constraints."""
         # Test very long URL (should work up to 2048 chars)
         long_url = "https://example.com/" + "a" * 2000
@@ -447,21 +429,21 @@ class TestModelConstraintsAndValidation:
             domain="example.com",
             output_directory="/tmp/output",
         )
-        db_session.add(job)
-        db_session.commit()
+        postgres_session.add(job)
+        postgres_session.commit()
 
         assert job.id is not None
         assert job.url == long_url
 
-    def test_datetime_defaults(self, db_session):
+    def test_datetime_defaults(self, postgres_session):
         """Test that datetime fields have proper defaults."""
         job = ScrapingJob(
             url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
         )
-        db_session.add(job)
-        db_session.commit()
+        postgres_session.add(job)
+        postgres_session.commit()
 
         # created_at should be set automatically
         assert job.created_at is not None
@@ -472,7 +454,7 @@ class TestModelConstraintsAndValidation:
         assert job.completed_at is None
         assert job.next_retry_at is None
 
-    def test_json_field_storage(self, db_session):
+    def test_json_field_storage(self, postgres_session):
         """Test JSON field storage and retrieval."""
         test_config = {
             "max_concurrent_downloads": 10,
@@ -489,16 +471,16 @@ class TestModelConstraintsAndValidation:
             output_directory="/tmp/output",
             converter_config=test_config,
         )
-        db_session.add(job)
-        db_session.commit()
+        postgres_session.add(job)
+        postgres_session.commit()
 
         # Retrieve and verify JSON data
-        db_session.refresh(job)
+        postgres_session.refresh(job)
         assert job.converter_config == test_config
         assert job.converter_config["max_concurrent_downloads"] == 10
         assert job.converter_config["custom_settings"]["nested"]["value"] is True
 
-    def test_foreign_key_constraints(self, db_session):
+    def test_foreign_key_constraints(self, postgres_session):
         """Test foreign key relationships and constraints."""
         # Create job without batch (should work)
         job1 = ScrapingJob(
@@ -506,14 +488,14 @@ class TestModelConstraintsAndValidation:
             domain="example.com",
             output_directory="/tmp/output",
         )
-        db_session.add(job1)
-        db_session.commit()
+        postgres_session.add(job1)
+        postgres_session.commit()
         assert job1.batch_id is None
 
         # Create batch and job with relationship
         batch = Batch(name="Test Batch", output_base_directory="/tmp/batch")
-        db_session.add(batch)
-        db_session.flush()
+        postgres_session.add(batch)
+        postgres_session.flush()
 
         job2 = ScrapingJob(
             url="https://example.com/test2",
@@ -521,8 +503,8 @@ class TestModelConstraintsAndValidation:
             output_directory="/tmp/output",
             batch_id=batch.id,
         )
-        db_session.add(job2)
-        db_session.commit()
+        postgres_session.add(job2)
+        postgres_session.commit()
 
         assert job2.batch_id == batch.id
         assert job2.batch == batch

@@ -48,11 +48,25 @@ class DatabaseService:
             expire_on_commit=False,  # Keep objects accessible after commit
         )
 
-        logger.info(
-            "Initialized PostgreSQL database service",
-            database_url=self.engine.url.render_as_string(hide_password=True),
-            echo=echo,
+    @classmethod
+    def _create_with_engine(cls, engine):
+        """Create DatabaseService with existing engine (for testcontainers).
+
+        Args:
+            engine: Existing SQLAlchemy engine
+
+        Returns:
+            DatabaseService instance using the provided engine
+        """
+        service = cls.__new__(cls)  # Create instance without calling __init__
+        service.engine = engine
+        service.SessionLocal = sessionmaker(
+            bind=engine,
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
         )
+        return service
 
     def initialize_database(self) -> None:
         """Create all database tables.
