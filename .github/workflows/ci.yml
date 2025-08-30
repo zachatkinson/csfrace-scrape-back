@@ -67,7 +67,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: quality
+          cache-suffix: quality-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
@@ -175,7 +175,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: unit-tests-${{ matrix.os }}-${{ matrix.python-version }}
+          cache-suffix: unit-linux-${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
@@ -197,19 +197,21 @@ jobs:
           TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
         run: |
-          # Run unit tests excluding integration tests, API tests (require database), and performance tests
+          # Run unit tests with parallel execution for faster feedback
           # Include database unit tests now that PostgreSQL service is available
           uv run pytest tests/ \
             --ignore=tests/integration/ \
             --ignore=tests/performance/ \
             --ignore=tests/e2e/ \
             --ignore=tests/api/ \
+            -n auto \
+            --dist=worksteal \
             --cov=src \
             --cov-branch \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
             --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
-            -v --tb=short --maxfail=10 -x
+            -v --tb=short --maxfail=10
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
@@ -279,7 +281,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: unit-tests-${{ matrix.os }}-${{ matrix.python-version }}
+          cache-suffix: unit-cross-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
@@ -297,10 +299,14 @@ jobs:
         
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         run: |
-          # Platform-specific tests: file handling, paths, OS-specific behavior
+          # Platform-specific tests with parallel execution
           # Exclude database tests since PostgreSQL service containers are not available
           # Reduced test scope for faster feedback on platform compatibility
-          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ \
+            -k "not integration and not performance and not e2e and not database" \
+            -n auto --dist=worksteal \
+            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
+            -v --tb=short --maxfail=5
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -365,7 +371,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: integration-${{ matrix.test-type }}
+          cache-suffix: integration-${{ matrix.test-type }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install system dependencies
         run: |
@@ -455,7 +461,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: performance
+          cache-suffix: performance-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable

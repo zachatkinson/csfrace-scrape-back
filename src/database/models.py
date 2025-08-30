@@ -117,7 +117,9 @@ class ScrapingJob(Base):
     archive_size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
 
     # Relationships
-    batch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("batches.id"), index=True)
+    batch_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("batches.id", ondelete="CASCADE"), index=True
+    )
     batch: Mapped[Optional["Batch"]] = relationship("Batch", back_populates="jobs")
 
     content_results: Mapped[list["ContentResult"]] = relationship(
