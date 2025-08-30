@@ -196,22 +196,16 @@ jobs:
           # PostgreSQL connection settings for database unit tests
           TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
+          # Override default credentials to match service container
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_NAME: test_db
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
         run: |
           # Run unit tests with parallel execution for faster feedback
           # Include database unit tests now that PostgreSQL service is available
-          uv run pytest tests/ \
-            --ignore=tests/integration/ \
-            --ignore=tests/performance/ \
-            --ignore=tests/e2e/ \
-            --ignore=tests/api/ \
-            -n auto \
-            --dist=worksteal \
-            --cov=src \
-            --cov-branch \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
-            -v --tb=short --maxfail=10
+          uv run pytest tests/ --ignore=tests/integration/ --ignore=tests/performance/ --ignore=tests/e2e/ --ignore=tests/api/ -n auto --dist=worksteal --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-report=term-missing --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=10
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
@@ -302,11 +296,7 @@ jobs:
           # Platform-specific tests with parallel execution
           # Exclude database tests since PostgreSQL service containers are not available
           # Reduced test scope for faster feedback on platform compatibility
-          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ \
-            -k "not integration and not performance and not e2e and not database" \
-            -n auto --dist=worksteal \
-            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
-            -v --tb=short --maxfail=5
+          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" -n auto --dist=worksteal --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
