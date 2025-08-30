@@ -16,9 +16,10 @@ class TestDatabaseBase:
     def _get_test_db_url(self):
         """Get PostgreSQL test database URL."""
         # Use environment variables or default PostgreSQL test configuration
-        return os.getenv(
-            "TEST_DATABASE_URL",
-            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        return (
+            os.getenv("TEST_DATABASE_URL")
+            or os.getenv("DATABASE_URL")
+            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
     def test_base_exists(self):
@@ -371,9 +372,10 @@ class TestDatabaseBaseEdgeCases:
     def _get_test_db_url(self):
         """Get PostgreSQL test database URL."""
         # Use environment variables or default PostgreSQL test configuration
-        return os.getenv(
-            "TEST_DATABASE_URL",
-            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        return (
+            os.getenv("TEST_DATABASE_URL")
+            or os.getenv("DATABASE_URL")
+            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
     def test_base_with_invalid_tablename(self):
@@ -464,9 +466,10 @@ class TestDatabaseBaseIntegration:
     def _get_test_db_url(self):
         """Get PostgreSQL test database URL."""
         # Use environment variables or default PostgreSQL test configuration
-        return os.getenv(
-            "TEST_DATABASE_URL",
-            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        return (
+            os.getenv("TEST_DATABASE_URL")
+            or os.getenv("DATABASE_URL")
+            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
     def test_base_with_real_models(self):

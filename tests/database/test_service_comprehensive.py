@@ -47,20 +47,14 @@ class TestDatabaseServiceComprehensive:
     @pytest.fixture
     def real_service(self, monkeypatch):
         """Create a real database service for integration tests."""
-        # Check if we're in CI environment with PostgreSQL
-        if (
-            os.environ.get("DATABASE_HOST") == "localhost"
-            and os.environ.get("DATABASE_USER") == "test_user"
-        ):
-            # In CI, skip tests that require real database as they're tested separately
-            pytest.skip(
-                "Skipping real database tests in CI - tested in dedicated integration tests"
-            )
+        # Always use environment variables - no hardcoded credentials (CLAUDE.md compliance)
+        db_url = os.environ.get("DATABASE_URL") or os.environ.get("TEST_DATABASE_URL")
 
-        # For local testing, use PostgreSQL test database
-        monkeypatch.setenv(
-            "DATABASE_URL", "postgresql+psycopg://test_user:test_password@localhost:5432/test_db"
-        )
+        if not db_url:
+            pytest.skip("Skipping real database tests - DATABASE_URL or TEST_DATABASE_URL not set")
+
+        # Use the environment-provided database URL
+        monkeypatch.setenv("DATABASE_URL", db_url)
 
         # Need to reload the models module to pick up the new DATABASE_URL
         import importlib

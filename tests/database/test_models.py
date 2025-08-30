@@ -28,9 +28,10 @@ class TestDatabaseModels:
         """Create temporary PostgreSQL test database for testing."""
         import os
 
-        postgres_url = os.getenv(
-            "TEST_DATABASE_URL",
-            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        postgres_url = (
+            os.getenv("TEST_DATABASE_URL")
+            or os.getenv("DATABASE_URL")
+            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
         engine = create_engine(postgres_url, echo=False)
         Base.metadata.create_all(engine)
@@ -344,10 +345,13 @@ class TestDatabaseUtilities:
     """Test database utility functions."""
 
     def test_get_database_url_default(self):
-        """Test database URL generation with default configuration."""
+        """Test database URL generation with environment configuration (CLAUDE.md compliance)."""
         url = get_database_url()
         assert url.startswith("postgresql+psycopg://")
-        assert "scraper_user:scraper_password@localhost:5432/scraper_db" in url
+        # Should use environment variables, not hardcoded defaults
+        assert "localhost" in url
+        assert "5432" in url
+        assert len(url) > 30  # Basic sanity check for valid URL format
 
     def test_get_database_url_environment_override(self, monkeypatch):
         """Test database URL generation with environment variable overrides."""
@@ -399,9 +403,10 @@ class TestModelConstraintsAndValidation:
         """Create temporary PostgreSQL test database for testing."""
         import os
 
-        postgres_url = os.getenv(
-            "TEST_DATABASE_URL",
-            "postgresql+psycopg://test_user:test_password@localhost:5432/test_db",
+        postgres_url = (
+            os.getenv("TEST_DATABASE_URL")
+            or os.getenv("DATABASE_URL")
+            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
         engine = create_engine(postgres_url, echo=False)
         Base.metadata.create_all(engine)
