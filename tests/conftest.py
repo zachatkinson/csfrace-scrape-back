@@ -68,6 +68,82 @@ def postgres_container():
             yield postgres
 
 
+@pytest.fixture(scope="session")
+def postgres_engine(postgres_container):
+    """Create SQLAlchemy engine connected to test container.
+
+    Following DRY principles - reuses existing postgres_container fixture.
+    """
+    from sqlalchemy import create_engine
+
+    from src.database.models import Base
+
+    if hasattr(postgres_container, "host"):
+        # CI container (our custom CIPostgresContainer class)
+        db_url = f"postgresql+psycopg://{postgres_container.username}:{postgres_container.password}@{postgres_container.host}:{postgres_container.port}/{postgres_container.dbname}"
+    else:
+        # Testcontainer (actual PostgresContainer from testcontainers library)
+        # Get connection details and build URL with psycopg driver
+        host = postgres_container.get_container_host_ip()
+        port = postgres_container.get_exposed_port(5432)
+        username = postgres_container.username or "test"
+        password = postgres_container.password or "test"
+        dbname = postgres_container.dbname or "test"
+        db_url = f"postgresql+psycopg://{username}:{password}@{host}:{port}/{dbname}"
+
+    engine = create_engine(db_url, echo=False)
+    Base.metadata.create_all(engine)
+
+    yield engine
+
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+@pytest.fixture
+def postgres_session(postgres_engine):
+    """Create database session with automatic cleanup between tests."""
+    from sqlalchemy import text
+    from sqlalchemy.orm import sessionmaker
+
+    SessionLocal = sessionmaker(bind=postgres_engine)
+    session = SessionLocal()
+
+    try:
+        yield session
+    finally:
+        session.rollback()
+
+        # Clean tables between tests
+        with postgres_engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                SELECT tablename FROM pg_tables
+                WHERE schemaname = 'public'
+                AND tablename != 'alembic_version'
+            """)
+            )
+            tables = [row[0] for row in result]
+
+            if tables:
+                conn.execute(text("SET session_replication_role = 'replica'"))
+                for table in tables:
+                    conn.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
+                conn.execute(text("SET session_replication_role = 'origin'"))
+                conn.commit()
+
+        session.close()
+
+
+@pytest.fixture
+def testcontainers_db_service(postgres_engine):
+    """Create DatabaseService instance using test container."""
+    from src.database.service import DatabaseService
+
+    service = DatabaseService._create_with_engine(postgres_engine)
+    yield service
+
+
 @pytest.fixture
 def mock_aiohttp_session():
     """Mock aiohttp session for testing."""
