@@ -3,7 +3,7 @@
 import os
 
 import pytest
-from sqlalchemy import Column, DateTime, Integer, String, create_engine, text
+from sqlalchemy import Column, DateTime, Integer, String, text
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker
 
@@ -69,11 +69,10 @@ class TestDatabaseBase:
         # Clean up by removing the table from metadata
         Base.metadata.remove(Base.metadata.tables["simple_model"])
 
-    def test_base_create_all(self):
+    def test_base_create_all(self, postgres_engine):
         """Test creating tables using Base.metadata.create_all."""
-        # Create PostgreSQL test database
-        postgres_url = self._get_test_db_url()
-        engine = create_engine(postgres_url)
+        # Use the postgres_engine fixture instead of creating our own
+        engine = postgres_engine
 
         # Create a test model
         class CreateAllTest(Base):
@@ -100,13 +99,12 @@ class TestDatabaseBase:
         finally:
             # Clean up
             Base.metadata.remove(Base.metadata.tables["create_all_test"])
-            engine.dispose()
+            postgres_engine.dispose()
 
-    def test_base_drop_all(self):
+    def test_base_drop_all(self, postgres_engine):
         """Test dropping tables using Base.metadata.drop_all."""
-        # Create PostgreSQL test database
-        postgres_url = self._get_test_db_url()
-        engine = create_engine(postgres_url)
+        # Use the postgres_engine fixture instead of creating our own
+        engine = postgres_engine
 
         # Create a test model
         class DropAllTest(Base):
@@ -133,13 +131,12 @@ class TestDatabaseBase:
         finally:
             # Clean up metadata
             Base.metadata.remove(Base.metadata.tables["drop_all_test"])
-            engine.dispose()
+            postgres_engine.dispose()
 
-    def test_base_with_session(self):
+    def test_base_with_session(self, postgres_engine):
         """Test using Base-derived models with SQLAlchemy sessions."""
-        # Create in-memory database
-        postgres_url = self._get_test_db_url()
-        engine = create_engine(postgres_url)
+        # Use the postgres_engine fixture
+        engine = postgres_engine
         Session = sessionmaker(bind=engine)
 
         # Create test model
@@ -170,7 +167,7 @@ class TestDatabaseBase:
         finally:
             # Clean up
             Base.metadata.remove(Base.metadata.tables["session_test"])
-            engine.dispose()
+            postgres_engine.dispose()
 
     def test_base_table_inheritance(self):
         """Test that multiple models can inherit from Base."""
@@ -199,7 +196,7 @@ class TestDatabaseBase:
             if "model2" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables["model2"])
 
-    def test_base_with_relationships(self):
+    def test_base_with_relationships(self, postgres_engine):
         """Test Base with models that have relationships."""
         from sqlalchemy import ForeignKey
         from sqlalchemy.orm import relationship
@@ -221,12 +218,10 @@ class TestDatabaseBase:
             assert hasattr(Parent, "children")
             assert hasattr(Child, "parent")
 
-            # Test with in-memory database
-            postgres_url = self._get_test_db_url()
-            engine = create_engine(postgres_url)
-            Base.metadata.create_all(engine)
+            # Use the provided engine
+            Base.metadata.create_all(postgres_engine)
 
-            Session = sessionmaker(bind=engine)
+            Session = sessionmaker(bind=postgres_engine)
             session = Session()
 
             # Create parent and child
@@ -243,7 +238,7 @@ class TestDatabaseBase:
             assert queried_parent.children[0].parent == queried_parent
 
             session.close()
-            engine.dispose()
+            postgres_engine.dispose()
 
         finally:
             # Clean up
@@ -251,7 +246,7 @@ class TestDatabaseBase:
                 if table_name in Base.metadata.tables:
                     Base.metadata.remove(Base.metadata.tables[table_name])
 
-    def test_base_with_complex_columns(self):
+    def test_base_with_complex_columns(self, postgres_engine):
         """Test Base with various column types and constraints."""
         from datetime import datetime, timezone
 
@@ -271,12 +266,10 @@ class TestDatabaseBase:
             # Should create without error
             assert ComplexModel.__tablename__ == "complex_model"
 
-            # Test with database
-            postgres_url = self._get_test_db_url()
-            engine = create_engine(postgres_url)
-            Base.metadata.create_all(engine)
+            # Use the provided engine
+            Base.metadata.create_all(postgres_engine)
 
-            Session = sessionmaker(bind=engine)
+            Session = sessionmaker(bind=postgres_engine)
             session = Session()
 
             # Create instance
@@ -293,7 +286,7 @@ class TestDatabaseBase:
             assert queried.created_at is not None
 
             session.close()
-            engine.dispose()
+            postgres_engine.dispose()
 
         finally:
             if "complex_model" in Base.metadata.tables:
@@ -378,10 +371,9 @@ class TestDatabaseBaseEdgeCases:
             or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
-    def test_base_with_invalid_tablename(self):
+    def test_base_with_invalid_tablename(self, postgres_engine):
         """Test behavior with invalid table names."""
-        postgres_url = self._get_test_db_url()
-        engine = create_engine(postgres_url)
+        engine = postgres_engine
 
         class InvalidTable(Base):
             __tablename__ = ""  # Empty tablename should cause issues
@@ -395,7 +387,7 @@ class TestDatabaseBaseEdgeCases:
             # Clean up the problematic table from metadata
             if "" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables[""])
-            engine.dispose()
+            postgres_engine.dispose()
 
     def test_base_without_primary_key(self):
         """Test model without primary key."""
@@ -426,10 +418,9 @@ class TestDatabaseBaseEdgeCases:
             if "duplicate_name" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables["duplicate_name"])
 
-    def test_base_metadata_bound_engine(self):
+    def test_base_metadata_bound_engine(self, postgres_engine):
         """Test Base.metadata with bound engine."""
-        postgres_url = self._get_test_db_url()
-        engine = create_engine(postgres_url)
+        engine = postgres_engine
 
         # Bind metadata to engine
         Base.metadata.bind = engine
@@ -457,7 +448,7 @@ class TestDatabaseBaseEdgeCases:
             Base.metadata.bind = None
             if "bound_test" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables["bound_test"])
-            engine.dispose()
+            postgres_engine.dispose()
 
 
 class TestDatabaseBaseIntegration:
@@ -472,7 +463,7 @@ class TestDatabaseBaseIntegration:
             or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
-    def test_base_with_real_models(self):
+    def test_base_with_real_models(self, postgres_engine):
         """Test Base with models similar to actual application models."""
         from datetime import datetime, timezone
 
@@ -494,11 +485,9 @@ class TestDatabaseBaseIntegration:
 
         try:
             # Test database operations
-            postgres_url = self._get_test_db_url()
-            engine = create_engine(postgres_url)
-            Base.metadata.create_all(engine)
+            Base.metadata.create_all(postgres_engine)
 
-            Session = sessionmaker(bind=engine)
+            Session = sessionmaker(bind=postgres_engine)
             session = Session()
 
             # Create and save job
@@ -524,7 +513,7 @@ class TestDatabaseBaseIntegration:
             assert updated_job.status == "completed"
 
             session.close()
-            engine.dispose()
+            postgres_engine.dispose()
 
         finally:
             if "integration_jobs" in Base.metadata.tables:

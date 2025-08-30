@@ -138,10 +138,49 @@ def postgres_session(postgres_engine):
 @pytest.fixture
 def testcontainers_db_service(postgres_engine):
     """Create DatabaseService instance using test container."""
+    from sqlalchemy import text
+
     from src.database.service import DatabaseService
 
     service = DatabaseService._create_with_engine(postgres_engine)
+
+    # Ensure clean state before test
+    with postgres_engine.connect() as conn:
+        result = conn.execute(
+            text("""
+            SELECT tablename FROM pg_tables
+            WHERE schemaname = 'public'
+            AND tablename != 'alembic_version'
+        """)
+        )
+        tables = [row[0] for row in result]
+
+        if tables:
+            conn.execute(text("SET session_replication_role = 'replica'"))
+            for table in tables:
+                conn.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
+            conn.execute(text("SET session_replication_role = 'origin'"))
+            conn.commit()
+
     yield service
+
+    # Clean up after test
+    with postgres_engine.connect() as conn:
+        result = conn.execute(
+            text("""
+            SELECT tablename FROM pg_tables
+            WHERE schemaname = 'public'
+            AND tablename != 'alembic_version'
+        """)
+        )
+        tables = [row[0] for row in result]
+
+        if tables:
+            conn.execute(text("SET session_replication_role = 'replica'"))
+            for table in tables:
+                conn.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
+            conn.execute(text("SET session_replication_role = 'origin'"))
+            conn.commit()
 
 
 @pytest.fixture
@@ -364,6 +403,7 @@ async def mock_redis_cache():
 # Test markers
 def pytest_configure(config):
     """Configure custom pytest markers."""
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )

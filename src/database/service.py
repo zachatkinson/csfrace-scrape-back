@@ -387,12 +387,26 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
+                # Extract valid Batch model fields from config
+                valid_batch_fields = {
+                    "max_concurrent",
+                    "continue_on_error",
+                    "create_archives",
+                    "cleanup_after_archive",
+                    "total_jobs",
+                    "completed_jobs",
+                    "failed_jobs",
+                    "skipped_jobs",
+                    "summary_data",
+                }
+                batch_model_params = {k: v for k, v in config.items() if k in valid_batch_fields}
+
                 batch = Batch(
                     name=name,
                     description=description,
                     output_base_directory=output_base_directory,
-                    batch_config=config,
-                    **config,  # Pass config parameters directly to model
+                    batch_config=config,  # Store all config parameters in JSON field
+                    **batch_model_params,  # Only pass valid model fields directly
                 )
 
                 session.add(batch)

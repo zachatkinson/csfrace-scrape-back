@@ -3,11 +3,8 @@
 from datetime import datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from src.database.models import (
-    Base,
     Batch,
     ContentResult,
     JobLog,
@@ -387,30 +384,6 @@ class TestDatabaseUtilities:
 
 class TestModelConstraintsAndValidation:
     """Test model constraints and data validation."""
-
-    @pytest.fixture
-    def temp_db_engine(self):
-        """Create temporary PostgreSQL test database for testing."""
-        import os
-
-        postgres_url = (
-            os.getenv("TEST_DATABASE_URL")
-            or os.getenv("DATABASE_URL")
-            or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
-        )
-        engine = create_engine(postgres_url, echo=False)
-        Base.metadata.create_all(engine)
-        return engine
-
-    @pytest.fixture
-    def postgres_session(self, temp_db_engine):
-        """Create database session for testing."""
-        SessionLocal = sessionmaker(bind=temp_db_engine)
-        session = SessionLocal()
-        try:
-            yield session
-        finally:
-            session.close()
 
     def test_required_fields_validation(self, postgres_session):
         """Test that required fields are enforced."""
