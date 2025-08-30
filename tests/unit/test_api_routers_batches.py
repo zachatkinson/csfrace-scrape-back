@@ -131,9 +131,39 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_batches_success(self, mock_db_session):
         """Test successful batch listing."""
+        from datetime import datetime, timezone
+
         batches = [
-            Batch(id=1, name="Batch 1", total_jobs=5),
-            Batch(id=2, name="Batch 2", total_jobs=3),
+            Batch(
+                id=1,
+                name="Batch 1",
+                status=JobStatus.PENDING,
+                created_at=datetime.now(timezone.utc),
+                max_concurrent=10,
+                continue_on_error=True,
+                output_base_directory="test_output",
+                create_archives=False,
+                cleanup_after_archive=False,
+                total_jobs=5,
+                completed_jobs=0,
+                failed_jobs=0,
+                skipped_jobs=0,
+            ),
+            Batch(
+                id=2,
+                name="Batch 2",
+                status=JobStatus.RUNNING,
+                created_at=datetime.now(timezone.utc),
+                max_concurrent=10,
+                continue_on_error=True,
+                output_base_directory="test_output",
+                create_archives=False,
+                cleanup_after_archive=False,
+                total_jobs=3,
+                completed_jobs=0,
+                failed_jobs=0,
+                skipped_jobs=0,
+            ),
         ]
 
         with patch(
