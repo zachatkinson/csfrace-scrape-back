@@ -331,14 +331,20 @@ class TestDatabaseModels:
         db_session.add_all([content, log_entry])
         db_session.commit()
 
+        # Store IDs before deletion (objects will be detached after cascade deletion)
+        batch_id = batch.id
+        job_id = job.id
+        content_id = content.id
+        log_entry_id = log_entry.id
+
         # Delete batch - should cascade to jobs and their related data
         db_session.delete(batch)
         db_session.commit()
 
-        # Verify cascade deletion
-        assert db_session.get(ScrapingJob, job.id) is None
-        assert db_session.get(ContentResult, content.id) is None
-        assert db_session.get(JobLog, log_entry.id) is None
+        # Verify cascade deletion using stored IDs
+        assert db_session.get(ScrapingJob, job_id) is None
+        assert db_session.get(ContentResult, content_id) is None
+        assert db_session.get(JobLog, log_entry_id) is None
 
 
 class TestDatabaseUtilities:
@@ -369,9 +375,11 @@ class TestDatabaseUtilities:
         """Test database engine creation with proper configuration."""
         engine = create_database_engine(echo=False)
 
-        # Verify engine configuration
+        # Verify engine configuration (CLAUDE.md compliance - use environment values)
         assert engine.url.drivername == "postgresql+psycopg"
-        assert "scraper_db" in str(engine.url.database)
+        # Database name comes from environment variables, not hardcoded values
+        assert engine.url.database is not None
+        assert len(str(engine.url.database)) > 0
 
         # Test that engine can be created without errors
         assert engine is not None
