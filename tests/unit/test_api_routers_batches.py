@@ -59,9 +59,9 @@ class TestBatchRouterEndpoints:
     def sample_batch_with_jobs(self, sample_batch):
         """Sample Batch with associated jobs."""
         from datetime import datetime, timezone
-        
+
         from src.database.models import JobPriority
-        
+
         job1 = ScrapingJob(
             id=1,
             url="https://example.com/page1",
@@ -154,21 +154,24 @@ class TestBatchRouterEndpoints:
     async def test_list_batches_pagination_calculation(self, mock_db_session):
         """Test pagination calculation in batch listing."""
         from datetime import datetime, timezone
-        batches = [Batch(
-            id=1, 
-            name="Batch 1", 
-            status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
-            max_concurrent=10,
-            continue_on_error=True,
-            output_base_directory="test_output",
-            create_archives=False,
-            cleanup_after_archive=False,
-            total_jobs=1,
-            completed_jobs=0,
-            failed_jobs=0,
-            skipped_jobs=0,
-        )]
+
+        batches = [
+            Batch(
+                id=1,
+                name="Batch 1",
+                status=JobStatus.PENDING,
+                created_at=datetime.now(timezone.utc),
+                max_concurrent=10,
+                continue_on_error=True,
+                output_base_directory="test_output",
+                create_archives=False,
+                cleanup_after_archive=False,
+                total_jobs=1,
+                completed_jobs=0,
+                failed_jobs=0,
+                skipped_jobs=0,
+            )
+        ]
 
         with patch("src.api.routers.batches.BatchCRUD.get_batches", return_value=(batches, 47)):
             result = await list_batches(mock_db_session, page=3, page_size=15)
@@ -254,21 +257,25 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_batches_single_page(self, mock_db_session):
         """Test batch listing with single page result."""
-        batches = [Batch(
-            id=1, 
-            name="Single Batch", 
-            status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
-            max_concurrent=10,
-            continue_on_error=True,
-            output_base_directory="test_output",
-            create_archives=False,
-            cleanup_after_archive=False,
-            total_jobs=1,
-            completed_jobs=0,
-            failed_jobs=0,
-            skipped_jobs=0,
-        )]
+        from datetime import datetime, timezone
+
+        batches = [
+            Batch(
+                id=1,
+                name="Single Batch",
+                status=JobStatus.PENDING,
+                created_at=datetime.now(timezone.utc),
+                max_concurrent=10,
+                continue_on_error=True,
+                output_base_directory="test_output",
+                create_archives=False,
+                cleanup_after_archive=False,
+                total_jobs=1,
+                completed_jobs=0,
+                failed_jobs=0,
+                skipped_jobs=0,
+            )
+        ]
 
         with patch("src.api.routers.batches.BatchCRUD.get_batches", return_value=(batches, 1)):
             result = await list_batches(mock_db_session, page=1, page_size=50)
@@ -311,21 +318,25 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_batch_list_response_validation(self, mock_db_session):
         """Test BatchListResponse model validation."""
-        batches = [Batch(
-            id=1, 
-            name="Test", 
-            status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
-            max_concurrent=10,
-            continue_on_error=True,
-            output_base_directory="test_output",
-            create_archives=False,
-            cleanup_after_archive=False,
-            total_jobs=1,
-            completed_jobs=0,
-            failed_jobs=0,
-            skipped_jobs=0,
-        )]
+        from datetime import datetime, timezone
+
+        batches = [
+            Batch(
+                id=1,
+                name="Test",
+                status=JobStatus.PENDING,
+                created_at=datetime.now(timezone.utc),
+                max_concurrent=10,
+                continue_on_error=True,
+                output_base_directory="test_output",
+                create_archives=False,
+                cleanup_after_archive=False,
+                total_jobs=1,
+                completed_jobs=0,
+                failed_jobs=0,
+                skipped_jobs=0,
+            )
+        ]
 
         with patch("src.api.routers.batches.BatchCRUD.get_batches", return_value=(batches, 1)):
             result = await list_batches(mock_db_session, page=1, page_size=50)
@@ -504,7 +515,7 @@ class TestBatchRouterEndpoints:
         """Test handling of model validation during response creation."""
         # Create batch with potentially problematic data
         from datetime import datetime, timezone
-        
+
         batch_with_none_values = Batch(
             id=1,
             name="Test Batch",

@@ -719,6 +719,7 @@ class TestCRUDIntegration:
             # Create realistic job instances
             def create_job_side_effect(db, job_data):
                 from datetime import datetime, timezone
+
                 job = ScrapingJob(
                     url=str(job_data.url),
                     domain="example.com",

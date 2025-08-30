@@ -93,12 +93,12 @@ class TestJobRouterEndpoints:
     async def test_list_jobs_success(self, mock_db_session):
         """Test successful job listing."""
         from datetime import datetime, timezone
-        
+
         jobs = [
             ScrapingJob(
-                id=1, 
-                url="https://test1.com", 
-                domain="test1.com", 
+                id=1,
+                url="https://test1.com",
+                domain="test1.com",
                 slug="test1",
                 status=JobStatus.PENDING,
                 priority=JobPriority.NORMAL,
@@ -112,9 +112,9 @@ class TestJobRouterEndpoints:
                 images_downloaded=0,
             ),
             ScrapingJob(
-                id=2, 
-                url="https://test2.com", 
-                domain="test2.com", 
+                id=2,
+                url="https://test2.com",
+                domain="test2.com",
                 slug="test2",
                 status=JobStatus.PENDING,
                 priority=JobPriority.NORMAL,
@@ -155,23 +155,25 @@ class TestJobRouterEndpoints:
     async def test_list_jobs_pagination_calculation(self, mock_db_session):
         """Test pagination calculation in job listing."""
         from datetime import datetime, timezone
-        
-        jobs = [ScrapingJob(
-            id=1, 
-            url="https://test.com", 
-            domain="test.com", 
-            slug="test",
-            status=JobStatus.PENDING,
-            priority=JobPriority.NORMAL,
-            created_at=datetime.now(timezone.utc),
-            retry_count=0,
-            max_retries=3,
-            timeout_seconds=30,
-            output_directory="converted_content/test",
-            skip_existing=False,
-            success=False,
-            images_downloaded=0,
-        )]
+
+        jobs = [
+            ScrapingJob(
+                id=1,
+                url="https://test.com",
+                domain="test.com",
+                slug="test",
+                status=JobStatus.PENDING,
+                priority=JobPriority.NORMAL,
+                created_at=datetime.now(timezone.utc),
+                retry_count=0,
+                max_retries=3,
+                timeout_seconds=30,
+                output_directory="converted_content/test",
+                skip_existing=False,
+                success=False,
+                images_downloaded=0,
+            )
+        ]
 
         with patch("src.api.routers.jobs.JobCRUD.get_jobs", return_value=(jobs, 25)):
             result = await list_jobs(mock_db_session, page=2, page_size=10)
@@ -298,7 +300,6 @@ class TestJobRouterEndpoints:
         """Test successful job start."""
         sample_job.status = JobStatus.PENDING
         # Create a copy of the job with updated status
-        from datetime import datetime, timezone
         updated_job = ScrapingJob(
             id=sample_job.id,
             url=sample_job.url,
@@ -574,23 +575,25 @@ class TestJobRouterEndpoints:
     async def test_job_list_response_validation(self, mock_db_session):
         """Test that JobListResponse validation works correctly."""
         from datetime import datetime, timezone
-        
-        jobs = [ScrapingJob(
-            id=1, 
-            url="https://test.com", 
-            domain="test.com", 
-            slug="test",
-            status=JobStatus.PENDING,
-            priority=JobPriority.NORMAL,
-            created_at=datetime.now(timezone.utc),
-            retry_count=0,
-            max_retries=3,
-            timeout_seconds=30,
-            output_directory="converted_content/test",
-            skip_existing=False,
-            success=False,
-            images_downloaded=0,
-        )]
+
+        jobs = [
+            ScrapingJob(
+                id=1,
+                url="https://test.com",
+                domain="test.com",
+                slug="test",
+                status=JobStatus.PENDING,
+                priority=JobPriority.NORMAL,
+                created_at=datetime.now(timezone.utc),
+                retry_count=0,
+                max_retries=3,
+                timeout_seconds=30,
+                output_directory="converted_content/test",
+                skip_existing=False,
+                success=False,
+                images_downloaded=0,
+            )
+        ]
 
         with patch("src.api.routers.jobs.JobCRUD.get_jobs", return_value=(jobs, 1)):
             result = await list_jobs(mock_db_session, page=1, page_size=50)

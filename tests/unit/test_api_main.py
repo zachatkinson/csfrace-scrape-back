@@ -24,11 +24,10 @@ class TestFastAPIApp:
         """Test that CORS middleware is properly configured."""
         # Check that CORS middleware is in the middleware stack
         middleware_stack = app.user_middleware
-        
+
         # Check if any middleware is CORS-related
         cors_present = any(
-            "cors" in str(middleware_item).lower()
-            for middleware_item in middleware_stack
+            "cors" in str(middleware_item).lower() for middleware_item in middleware_stack
         )
         assert cors_present
 
@@ -49,7 +48,7 @@ class TestFastAPIApp:
         job_routes = [route for route in routes if "/jobs" in route]
         assert len(job_routes) > 0
 
-        # Check batch routes  
+        # Check batch routes
         batch_routes = [route for route in routes if "/batches" in route]
         assert len(batch_routes) > 0
 
@@ -219,8 +218,7 @@ class TestAppIntegration:
 
         # Check if any middleware is CORS-related by name
         cors_present = any(
-            "cors" in str(middleware_item).lower()
-            for middleware_item in middleware_stack
+            "cors" in str(middleware_item).lower() for middleware_item in middleware_stack
         )
         assert cors_present
 
