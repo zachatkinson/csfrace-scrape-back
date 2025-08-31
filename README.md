@@ -17,7 +17,7 @@ A high-performance, async Python application that converts WordPress blog conten
 - 📊 **Rich Monitoring**: Comprehensive metrics, logging, and observability
 
 ### Web Interface
-- 🌐 **Modern Frontend**: Astro-based web interface with React components
+- 🌐 **Modern Frontend**: [Separate Astro frontend](https://github.com/zachatkinson/csfrace-scrape-front) with React 19 & Tailwind CSS
 - 🔐 **User Authentication**: Secure login system with job history
 - 📋 **Job Management**: Real-time status updates and artifact downloads
 - 📈 **Analytics Dashboard**: Usage statistics and performance metrics
@@ -446,6 +446,11 @@ test(core): add edge case tests for URL validation
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Related Repositories
+
+- **[csfrace-scrape-front](https://github.com/zachatkinson/csfrace-scrape-front)** - Modern Astro/React frontend with Tailwind CSS
+- **[csfrace-scrape](https://github.com/zachatkinson/csfrace-scrape)** - Backend API and scraping engine (this repository)
 
 ## 🙏 Acknowledgments
 
