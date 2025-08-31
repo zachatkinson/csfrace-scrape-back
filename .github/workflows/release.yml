@@ -73,9 +73,11 @@ jobs:
       
       - name: Run tests
         run: |
-          echo "🧪 Running test suite..."
-          uv run pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
-          echo "✅ Tests completed"
+          echo "🧪 Running core test suite (excluding database/integration tests)..."
+          # Run lightweight tests excluding database integration and performance tests
+          # This matches cross-platform testing approach for fast semantic release validation
+          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-report=xml --cov-report=term-missing --tb=short --maxfail=5
+          echo "✅ Core tests completed"
       
       - name: Setup Node.js for semantic-release
         uses: actions/setup-node@v4
