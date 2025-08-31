@@ -71,7 +71,7 @@ async def root() -> dict[str, Any]:
     """Root endpoint with API information."""
     return {
         "message": "CSFrace Scraper API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "docs": "/docs",
         "health": "/health",
     }
