@@ -544,11 +544,26 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_cancel_job_valid_statuses(self, mock_db_session):
         """Test that jobs in valid statuses can be cancelled."""
+        from datetime import datetime, timezone
+
         valid_statuses = [JobStatus.PENDING, JobStatus.RUNNING]
 
         for valid_status in valid_statuses:
             job = ScrapingJob(
-                id=1, url="https://test.com", domain="test.com", slug="test", status=valid_status
+                id=1,
+                url="https://test.com",
+                domain="test.com",
+                slug="test",
+                status=valid_status,
+                priority=JobPriority.NORMAL,
+                created_at=datetime.now(timezone.utc),
+                retry_count=0,
+                max_retries=3,
+                timeout_seconds=30,
+                output_directory="converted_content/test",
+                skip_existing=False,
+                success=False,
+                images_downloaded=0,
             )
 
             with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
