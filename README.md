@@ -1,419 +1,466 @@
 # WordPress to Shopify Content Converter
 
-[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/zachatkinson/csfrace-scrape/workflows/CI/CD%20Pipeline/badge.svg)](https://github.com/zachatkinson/csfrace-scrape/actions)
-[![codecov](https://codecov.io/gh/zachatkinson/csfrace-scrape/branch/master/graph/badge.svg)](https://codecov.io/gh/zachatkinson/csfrace-scrape)
-
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![CI/CD Pipeline](https://github.com/zachatkinson/csfrace-scrape/actions/workflows/ci.yml/badge.svg)](https://github.com/zachatkinson/csfrace-scrape/actions)
+[![Code Coverage](https://codecov.io/gh/zachatkinson/csfrace-scrape/branch/main/graph/badge.svg)](https://codecov.io/gh/zachatkinson/csfrace-scrape)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-[![Docker](https://img.shields.io/badge/docker-supported-blue?logo=docker)](https://github.com/zachatkinson/csfrace-scrape/blob/master/Dockerfile)
-[![Async](https://img.shields.io/badge/async-aiohttp-blue.svg)](https://docs.aiohttp.org/)
 
-A high-performance, async Python tool for converting WordPress content to Shopify-compatible HTML. Built for enterprise-scale content migrations with advanced batch processing, intelligent caching, and extensible plugin architecture.
+A high-performance, async Python application that converts WordPress blog content to Shopify-compatible HTML format. Built with modern async/await patterns, comprehensive monitoring, and a web-based frontend for easy content migration.
 
-## ✨ Key Features
+## ✨ Features
 
-- 🚀 **High-Performance Async Processing** - Concurrent downloads with configurable limits
-- 📦 **Intelligent Batch Processing** - Process hundreds of URLs with smart directory organization  
-- ⚡ **Advanced Caching System** - File-based and Redis caching with automatic expiration
-- 🔧 **Extensible Plugin Architecture** - Custom processing pipelines for specialized content
-- ⚙️ **Flexible Configuration** - YAML/JSON config files with CLI overrides
-- 📊 **Rich Progress Tracking** - Beautiful console output with statistics and progress bars
-- 🗂️ **Archive Management** - Automatic ZIP creation with optional cleanup
-- 🌐 **Robots.txt Compliance** - Respectful crawling with rate limiting
-- 🔄 **Robust Error Recovery** - Exponential backoff and retry mechanisms
-- 🎯 **WordPress Content Expertise** - Specialized handling of Kadence blocks, embeds, and formatting
+### Core Functionality
+- 🚀 **Async Processing**: High-performance concurrent content processing with aiohttp
+- 🔄 **Batch Operations**: Process multiple URLs simultaneously with progress tracking
+- 🖼️ **Image Handling**: Automatic image download and optimization
+- 🎨 **Style Cleanup**: WordPress-specific CSS cleanup and Shopify optimization
+- 📊 **Rich Monitoring**: Comprehensive metrics, logging, and observability
 
-## Installation
+### Web Interface
+- 🌐 **Modern Frontend**: Astro-based web interface with React components
+- 🔐 **User Authentication**: Secure login system with job history
+- 📋 **Job Management**: Real-time status updates and artifact downloads
+- 📈 **Analytics Dashboard**: Usage statistics and performance metrics
+- 🗂️ **File Management**: Organized output with downloadable archives
+
+### Developer Experience  
+- 🐳 **Docker Support**: Complete containerization with Docker Compose
+- 📈 **Monitoring Stack**: Grafana + Prometheus integration
+- 🧪 **Comprehensive Testing**: 90%+ test coverage with performance benchmarks
+- 🔧 **CLI Interface**: Full command-line interface for automation
+- 📚 **API Documentation**: FastAPI with auto-generated OpenAPI docs
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.9+ (Python 3.11+ recommended)
-- Git (for development setup)
+- Python 3.13+
+- PostgreSQL (via Docker or local install)
+- Redis (optional, for advanced caching)
 
-### Quick Install
+### Installation
+
 ```bash
+# Clone the repository
 git clone https://github.com/zachatkinson/csfrace-scrape.git
 cd csfrace-scrape
-python -m pip install -r requirements/base.txt
+
+# Install with uv (recommended)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
+
+# Or install with pip
+python -m pip install -r requirements.txt
+
+# Set up database
+docker-compose up -d postgres redis
+
+# Run database migrations
+uv run alembic upgrade head
 ```
 
-### Development Install
+### Basic Usage
+
+#### CLI Interface
 ```bash
-python -m pip install -e .[dev,test]
+# Convert a single URL
+uv run python -m src.main https://wordpress-site.com/blog/post
+
+# Batch conversion with custom settings
+uv run python -m src.main \
+  --urls-file urls.txt \
+  --output-dir converted_content \
+  --batch-size 10 \
+  --format html
+
+# Interactive mode
+uv run python -m src.main
 ```
 
-### Optional Dependencies
+#### API Server
 ```bash
-# For Redis caching (recommended for high-volume processing)
-python -m pip install "redis>=5.0.0"
+# Start the FastAPI server
+uv run uvicorn src.api.main:app --reload
 
-# For advanced plugins (image processing, NLP, etc.)
-python -m pip install -r requirements/optional.txt
+# Visit http://localhost:8000/docs for API documentation
 ```
 
-## Quick Start
-
-### Single URL
+#### Web Interface
 ```bash
-python -m src.main https://example.com/blog/post
+# Set up the frontend (covered in Frontend Setup section)
+cd frontend
+npm install
+npm run dev
+
+# Visit http://localhost:4321 for the web interface
+```
+
+## 📖 Detailed Usage
+
+### Configuration
+
+The application supports multiple configuration methods:
+
+#### Environment Variables
+```bash
+export BASE_URL="https://your-wordpress-site.com"
+export OUTPUT_DIR="/path/to/output"
+export DEFAULT_TIMEOUT=30
+export MAX_CONCURRENT=10
+export POSTGRES_URL="postgresql://user:pass@localhost:5432/csfrace"
+```
+
+#### Configuration File
+```yaml
+# config.yaml
+scraper:
+  base_url: "https://wordpress-site.com"
+  timeout: 30
+  max_concurrent: 5
+
+database:
+  url: "postgresql://user:pass@localhost:5432/csfrace"
+  
+output:
+  directory: "./converted_content"
+  format: "html"
+  preserve_images: true
+```
+
+### API Usage
+
+#### Create a Conversion Job
+```python
+import httpx
+
+async with httpx.AsyncClient() as client:
+    response = await client.post(
+        "http://localhost:8000/api/v1/jobs",
+        json={
+            "url": "https://wordpress-site.com/blog/post",
+            "options": {
+                "download_images": True,
+                "clean_styles": True,
+                "output_format": "html"
+            }
+        }
+    )
+    job = response.json()
+    print(f"Job created: {job['id']}")
+```
+
+#### Monitor Job Status
+```python
+# Poll for job completion
+job_id = "job-uuid-here"
+response = await client.get(f"http://localhost:8000/api/v1/jobs/{job_id}")
+job_status = response.json()
+
+if job_status["status"] == "completed":
+    # Download converted content
+    download_response = await client.get(
+        f"http://localhost:8000/api/v1/jobs/{job_id}/artifacts"
+    )
+    with open("converted_content.zip", "wb") as f:
+        f.write(download_response.content)
 ```
 
 ### Batch Processing
+
+#### From File
 ```bash
-# Multiple URLs
-python -m src.main "https://site.com/post1,https://site.com/post2" --batch-size 5
+# Create urls.txt with one URL per line
+echo "https://site.com/post1" >> urls.txt
+echo "https://site.com/post2" >> urls.txt
 
-# From file
-python -m src.main --urls-file urls.txt --batch-size 10 -o batch_output
+# Process batch
+uv run python -m src.main --urls-file urls.txt --batch-size 5
 ```
 
-### With Configuration
+#### Programmatically
+```python
+from src.batch.processor import BatchProcessor, BatchConfig
+
+config = BatchConfig(
+    max_concurrent=10,
+    timeout_seconds=60,
+    output_dir="batch_output"
+)
+
+processor = BatchProcessor(config)
+results = await processor.process_urls([
+    "https://site.com/post1",
+    "https://site.com/post2",
+    "https://site.com/post3"
+])
+
+print(f"Processed: {len(results.successful)}/{results.total}")
+```
+
+## 🏗️ Architecture
+
+### System Overview
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Web Frontend  │────│   FastAPI Backend │────│   PostgreSQL    │
+│   (Astro/React) │    │   (Python 3.13)  │    │   Database      │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                        │                        │
+         │              ┌──────────────────┐              │
+         └──────────────│   Redis Cache    │──────────────┘
+                        │   (Optional)     │
+                        └──────────────────┘
+                                 │
+                    ┌─────────────────────────┐
+                    │  Monitoring Stack       │
+                    │  (Grafana + Prometheus) │
+                    └─────────────────────────┘
+```
+
+### Core Components
+
+- **`src/core/`**: Main conversion engine and configuration
+- **`src/api/`**: FastAPI REST API with async endpoints  
+- **`src/batch/`**: Concurrent batch processing system
+- **`src/processors/`**: HTML processing, image downloading, metadata extraction
+- **`src/caching/`**: Multi-tier caching (file + Redis)
+- **`src/monitoring/`**: Comprehensive observability stack
+- **`src/database/`**: SQLAlchemy models and database operations
+
+### Design Principles
+
+Following [CLAUDE.md](./CLAUDE.md) standards:
+- **DRY**: All constants centralized, no hardcoded values
+- **SOLID**: Dependency injection, single responsibility
+- **IDT**: Implementation-driven testing with 90%+ coverage
+- **Async-first**: Built on asyncio and aiohttp
+- **Type Safety**: Comprehensive type hints with mypy
+
+## 🌐 Frontend Setup
+
+The web interface is built with Astro and provides a complete user experience:
+
 ```bash
-# Generate config template
-python -m src.main --generate-config yaml
+# Navigate to frontend directory
+cd frontend
 
-# Use configuration
-python -m src.main --config config.yaml --urls-file urls.txt
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-## Usage Guide
+### Frontend Features
+- **Authentication**: User accounts with job history
+- **Dashboard**: Overview of recent conversions and usage
+- **Batch Upload**: CSV/text file upload for bulk processing
+- **Real-time Updates**: WebSocket job status updates
+- **Download Manager**: Organized artifact downloads
 
-### Command Line Interface
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `url` | WordPress URL(s) to convert | `https://example.com/post` |
-| `-o, --output` | Output directory | `-o my_output` |
-| `-c, --config` | Configuration file | `-c config.yaml` |
-| `--urls-file` | File with URLs to process | `--urls-file urls.txt` |
-| `--batch-size` | Concurrent processing limit | `--batch-size 5` |
-| `--generate-config` | Create example config | `--generate-config yaml` |
-| `-v, --verbose` | Enable verbose logging | `-v` |
-
-### Batch Processing Modes
-
-#### 1. Comma-Separated URLs
+### Deployment (Netlify)
 ```bash
-python -m src.main "https://site.com/post1,https://site.com/post2,https://site.com/post3"
+# Deploy to Netlify
+netlify deploy --prod --dir=dist
+
+# Configure environment variables in Netlify dashboard
+ASTRO_API_URL=https://your-api-domain.com
+ASTRO_AUTH_SECRET=your-secret-key
 ```
 
-#### 2. Text File Input
-Create `urls.txt`:
-```
-https://example.com/blog/post-1
-https://example.com/blog/post-2  
-https://example.com/blog/post-3
-# Comments are supported
-```
+## 🐳 Docker Deployment
 
-Run batch:
+### Development
 ```bash
-python -m src.main --urls-file urls.txt --batch-size 3
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Scale workers
+docker-compose up -d --scale worker=3
 ```
 
-#### 3. CSV Input with Custom Settings
-Create `jobs.csv`:
-```csv
-url,slug,output_dir,priority
-https://example.com/post-1,custom-slug-1,custom/dir1,1
-https://example.com/post-2,custom-slug-2,,2
-https://example.com/post-3,,,3
-```
-
-Process CSV:
+### Production
 ```bash
-python -m src.main --urls-file jobs.csv
+# Build production images
+docker-compose -f docker-compose.prod.yml build
+
+# Deploy with monitoring
+docker-compose -f docker-compose.prod.yml up -d
+
+# Access Grafana at http://localhost:3000
+# Access API docs at http://localhost:8000/docs
 ```
 
-### Configuration Management
+### Services
+- **PostgreSQL**: Primary database
+- **Redis**: Caching layer
+- **API Server**: FastAPI application
+- **Worker**: Background job processor
+- **Grafana**: Monitoring dashboard
+- **Prometheus**: Metrics collection
 
-#### Generate Configuration Template
+## 📊 Monitoring & Observability
+
+### Grafana Dashboards
 ```bash
-python -m src.main --generate-config yaml  # Creates wp-shopify-config.yaml
-python -m src.main --generate-config json  # Creates wp-shopify-config.json
+# Provision Grafana dashboards
+uv run python -m src.cli.grafana_cli provision
+
+# Access dashboards at http://localhost:3000
+# Default credentials: admin/admin (change immediately)
 ```
 
-#### Example Configuration (`config.yaml`)
-```yaml
-converter:
-  default_timeout: 30
-  max_concurrent_downloads: 10
-  rate_limit_delay: 0.5
-  max_retries: 3
-  respect_robots_txt: true
-  preserve_classes:
-    - center
-    - media-grid
-    - button--primary
+### Available Dashboards
+- **System Overview**: CPU, memory, disk usage (USE methodology)
+- **Application Metrics**: Request rate, errors, duration (RED methodology)  
+- **Database Performance**: Connection pools, query performance
+- **Business Metrics**: Conversion rates, user activity
 
-batch:
-  max_concurrent: 5
-  create_archives: true
-  output_base_dir: "batch_output"
-  cleanup_after_archive: false
-  timeout_per_job: 300
+### Metrics Collection
+The application exposes metrics at `/metrics` endpoint:
+- Request/response metrics
+- Database connection stats
+- Job processing metrics
+- Cache hit rates
+- Error rates and types
+
+### Logging
+Structured logging with correlation IDs:
+```python
+import structlog
+logger = structlog.get_logger(__name__)
+
+# Logs automatically include correlation IDs and context
+logger.info("Processing job", job_id=job.id, url=job.url)
 ```
 
-#### Use Configuration
-```bash
-# With configuration file
-python -m src.main --config config.yaml https://example.com/post
-
-# Override config settings via CLI
-python -m src.main --config config.yaml --batch-size 10 --urls-file urls.txt
-```
-
-### Caching System
-
-#### File-Based Caching (Default)
-- Automatic local file caching
-- Configurable TTL per content type
-- Intelligent size management
-- Cross-platform compatibility
-
-#### Redis Caching (Recommended for High Volume)
-1. Install Redis:
-   ```bash
-   # macOS
-   brew install redis
-   brew services start redis
-   
-   # Ubuntu/Debian
-   sudo apt install redis-server
-   sudo systemctl start redis
-   ```
-
-2. Install Python Redis client:
-   ```bash
-   python -m pip install "redis>=5.0.0"
-   ```
-
-3. Configure caching in `config.yaml`:
-   ```yaml
-   cache:
-     backend: redis
-     redis_host: localhost
-     redis_port: 6379
-     ttl_html: 1800
-     ttl_images: 86400
-   ```
-
-## Output Structure
-
-### Single URL Output
-```
-converted_content/
-├── metadata.txt                 # Extracted metadata
-├── converted_content.html       # Clean HTML content
-├── shopify_ready_content.html   # Complete file for Shopify
-└── images/                      # Downloaded images
-    ├── image1.jpg
-    └── image2.png
-```
-
-### Batch Processing Output
-```
-batch_output/
-├── example-com_post-1/          # Organized by domain and slug
-│   ├── metadata.txt
-│   ├── converted_content.html
-│   ├── shopify_ready_content.html
-│   └── images/
-├── example-com_post-2/
-│   └── ...
-├── archives/                    # ZIP archives (if enabled)
-│   ├── example-com_post-1.zip
-│   └── example-com_post-2.zip
-└── batch_summary.json          # Processing statistics
-```
-
-## Content Conversion Features
-
-### WordPress Block Support
-- **Kadence Blocks**: Row layouts → Media grid layouts
-- **Advanced Galleries**: Converted to responsive media grids
-- **Advanced Buttons**: Shopify-compatible button styles
-- **Pullquotes**: Testimonial-style quote formatting
-- **Embeds**: YouTube, Instagram with responsive containers
-
-### HTML Transformations
-- Font tags: `<b>` → `<strong>`, `<i>` → `<em>`
-- Text alignment: WordPress classes → Shopify-compatible
-- Image optimization: Clean `<img>` tags with proper alt text
-- External links: Auto-add `target="_blank"` and security attributes
-- Script removal: Security-focused content sanitization
-
-### Metadata Extraction
-- Page title and description
-- URL slug generation
-- Publication dates
-- SEO-relevant meta tags
-- Custom WordPress fields
-
-## Plugin Architecture
-
-### Built-in Plugins
-- **SEO Metadata Extractor**: Comprehensive SEO data extraction
-- **Font Cleanup Plugin**: Removes font-related styling
-- **Content Filter**: Customizable content filtering rules
-
-### Creating Custom Plugins
-1. Inherit from appropriate base class:
-   ```python
-   from src.plugins.base import HTMLProcessorPlugin
-   
-   class MyCustomPlugin(HTMLProcessorPlugin):
-       @property
-       def plugin_info(self):
-           return {
-               'name': 'My Custom Plugin',
-               'version': '1.0.0',
-               'description': 'Custom content processing',
-               'author': 'Your Name',
-               'plugin_type': 'html_processor'
-           }
-       
-       async def process_html(self, html_content, metadata, context):
-           # Custom processing logic
-           return processed_html
-   ```
-
-2. Register and use:
-   ```python
-   from src.plugins.registry import plugin_registry
-   plugin_registry.register_plugin(MyCustomPlugin)
-   ```
-
-## Advanced Features
-
-### Performance Monitoring
-```bash
-# View processing statistics
-python -m src.main --urls-file large-batch.txt -v
-```
-
-### Error Recovery
-- Automatic retry with exponential backoff
-- Graceful handling of failed URLs
-- Detailed error reporting and logging
-- Continue-on-error batch processing
-
-### Archive Management
-```yaml
-batch:
-  create_archives: true
-  archive_format: zip
-  cleanup_after_archive: false  # Keep original directories
-```
-
-### Robots.txt Compliance
-- Automatic robots.txt checking
-- Respectful crawl delays
-- Rate limiting configuration
-- User-agent identification
-
-## Development
+## 🧪 Development
 
 ### Testing
 ```bash
 # Run all tests
-python -m pytest tests/ --cov=src
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html
 
 # Run specific test categories  
-python -m pytest tests/unit/test_batch_processor.py
-python -m pytest tests/integration/test_priority2_integration.py
+uv run pytest tests/unit -v
+uv run pytest tests/integration -k test_api
+uv run pytest tests/performance --benchmark-only
 
-# Test with Redis (requires Redis server)
-python -m pytest tests/integration/test_redis_cache.py
+# Run tests in parallel
+uv run pytest -n auto
 ```
 
 ### Code Quality
 ```bash
-# Format code
-ruff format src/ tests/
-
-# Lint code
-ruff check src/ tests/
+# Linting and formatting
+uv run ruff check src/ tests/
+uv run ruff format src/ tests/
 
 # Type checking
-mypy src/
+uv run mypy src/
+
+# Security scanning
+uv run bandit -r src/
+uv run safety check
 ```
 
-### Semantic Versioning
+### Pre-commit Hooks
 ```bash
-# Create version bump and update changelog
-cz bump
+# Install pre-commit hooks
+pre-commit install
 
-# View version history
-cz changelog
+# Run manually
+pre-commit run --all-files
 ```
 
-## Troubleshooting
+## 📈 Performance
 
-### Common Issues
+### Benchmarks
+- **Single URL**: ~2-5 seconds average conversion time
+- **Batch Processing**: 50+ URLs/minute with proper concurrency
+- **Memory Usage**: <100MB base, scales with concurrent jobs
+- **Database**: Optimized for 1000+ jobs with proper indexing
 
-**"No Redis connection"**
-- Ensure Redis server is running: `redis-cli ping`
-- Check Redis configuration in config file
-- Falls back to file caching automatically
+### Optimization Tips
+- Adjust `MAX_CONCURRENT` based on target site rate limits
+- Use Redis caching for frequently accessed content
+- Enable compression for large HTML files
+- Monitor memory usage with large image downloads
 
-**"Batch processing timeout"**
-- Reduce `batch_size` in configuration
-- Increase `timeout_per_job` setting
-- Check network connectivity
+### Scalability
+- Horizontal scaling via multiple worker processes
+- Database connection pooling for high concurrency
+- Redis clustering for cache scaling
+- Load balancing with nginx/CloudFlare
 
-**"Permission denied" errors**
-- Ensure write permissions in output directory
-- Check available disk space
-- Verify file system supports long paths (Windows)
+## 🔧 Configuration Reference
 
-### Debug Mode
-```bash
-python -m src.main --urls-file urls.txt -v  # Verbose logging
-```
+### Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BASE_URL` | - | WordPress site base URL |
+| `OUTPUT_DIR` | `converted_content` | Output directory path |
+| `MAX_CONCURRENT` | `10` | Max concurrent requests |
+| `DEFAULT_TIMEOUT` | `30` | Request timeout (seconds) |
+| `POSTGRES_URL` | - | PostgreSQL connection string |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
+| `LOG_LEVEL` | `INFO` | Logging level |
 
-### Performance Tuning
-```yaml
-# High-performance configuration
-batch:
-  max_concurrent: 10
-  timeout_per_job: 120
-converter:
-  max_concurrent_downloads: 20
-  rate_limit_delay: 0.1
-```
+### Advanced Configuration
+See [CLAUDE.md](./CLAUDE.md) for detailed configuration patterns and constants management.
 
-## Changelog
+## 🤝 Contributing
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
-
-## Contributing
-
+### Development Setup
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes with tests
-4. Run the test suite: `pytest tests/`
-5. Commit using conventional format: `cz commit`
-6. Push and create a Pull Request
+3. Install development dependencies: `uv sync --group dev`
+4. Make changes following [CLAUDE.md](./CLAUDE.md) standards
+5. Add tests with 90%+ coverage
+6. Run quality checks: `pre-commit run --all-files`
+7. Create a pull request
 
-See [CLAUDE.md](CLAUDE.md) for development guidelines and coding standards.
+### Code Style
+- Follow CLAUDE.md standards (DRY, SOLID, IDT)
+- Use type hints for all functions
+- Write comprehensive docstrings
+- Add tests for all new functionality
+- Keep functions small and focused
 
-## License
+### Commit Messages
+```
+feat(api): add job cancellation endpoint
+fix(batch): resolve concurrent processing race condition
+docs(readme): update installation instructions
+test(core): add edge case tests for URL validation
+```
 
-MIT License - see [LICENSE](LICENSE) for details.
+## 📄 License
 
-## Support
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-- 📋 [Create an Issue](https://github.com/zachatkinson/csfrace-scrape/issues) for bug reports
-- 💡 [Request Features](https://github.com/zachatkinson/csfrace-scrape/discussions) for enhancements  
-- 📖 [Documentation](https://github.com/zachatkinson/csfrace-scrape/wiki) for detailed guides
+## 🙏 Acknowledgments
 
-## Acknowledgments
+- Built with [FastAPI](https://fastapi.tiangolo.com/) and [asyncio](https://docs.python.org/3/library/asyncio.html)
+- Frontend powered by [Astro](https://astro.build/) and [React](https://react.dev/)
+- Monitoring with [Grafana](https://grafana.com/) and [Prometheus](https://prometheus.io/)
+- Code quality with [Ruff](https://github.com/astral-sh/ruff) and [uv](https://github.com/astral-sh/uv)
 
-Built for CSFrace's WordPress to Shopify migration, featuring specialized handling of Kadence blocks, custom themes, and enterprise-scale content processing requirements.
+## 📞 Support
+
+- 📖 [Documentation](https://github.com/zachatkinson/csfrace-scrape/wiki)
+- 🐛 [Bug Reports](https://github.com/zachatkinson/csfrace-scrape/issues)
+- 💬 [Discussions](https://github.com/zachatkinson/csfrace-scrape/discussions)
+- 📧 [Email](mailto:dev@csfrace.com)
 
 ---
 
-⭐ **Star this repo** if it helped with your WordPress to Shopify migration!
+**WordPress to Shopify Content Converter** - Making content migration effortless.

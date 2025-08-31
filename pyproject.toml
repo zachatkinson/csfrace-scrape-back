@@ -29,28 +29,21 @@ requires-python = ">=3.13"
 dependencies = [
     "aiohttp>=3.8.0",
     "alembic>=1.16.4",
-    "asyncio-throttle>=1.0.2",
+    "asyncio-throttle>=1.0.2",  # For advanced rate limiting
     "asyncpg>=0.30.0",
     "beautifulsoup4>=4.13.5",
     "bleach>=6.2.0",
-    "click>=8.1.8",
-    "email-validator>=2.2.0",
-    "fastapi[standard]>=0.116.1",
-    "httpx>=0.24.0",
-    "lxml>=4.9.0",
+    "fastapi[standard]>=0.116.1",  # Includes: httpx, email-validator, python-multipart, jinja2, uvicorn
+    "lxml>=4.9.0",  # BeautifulSoup parser backend for performance
     "playwright>=1.40.0",
     "psycopg[binary]>=3.2.0",
     "pydantic>=2.11.7",
     "pydantic-settings>=2.10.1",
-    "python-multipart>=0.0.20",
     "PyYAML>=6.0.2",
     "rich>=14.1.0",
     "sqlalchemy[asyncio]>=2.0.32",
     "structlog>=23.0.0",
     "tenacity>=8.2.0",
-    "tinycss2>=1.4.0",
-    "urllib3>=2.0.0",
-    "uvicorn[standard]>=0.35.0",
 ]
 
 [project.optional-dependencies]

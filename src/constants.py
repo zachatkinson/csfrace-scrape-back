@@ -204,3 +204,26 @@ class TestConstants:
 
 # Global test constants instance
 TEST_CONSTANTS = TestConstants()
+
+
+@dataclass(frozen=True)
+class CLIConstants:
+    """Constants for CLI interfaces."""
+
+    # Grafana CLI defaults
+    DEFAULT_PROMETHEUS_URL: str = environ.get("DEFAULT_PROMETHEUS_URL", "http://prometheus:9090")
+    DEFAULT_GRAFANA_PORT: int = int(environ.get("DEFAULT_GRAFANA_PORT", "3000"))
+
+    # Example URLs for help text
+    EXAMPLE_CSFRACE_URL: str = "https://csfrace.com/blog/sample-post"
+    EXAMPLE_SITE_URL: str = "https://site.com"
+
+    # Progress display
+    PROGRESS_SEPARATOR: str = "-" * 50
+
+    # Exit codes
+    EXIT_CODE_KEYBOARD_INTERRUPT: int = 130
+
+
+# Global CLI constants instance
+CLI_CONSTANTS = CLIConstants()

@@ -1,5 +1,6 @@
 """Health check and monitoring API endpoints."""
 
+import importlib.metadata
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
@@ -10,6 +11,12 @@ from ...monitoring.metrics import metrics_collector
 from ...monitoring.observability import observability_manager
 from ..dependencies import DBSession
 from ..schemas import HealthCheckResponse, MetricsResponse
+
+# Get version from package metadata
+try:
+    __version__ = importlib.metadata.version("csfrace-scraper")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "1.0.0"  # Fallback version
 
 router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 
@@ -68,7 +75,7 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
         response = HealthCheckResponse(
             status=overall_status,
             timestamp=datetime.now(timezone.utc),
-            version="1.0.0",  # TODO: Get from package metadata
+            version=__version__,
             database=database_status,
             cache=cache_status,
             monitoring=monitoring_status,

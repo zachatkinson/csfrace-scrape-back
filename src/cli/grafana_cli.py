@@ -4,12 +4,15 @@ This module provides CLI commands for provisioning, validating, and managing
 Grafana dashboards following CLAUDE.md standards.
 """
 
+import json
 from pathlib import Path
 from typing import Optional
 
 import structlog
 import typer
+import yaml
 
+from ..constants import CLI_CONSTANTS
 from ..monitoring import GrafanaConfig, GrafanaDashboardProvisioner
 
 logger = structlog.get_logger(__name__)
@@ -25,9 +28,11 @@ def provision(
         None, "--config", "-c", help="Path to Grafana configuration file"
     ),
     prometheus_url: str = typer.Option(
-        "http://prometheus:9090", "--prometheus-url", "-p", help="Prometheus server URL"
+        CLI_CONSTANTS.DEFAULT_PROMETHEUS_URL, "--prometheus-url", "-p", help="Prometheus server URL"
     ),
-    grafana_port: int = typer.Option(3000, "--port", help="Grafana server port"),
+    grafana_port: int = typer.Option(
+        CLI_CONSTANTS.DEFAULT_GRAFANA_PORT, "--port", help="Grafana server port"
+    ),
     output_dir: Optional[Path] = typer.Option(
         None, "--output", "-o", help="Output directory for dashboards and provisioning files"
     ),
@@ -47,8 +52,7 @@ def provision(
         # Load configuration
         if config_file and config_file.exists():
             typer.echo(f"Loading configuration from {config_file}")
-            # TODO: Implement config file loading
-            config = GrafanaConfig()
+            config = _load_config_from_file(config_file, prometheus_url, grafana_port)
         else:
             config = GrafanaConfig(prometheus_url=prometheus_url, port=grafana_port)
 
@@ -281,6 +285,46 @@ time_range: 1h
     except Exception as e:
         logger.error("Initialization failed", error=str(e))
         typer.echo(f"❌ Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
+def _load_config_from_file(
+    config_file: Path, prometheus_url: str, grafana_port: int
+) -> GrafanaConfig:
+    """Load Grafana configuration from file.
+
+    Args:
+        config_file: Path to configuration file (YAML or JSON)
+        prometheus_url: Default Prometheus URL
+        grafana_port: Default Grafana port
+
+    Returns:
+        GrafanaConfig instance with loaded settings
+
+    Raises:
+        typer.Exit: If configuration file is invalid
+    """
+    try:
+        with open(config_file) as f:
+            if config_file.suffix.lower() in [".yml", ".yaml"]:
+                config_data = yaml.safe_load(f)
+            elif config_file.suffix.lower() == ".json":
+                config_data = json.load(f)
+            else:
+                raise ValueError(f"Unsupported config format: {config_file.suffix}")
+
+        # Create config with file data, falling back to CLI args
+        return GrafanaConfig(
+            prometheus_url=config_data.get("prometheus_url", prometheus_url),
+            port=config_data.get("port", grafana_port),
+            host=config_data.get("host", "localhost"),
+            protocol=config_data.get("protocol", "http"),
+            refresh_interval=config_data.get("refresh_interval", "30s"),
+            time_range=config_data.get("time_range", "1h"),
+        )
+
+    except Exception as e:
+        typer.echo(f"❌ Failed to load config from {config_file}: {e}", err=True)
         raise typer.Exit(1)
 
 

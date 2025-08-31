@@ -19,6 +19,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from .batch.processor import BatchConfig, BatchProcessor
 from .config.loader import ConfigLoader, load_config_from_file
+from .constants import CLI_CONSTANTS
 from .core.converter import AsyncWordPressConverter
 from .core.exceptions import ConversionError
 from .utils.logging import setup_logging
@@ -152,11 +153,11 @@ def main() -> None:
         epilog="""
 Examples:
   Single URL:
-    %(prog)s https://csfrace.com/blog/sample-post
-    %(prog)s https://csfrace.com/blog/sample-post -o my-output
+    %(prog)s {CLI_CONSTANTS.EXAMPLE_CSFRACE_URL}
+    %(prog)s {CLI_CONSTANTS.EXAMPLE_CSFRACE_URL} -o my-output
 
   Multiple URLs (comma-separated):
-    %(prog)s "https://site.com/post1,https://site.com/post2" --batch-size 5
+    %(prog)s "{CLI_CONSTANTS.EXAMPLE_SITE_URL}/post1,{CLI_CONSTANTS.EXAMPLE_SITE_URL}/post2" --batch-size 5
 
   Batch from file:
     %(prog)s --urls-file urls.txt --batch-size 3 -o batch_output
@@ -222,7 +223,7 @@ Examples:
     # Interactive mode if no URL or file provided
     if not args.url and not args.urls_file:
         console.print("[bold blue]WordPress to Shopify Content Converter[/bold blue]")
-        console.print("-" * 50)
+        console.print(CLI_CONSTANTS.PROGRESS_SEPARATOR)
 
         mode = console.input(
             "Choose mode:\n  1. Single URL\n  2. Multiple URLs (comma-separated)\n  3. Batch from file\nEnter choice (1-3): "
@@ -258,7 +259,7 @@ Examples:
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Conversion interrupted by user[/yellow]")
-        sys.exit(130)
+        sys.exit(CLI_CONSTANTS.EXIT_CODE_KEYBOARD_INTERRUPT)
     except (ConversionError, Exception):
         sys.exit(1)
 

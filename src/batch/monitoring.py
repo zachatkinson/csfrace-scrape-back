@@ -376,10 +376,25 @@ class BatchMonitor:
                 "recent_error_rate_percent": recent_error_rate,
                 "database": {
                     "connection_pool": engine_stats,
-                    "healthy": True,  # TODO: Add actual health check
+                    "healthy": await self._check_database_health(),
                 },
                 "runtime_metrics": self.metrics_collector.get_current_metrics(),
             }
+
+    async def _check_database_health(self) -> bool:
+        """Check if database connection is healthy.
+
+        Returns:
+            True if database is healthy, False otherwise
+        """
+        try:
+            with self.database_service.get_session() as session:
+                # Try a simple query
+                result = session.execute("SELECT 1")
+                return result is not None
+        except Exception as e:
+            logger.error("Database health check failed", error=str(e))
+            return False
 
     async def generate_report(
         self, start_date: datetime, end_date: datetime, output_file: Optional[Path] = None
