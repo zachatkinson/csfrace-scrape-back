@@ -44,6 +44,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.32",
     "structlog>=23.0.0",
     "tenacity>=8.2.0",
+    "tinycss2>=1.4.0",  # Required by bleach for CSS sanitization
 ]
 
 [project.optional-dependencies]
