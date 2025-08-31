@@ -17,7 +17,7 @@ class TestHealthEndpoints:
         data = response.json()
 
         assert data["message"] == "CSFrace Scraper API"
-        assert data["version"] == "1.0.0"
+        assert data["version"] == "1.1.0"
         assert data["docs"] == "/docs"
         assert data["health"] == "/health"
 
@@ -84,7 +84,7 @@ class TestHealthEndpoints:
 
         assert data["status"] == "healthy"
         assert "timestamp" in data
-        assert data["version"] == "1.0.0"
+        assert data["version"] == "1.1.0"
         assert data["database"]["status"] == "healthy"
         assert data["database"]["connected"] is True
 
@@ -270,7 +270,7 @@ active_jobs 5
         response = client.get("/health/")
         data = response.json()
 
-        assert data["version"] == "1.0.0"
+        assert data["version"] == "1.1.0"
         # TODO: In future, this should come from package metadata
 
     def test_concurrent_health_checks(self, client: TestClient):

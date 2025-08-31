@@ -30,7 +30,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="CSFrace Scraper API",
     description="API for managing WordPress to Shopify content conversion jobs",
-    version="1.0.0",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,

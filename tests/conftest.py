@@ -374,7 +374,7 @@ def plugin_config():
 
     return PluginConfig(
         name="test_plugin",
-        version="1.0.0",
+        version="1.1.0",
         plugin_type=PluginType.HTML_PROCESSOR,
         enabled=True,
         priority=100,
