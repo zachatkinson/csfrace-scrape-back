@@ -322,3 +322,68 @@ class TestGrafanaCLI:
         assert result.exit_code == 0
         assert "Initialize Grafana configuration" in clean_output
         assert "--output" in clean_output
+
+    @patch.object(GrafanaDashboardProvisioner, "validate_dashboards", return_value=True)
+    @patch.object(GrafanaDashboardProvisioner, "__init__", return_value=None)
+    def test_validate_command_with_custom_directory(self, mock_init, mock_validate, runner):
+        """Test validate command with custom dashboards directory."""
+        custom_dir = "/custom/dashboards"
+        result = runner.invoke(app, ["validate", "--dashboards-dir", custom_dir])
+
+        assert result.exit_code == 0
+        mock_validate.assert_called_once()
+        assert "All dashboards are valid" in result.stdout
+
+    @patch("pathlib.Path.glob")
+    @patch("pathlib.Path.exists", return_value=True)
+    @patch.object(GrafanaConfig, "__init__", return_value=None)
+    def test_status_command_with_dashboard_files(
+        self, mock_config_init, mock_exists, mock_glob, runner
+    ):
+        """Test status command when dashboard files exist."""
+        mock_config = MagicMock()
+        mock_config.dashboards_dir = Path("/test/dashboards")
+        mock_config.provisioning_dir = Path("/test/provisioning")
+
+        # Mock dashboard files
+        mock_dashboard_files = [Path("dashboard1.json"), Path("dashboard2.json")]
+        mock_glob.return_value = mock_dashboard_files
+
+        with patch("src.cli.grafana_cli.GrafanaConfig", return_value=mock_config):
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "Dashboard files: 2" in result.stdout
+        assert "dashboard1.json" in result.stdout
+        assert "dashboard2.json" in result.stdout
+
+    @patch.object(GrafanaConfig, "__init__", side_effect=Exception("Config error"))
+    def test_status_command_config_error(self, mock_config_init, runner):
+        """Test status command handles config initialization errors."""
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 1
+        assert "Config error" in result.stdout
+
+    @patch("pathlib.Path.glob")
+    @patch("pathlib.Path.rglob")
+    @patch("pathlib.Path.exists", return_value=True)
+    @patch.object(GrafanaConfig, "__init__", return_value=None)
+    def test_clean_command_file_discovery(
+        self, mock_config_init, mock_exists, mock_rglob, mock_glob, runner
+    ):
+        """Test clean command discovers dashboard and provisioning files."""
+        mock_config = MagicMock()
+        mock_config.dashboards_dir = Path("/test/dashboards")
+        mock_config.provisioning_dir = Path("/test/provisioning")
+
+        # Mock file discovery
+        mock_glob.return_value = [Path("dashboard1.json")]
+        mock_rglob.return_value = [Path("config.yaml")]
+
+        with patch("src.cli.grafana_cli.GrafanaConfig", return_value=mock_config):
+            result = runner.invoke(app, ["clean", "--force"])
+
+        assert result.exit_code == 0
+        # Should show files found and cleaned up
+        assert "Found" in result.stdout or "Cleaned up" in result.stdout
