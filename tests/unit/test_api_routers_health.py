@@ -45,7 +45,7 @@ class TestHealthRouterEndpoints:
 
                 assert isinstance(result, HealthCheckResponse)
                 assert result.status == "healthy"
-                assert result.version == "1.1.0"
+                assert result.version == "1.0.0"
                 assert result.database["status"] == "healthy"
                 assert result.database["connected"] is True
                 # Cache may be configured in the environment

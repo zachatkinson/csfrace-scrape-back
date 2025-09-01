@@ -1,7 +1,7 @@
 """Unit tests for jobs router endpoints."""
 
 from datetime import UTC
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException, status
@@ -69,7 +69,8 @@ class TestJobRouterEndpoints:
         with patch(
             "src.api.routers.jobs.JobCRUD.create_job", return_value=sample_job
         ) as mock_create:
-            result = await create_job(job_create_data, mock_db_session)
+            mock_background_tasks = MagicMock()
+            result = await create_job(job_create_data, mock_background_tasks, mock_db_session)
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
