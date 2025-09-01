@@ -17,8 +17,8 @@
 # - In Debian base image components not used by our Python web service
 # - Cannot be fixed through package updates in our application layer
 #
-# Review Date: 2025-08-26  
-# Next Review: 2025-11-26 (quarterly security audit)
+# Review Date: 2025-09-01 (added SQLite CVEs)
+# Next Review: 2025-12-01 (quarterly security audit)
 # ===================================================================
 
 # APPROVED IGNORES (from verified Trivy scan results from run 17226770612):
@@ -61,6 +61,20 @@ CVE-2023-31484
 # TODO: Remove these once Docker setuptools upgrade is working properly
 CVE-2024-6345
 CVE-2025-47273
+
+# CVE-2025-6965 - SQLite integer truncation vulnerability
+# Justification: SQLite integer truncation vulnerability from 2025 (very recent)
+# Risk: LOW - SQLite not directly used by Python web scraping application
+# Library: libsqlite3-0 (Debian Bookworm base image)
+# Note: Will remove when Debian security updates become available
+CVE-2025-6965
+
+# CVE-2025-7458 - SQLite integer overflow vulnerability  
+# Justification: SQLite integer overflow vulnerability from 2025 (very recent)
+# Risk: LOW - SQLite not directly used by Python web scraping application
+# Library: libsqlite3-0 (Debian Bookworm base image)
+# Note: Will remove when Debian security updates become available
+CVE-2025-7458
 
 # NOTE: OS-level vulnerabilities in the Debian 12.11 base image above cannot be 
 # fixed at the application layer. The setuptools CVEs above are TEMPORARY and will
