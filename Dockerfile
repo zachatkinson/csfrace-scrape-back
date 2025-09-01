@@ -3,7 +3,7 @@
 #########################
 # Build stage
 #########################
-FROM python:3.13-slim-bullseye as builder
+FROM python:3.13-slim-bookworm as builder
 
 # Install UV from official image (production best practice)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -57,7 +57,7 @@ CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--re
 #########################
 # Production stage
 #########################
-FROM python:3.13-slim-bullseye as production
+FROM python:3.13-slim-bookworm as production
 
 # Copy UV binary from official UV image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
