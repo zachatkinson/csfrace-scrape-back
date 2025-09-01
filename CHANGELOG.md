@@ -1,3 +1,21 @@
+# [1.2.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.1.0...v1.2.0) (2025-09-01)
+
+
+### Bug Fixes
+
+* **tests:** update health check test for version 1.1.0 ([c4be0d9](https://github.com/zachatkinson/csfrace-scrape-back/commit/c4be0d9dc119a5d1599aca1f086b5b30d9d3aab2))
+
+
+### Features
+
+* **deps:** update dependencies and fix CI configuration ([0cdd724](https://github.com/zachatkinson/csfrace-scrape-back/commit/0cdd724fb57f9bb2055714e9235fdcba2c04d6a1))
+* **docker:** upgrade to Debian Bookworm for massive security improvement ([5ef77c2](https://github.com/zachatkinson/csfrace-scrape-back/commit/5ef77c2195da8a264aa2b7e012c217dce74234de))
+
+
+### Performance Improvements
+
+* **ci:** optimize CI performance and timeout settings ([50f4bde](https://github.com/zachatkinson/csfrace-scrape-back/commit/50f4bdecccbf77927446e2bf109a63bb5a8994a2))
+
 # [1.1.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.0.0...v1.1.0) (2025-09-01)
 
 
