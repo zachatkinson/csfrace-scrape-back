@@ -3,10 +3,10 @@
 #########################
 # Build stage
 #########################
-FROM python:3.13-slim as builder
+FROM python:latest as builder
 
 # Install UV from official image (production best practice)
-COPY --from=ghcr.io/astral-sh/uv:0.8.13 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Set environment variables for UV and Python
 ENV PYTHONUNBUFFERED=1 \
@@ -33,16 +33,35 @@ WORKDIR /build
 COPY uv.lock pyproject.toml ./
 
 # Install dependencies (system Python, no venv overhead)
+# Include dev dependencies in builder stage for development
 RUN --mount=type=cache,target=/tmp/.uv-cache \
-    uv sync --frozen --no-editable --no-dev
+    uv sync --frozen --no-editable
+
+# Copy application code for development
+COPY . .
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /build/output /build/logs /tmp/.uv-cache && \
+    chmod -R 777 /tmp/.uv-cache
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port for API mode
+EXPOSE 8000
+
+# Set flexible entrypoint for development
+ENTRYPOINT ["uv", "run"]
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 #########################
 # Production stage
 #########################
-FROM python:3.13-slim as production
+FROM python:latest as production
 
 # Copy UV binary from official UV image
-COPY --from=ghcr.io/astral-sh/uv:0.8.13 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \
