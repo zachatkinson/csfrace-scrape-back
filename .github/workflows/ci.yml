@@ -29,7 +29,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.13"
-  UV_VERSION: "0.8.13"
+  UV_VERSION: "0.8.14"
 
 jobs:
   # Code quality and security checks (foundational job)
