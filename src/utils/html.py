@@ -1,12 +1,12 @@
 """HTML processing utilities to eliminate DRY violations."""
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from bs4 import BeautifulSoup, Tag
 
 
 def safe_copy_attributes(
-    source_element: Tag, target_element: Tag, attribute_map: dict[str, Union[str, tuple[str, str]]]
+    source_element: Tag, target_element: Tag, attribute_map: dict[str, str | tuple[str, str]]
 ) -> None:
     """Safely copy attributes from source to target element with defaults.
 
@@ -32,8 +32,8 @@ def safe_copy_attributes(
 
 
 def find_meta_content(
-    soup: BeautifulSoup, name: Optional[str] = None, property: Optional[str] = None
-) -> Optional[str]:
+    soup: BeautifulSoup, name: str | None = None, property: str | None = None
+) -> str | None:
     """Find meta tag content by name or property attribute.
 
     Args:
@@ -57,7 +57,7 @@ def find_meta_content(
     return None
 
 
-def find_multiple_selectors(soup: BeautifulSoup, selectors: list[str]) -> Optional[Tag]:
+def find_multiple_selectors(soup: BeautifulSoup, selectors: list[str]) -> Tag | None:
     """Try multiple CSS selectors until one matches.
 
     Args:

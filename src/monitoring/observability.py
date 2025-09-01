@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -21,10 +21,10 @@ class ObservabilityConfig:
     enabled: bool = True
 
     # Component configurations
-    metrics_config: Optional[MetricsConfig] = None
-    health_config: Optional[HealthConfig] = None
-    alerts_config: Optional[AlertConfig] = None
-    performance_config: Optional[PerformanceConfig] = None
+    metrics_config: MetricsConfig | None = None
+    health_config: HealthConfig | None = None
+    alerts_config: AlertConfig | None = None
+    performance_config: PerformanceConfig | None = None
 
     # Global settings
     startup_health_check: bool = True
@@ -38,7 +38,7 @@ class ObservabilityConfig:
 class ObservabilityManager:
     """Central manager for all observability components."""
 
-    def __init__(self, config: Optional[ObservabilityConfig] = None):
+    def __init__(self, config: ObservabilityConfig | None = None):
         """Initialize observability manager.
 
         Args:
@@ -180,7 +180,7 @@ class ObservabilityManager:
             self._initialized = False
             logger.info("Observability system shutdown complete")
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "Observability shutdown timed out", timeout=self.config.graceful_shutdown_timeout
             )

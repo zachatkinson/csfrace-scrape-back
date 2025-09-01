@@ -1,7 +1,7 @@
 """Pydantic schemas for API request/response models."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -20,26 +20,26 @@ class JobCreate(BaseModel):
     """Schema for creating a new scraping job."""
 
     url: HttpUrl
-    slug: Optional[str] = None
-    custom_slug: Optional[str] = None
+    slug: str | None = None
+    custom_slug: str | None = None
     priority: JobPriority = JobPriority.NORMAL
-    output_directory: Optional[str] = None
+    output_directory: str | None = None
     max_retries: int = Field(default=3, ge=0, le=10)
     timeout_seconds: int = Field(default=30, ge=5, le=300)
     skip_existing: bool = False
-    converter_config: Optional[dict[str, Any]] = None
-    processing_options: Optional[dict[str, Any]] = None
+    converter_config: dict[str, Any] | None = None
+    processing_options: dict[str, Any] | None = None
 
 
 class JobUpdate(BaseModel):
     """Schema for updating an existing job."""
 
-    priority: Optional[JobPriority] = None
-    max_retries: Optional[int] = Field(None, ge=0, le=10)
-    timeout_seconds: Optional[int] = Field(None, ge=5, le=300)
-    skip_existing: Optional[bool] = None
-    converter_config: Optional[dict[str, Any]] = None
-    processing_options: Optional[dict[str, Any]] = None
+    priority: JobPriority | None = None
+    max_retries: int | None = Field(None, ge=0, le=10)
+    timeout_seconds: int | None = Field(None, ge=5, le=300)
+    skip_existing: bool | None = None
+    converter_config: dict[str, Any] | None = None
+    processing_options: dict[str, Any] | None = None
 
 
 class JobResponse(BaseSchema):
@@ -48,27 +48,27 @@ class JobResponse(BaseSchema):
     id: int
     url: str
     domain: str
-    slug: Optional[str] = None
+    slug: str | None = None
     status: JobStatus
     priority: JobPriority
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     retry_count: int
     max_retries: int
     timeout_seconds: int
     output_directory: str
-    custom_slug: Optional[str] = None
+    custom_slug: str | None = None
     skip_existing: bool
-    error_message: Optional[str] = None
-    error_type: Optional[str] = None
+    error_message: str | None = None
+    error_type: str | None = None
     success: bool
-    duration_seconds: Optional[float] = None
-    content_size_bytes: Optional[int] = None
+    duration_seconds: float | None = None
+    content_size_bytes: int | None = None
     images_downloaded: int
-    batch_id: Optional[int] = None
-    converter_config: Optional[dict[str, Any]] = None
-    processing_options: Optional[dict[str, Any]] = None
+    batch_id: int | None = None
+    converter_config: dict[str, Any] | None = None
+    processing_options: dict[str, Any] | None = None
 
 
 class JobListResponse(BaseModel):
@@ -86,14 +86,14 @@ class BatchCreate(BaseModel):
     """Schema for creating a new batch."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     urls: list[HttpUrl] = Field(..., max_length=1000)
     max_concurrent: int = Field(default=5, ge=1, le=20)
     continue_on_error: bool = True
-    output_base_directory: Optional[str] = None
+    output_base_directory: str | None = None
     create_archives: bool = False
     cleanup_after_archive: bool = False
-    batch_config: Optional[dict[str, Any]] = None
+    batch_config: dict[str, Any] | None = None
 
 
 class BatchResponse(BaseSchema):
@@ -101,11 +101,11 @@ class BatchResponse(BaseSchema):
 
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: JobStatus
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     max_concurrent: int
     continue_on_error: bool
     output_base_directory: str
@@ -116,7 +116,7 @@ class BatchResponse(BaseSchema):
     failed_jobs: int
     skipped_jobs: int
     success_rate: float
-    batch_config: Optional[dict[str, Any]] = None
+    batch_config: dict[str, Any] | None = None
 
 
 class BatchWithJobsResponse(BatchResponse):
@@ -141,16 +141,16 @@ class ContentResultResponse(BaseSchema):
 
     id: int
     job_id: int
-    title: Optional[str] = None
-    meta_description: Optional[str] = None
-    published_date: Optional[datetime] = None
-    author: Optional[str] = None
-    tags: Optional[list[str]] = None
-    categories: Optional[list[str]] = None
-    word_count: Optional[int] = None
-    image_count: Optional[int] = None
-    link_count: Optional[int] = None
-    processing_time_seconds: Optional[float] = None
+    title: str | None = None
+    meta_description: str | None = None
+    published_date: datetime | None = None
+    author: str | None = None
+    tags: list[str] | None = None
+    categories: list[str] | None = None
+    word_count: int | None = None
+    image_count: int | None = None
+    link_count: int | None = None
+    processing_time_seconds: float | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -182,5 +182,5 @@ class ErrorResponse(BaseModel):
     """Schema for error responses."""
 
     detail: str
-    error_code: Optional[str] = None
+    error_code: str | None = None
     timestamp: datetime

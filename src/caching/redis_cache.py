@@ -1,7 +1,7 @@
 """Redis-based cache backend implementation."""
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -104,7 +104,7 @@ class RedisCache(BaseCacheBackend):
         """
         return f"{self.config.redis_key_prefix}{key}"
 
-    async def get(self, key: str) -> Optional[CacheEntry]:
+    async def get(self, key: str) -> CacheEntry | None:
         """Get a cache entry by key."""
         try:
             client = await self._get_client()
@@ -137,7 +137,7 @@ class RedisCache(BaseCacheBackend):
             return None
 
     async def set(
-        self, key: str, value: Any, ttl: Optional[int] = None, content_type: str = "generic"
+        self, key: str, value: Any, ttl: int | None = None, content_type: str = "generic"
     ) -> bool:
         """Set a cache entry."""
         try:

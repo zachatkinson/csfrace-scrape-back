@@ -2,11 +2,12 @@
 
 import asyncio
 import time
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
 
 import structlog
 
@@ -50,7 +51,7 @@ class HealthConfig:
 class HealthChecker:
     """Comprehensive health checking system."""
 
-    def __init__(self, config: Optional[HealthConfig] = None):
+    def __init__(self, config: HealthConfig | None = None):
         """Initialize health checker.
 
         Args:
@@ -59,7 +60,7 @@ class HealthChecker:
         self.config = config or HealthConfig()
         self._checks: dict[str, Callable] = {}
         self._results: dict[str, HealthCheckResult] = {}
-        self._check_task: Optional[asyncio.Task] = None
+        self._check_task: asyncio.Task | None = None
         self._checking = False
 
         # Register built-in health checks
@@ -156,7 +157,7 @@ class HealthChecker:
                     status=HealthStatus.UNHEALTHY,
                     message=f"Check failed: {str(e)}",
                     duration_ms=0,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
 
         return results
@@ -188,7 +189,7 @@ class HealthChecker:
                     status=HealthStatus.HEALTHY if result else HealthStatus.UNHEALTHY,
                     message="OK" if result else "Check failed",
                     duration_ms=duration_ms,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             else:
                 return HealthCheckResult(
@@ -196,17 +197,17 @@ class HealthChecker:
                     status=HealthStatus.HEALTHY,
                     message=str(result) if result else "OK",
                     duration_ms=duration_ms,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             duration_ms = (time.time() - start_time) * 1000
             return HealthCheckResult(
                 name=name,
                 status=HealthStatus.UNHEALTHY,
                 message=f"Check timed out after {self.config.timeout_seconds}s",
                 duration_ms=duration_ms,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     async def _check_system_resources(self) -> HealthCheckResult:
@@ -241,7 +242,7 @@ class HealthChecker:
                 status=status,
                 message=message,
                 duration_ms=0,  # Will be set by caller
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 details=details,
             )
 
@@ -251,7 +252,7 @@ class HealthChecker:
                 status=HealthStatus.UNKNOWN,
                 message="psutil not available",
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     async def _check_database(self) -> HealthCheckResult:
@@ -273,7 +274,7 @@ class HealthChecker:
                         status=HealthStatus.HEALTHY,
                         message="Database connection successful",
                         duration_ms=0,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         details={"query_result": result[0]},
                     )
                 else:
@@ -282,7 +283,7 @@ class HealthChecker:
                         status=HealthStatus.UNHEALTHY,
                         message="Database query failed",
                         duration_ms=0,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
 
         except Exception as e:
@@ -291,7 +292,7 @@ class HealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message=f"Database connection failed: {str(e)}",
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     async def _check_cache(self) -> HealthCheckResult:
@@ -313,7 +314,7 @@ class HealthChecker:
                     status=HealthStatus.UNHEALTHY,
                     message="Cache backend not initialized",
                     duration_ms=0.0,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     details={"error": "Backend is None"},
                 )
 
@@ -330,7 +331,7 @@ class HealthChecker:
                         status=HealthStatus.HEALTHY,
                         message="Cache backend operational",
                         duration_ms=0,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         details={"backend": cache_manager.config.backend.value},
                     )
 
@@ -339,7 +340,7 @@ class HealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message="Cache set/get operation failed",
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -348,7 +349,7 @@ class HealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message=f"Cache check failed: {str(e)}",
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     async def _check_disk_space(self) -> HealthCheckResult:
@@ -383,7 +384,7 @@ class HealthChecker:
                 status=status,
                 message=message,
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 details=details,
             )
 
@@ -393,7 +394,7 @@ class HealthChecker:
                 status=HealthStatus.UNKNOWN,
                 message=f"Disk check failed: {str(e)}",
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     async def _check_memory_usage(self) -> HealthCheckResult:
@@ -429,7 +430,7 @@ class HealthChecker:
                 status=status,
                 message=message,
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 details=details,
             )
 
@@ -439,7 +440,7 @@ class HealthChecker:
                 status=HealthStatus.UNKNOWN,
                 message=f"Memory check failed: {str(e)}",
                 duration_ms=0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def get_overall_status(self) -> HealthStatus:
@@ -490,7 +491,7 @@ class HealthChecker:
 
         return {
             "status": overall_status.value,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": {
                 name: {
                     "status": result.status.value,

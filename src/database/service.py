@@ -5,8 +5,8 @@ with proper error handling, transaction management, and connection pooling.
 """
 
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import structlog
 from sqlalchemy import and_, case, desc, func, or_, select, update
@@ -104,9 +104,9 @@ class DatabaseService:
         self,
         url: str,
         output_directory: str,
-        domain: Optional[str] = None,
-        slug: Optional[str] = None,
-        batch_id: Optional[int] = None,
+        domain: str | None = None,
+        slug: str | None = None,
+        batch_id: int | None = None,
         priority: str = "normal",
         **kwargs,
     ) -> ScrapingJob:
@@ -184,7 +184,7 @@ class DatabaseService:
             logger.error("Job creation failed - database error", url=url, error=str(e))
             raise DatabaseError(f"Job creation failed: {e}") from e
 
-    def get_job(self, job_id: int) -> Optional[ScrapingJob]:
+    def get_job(self, job_id: int) -> ScrapingJob | None:
         """Retrieve a job by ID.
 
         Args:
@@ -205,8 +205,8 @@ class DatabaseService:
         self,
         job_id: int,
         status: JobStatus,
-        error_message: Optional[str] = None,
-        duration: Optional[float] = None,
+        error_message: str | None = None,
+        duration: float | None = None,
     ) -> bool:
         """Update job status with optional error and timing information.
 
@@ -221,7 +221,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 update_data: dict[str, Any] = {"status": status}
 
                 if status == JobStatus.RUNNING:
@@ -338,7 +338,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
 
                 stmt = (
                     select(ScrapingJob)
@@ -370,7 +370,7 @@ class DatabaseService:
     def create_batch(
         self,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         output_base_directory: str = "batch_output",
         **config,
     ) -> Batch:
@@ -425,7 +425,7 @@ class DatabaseService:
             logger.error("Batch creation failed", name=name, error=str(e))
             raise DatabaseError(f"Batch creation failed: {e}") from e
 
-    def get_batch(self, batch_id: int) -> Optional[Batch]:
+    def get_batch(self, batch_id: int) -> Batch | None:
         """Retrieve a batch by ID with associated jobs.
 
         Args:
@@ -508,9 +508,9 @@ class DatabaseService:
     def save_content_result(
         self,
         job_id: int,
-        html_content: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        file_paths: Optional[dict[str, str]] = None,
+        html_content: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        file_paths: dict[str, str] | None = None,
         **kwargs,
     ) -> ContentResult:
         """Save converted content and metadata for a job.
@@ -563,10 +563,10 @@ class DatabaseService:
         job_id: int,
         level: str,
         message: str,
-        component: Optional[str] = None,
-        operation: Optional[str] = None,
-        context_data: Optional[dict[str, Any]] = None,
-    ) -> Optional[JobLog]:
+        component: str | None = None,
+        operation: str | None = None,
+        context_data: dict[str, Any] | None = None,
+    ) -> JobLog | None:
         """Add a log entry for a job.
 
         Args:
@@ -614,7 +614,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+                cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
                 # Overall statistics
                 stats_stmt = select(
@@ -667,7 +667,7 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+                cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
                 # Delete old completed jobs and their associated data
                 deleted_count = session.execute(

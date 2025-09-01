@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -59,7 +59,7 @@ class TestSpan:
     def test_span_creation(self):
         """Test creating a trace span."""
         span_id = str(uuid4())
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         span = Span(
             span_id=span_id,
             parent_span_id=None,
@@ -76,7 +76,7 @@ class TestSpan:
 
     def test_span_completion(self):
         """Test completing a trace span."""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         span = Span(
             span_id=str(uuid4()),
             parent_span_id=None,
@@ -85,7 +85,7 @@ class TestSpan:
         )
 
         time.sleep(0.1)  # Small delay
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         span.end_time = end_time
         span.duration_ms = (end_time - start_time).total_seconds() * 1000
 
@@ -100,7 +100,7 @@ class TestSpan:
             span_id=str(uuid4()),
             parent_span_id=None,
             operation_name="api_request",
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             tags=tags,
         )
 
@@ -131,14 +131,14 @@ class TestRequestTrace:
             span_id=str(uuid4()),
             parent_span_id=None,
             operation_name="database_query",
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
         )
 
         span2 = Span(
             span_id=str(uuid4()),
             parent_span_id=None,
             operation_name="cache_lookup",
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
         )
 
         trace.spans.append(span1)
@@ -154,12 +154,12 @@ class TestRequestTrace:
         trace = RequestTrace(
             trace_id=str(uuid4()),
             operation="test_request",
-            start_time=datetime.fromtimestamp(start_time, timezone.utc),
+            start_time=datetime.fromtimestamp(start_time, UTC),
         )
 
         time.sleep(0.1)
         end_time = time.time()
-        trace.end_time = datetime.fromtimestamp(end_time, timezone.utc)
+        trace.end_time = datetime.fromtimestamp(end_time, UTC)
         trace.duration_ms = (end_time - start_time) * 1000
         trace.status = "success"
 
@@ -419,7 +419,7 @@ class TestPerformanceMonitor:
     def test_cleanup_old_traces(self, monitor):
         """Test cleaning up old traces."""
         # Create traces with old timestamps
-        old_time = datetime.now(timezone.utc) - timedelta(hours=25)
+        old_time = datetime.now(UTC) - timedelta(hours=25)
 
         trace = RequestTrace(trace_id=str(uuid4()), operation="old_operation", start_time=old_time)
         trace.end_time = old_time + timedelta(seconds=1)

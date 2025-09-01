@@ -20,7 +20,7 @@ engine = create_async_engine(
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession]:
     """Dependency to get database session.
 
     Yields:

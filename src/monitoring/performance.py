@@ -5,8 +5,8 @@ import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
@@ -33,16 +33,16 @@ class RequestTrace:
     trace_id: str
     operation: str
     start_time: datetime
-    end_time: Optional[datetime] = None
-    duration_ms: Optional[float] = None
+    end_time: datetime | None = None
+    duration_ms: float | None = None
     status: str = "running"
     metadata: dict[str, Any] = field(default_factory=dict)
     spans: list["Span"] = field(default_factory=list)
-    error: Optional[str] = None
-    correlation_id: Optional[str] = None
+    error: str | None = None
+    correlation_id: str | None = None
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Get duration in seconds (compatibility alias for duration_ms)."""
         return self.duration_ms / 1000 if self.duration_ms is not None else None
 
@@ -52,17 +52,17 @@ class Span:
     """Represents a span within a trace."""
 
     span_id: str
-    parent_span_id: Optional[str]
+    parent_span_id: str | None
     operation_name: str
     start_time: datetime
-    end_time: Optional[datetime] = None
-    duration_ms: Optional[float] = None
+    end_time: datetime | None = None
+    duration_ms: float | None = None
     status: str = "running"
     tags: dict[str, Any] = field(default_factory=dict)
     logs: list[dict[str, Any]] = field(default_factory=list)
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Get duration in seconds (compatibility alias for duration_ms)."""
         return self.duration_ms / 1000 if self.duration_ms is not None else None
 
@@ -70,7 +70,7 @@ class Span:
 class PerformanceMonitor:
     """Performance monitoring with distributed tracing capabilities."""
 
-    def __init__(self, config: Optional[PerformanceConfig] = None):
+    def __init__(self, config: PerformanceConfig | None = None):
         """Initialize performance monitor.
 
         Args:
@@ -93,8 +93,8 @@ class PerformanceMonitor:
         )
 
     def start_trace(
-        self, operation: str, metadata: Optional[dict[str, Any]] = None
-    ) -> Optional[str]:
+        self, operation: str, metadata: dict[str, Any] | None = None
+    ) -> str | None:
         """Start a new request trace.
 
         Args:
@@ -120,7 +120,7 @@ class PerformanceMonitor:
         trace = RequestTrace(
             trace_id=trace_id,
             operation=operation,
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             metadata=metadata,
             correlation_id=metadata.get("correlation_id"),
         )
@@ -132,8 +132,8 @@ class PerformanceMonitor:
         return trace_id
 
     def finish_trace(
-        self, trace_id: str, status: str = "success", error: Optional[str] = None
-    ) -> Optional[RequestTrace]:
+        self, trace_id: str, status: str = "success", error: str | None = None
+    ) -> RequestTrace | None:
         """Finish a request trace.
 
         Args:
@@ -148,7 +148,7 @@ class PerformanceMonitor:
             return None
 
         trace = self.active_traces[trace_id]
-        trace.end_time = datetime.now(timezone.utc)
+        trace.end_time = datetime.now(UTC)
         trace.duration_ms = (trace.end_time - trace.start_time).total_seconds() * 1000
         trace.status = status
         trace.error = error
@@ -203,9 +203,9 @@ class PerformanceMonitor:
         self,
         trace_id: str,
         operation_name: str,
-        parent_span_id: Optional[str] = None,
-        tags: Optional[dict[str, Any]] = None,
-    ) -> Optional[str]:
+        parent_span_id: str | None = None,
+        tags: dict[str, Any] | None = None,
+    ) -> str | None:
         """Start a new span within a trace.
 
         Args:
@@ -225,7 +225,7 @@ class PerformanceMonitor:
             span_id=span_id,
             parent_span_id=parent_span_id,
             operation_name=operation_name,
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
             tags=tags or {},
         )
 
@@ -237,7 +237,7 @@ class PerformanceMonitor:
 
         return span_id
 
-    def finish_span(self, span_id: str, tags: Optional[dict[str, Any]] = None) -> None:
+    def finish_span(self, span_id: str, tags: dict[str, Any] | None = None) -> None:
         """Finish a span.
 
         Args:
@@ -248,7 +248,7 @@ class PerformanceMonitor:
             return
 
         span = self.active_spans[span_id]
-        span.end_time = datetime.now(timezone.utc)
+        span.end_time = datetime.now(UTC)
         span.duration_ms = (span.end_time - span.start_time).total_seconds() * 1000
 
         # Set status to success if not error
@@ -270,7 +270,7 @@ class PerformanceMonitor:
         )
 
     def add_span_log(
-        self, span_id: str, message: str, data: Optional[dict[str, Any]] = None
+        self, span_id: str, message: str, data: dict[str, Any] | None = None
     ) -> None:
         """Add a log entry to a span.
 
@@ -283,7 +283,7 @@ class PerformanceMonitor:
             return
 
         log_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "message": message,
             "data": data or {},
         }
@@ -292,8 +292,8 @@ class PerformanceMonitor:
 
     @asynccontextmanager
     async def trace_request(
-        self, operation: str, metadata: Optional[dict[str, Any]] = None
-    ) -> AsyncGenerator[Optional[str], None]:
+        self, operation: str, metadata: dict[str, Any] | None = None
+    ) -> AsyncGenerator[str | None]:
         """Context manager for tracing requests.
 
         Args:
@@ -322,9 +322,9 @@ class PerformanceMonitor:
         self,
         trace_id: str,
         operation_name: str,
-        parent_span_id: Optional[str] = None,
-        tags: Optional[dict[str, Any]] = None,
-    ) -> AsyncGenerator[Optional[str], None]:
+        parent_span_id: str | None = None,
+        tags: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[str | None]:
         """Context manager for tracing spans.
 
         Args:
@@ -374,7 +374,7 @@ class PerformanceMonitor:
                 "rss_bytes": memory_info.rss,
                 "vms_bytes": memory_info.vms,
                 "percent": process.memory_percent(),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             # Add to trace metadata
@@ -403,7 +403,7 @@ class PerformanceMonitor:
             total_requests += len(durations)
 
         summary: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "active_traces": len(self.active_traces),
             "completed_traces": len(self.completed_traces),
             "total_traces": total_requests,
@@ -461,7 +461,7 @@ class PerformanceMonitor:
 
         return sorted_data[index]
 
-    def get_trace_details(self, trace_id: str) -> Optional[dict[str, Any]]:
+    def get_trace_details(self, trace_id: str) -> dict[str, Any] | None:
         """Get detailed information about a specific trace.
 
         Args:
@@ -513,7 +513,7 @@ class PerformanceMonitor:
             Bottleneck analysis
         """
         bottlenecks: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "slow_operations": [],
             "high_variance_operations": [],
             "frequent_errors": [],
@@ -586,7 +586,7 @@ class PerformanceMonitor:
         """
         from datetime import timedelta
 
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=max_age_hours)
 
         # Filter out old traces
         self.completed_traces = [

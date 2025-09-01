@@ -1,7 +1,6 @@
 """CRUD operations for API endpoints using async SQLAlchemy 2.0."""
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,7 +59,7 @@ class JobCRUD:
         return job
 
     @staticmethod
-    async def get_job(db: AsyncSession, job_id: int) -> Optional[ScrapingJob]:
+    async def get_job(db: AsyncSession, job_id: int) -> ScrapingJob | None:
         """Get a job by ID.
 
         Args:
@@ -82,8 +81,8 @@ class JobCRUD:
         db: AsyncSession,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[JobStatus] = None,
-        domain: Optional[str] = None,
+        status: JobStatus | None = None,
+        domain: str | None = None,
     ) -> tuple[list[ScrapingJob], int]:
         """Get paginated list of jobs with optional filters.
 
@@ -124,7 +123,7 @@ class JobCRUD:
     @staticmethod
     async def update_job(
         db: AsyncSession, job_id: int, job_data: JobUpdate
-    ) -> Optional[ScrapingJob]:
+    ) -> ScrapingJob | None:
         """Update a job.
 
         Args:
@@ -171,9 +170,9 @@ class JobCRUD:
         db: AsyncSession,
         job_id: int,
         status: JobStatus,
-        error_message: Optional[str] = None,
-        error_type: Optional[str] = None,
-    ) -> Optional[ScrapingJob]:
+        error_message: str | None = None,
+        error_type: str | None = None,
+    ) -> ScrapingJob | None:
         """Update job status and error information.
 
         Args:
@@ -197,7 +196,7 @@ class JobCRUD:
             job.error_type = error_type
 
         # Set timestamps based on status
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if status == JobStatus.RUNNING and not job.started_at:
             job.started_at = now
         elif status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
@@ -257,7 +256,7 @@ class BatchCRUD:
         return batch
 
     @staticmethod
-    async def get_batch(db: AsyncSession, batch_id: int) -> Optional[Batch]:
+    async def get_batch(db: AsyncSession, batch_id: int) -> Batch | None:
         """Get a batch by ID.
 
         Args:
@@ -308,7 +307,7 @@ class ContentResultCRUD:
     """CRUD operations for content results."""
 
     @staticmethod
-    async def get_content_result(db: AsyncSession, result_id: int) -> Optional[ContentResult]:
+    async def get_content_result(db: AsyncSession, result_id: int) -> ContentResult | None:
         """Get a content result by ID.
 
         Args:

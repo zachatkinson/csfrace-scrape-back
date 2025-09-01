@@ -3,10 +3,10 @@
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -33,10 +33,10 @@ class ProcessingResult:
 
     success: bool
     url: str
-    data: Optional[dict[str, Any]] = None
-    error: Optional[str] = None
+    data: dict[str, Any] | None = None
+    error: str | None = None
     retries: int = 0
-    duration: Optional[float] = None
+    duration: float | None = None
 
 
 @dataclass
@@ -46,8 +46,8 @@ class BatchResults:
     successful: list[str] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)
     total: int = 0
-    duration: Optional[float] = None
-    statistics: Optional[dict[str, Any]] = None
+    duration: float | None = None
+    statistics: dict[str, Any] | None = None
 
 
 @dataclass
@@ -62,7 +62,7 @@ class BatchConfig:
     output_directory: Path = Path("batch_output")
     create_archives: bool = False
     cleanup_after_archive: bool = False
-    rate_limit_per_second: Optional[int] = None
+    rate_limit_per_second: int | None = None
     priority_queue: bool = True
     save_checkpoints: bool = True
     checkpoint_interval: int = 10  # Save progress every N jobs
@@ -103,7 +103,7 @@ class BatchProcessor:
         self.completed_count = 0
         self.failed_count = 0
         self.semaphore = asyncio.Semaphore(config.max_concurrent)
-        self.rate_limiter: Optional[asyncio.Semaphore] = None
+        self.rate_limiter: asyncio.Semaphore | None = None
         self.cancelled = False
 
         if config.rate_limit_per_second:
@@ -146,7 +146,7 @@ class BatchProcessor:
 
                 return ProcessingResult(success=True, url=url, data=result, retries=retries)
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = f"Timeout after {self.config.timeout_seconds} seconds"
                 logger.warning("URL processing timeout", url=url, attempt=retries + 1)
 
@@ -161,7 +161,7 @@ class BatchProcessor:
         return ProcessingResult(success=False, url=url, error=last_error, retries=retries - 1)
 
     async def process_batch(
-        self, batch_name: str, urls: list[str], priorities: Optional[dict[str, Priority]] = None
+        self, batch_name: str, urls: list[str], priorities: dict[str, Priority] | None = None
     ) -> BatchResults:
         """Process a batch of URLs concurrently.
 
@@ -190,7 +190,7 @@ class BatchProcessor:
         self.cancelled = False
 
         results = BatchResults(total=len(urls))
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         # Sort URLs by priority if provided
         if priorities:
@@ -228,7 +228,7 @@ class BatchProcessor:
                         raise BatchProcessingError(f"Batch processing failed: {result.error}")
 
         # Calculate duration
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         results.duration = (end_time - start_time).total_seconds()
 
         # Update batch progress (the database service doesn't have update_batch_status method)
@@ -350,7 +350,7 @@ class BatchProcessor:
             "batch_id": batch_id,
             "completed": self.completed_count,
             "failed": self.failed_count,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         checkpoint_file = self.config.output_directory / f"checkpoint_{batch_id}.json"

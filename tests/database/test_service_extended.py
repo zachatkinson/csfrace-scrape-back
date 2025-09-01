@@ -5,7 +5,7 @@ and edge cases in the database service module.
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -487,7 +487,7 @@ class TestDatabaseServiceExtended:
 
     def test_cleanup_old_jobs_mixed_statuses(self, temp_db_service):
         """Test cleanup with various job statuses."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         old_date = now - timedelta(days=35)
 
         # Create old jobs with different statuses

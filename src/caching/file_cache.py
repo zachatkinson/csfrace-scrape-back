@@ -3,7 +3,7 @@
 import hashlib
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import aiofiles
 
@@ -66,7 +66,7 @@ class FileCache(BaseCacheBackend):
         safe_key = hashlib.sha256(key.encode()).hexdigest()
         return base_dir / f"{safe_key}.cache"
 
-    async def get(self, key: str) -> Optional[CacheEntry]:
+    async def get(self, key: str) -> CacheEntry | None:
         """Get a cache entry by key."""
         try:
             # We need to check all possible content type directories
@@ -109,7 +109,7 @@ class FileCache(BaseCacheBackend):
             return None
 
     async def set(
-        self, key: str, value: Any, ttl: Optional[int] = None, content_type: str = "generic"
+        self, key: str, value: Any, ttl: int | None = None, content_type: str = "generic"
     ) -> bool:
         """Set a cache entry."""
         try:

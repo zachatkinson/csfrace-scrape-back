@@ -3,7 +3,7 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import structlog
 import yaml
@@ -19,7 +19,7 @@ class ConfigLoader:
 
     @staticmethod
     def load_config(
-        config_path: Union[str, Path], config_type: Optional[str] = None
+        config_path: str | Path, config_type: str | None = None
     ) -> dict[str, Any]:
         """Load configuration from file.
 
@@ -74,7 +74,7 @@ class ConfigLoader:
 
     @staticmethod
     def create_converter_config(
-        config_dict: dict[str, Any], base_config: Optional[ConverterConfig] = None
+        config_dict: dict[str, Any], base_config: ConverterConfig | None = None
     ) -> ConverterConfig:
         """Create ConverterConfig from dictionary.
 
@@ -103,7 +103,7 @@ class ConfigLoader:
 
     @staticmethod
     def create_batch_config(
-        config_dict: dict[str, Any], base_config: Optional[BatchConfig] = None
+        config_dict: dict[str, Any], base_config: BatchConfig | None = None
     ) -> BatchConfig:
         """Create BatchConfig from dictionary.
 
@@ -129,7 +129,7 @@ class ConfigLoader:
         return BatchConfig(**merged)
 
     @staticmethod
-    def save_example_config(output_path: Union[str, Path], format: str = "yaml") -> None:
+    def save_example_config(output_path: str | Path, format: str = "yaml") -> None:
         """Save an example configuration file.
 
         Args:
@@ -191,7 +191,7 @@ class ConfigLoader:
         logger.info("Saved example config", path=str(output_path), format=format)
 
 
-def load_config_from_file(config_path: Union[str, Path]) -> tuple[ConverterConfig, BatchConfig]:
+def load_config_from_file(config_path: str | Path) -> tuple[ConverterConfig, BatchConfig]:
     """Convenience function to load both configs from file.
 
     Args:

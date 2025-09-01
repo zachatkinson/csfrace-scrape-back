@@ -1,7 +1,7 @@
 """Cache manager for coordinating cache operations and strategies."""
 
 import hashlib
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -23,14 +23,14 @@ logger = structlog.get_logger(__name__)
 class CacheManager:
     """High-level cache manager that coordinates multiple cache backends."""
 
-    def __init__(self, config: Optional[CacheConfig] = None):
+    def __init__(self, config: CacheConfig | None = None):
         """Initialize cache manager.
 
         Args:
             config: Cache configuration (defaults to file-based cache)
         """
         self.config = config or CacheConfig()
-        self.backend: Optional[BaseCacheBackend] = None
+        self.backend: BaseCacheBackend | None = None
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -66,7 +66,7 @@ class CacheManager:
             logger.error("Failed to initialize cache manager", error=str(e))
             raise
 
-    async def get_html(self, url: str) -> Optional[str]:
+    async def get_html(self, url: str) -> str | None:
         """Get cached HTML content for a URL.
 
         Args:
@@ -87,7 +87,7 @@ class CacheManager:
 
         return None
 
-    async def set_html(self, url: str, html_content: str, ttl: Optional[int] = None) -> bool:
+    async def set_html(self, url: str, html_content: str, ttl: int | None = None) -> bool:
         """Cache HTML content for a URL.
 
         Args:
@@ -104,7 +104,7 @@ class CacheManager:
         key = self._make_html_key(url)
         return await self.backend.set(key, html_content, ttl, "html")
 
-    async def get_image(self, image_url: str) -> Optional[bytes]:
+    async def get_image(self, image_url: str) -> bytes | None:
         """Get cached image data.
 
         Args:
@@ -125,7 +125,7 @@ class CacheManager:
 
         return None
 
-    async def set_image(self, image_url: str, image_data: bytes, ttl: Optional[int] = None) -> bool:
+    async def set_image(self, image_url: str, image_data: bytes, ttl: int | None = None) -> bool:
         """Cache image data.
 
         Args:
@@ -142,7 +142,7 @@ class CacheManager:
         key = self._make_image_key(image_url)
         return await self.backend.set(key, image_data, ttl, "image")
 
-    async def get_metadata(self, url: str) -> Optional[dict[str, Any]]:
+    async def get_metadata(self, url: str) -> dict[str, Any] | None:
         """Get cached metadata for a URL.
 
         Args:
@@ -164,7 +164,7 @@ class CacheManager:
         return None
 
     async def set_metadata(
-        self, url: str, metadata: dict[str, Any], ttl: Optional[int] = None
+        self, url: str, metadata: dict[str, Any], ttl: int | None = None
     ) -> bool:
         """Cache metadata for a URL.
 
@@ -182,7 +182,7 @@ class CacheManager:
         key = self._make_metadata_key(url)
         return await self.backend.set(key, metadata, ttl, "metadata")
 
-    async def get_robots_txt(self, domain: str) -> Optional[str]:
+    async def get_robots_txt(self, domain: str) -> str | None:
         """Get cached robots.txt content for a domain.
 
         Args:
@@ -204,7 +204,7 @@ class CacheManager:
         return None
 
     async def set_robots_txt(
-        self, domain: str, robots_content: str, ttl: Optional[int] = None
+        self, domain: str, robots_content: str, ttl: int | None = None
     ) -> bool:
         """Cache robots.txt content for a domain.
 

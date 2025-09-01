@@ -3,9 +3,9 @@
 import asyncio
 import heapq
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -31,14 +31,14 @@ class QueueItem:
     priority: int = field(compare=True)
     timestamp: datetime = field(compare=False)
     url: str = field(compare=False)
-    batch_id: Optional[int] = field(default=None, compare=False)
+    batch_id: int | None = field(default=None, compare=False)
     metadata: dict[str, Any] = field(default_factory=dict, compare=False)
     retry_count: int = field(default=0, compare=False)
 
     def __post_init__(self):
         """Initialize timestamp if not provided."""
         if self.timestamp is None:
-            self.timestamp = datetime.now(timezone.utc)
+            self.timestamp = datetime.now(UTC)
 
 
 class BatchQueueManager:
@@ -96,8 +96,8 @@ class BatchQueueManager:
         self,
         url: str,
         priority: Priority = Priority.NORMAL,
-        batch_id: Optional[int] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        batch_id: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Add an item to the appropriate priority queue.
 
@@ -116,7 +116,7 @@ class BatchQueueManager:
 
         item = QueueItem(
             priority=priority.value,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             url=url,
             batch_id=batch_id,
             metadata=metadata or {},
@@ -137,7 +137,7 @@ class BatchQueueManager:
         return True
 
     async def add_batch(
-        self, urls: list[str], priority: Priority = Priority.NORMAL, batch_id: Optional[int] = None
+        self, urls: list[str], priority: Priority = Priority.NORMAL, batch_id: int | None = None
     ) -> int:
         """Add multiple URLs to the queue.
 
@@ -159,7 +159,7 @@ class BatchQueueManager:
 
         return added
 
-    async def get_next_item(self) -> Optional[QueueItem]:
+    async def get_next_item(self) -> QueueItem | None:
         """Get the next highest priority item from the queue.
 
         Returns:
@@ -340,7 +340,7 @@ class BatchQueueManager:
 
     async def rebalance_queues(self):
         """Rebalance queues based on age and priority."""
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
 
         # Move aged items to higher priority
         for source_queue, target_queue, age_threshold in [
@@ -380,7 +380,7 @@ class BatchQueueManager:
         from datetime import datetime
 
         state = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "status": self.status.value,
             "statistics": self.get_statistics(),
             "queues": {

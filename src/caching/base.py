@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import structlog
 
@@ -43,7 +43,7 @@ class CacheConfig:
     redis_host: str = CONSTANTS.REDIS_HOST
     redis_port: int = CONSTANTS.REDIS_PORT
     redis_db: int = CONSTANTS.REDIS_DB
-    redis_password: Optional[str] = None
+    redis_password: str | None = None
     redis_key_prefix: str = CONSTANTS.REDIS_KEY_PREFIX
 
     # General settings
@@ -107,7 +107,7 @@ class BaseCacheBackend(abc.ABC):
         self.logger = structlog.get_logger(self.__class__.__name__)
 
     @abc.abstractmethod
-    async def get(self, key: str) -> Optional[CacheEntry]:
+    async def get(self, key: str) -> CacheEntry | None:
         """Get a cache entry by key.
 
         Args:
@@ -120,7 +120,7 @@ class BaseCacheBackend(abc.ABC):
 
     @abc.abstractmethod
     async def set(
-        self, key: str, value: Any, ttl: Optional[int] = None, content_type: str = "generic"
+        self, key: str, value: Any, ttl: int | None = None, content_type: str = "generic"
     ) -> bool:
         """Set a cache entry.
 
@@ -174,7 +174,7 @@ class BaseCacheBackend(abc.ABC):
         """
         pass
 
-    def generate_key(self, *parts: Union[str, int, float]) -> str:
+    def generate_key(self, *parts: str | int | float) -> str:
         """Generate a cache key from parts.
 
         Args:

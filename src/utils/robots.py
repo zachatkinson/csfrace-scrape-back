@@ -1,7 +1,6 @@
 """Robots.txt parsing and rate limiting compliance."""
 
 import asyncio
-from typing import Optional
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -26,7 +25,7 @@ class RobotsChecker:
 
     async def get_robots_parser(
         self, base_url: str, session: aiohttp.ClientSession
-    ) -> Optional[RobotFileParser]:
+    ) -> RobotFileParser | None:
         """Get robots.txt parser for a domain with caching.
 
         Args:

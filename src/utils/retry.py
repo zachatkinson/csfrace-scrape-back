@@ -12,10 +12,10 @@ import asyncio
 import functools
 import secrets
 import time
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 import structlog
 from aiohttp import ClientError, ServerTimeoutError
@@ -89,7 +89,7 @@ class RetryConfig:
 
 
 def with_retry(
-    retry_config: Optional[RetryConfig] = None,
+    retry_config: RetryConfig | None = None,
     retry_on: tuple = (ClientError, ServerTimeoutError, asyncio.TimeoutError),
     reraise_on: tuple = (RateLimitError,),
 ) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
@@ -223,7 +223,7 @@ class CircuitBreaker:
         self.failure_count = 0
         self.success_count = 0
         self.half_open_calls = 0
-        self.last_failure_time: Optional[float] = None
+        self.last_failure_time: float | None = None
         self.state = CircuitBreakerState.CLOSED
 
         # Metrics tracking
@@ -444,9 +444,9 @@ class ResilienceManager:
 
     def __init__(
         self,
-        retry_config: Optional[RetryConfig] = None,
-        circuit_breaker: Optional[CircuitBreaker] = None,
-        bulkhead: Optional[BulkheadPattern] = None,
+        retry_config: RetryConfig | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
+        bulkhead: BulkheadPattern | None = None,
         name: str = "default",
     ):
         """Initialize resilience manager with all patterns.

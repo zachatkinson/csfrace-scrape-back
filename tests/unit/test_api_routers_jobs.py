@@ -1,5 +1,6 @@
 """Unit tests for jobs router endpoints."""
 
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -43,7 +44,7 @@ class TestJobRouterEndpoints:
     @pytest.fixture
     def sample_job(self):
         """Sample ScrapingJob instance."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         return ScrapingJob(
             id=1,
@@ -59,7 +60,7 @@ class TestJobRouterEndpoints:
             skip_existing=False,
             success=False,
             images_downloaded=0,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     @pytest.mark.asyncio
@@ -92,7 +93,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_jobs_success(self, mock_db_session):
         """Test successful job listing."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         jobs = [
             ScrapingJob(
@@ -102,7 +103,7 @@ class TestJobRouterEndpoints:
                 slug="test1",
                 status=JobStatus.PENDING,
                 priority=JobPriority.NORMAL,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
                 timeout_seconds=30,
@@ -118,7 +119,7 @@ class TestJobRouterEndpoints:
                 slug="test2",
                 status=JobStatus.PENDING,
                 priority=JobPriority.NORMAL,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
                 timeout_seconds=30,
@@ -154,7 +155,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_jobs_pagination_calculation(self, mock_db_session):
         """Test pagination calculation in job listing."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         jobs = [
             ScrapingJob(
@@ -164,7 +165,7 @@ class TestJobRouterEndpoints:
                 slug="test",
                 status=JobStatus.PENDING,
                 priority=JobPriority.NORMAL,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
                 timeout_seconds=30,
@@ -544,7 +545,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_cancel_job_valid_statuses(self, mock_db_session):
         """Test that jobs in valid statuses can be cancelled."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         valid_statuses = [JobStatus.PENDING, JobStatus.RUNNING]
 
@@ -556,7 +557,7 @@ class TestJobRouterEndpoints:
                 slug="test",
                 status=valid_status,
                 priority=JobPriority.NORMAL,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
                 timeout_seconds=30,
@@ -589,7 +590,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_job_list_response_validation(self, mock_db_session):
         """Test that JobListResponse validation works correctly."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         jobs = [
             ScrapingJob(
@@ -599,7 +600,7 @@ class TestJobRouterEndpoints:
                 slug="test",
                 status=JobStatus.PENDING,
                 priority=JobPriority.NORMAL,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
                 timeout_seconds=30,

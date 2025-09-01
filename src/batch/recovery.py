@@ -1,9 +1,9 @@
 """Batch recovery and resume functionality for Phase 4B."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import and_, or_
@@ -47,7 +47,7 @@ class CheckpointManager:
         """
         checkpoint_data = {
             "batch_id": batch_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "version": "1.0",
             "state": current_state,
         }
@@ -75,7 +75,7 @@ class CheckpointManager:
             logger.error("Failed to create checkpoint", batch_id=batch_id, error=str(e))
             raise BatchProcessingError(f"Checkpoint creation failed: {e}")
 
-    def load_checkpoint(self, batch_id: int) -> Optional[dict[str, Any]]:
+    def load_checkpoint(self, batch_id: int) -> dict[str, Any] | None:
         """Load checkpoint data for a batch.
 
         Args:
@@ -131,7 +131,7 @@ class CheckpointManager:
         Args:
             max_age_days: Maximum age of checkpoints to keep
         """
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=max_age_days)
         cleaned = 0
 
         for batch_id, timestamp, file_path in self.list_checkpoints():
@@ -142,7 +142,7 @@ class CheckpointManager:
                     logger.info(
                         "Cleaned old checkpoint",
                         batch_id=batch_id,
-                        age_days=(datetime.now(timezone.utc) - timestamp).days,
+                        age_days=(datetime.now(UTC) - timestamp).days,
                     )
                 except Exception as e:
                     logger.warning("Failed to clean checkpoint", file=str(file_path), error=str(e))
@@ -310,7 +310,7 @@ class BatchRecoveryManager:
         self,
         batch_id: int,
         recovery_strategy: str = "resume_pending",
-        processor: Optional[BatchProcessor] = None,
+        processor: BatchProcessor | None = None,
     ) -> BatchResults:
         """Recover a failed or interrupted batch.
 
@@ -436,7 +436,7 @@ class BatchRecoveryManager:
             "estimated_total_time": f"{2 + (jobs_to_process * 2 // 60)} minutes",
             "success_probability": self._estimate_success_probability(analysis),
             "risks": self._identify_recovery_risks(analysis),
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         return recovery_plan

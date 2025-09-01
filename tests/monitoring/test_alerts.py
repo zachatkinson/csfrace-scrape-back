@@ -1,7 +1,7 @@
 """Tests for alerting system."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -74,7 +74,7 @@ class TestAlert:
 
     def test_alert_creation(self):
         """Test creating alert."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         alert = Alert(
             rule_name="test_rule",
             severity=AlertSeverity.ERROR,
@@ -367,11 +367,11 @@ class TestAlertManager:
         assert alert_manager._is_rule_in_cooldown("test_rule") is False
 
         # Set cooldown
-        alert_manager.rule_cooldowns["test_rule"] = datetime.now(timezone.utc)
+        alert_manager.rule_cooldowns["test_rule"] = datetime.now(UTC)
         assert alert_manager._is_rule_in_cooldown("test_rule") is True
 
         # Set old cooldown
-        alert_manager.rule_cooldowns["test_rule"] = datetime.now(timezone.utc) - timedelta(
+        alert_manager.rule_cooldowns["test_rule"] = datetime.now(UTC) - timedelta(
             minutes=15
         )
         assert alert_manager._is_rule_in_cooldown("test_rule") is False
@@ -395,7 +395,7 @@ class TestAlertManager:
         assert alert_manager._is_rule_rate_limited("test_rule") is False
 
         # Add some recent alerts
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         alert_manager.rule_alert_counts["test_rule"] = [
             now - timedelta(minutes=10),
             now - timedelta(minutes=5),
@@ -423,7 +423,7 @@ class TestAlertManager:
             metric_name="cpu_percent",
             metric_value=85.0,
             threshold=80.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         # Should not raise exception
@@ -439,7 +439,7 @@ class TestAlertManager:
             metric_name="cpu_percent",
             metric_value=95.0,
             threshold=90.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         await alert_manager._send_console_notification(alert)
@@ -459,7 +459,7 @@ class TestAlertManager:
             metric_name="metric",
             metric_value=85.0,
             threshold=80.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         # Should not raise exception when disabled
@@ -475,7 +475,7 @@ class TestAlertManager:
             metric_name="metric",
             metric_value=85.0,
             threshold=80.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         # Should not raise exception when disabled
@@ -494,7 +494,7 @@ class TestAlertManager:
             metric_name="metric",
             metric_value=85.0,
             threshold=80.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         with patch("aiohttp.ClientSession") as mock_session:
@@ -522,7 +522,7 @@ class TestAlertManager:
             metric_name="cpu_percent",
             metric_value=85.0,
             threshold=80.0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         alert_manager.active_alerts["test_rule"] = alert

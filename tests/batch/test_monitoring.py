@@ -2,7 +2,7 @@
 
 import json
 import statistics
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -182,8 +182,8 @@ class TestBatchMonitor:
         mock_batch.id = 1
         mock_batch.name = "test_batch"
         mock_batch.status = JobStatus.RUNNING
-        mock_batch.created_at = datetime.now(timezone.utc)
-        mock_batch.started_at = datetime.now(timezone.utc)
+        mock_batch.created_at = datetime.now(UTC)
+        mock_batch.started_at = datetime.now(UTC)
         mock_batch.max_concurrent = 5
         mock_batch.output_base_directory = "/test/output"
 
@@ -233,9 +233,9 @@ class TestBatchMonitor:
         mock_batch.name = "test_batch"
         mock_batch.description = "Test description"
         mock_batch.status = JobStatus.COMPLETED
-        mock_batch.created_at = datetime.now(timezone.utc)
-        mock_batch.started_at = datetime.now(timezone.utc)
-        mock_batch.completed_at = datetime.now(timezone.utc)
+        mock_batch.created_at = datetime.now(UTC)
+        mock_batch.started_at = datetime.now(UTC)
+        mock_batch.completed_at = datetime.now(UTC)
         mock_batch.max_concurrent = 3
         mock_batch.output_base_directory = "/output"
 
@@ -247,7 +247,7 @@ class TestBatchMonitor:
             job = Mock(spec=ScrapingJob)
             job.status = JobStatus.COMPLETED
             job.duration_seconds = 2.0 + i
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
             job.url = f"https://example.com/{i}"
             job.error_message = None
             mock_jobs.append(job)
@@ -285,7 +285,7 @@ class TestBatchMonitor:
         mock_batch.name = "pending_batch"
         mock_batch.description = None
         mock_batch.status = JobStatus.PENDING
-        mock_batch.created_at = datetime.now(timezone.utc)
+        mock_batch.created_at = datetime.now(UTC)
         mock_batch.started_at = None
         mock_batch.completed_at = None
         mock_batch.max_concurrent = 5
@@ -363,8 +363,8 @@ class TestBatchMonitor:
             batch_monitor.database_service.get_session.return_value.__enter__.return_value
         )
 
-        start_date = datetime.now(timezone.utc) - timedelta(days=1)
-        end_date = datetime.now(timezone.utc)
+        start_date = datetime.now(UTC) - timedelta(days=1)
+        end_date = datetime.now(UTC)
 
         # Mock batches
         mock_batch = Mock()
@@ -440,8 +440,8 @@ class TestBatchMonitor:
         )
         mock_session.query.return_value.filter.return_value.all.return_value = []
 
-        start_date = datetime.now(timezone.utc) - timedelta(days=1)
-        end_date = datetime.now(timezone.utc)
+        start_date = datetime.now(UTC) - timedelta(days=1)
+        end_date = datetime.now(UTC)
 
         report = await batch_monitor.generate_report(start_date, end_date)
 
@@ -487,7 +487,7 @@ class TestAlertManager:
         for i in range(20):
             job = Mock(spec=ScrapingJob)
             job.status = JobStatus.FAILED if i == 0 else JobStatus.COMPLETED
-            job.created_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+            job.created_at = datetime.now(UTC) - timedelta(minutes=30)
             mock_jobs.append(job)
 
         mock_session.query.return_value.filter.return_value.all.return_value = mock_jobs
@@ -507,7 +507,7 @@ class TestAlertManager:
         for i in range(20):
             job = Mock(spec=ScrapingJob)
             job.status = JobStatus.FAILED if i < 3 else JobStatus.COMPLETED
-            job.created_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+            job.created_at = datetime.now(UTC) - timedelta(minutes=30)
             mock_jobs.append(job)
 
         mock_session.query.return_value.filter.return_value.all.return_value = mock_jobs
@@ -533,7 +533,7 @@ class TestAlertManager:
         for i in range(10):
             job = Mock(spec=ScrapingJob)
             job.status = JobStatus.FAILED if i < 3 else JobStatus.COMPLETED
-            job.created_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+            job.created_at = datetime.now(UTC) - timedelta(minutes=30)
             mock_jobs.append(job)
 
         mock_session.query.return_value.filter.return_value.all.return_value = mock_jobs
@@ -565,7 +565,7 @@ class TestAlertManager:
         # Mock stalled jobs
         stalled_job = Mock(spec=ScrapingJob)
         stalled_job.url = "https://example.com/stalled"
-        stalled_job.started_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        stalled_job.started_at = datetime.now(UTC) - timedelta(hours=1)
 
         mock_session.query.return_value.filter.return_value.all.return_value = [stalled_job]
 

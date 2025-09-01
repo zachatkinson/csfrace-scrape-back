@@ -6,7 +6,7 @@ of Grafana dashboards following industry best practices.
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 import yaml
@@ -26,7 +26,7 @@ class GrafanaDashboardProvisioner:
     4. Docker Compose integration
     """
 
-    def __init__(self, config: Optional[GrafanaConfig] = None):
+    def __init__(self, config: GrafanaConfig | None = None):
         """Initialize dashboard provisioner.
 
         Args:

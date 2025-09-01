@@ -1,6 +1,6 @@
 """Unit tests for health router endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -411,7 +411,7 @@ request_duration_seconds_bucket{le="1.0"} 800
                 result = await health_check(mock_db_session)
 
                 assert isinstance(result.timestamp, datetime)
-                assert result.timestamp.tzinfo == timezone.utc
+                assert result.timestamp.tzinfo == UTC
 
     @pytest.mark.asyncio
     async def test_health_check_cache_status_scenarios(self, mock_db_session):
@@ -509,9 +509,9 @@ request_duration_seconds_bucket{le="1.0"} 800
             result = await get_metrics()
 
             assert isinstance(result.timestamp, datetime)
-            assert result.timestamp.tzinfo == timezone.utc
+            assert result.timestamp.tzinfo == UTC
             # Timestamp should be recent (within last minute)
-            time_diff = datetime.now(timezone.utc) - result.timestamp
+            time_diff = datetime.now(UTC) - result.timestamp
             assert time_diff.total_seconds() < 60
 
     @pytest.mark.asyncio

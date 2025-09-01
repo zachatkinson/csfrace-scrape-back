@@ -33,7 +33,7 @@ class TestNetworkErrorScenarios:
         manager = EnhancedSessionManager("https://httpbin.org", config)
 
         with patch.object(manager, "get_session") as mock_session:
-            mock_session.side_effect = asyncio.TimeoutError("Connection timeout")
+            mock_session.side_effect = TimeoutError("Connection timeout")
 
             with pytest.raises(asyncio.TimeoutError):
                 await manager.get_session()
@@ -279,7 +279,7 @@ class TestConcurrencyErrorScenarios:
                 try:
                     await asyncio.wait_for(lock2.acquire(), timeout=0.1)
                     lock2.release()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     nonlocal deadlock_detected
                     deadlock_detected = True
 
@@ -289,7 +289,7 @@ class TestConcurrencyErrorScenarios:
                 try:
                     await asyncio.wait_for(lock1.acquire(), timeout=0.1)
                     lock1.release()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
 
         # Run both tasks concurrently
@@ -600,7 +600,7 @@ def mock_network_error():
 
     def _mock_error(error_type="timeout"):
         if error_type == "timeout":
-            return asyncio.TimeoutError("Network timeout")
+            return TimeoutError("Network timeout")
         elif error_type == "connection":
             return ConnectionError("Connection refused")
         elif error_type == "dns":

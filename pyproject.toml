@@ -139,7 +139,7 @@ known_third_party = [
 
 # Ruff configuration (replaces flake8, isort, and more)
 [tool.ruff]
-target-version = "1.0.0"
+target-version = "py313"
 line-length = 100
 exclude = [
     ".git",

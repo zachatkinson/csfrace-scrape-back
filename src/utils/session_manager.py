@@ -8,7 +8,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -40,7 +40,7 @@ class SessionConfig:
     enable_cleanup_closed: bool = True
 
     # Cookie and persistence settings
-    cookie_jar_path: Optional[Path] = None
+    cookie_jar_path: Path | None = None
     save_cookies: bool = True
     load_cookies: bool = True
 
@@ -49,10 +49,10 @@ class SessionConfig:
     custom_headers: dict[str, str] = field(default_factory=dict)
 
     # Authentication settings
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     auth_type: str = "basic"  # "basic", "bearer", "custom"
-    bearer_token: Optional[str] = None
+    bearer_token: str | None = None
 
     # Retry and resilience settings
     use_retry: bool = True
@@ -60,7 +60,7 @@ class SessionConfig:
 
     # SSL settings
     verify_ssl: bool = True
-    ssl_context: Optional[Any] = None
+    ssl_context: Any | None = None
 
     def __post_init__(self):
         """Validate configuration parameters."""
@@ -202,7 +202,7 @@ class EnhancedSessionManager:
     """
 
     def __init__(
-        self, base_url: str, config: Optional[SessionConfig] = None, session_name: str = "default"
+        self, base_url: str, config: SessionConfig | None = None, session_name: str = "default"
     ):
         """Initialize enhanced session manager.
 
@@ -220,13 +220,13 @@ class EnhancedSessionManager:
         self.domain = self.parsed_url.netloc
 
         # Initialize cookie persistence
-        self.cookie_jar: Optional[aiohttp.CookieJar] = None
+        self.cookie_jar: aiohttp.CookieJar | None = None
         self.persistent_jar = None
         if self.config.cookie_jar_path:
             self.persistent_jar = PersistentCookieJar(self.config.cookie_jar_path)
 
         # Session state
-        self._session: Optional[ClientSession] = None
+        self._session: ClientSession | None = None
         self._is_authenticated = False
         self._auth_validated = False
 
@@ -564,7 +564,7 @@ class EnhancedSessionManager:
 
 # Utility function for backward compatibility and ease of use
 async def create_session(
-    base_url: str, config: Optional[SessionConfig] = None, session_name: str = "default"
+    base_url: str, config: SessionConfig | None = None, session_name: str = "default"
 ) -> EnhancedSessionManager:
     """Create and return an enhanced session manager.
 

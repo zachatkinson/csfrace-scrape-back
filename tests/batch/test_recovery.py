@@ -1,7 +1,7 @@
 """Tests for batch recovery and resume functionality."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -45,8 +45,8 @@ def sample_batch():
     batch.id = 1
     batch.name = "test_batch"
     batch.status = JobStatus.RUNNING
-    batch.created_at = datetime.now(timezone.utc) - timedelta(hours=1)
-    batch.started_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+    batch.created_at = datetime.now(UTC) - timedelta(hours=1)
+    batch.started_at = datetime.now(UTC) - timedelta(minutes=30)
     batch.completed_at = None
     batch.max_concurrent = 5
     batch.output_base_directory = "/test/output"
@@ -72,9 +72,9 @@ def sample_jobs():
         job.duration_seconds = 2.0 if status == JobStatus.COMPLETED else None
         job.error_type = "timeout" if status == JobStatus.FAILED else None
         job.error_message = "Request timeout" if status == JobStatus.FAILED else None
-        job.created_at = datetime.now(timezone.utc) - timedelta(minutes=60 - i * 5)
+        job.created_at = datetime.now(UTC) - timedelta(minutes=60 - i * 5)
         job.completed_at = (
-            datetime.now(timezone.utc) - timedelta(minutes=30 - i * 2)
+            datetime.now(UTC) - timedelta(minutes=30 - i * 2)
             if status == JobStatus.COMPLETED
             else None
         )
@@ -175,7 +175,7 @@ class TestCheckpointManager:
         states = [{"count": i} for i in range(3)]
         batch_ids = [100, 200, 300]
 
-        for batch_id, state in zip(batch_ids, states):
+        for batch_id, state in zip(batch_ids, states, strict=False):
             checkpoint_manager.create_checkpoint(batch_id, state)
 
         checkpoints = checkpoint_manager.list_checkpoints()
@@ -216,7 +216,7 @@ class TestCheckpointManager:
 
         # Manually modify timestamp to make it old
         old_data = json.loads(old_checkpoint.read_text())
-        old_timestamp = datetime.now(timezone.utc) - timedelta(days=35)
+        old_timestamp = datetime.now(UTC) - timedelta(days=35)
         old_data["timestamp"] = old_timestamp.isoformat()
         old_checkpoint.write_text(json.dumps(old_data))
 
@@ -296,7 +296,7 @@ class TestBatchRecoveryManager:
         ]  # No running or pending
 
         # Mock checkpoint exists
-        checkpoint_data = {"timestamp": datetime.now(timezone.utc).isoformat()}
+        checkpoint_data = {"timestamp": datetime.now(UTC).isoformat()}
         recovery_manager.checkpoint_manager.load_checkpoint = Mock(return_value=checkpoint_data)
 
         interrupted = recovery_manager.find_interrupted_batches()

@@ -1,8 +1,8 @@
 """Async image downloader with concurrent processing."""
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 from urllib.parse import urlparse
 
 import aiohttp
@@ -40,7 +40,7 @@ class AsyncImageDownloader:
         self,
         session: aiohttp.ClientSession,
         image_urls: list[str],
-        progress_callback: Optional[Callable[[float], None]] = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> list[str]:
         """Download all images concurrently.
 
@@ -93,8 +93,8 @@ class AsyncImageDownloader:
         url: str,
         index: int,
         total: int,
-        progress_callback: Optional[Callable[[float], None]] = None,
-    ) -> Optional[str]:
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> str | None:
         """Download a single image with concurrency control.
 
         Args:

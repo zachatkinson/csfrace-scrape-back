@@ -1,12 +1,11 @@
 """Custom exceptions for the WordPress to Shopify converter."""
 
-from typing import Optional
 
 
 class ConversionError(Exception):
     """Base exception for conversion errors."""
 
-    def __init__(self, message: str, url: Optional[str] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, url: str | None = None, cause: Exception | None = None):
         super().__init__(message)
         self.url = url
         self.cause = cause
@@ -54,7 +53,7 @@ class DatabaseError(Exception):
     """Exception raised for database-related errors."""
 
     def __init__(
-        self, message: str, operation: Optional[str] = None, cause: Optional[Exception] = None
+        self, message: str, operation: str | None = None, cause: Exception | None = None
     ):
         super().__init__(message)
         self.operation = operation
@@ -73,7 +72,7 @@ class BatchProcessingError(Exception):
     """Exception raised during batch processing operations."""
 
     def __init__(
-        self, message: str, batch_id: Optional[int] = None, cause: Optional[Exception] = None
+        self, message: str, batch_id: int | None = None, cause: Exception | None = None
     ):
         super().__init__(message)
         self.batch_id = batch_id

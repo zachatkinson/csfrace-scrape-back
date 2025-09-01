@@ -1,8 +1,8 @@
 """Async WordPress to Shopify content converter using aiohttp."""
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 class AsyncWordPressConverter:
     """Async WordPress to Shopify content converter."""
 
-    def __init__(self, base_url: str, output_dir: Path, config: Optional[ConverterConfig] = None):
+    def __init__(self, base_url: str, output_dir: Path, config: ConverterConfig | None = None):
         """Initialize the async converter.
 
         Args:
@@ -123,7 +123,7 @@ class AsyncWordPressConverter:
 
         except aiohttp.ClientError as e:
             raise FetchError(f"Failed to fetch content: {e}", url=self.base_url, cause=e)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise FetchError(f"Request timed out: {e}", url=self.base_url, cause=e)
 
     async def _process_content(self, html_content: str) -> tuple[dict[str, str], str, list[str]]:
@@ -259,7 +259,7 @@ class AsyncWordPressConverter:
             None, lambda: path.write_text(content, encoding="utf-8")
         )
 
-    async def convert(self, progress_callback: Optional[Callable[[int], None]] = None) -> None:
+    async def convert(self, progress_callback: Callable[[int], None] | None = None) -> None:
         """Main conversion method with progress tracking.
 
         Args:

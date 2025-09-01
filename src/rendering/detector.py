@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from bs4 import BeautifulSoup, Tag
@@ -84,7 +84,7 @@ class ContentAnalysis:
 class DynamicContentDetector:
     """Detector for identifying pages that require JavaScript rendering."""
 
-    def __init__(self, indicators: Optional[DynamicContentIndicators] = None):
+    def __init__(self, indicators: DynamicContentIndicators | None = None):
         self.indicators = indicators or DynamicContentIndicators()
 
         # Compile regex patterns for efficiency
@@ -97,7 +97,7 @@ class DynamicContentDetector:
             for indicator in self.indicators.spa_indicators
         ]
 
-    def analyze_html(self, html: str, url: Optional[str] = None) -> ContentAnalysis:
+    def analyze_html(self, html: str, url: str | None = None) -> ContentAnalysis:
         """Analyze HTML content to detect dynamic content requirements."""
         # Handle empty or minimal HTML content
         if not html or html.strip() == "":
@@ -395,7 +395,7 @@ class DynamicContentDetector:
 
 # Utility functions
 def should_use_javascript_rendering(
-    html: str, url: Optional[str] = None
+    html: str, url: str | None = None
 ) -> tuple[bool, ContentAnalysis]:
     """Quick utility to determine if JavaScript rendering is needed."""
     detector = DynamicContentDetector()

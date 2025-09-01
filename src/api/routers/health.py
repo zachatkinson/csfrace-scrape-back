@@ -1,7 +1,7 @@
 """Health check and monitoring API endpoints."""
 
 import importlib.metadata
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import text
@@ -74,7 +74,7 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
 
         response = HealthCheckResponse(
             status=overall_status,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             version=__version__,
             database=database_status,
             cache=cache_status,
@@ -124,7 +124,7 @@ async def get_metrics() -> MetricsResponse:
             pass
 
         return MetricsResponse(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             system_metrics=metrics_snapshot.get("system_metrics", {}),
             application_metrics={
                 **metrics_snapshot.get("application_metrics", {}),

@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import asdict
-from typing import Any, Optional, Union
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -29,12 +29,12 @@ class RenderingStrategy(BaseModel):
     )
 
     # Browser settings
-    browser_config: Optional[BrowserConfig] = Field(
+    browser_config: BrowserConfig | None = Field(
         default=None, description="Browser configuration"
     )
 
     # Retry settings
-    retry_config: Optional[RetryConfig] = Field(default=None, description="Retry configuration")
+    retry_config: RetryConfig | None = Field(default=None, description="Retry configuration")
 
     # Performance settings
     enable_screenshots: bool = Field(default=False, description="Enable screenshot capture")
@@ -54,14 +54,14 @@ class AdaptiveRenderer:
 
     def __init__(
         self,
-        strategy: Optional[RenderingStrategy] = None,
-        detector: Optional[DynamicContentDetector] = None,
+        strategy: RenderingStrategy | None = None,
+        detector: DynamicContentDetector | None = None,
     ):
         self.strategy = strategy or RenderingStrategy()
         self.detector = detector or DynamicContentDetector()
 
         # Initialize browser renderer lazily
-        self._js_renderer: Optional[JavaScriptRenderer] = None
+        self._js_renderer: JavaScriptRenderer | None = None
         self._render_semaphore = asyncio.Semaphore(self.strategy.max_concurrent_renders)
 
         logger.info("Adaptive renderer initialized", strategy=self.strategy.model_dump())
@@ -81,7 +81,7 @@ class AdaptiveRenderer:
         return self._js_renderer
 
     async def analyze_content(
-        self, html: str, url: Optional[str] = None
+        self, html: str, url: str | None = None
     ) -> tuple[bool, ContentAnalysis]:
         """Analyze content to determine rendering strategy."""
         # Check for forced strategies
@@ -128,14 +128,14 @@ class AdaptiveRenderer:
         return should_use_js, analysis
 
     async def render_page(
-        self, url: str, static_html: Optional[str] = None, **render_options
+        self, url: str, static_html: str | None = None, **render_options
     ) -> tuple[RenderResult, ContentAnalysis]:
         """Render a page using adaptive strategy selection."""
         async with self._render_semaphore:
             return await self._render_page_internal(url, static_html, **render_options)
 
     async def _render_page_internal(
-        self, url: str, static_html: Optional[str] = None, **render_options
+        self, url: str, static_html: str | None = None, **render_options
     ) -> tuple[RenderResult, ContentAnalysis]:
         """Internal page rendering implementation."""
         start_time = asyncio.get_event_loop().time()
@@ -240,7 +240,7 @@ class AdaptiveRenderer:
         results = {}
         completed_tasks = await asyncio.gather(*tasks, return_exceptions=True)
 
-        for url, task_result in zip(urls, completed_tasks):
+        for url, task_result in zip(urls, completed_tasks, strict=False):
             if isinstance(task_result, Exception):
                 logger.error("Rendering failed for URL", url=url, error=str(task_result))
                 # Create error result
@@ -296,20 +296,20 @@ class RenderingService:
 
     def __init__(
         self,
-        strategy: Optional[RenderingStrategy] = None,
-        detector: Optional[DynamicContentDetector] = None,
+        strategy: RenderingStrategy | None = None,
+        detector: DynamicContentDetector | None = None,
     ):
         self.adaptive_renderer = AdaptiveRenderer(strategy, detector)
 
     async def should_render_with_javascript(
-        self, html: str, url: Optional[str] = None
+        self, html: str, url: str | None = None
     ) -> tuple[bool, ContentAnalysis]:
         """Determine if JavaScript rendering is needed for given HTML."""
         return await self.adaptive_renderer.analyze_content(html, url)
 
     async def enhance_static_content(
         self, url: str, static_html: str, **render_options
-    ) -> Union[str, tuple[RenderResult, ContentAnalysis]]:
+    ) -> str | tuple[RenderResult, ContentAnalysis]:
         """Enhance static content with JavaScript rendering if needed."""
         should_use_js, analysis = await self.should_render_with_javascript(static_html, url)
 
@@ -331,7 +331,7 @@ class RenderingService:
         return result, final_analysis
 
     async def render_page_with_fallback(
-        self, url: str, static_html: Optional[str] = None, **render_options
+        self, url: str, static_html: str | None = None, **render_options
     ) -> tuple[str, dict[str, Any]]:
         """Render page with automatic fallback strategy."""
         try:

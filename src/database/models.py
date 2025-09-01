@@ -4,7 +4,7 @@ This module defines the database schema for storing scraping jobs, results, and 
 following CLAUDE.md standards with proper relationships and constraints.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -66,7 +66,7 @@ class ScrapingJob(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     url: Mapped[str] = mapped_column(String(2048), nullable=False, index=True)
     domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    slug: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    slug: Mapped[str | None] = mapped_column(String(255), index=True)
 
     # Job management
     status: Mapped[JobStatus] = mapped_column(
@@ -78,11 +78,11 @@ class ScrapingJob(Base):
 
     # Timing information
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    next_retry_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -93,31 +93,31 @@ class ScrapingJob(Base):
 
     # Output configuration
     output_directory: Mapped[str] = mapped_column(String(1024), nullable=False)
-    custom_slug: Mapped[Optional[str]] = mapped_column(String(255))
+    custom_slug: Mapped[str | None] = mapped_column(String(255))
     skip_existing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Results and errors
-    error_message: Mapped[Optional[str]] = mapped_column(Text)
-    error_type: Mapped[Optional[str]] = mapped_column(String(255))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    error_type: Mapped[str | None] = mapped_column(String(255))
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Performance metrics (Unix timestamps)
-    start_time: Mapped[Optional[float]] = mapped_column()
-    end_time: Mapped[Optional[float]] = mapped_column()
-    duration_seconds: Mapped[Optional[float]] = mapped_column()
-    content_size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
+    start_time: Mapped[float | None] = mapped_column()
+    end_time: Mapped[float | None] = mapped_column()
+    duration_seconds: Mapped[float | None] = mapped_column()
+    content_size_bytes: Mapped[int | None] = mapped_column(Integer)
     images_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Configuration (JSON field for flexibility)
-    converter_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
-    processing_options: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    converter_config: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    processing_options: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     # Archive information
-    archive_path: Mapped[Optional[str]] = mapped_column(String(1024))
-    archive_size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
+    archive_path: Mapped[str | None] = mapped_column(String(1024))
+    archive_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
     # Relationships
-    batch_id: Mapped[Optional[int]] = mapped_column(
+    batch_id: Mapped[int | None] = mapped_column(
         ForeignKey("batches.id", ondelete="CASCADE"), index=True
     )
     batch: Mapped[Optional["Batch"]] = relationship("Batch", back_populates="jobs")
@@ -144,7 +144,7 @@ class ScrapingJob(Base):
         return self.status == JobStatus.FAILED and self.retry_count < self.max_retries
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Calculate job duration in seconds."""
         if self.start_time is None or self.end_time is None:
             return None
@@ -163,17 +163,17 @@ class Batch(Base):
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
 
     # Batch status and timing
     status: Mapped[JobStatus] = mapped_column(
         SQLEnum(JobStatus), default=JobStatus.PENDING, nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Configuration
     max_concurrent: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
@@ -189,8 +189,8 @@ class Batch(Base):
     skipped_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Summary data (JSON for flexibility)
-    summary_data: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
-    batch_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    summary_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    batch_config: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     # Relationships
     jobs: Mapped[list[ScrapingJob]] = relationship(
@@ -227,47 +227,47 @@ class ContentResult(Base):
     )
 
     # Content storage
-    original_html: Mapped[Optional[str]] = mapped_column(Text)
-    converted_html: Mapped[Optional[str]] = mapped_column(Text)
-    shopify_html: Mapped[Optional[str]] = mapped_column(Text)
+    original_html: Mapped[str | None] = mapped_column(Text)
+    converted_html: Mapped[str | None] = mapped_column(Text)
+    shopify_html: Mapped[str | None] = mapped_column(Text)
 
     # File locations
-    html_file_path: Mapped[Optional[str]] = mapped_column(String(1024))
-    metadata_file_path: Mapped[Optional[str]] = mapped_column(String(1024))
-    images_directory: Mapped[Optional[str]] = mapped_column(String(1024))
+    html_file_path: Mapped[str | None] = mapped_column(String(1024))
+    metadata_file_path: Mapped[str | None] = mapped_column(String(1024))
+    images_directory: Mapped[str | None] = mapped_column(String(1024))
 
     # Metadata
-    title: Mapped[Optional[str]] = mapped_column(String(500))
-    meta_description: Mapped[Optional[str]] = mapped_column(Text)
-    published_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    author: Mapped[Optional[str]] = mapped_column(String(255))
-    tags: Mapped[Optional[list[str]]] = mapped_column(JSON)
-    categories: Mapped[Optional[list[str]]] = mapped_column(JSON)
+    title: Mapped[str | None] = mapped_column(String(500))
+    meta_description: Mapped[str | None] = mapped_column(Text)
+    published_date: Mapped[datetime | None] = mapped_column(DateTime)
+    author: Mapped[str | None] = mapped_column(String(255))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
+    categories: Mapped[list[str] | None] = mapped_column(JSON)
 
     # SEO and social metadata
-    og_title: Mapped[Optional[str]] = mapped_column(String(500))
-    og_description: Mapped[Optional[str]] = mapped_column(Text)
-    og_image: Mapped[Optional[str]] = mapped_column(String(1024))
-    twitter_card: Mapped[Optional[str]] = mapped_column(String(50))
+    og_title: Mapped[str | None] = mapped_column(String(500))
+    og_description: Mapped[str | None] = mapped_column(Text)
+    og_image: Mapped[str | None] = mapped_column(String(1024))
+    twitter_card: Mapped[str | None] = mapped_column(String(50))
 
     # Processing statistics
-    word_count: Mapped[Optional[int]] = mapped_column(Integer)
-    image_count: Mapped[Optional[int]] = mapped_column(Integer)
-    link_count: Mapped[Optional[int]] = mapped_column(Integer)
-    processing_time_seconds: Mapped[Optional[float]] = mapped_column()
+    word_count: Mapped[int | None] = mapped_column(Integer)
+    image_count: Mapped[int | None] = mapped_column(Integer)
+    link_count: Mapped[int | None] = mapped_column(Integer)
+    processing_time_seconds: Mapped[float | None] = mapped_column()
 
     # Additional metadata (JSON for flexibility)
-    extra_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
-    conversion_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    extra_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    conversion_stats: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -300,21 +300,21 @@ class JobLog(Base):
     )  # INFO, WARN, ERROR, DEBUG
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
 
     # Contextual information
-    component: Mapped[Optional[str]] = mapped_column(
+    component: Mapped[str | None] = mapped_column(
         String(100)
     )  # html_processor, image_downloader, etc.
-    operation: Mapped[Optional[str]] = mapped_column(String(100))  # fetch, process, save, etc.
+    operation: Mapped[str | None] = mapped_column(String(100))  # fetch, process, save, etc.
 
     # Additional context data (JSON for structured logging)
-    context_data: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    context_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     # Exception information (for errors)
-    exception_type: Mapped[Optional[str]] = mapped_column(String(255))
-    exception_traceback: Mapped[Optional[str]] = mapped_column(Text)
+    exception_type: Mapped[str | None] = mapped_column(String(255))
+    exception_traceback: Mapped[str | None] = mapped_column(Text)
 
     # Relationships
     job: Mapped[ScrapingJob] = relationship("ScrapingJob", back_populates="job_logs")
@@ -336,22 +336,22 @@ class SystemMetrics(Base):
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True
+        DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True
     )
     metric_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
     # Metric values
     metric_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    numeric_value: Mapped[Optional[float]] = mapped_column()
-    string_value: Mapped[Optional[str]] = mapped_column(String(500))
-    json_value: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    numeric_value: Mapped[float | None] = mapped_column()
+    string_value: Mapped[str | None] = mapped_column(String(500))
+    json_value: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     # Categorization
-    component: Mapped[Optional[str]] = mapped_column(String(100), index=True)
+    component: Mapped[str | None] = mapped_column(String(100), index=True)
     environment: Mapped[str] = mapped_column(String(50), default="production", nullable=False)
 
     # Tags for flexible querying (JSON array)
-    tags: Mapped[Optional[dict[str, str]]] = mapped_column(JSON)
+    tags: Mapped[dict[str, str] | None] = mapped_column(JSON)
 
     def __repr__(self) -> str:
         """String representation of the metrics entry."""
@@ -376,7 +376,7 @@ def get_database_url() -> str:
         if "postgresql://" in database_url:
             return database_url.replace("postgresql://", "postgresql+psycopg://")
         return database_url
-    
+
     # Fallback: build from individual environment variables
     host = os.getenv("DATABASE_HOST", "localhost")
     port = os.getenv("DATABASE_PORT", "5432")

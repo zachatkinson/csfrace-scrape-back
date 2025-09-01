@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from sqlalchemy import create_engine
 
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 class MigrationManager:
     """Manages database migrations using Alembic."""
 
-    def __init__(self, config_file: Optional[Path] = None):
+    def __init__(self, config_file: Path | None = None):
         """Initialize migration manager.
 
         Args:
@@ -110,7 +109,7 @@ class MigrationManager:
             logger.error(f"Failed to downgrade database: {e}")
             raise
 
-    def get_current_revision(self) -> Optional[str]:
+    def get_current_revision(self) -> str | None:
         """Get current database revision."""
         try:
             database_url = self.config.get_main_option("sqlalchemy.url")
@@ -142,7 +141,7 @@ class MigrationManager:
             logger.error(f"Failed to get migration history: {e}")
             return []
 
-    def show_current_head(self) -> Optional[str]:
+    def show_current_head(self) -> str | None:
         """Show current head revision."""
         try:
             script_dir = ScriptDirectory.from_config(self.config)

@@ -1,6 +1,7 @@
 """Tests for database base module."""
 
 import os
+from datetime import UTC
 
 import pytest
 from sqlalchemy import Column, DateTime, Integer, String, text
@@ -248,7 +249,7 @@ class TestDatabaseBase:
 
     def test_base_with_complex_columns(self, postgres_engine):
         """Test Base with various column types and constraints."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from sqlalchemy import Boolean, Text, UniqueConstraint
 
@@ -258,7 +259,7 @@ class TestDatabaseBase:
             name = Column(String(100), nullable=False)
             description = Column(Text)
             is_active = Column(Boolean, default=True)
-            created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+            created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
             __table_args__ = (UniqueConstraint("name", name="uq_complex_model_name"),)
 
@@ -465,7 +466,7 @@ class TestDatabaseBaseIntegration:
 
     def test_base_with_real_models(self, postgres_engine):
         """Test Base with models similar to actual application models."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from sqlalchemy import Boolean, Text
 
@@ -474,11 +475,11 @@ class TestDatabaseBaseIntegration:
             id = Column(Integer, primary_key=True)
             url = Column(String(500), nullable=False)
             status = Column(String(50), default="pending")
-            created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+            created_at = Column(DateTime, default=lambda: datetime.now(UTC))
             updated_at = Column(
                 DateTime,
-                default=lambda: datetime.now(timezone.utc),
-                onupdate=lambda: datetime.now(timezone.utc),
+                default=lambda: datetime.now(UTC),
+                onupdate=lambda: datetime.now(UTC),
             )
             is_active = Column(Boolean, default=True)
             metadata_json = Column(Text)

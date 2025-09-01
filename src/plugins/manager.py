@@ -2,8 +2,9 @@
 
 import asyncio
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import structlog
 
@@ -64,7 +65,7 @@ class PluginExecutionContext:
 class PluginManager:
     """Manages plugin lifecycle and execution pipeline."""
 
-    def __init__(self, registry: Optional[PluginRegistry] = None):
+    def __init__(self, registry: PluginRegistry | None = None):
         """Initialize plugin manager.
 
         Args:
@@ -263,7 +264,7 @@ class PluginManager:
         html_content: str,
         url: str,
         output_dir: Path,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Process content through the complete plugin pipeline.
 

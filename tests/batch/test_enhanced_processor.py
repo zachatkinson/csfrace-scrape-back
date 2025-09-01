@@ -262,7 +262,7 @@ class TestBatchProcessor:
     async def test_process_single_url_timeout(self, batch_processor, mock_converter):
         """Test single URL processing with timeout."""
         url = "https://example.com/timeout"
-        mock_converter.process_url.side_effect = asyncio.TimeoutError()
+        mock_converter.process_url.side_effect = TimeoutError()
 
         result = await batch_processor.process_single_url(url, Priority.NORMAL)
 

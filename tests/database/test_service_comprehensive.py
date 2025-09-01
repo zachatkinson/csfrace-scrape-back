@@ -1,6 +1,6 @@
 """Comprehensive tests for database service layer to improve coverage to 80%+."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -392,7 +392,7 @@ class TestDatabaseServiceComprehensive:
             db_job.status = JobStatus.FAILED
             db_job.retry_count = 1
             db_job.max_retries = 3
-            db_job.next_retry_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+            db_job.next_retry_at = datetime.now(UTC) - timedelta(minutes=1)
             session.commit()
 
         retry_jobs = testcontainers_db_service.get_retry_jobs()
@@ -426,7 +426,7 @@ class TestDatabaseServiceComprehensive:
             db_job.status = JobStatus.FAILED
             db_job.retry_count = 1
             db_job.max_retries = 3
-            db_job.next_retry_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            db_job.next_retry_at = datetime.now(UTC) + timedelta(hours=1)
             session.commit()
 
         retry_jobs = testcontainers_db_service.get_retry_jobs()
@@ -722,7 +722,7 @@ class TestDatabaseServiceComprehensive:
         )
         with testcontainers_db_service.get_session() as session:
             db_job = session.get(ScrapingJob, old_job.id)
-            db_job.created_at = datetime.now(timezone.utc) - timedelta(days=10)
+            db_job.created_at = datetime.now(UTC) - timedelta(days=10)
             session.commit()
 
         # Create recent job (should be included)
@@ -758,7 +758,7 @@ class TestDatabaseServiceComprehensive:
         with testcontainers_db_service.get_session() as session:
             db_job = session.get(ScrapingJob, old_job.id)
             db_job.status = JobStatus.COMPLETED
-            db_job.completed_at = datetime.now(timezone.utc) - timedelta(days=40)
+            db_job.completed_at = datetime.now(UTC) - timedelta(days=40)
             session.commit()
 
         # Create recent completed job
@@ -787,7 +787,7 @@ class TestDatabaseServiceComprehensive:
         with testcontainers_db_service.get_session() as session:
             db_job = session.get(ScrapingJob, old_job.id)
             db_job.status = JobStatus.FAILED
-            db_job.completed_at = datetime.now(timezone.utc) - timedelta(days=35)
+            db_job.completed_at = datetime.now(UTC) - timedelta(days=35)
             session.commit()
 
         deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)
@@ -804,7 +804,7 @@ class TestDatabaseServiceComprehensive:
         )
         with testcontainers_db_service.get_session() as session:
             db_job = session.get(ScrapingJob, old_job.id)
-            db_job.created_at = datetime.now(timezone.utc) - timedelta(days=40)
+            db_job.created_at = datetime.now(UTC) - timedelta(days=40)
             session.commit()
 
         deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)

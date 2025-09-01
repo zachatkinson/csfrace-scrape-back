@@ -4,11 +4,11 @@ import asyncio
 import smtplib
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -61,7 +61,7 @@ class Alert:
     threshold: float
     timestamp: datetime
     resolved: bool = False
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
 
 
 @dataclass
@@ -75,15 +75,15 @@ class AlertConfig:
     email_enabled: bool = False
     smtp_host: str = "localhost"
     smtp_port: int = 587
-    smtp_username: Optional[str] = None
-    smtp_password: Optional[str] = None
+    smtp_username: str | None = None
+    smtp_password: str | None = None
     smtp_use_tls: bool = True
     from_email: str = "alerts@scraper.local"
     to_emails: list[str] = field(default_factory=list)
 
     # Webhook configuration
     webhook_enabled: bool = False
-    webhook_url: Optional[str] = None
+    webhook_url: str | None = None
     webhook_timeout: float = 10.0
 
     # Default alert rules
@@ -141,7 +141,7 @@ class AlertConfig:
 class AlertManager:
     """Manages alert rules, evaluation, and notifications."""
 
-    def __init__(self, config: Optional[AlertConfig] = None):
+    def __init__(self, config: AlertConfig | None = None):
         """Initialize alert manager.
 
         Args:
@@ -154,7 +154,7 @@ class AlertManager:
         self.rule_cooldowns: dict[str, datetime] = {}
         self.rule_alert_counts: dict[str, list[datetime]] = {}
 
-        self._evaluation_task: Optional[asyncio.Task] = None
+        self._evaluation_task: asyncio.Task | None = None
         self._evaluating = False
 
         # Load default rules
@@ -398,7 +398,7 @@ class AlertManager:
             metric_name=rule.metric_name,
             metric_value=metric_value,
             threshold=rule.threshold,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         # Store active alert
@@ -406,10 +406,10 @@ class AlertManager:
         self.alert_history.append(alert)
 
         # Update cooldown and rate limiting
-        self.rule_cooldowns[rule.name] = datetime.now(timezone.utc)
+        self.rule_cooldowns[rule.name] = datetime.now(UTC)
         if rule.name not in self.rule_alert_counts:
             self.rule_alert_counts[rule.name] = []
-        self.rule_alert_counts[rule.name].append(datetime.now(timezone.utc))
+        self.rule_alert_counts[rule.name].append(datetime.now(UTC))
 
         # Send notifications
         await self._send_alert_notifications(alert, rule)
@@ -433,7 +433,7 @@ class AlertManager:
         if rule.name in self.active_alerts:
             alert = self.active_alerts[rule.name]
             alert.resolved = True
-            alert.resolved_at = datetime.now(timezone.utc)
+            alert.resolved_at = datetime.now(UTC)
 
             # Remove from active alerts
             del self.active_alerts[rule.name]
@@ -460,7 +460,7 @@ class AlertManager:
 
         cooldown_until = self.rule_cooldowns[rule_name] + timedelta(minutes=rule.cooldown_minutes)
 
-        return datetime.now(timezone.utc) < cooldown_until
+        return datetime.now(UTC) < cooldown_until
 
     def _is_rule_rate_limited(self, rule_name: str) -> bool:
         """Check if rule is rate limited.
@@ -479,7 +479,7 @@ class AlertManager:
             return False
 
         # Clean up old timestamps
-        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
         self.rule_alert_counts[rule_name] = [
             ts for ts in self.rule_alert_counts[rule_name] if ts > one_hour_ago
         ]
@@ -612,14 +612,14 @@ Time: {alert.timestamp.isoformat()}
             Alert summary dictionary
         """
         return {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "active_alerts": len(self.active_alerts),
             "total_rules": len(self.rules),
             "enabled_rules": sum(1 for r in self.rules.values() if r.enabled),
             "alerts_last_24h": sum(
                 1
                 for alert in self.alert_history
-                if alert.timestamp > datetime.now(timezone.utc) - timedelta(days=1)
+                if alert.timestamp > datetime.now(UTC) - timedelta(days=1)
             ),
             "active_alert_details": {
                 name: {

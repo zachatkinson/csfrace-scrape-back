@@ -6,7 +6,6 @@ Grafana dashboards following CLAUDE.md standards.
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import structlog
 import typer
@@ -24,7 +23,7 @@ app = typer.Typer(
 
 @app.command()
 def provision(
-    config_file: Optional[Path] = typer.Option(
+    config_file: Path | None = typer.Option(
         None, "--config", "-c", help="Path to Grafana configuration file"
     ),
     prometheus_url: str = typer.Option(
@@ -33,7 +32,7 @@ def provision(
     grafana_port: int = typer.Option(
         CLI_CONSTANTS.DEFAULT_GRAFANA_PORT, "--port", help="Grafana server port"
     ),
-    output_dir: Optional[Path] = typer.Option(
+    output_dir: Path | None = typer.Option(
         None, "--output", "-o", help="Output directory for dashboards and provisioning files"
     ),
     force: bool = typer.Option(
@@ -101,7 +100,7 @@ def provision(
 
 @app.command()
 def validate(
-    dashboards_dir: Optional[Path] = typer.Option(
+    dashboards_dir: Path | None = typer.Option(
         None, "--dashboards-dir", "-d", help="Directory containing dashboard JSON files"
     ),
 ) -> None:

@@ -1,6 +1,6 @@
 """Unit tests for API CRUD operations."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -53,7 +53,7 @@ class TestJobCRUD:
             slug="existing-page",
             priority=JobPriority.NORMAL,
             status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             retry_count=1,
             max_retries=3,
             timeout_seconds=30,
@@ -371,7 +371,7 @@ class TestJobCRUD:
         self, mock_db_session, sample_job
     ):
         """Test updating to running when started_at already exists."""
-        existing_time = datetime.now(timezone.utc)
+        existing_time = datetime.now(UTC)
         sample_job.started_at = existing_time
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
@@ -427,7 +427,7 @@ class TestBatchCRUD:
             name="Existing Batch",
             description="An existing batch",
             status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             max_concurrent=10,
             continue_on_error=True,
             output_base_directory="test_output",
@@ -718,14 +718,14 @@ class TestCRUDIntegration:
         with patch.object(JobCRUD, "create_job") as mock_create_job:
             # Create realistic job instances
             def create_job_side_effect(db, job_data):
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 job = ScrapingJob(
                     url=str(job_data.url),
                     domain="example.com",
                     slug=str(job_data.url).split("/")[-1],
                     output_directory=job_data.output_directory,
-                    created_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
                     retry_count=0,
                     max_retries=3,
                     timeout_seconds=30,

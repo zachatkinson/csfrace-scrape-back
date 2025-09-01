@@ -5,7 +5,7 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional, cast
+from typing import Any, Literal, cast
 
 import structlog
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
@@ -39,7 +39,7 @@ class BrowserConfig(BaseModel):
     )
     ignore_https_errors: bool = Field(default=True, description="Ignore HTTPS certificate errors")
     javascript_enabled: bool = Field(default=True, description="Enable JavaScript execution")
-    proxy: Optional[dict[str, str]] = Field(default=None, description="Proxy configuration")
+    proxy: dict[str, str] | None = Field(default=None, description="Proxy configuration")
 
     @field_validator("browser_type")
     @classmethod
@@ -88,8 +88,8 @@ class BrowserPool:
         self.context_reuse_limit = context_reuse_limit
         self.cleanup_interval = cleanup_interval
 
-        self._playwright: Optional[Playwright] = None
-        self._browser: Optional[Browser] = None
+        self._playwright: Playwright | None = None
+        self._browser: Browser | None = None
         self._contexts: list[BrowserContext] = []
         self._context_usage: dict[BrowserContext, int] = {}
         self._last_cleanup = time.time()
@@ -217,7 +217,7 @@ class BrowserPool:
         self._last_cleanup = current_time
 
     @asynccontextmanager
-    async def get_context(self) -> AsyncGenerator[BrowserContext, None]:
+    async def get_context(self) -> AsyncGenerator[BrowserContext]:
         """Get a browser context from the pool."""
         async with self._lock:
             await self._cleanup_stale_contexts()
@@ -259,8 +259,8 @@ class JavaScriptRenderer:
     def __init__(
         self,
         config: BrowserConfig = None,
-        pool_config: Optional[dict[str, Any]] = None,
-        retry_config: Optional[RetryConfig] = None,
+        pool_config: dict[str, Any] | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         self.config = config or BrowserConfig()
         self.pool_config = pool_config or {}
@@ -268,7 +268,7 @@ class JavaScriptRenderer:
             max_attempts=3, base_delay=1.0, backoff_factor=2.0, jitter=True
         )
 
-        self._pool: Optional[BrowserPool] = None
+        self._pool: BrowserPool | None = None
 
     async def initialize(self) -> None:
         """Initialize the renderer."""
@@ -289,9 +289,9 @@ class JavaScriptRenderer:
     async def render_page(
         self,
         url: str,
-        wait_for_selector: Optional[str] = None,
-        wait_for_function: Optional[str] = None,
-        execute_script: Optional[str] = None,
+        wait_for_selector: str | None = None,
+        wait_for_function: str | None = None,
+        execute_script: str | None = None,
         take_screenshot: bool = False,
         full_page_screenshot: bool = False,
         capture_network: bool = False,
@@ -322,9 +322,9 @@ class JavaScriptRenderer:
     async def _render_page_internal(
         self,
         url: str,
-        wait_for_selector: Optional[str] = None,
-        wait_for_function: Optional[str] = None,
-        execute_script: Optional[str] = None,
+        wait_for_selector: str | None = None,
+        wait_for_function: str | None = None,
+        execute_script: str | None = None,
         take_screenshot: bool = False,
         full_page_screenshot: bool = False,
         capture_network: bool = False,

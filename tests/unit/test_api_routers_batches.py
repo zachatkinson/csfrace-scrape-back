@@ -1,5 +1,6 @@
 """Unit tests for batches router endpoints."""
 
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -36,14 +37,14 @@ class TestBatchRouterEndpoints:
     @pytest.fixture
     def sample_batch(self):
         """Sample Batch instance."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         return Batch(
             id=1,
             name="Sample Batch",
             description="A sample batch",
             status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             max_concurrent=10,
             continue_on_error=True,
             output_base_directory="batch_output/sample",
@@ -58,7 +59,7 @@ class TestBatchRouterEndpoints:
     @pytest.fixture
     def sample_batch_with_jobs(self, sample_batch):
         """Sample Batch with associated jobs."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from src.database.models import JobPriority
 
@@ -70,7 +71,7 @@ class TestBatchRouterEndpoints:
             batch_id=sample_batch.id,
             status=JobStatus.PENDING,
             priority=JobPriority.NORMAL,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             retry_count=0,
             max_retries=3,
             timeout_seconds=30,
@@ -87,7 +88,7 @@ class TestBatchRouterEndpoints:
             batch_id=sample_batch.id,
             status=JobStatus.PENDING,
             priority=JobPriority.NORMAL,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             retry_count=0,
             max_retries=3,
             timeout_seconds=30,
@@ -131,14 +132,14 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_batches_success(self, mock_db_session):
         """Test successful batch listing."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         batches = [
             Batch(
                 id=1,
                 name="Batch 1",
                 status=JobStatus.PENDING,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
@@ -153,7 +154,7 @@ class TestBatchRouterEndpoints:
                 id=2,
                 name="Batch 2",
                 status=JobStatus.RUNNING,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
@@ -183,14 +184,14 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_batches_pagination_calculation(self, mock_db_session):
         """Test pagination calculation in batch listing."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         batches = [
             Batch(
                 id=1,
                 name="Batch 1",
                 status=JobStatus.PENDING,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
@@ -287,14 +288,14 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_batches_single_page(self, mock_db_session):
         """Test batch listing with single page result."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         batches = [
             Batch(
                 id=1,
                 name="Single Batch",
                 status=JobStatus.PENDING,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
@@ -348,14 +349,14 @@ class TestBatchRouterEndpoints:
     @pytest.mark.asyncio
     async def test_batch_list_response_validation(self, mock_db_session):
         """Test BatchListResponse model validation."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         batches = [
             Batch(
                 id=1,
                 name="Test",
                 status=JobStatus.PENDING,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
@@ -544,13 +545,13 @@ class TestBatchRouterEndpoints:
     async def test_batch_model_validation_error_handling(self, mock_db_session, sample_batch):
         """Test handling of model validation during response creation."""
         # Create batch with potentially problematic data
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         batch_with_none_values = Batch(
             id=1,
             name="Test Batch",
             status=JobStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             max_concurrent=10,
             continue_on_error=True,
             output_base_directory="test_output",

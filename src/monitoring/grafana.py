@@ -5,7 +5,7 @@ for metrics visualization and dashboard management.
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from pydantic import Field
@@ -53,7 +53,7 @@ class GrafanaDashboardManager:
     and performance optimization.
     """
 
-    def __init__(self, config: Optional[GrafanaConfig] = None):
+    def __init__(self, config: GrafanaConfig | None = None):
         """Initialize Grafana dashboard manager.
 
         Args:

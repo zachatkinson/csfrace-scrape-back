@@ -16,25 +16,25 @@ router = APIRouter(prefix="/batches", tags=["Batches"])
 
 async def execute_batch_processing(batch_id: int, output_base_dir: str, max_concurrent: int = 5):
     """Background task to execute batch processing.
-    
+
     Args:
         batch_id: Database batch ID
         output_base_dir: Base output directory for batch
         max_concurrent: Maximum concurrent jobs
     """
     from ..dependencies import async_session
-    
+
     async with async_session() as db:
         try:
             # Get the batch and its jobs
             batch = await BatchCRUD.get_batch(db, batch_id)
             if not batch:
                 return
-                
-            # Update batch status to running  
+
+            # Update batch status to running
             batch.status = JobStatus.RUNNING
             await db.commit()
-            
+
             # Configure batch processor
             batch_config = BatchConfig(
                 max_concurrent=max_concurrent,
@@ -42,22 +42,22 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
                 create_summary=True,
                 continue_on_error=batch.continue_on_error,
             )
-            
+
             processor = BatchProcessor(batch_config)
-            
+
             # Add all jobs to the processor
             for job in batch.jobs:
                 processor.add_job(job.url, custom_output_dir=job.output_directory)
                 # Update individual job status
                 await JobCRUD.update_job_status(db, job.id, JobStatus.RUNNING)
-            
+
             # Process the batch
             await processor.process_all()
-            
+
             # Update batch and job statuses based on results
             completed_jobs = 0
             failed_jobs = 0
-            
+
             for job in batch.jobs:
                 # Check if job output exists to determine success
                 job_output = Path(job.output_directory)
@@ -66,21 +66,21 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
                     completed_jobs += 1
                 else:
                     await JobCRUD.update_job_status(
-                        db, job.id, JobStatus.FAILED, 
-                        error_message="No output generated", 
+                        db, job.id, JobStatus.FAILED,
+                        error_message="No output generated",
                         error_type="ProcessingError"
                     )
                     failed_jobs += 1
-            
+
             # Update batch statistics
             batch.completed_jobs = completed_jobs
             batch.failed_jobs = failed_jobs
             batch.success_rate = completed_jobs / len(batch.jobs) if batch.jobs else 0.0
             batch.status = JobStatus.COMPLETED
-            
+
             await db.commit()
-            
-        except Exception as e:
+
+        except Exception:
             # Mark batch as failed
             batch = await BatchCRUD.get_batch(db, batch_id)
             if batch:
@@ -107,7 +107,7 @@ async def create_batch(batch_data: BatchCreate, background_tasks: BackgroundTask
     try:
         # Create the batch record first
         batch = await BatchCRUD.create_batch(db, batch_data)
-        
+
         # Add background task to execute the batch processing
         background_tasks.add_task(
             execute_batch_processing,
@@ -115,7 +115,7 @@ async def create_batch(batch_data: BatchCreate, background_tasks: BackgroundTask
             batch.output_base_directory,
             batch.max_concurrent
         )
-        
+
         return BatchResponse.model_validate(batch)
     except SQLAlchemyError as e:
         raise HTTPException(

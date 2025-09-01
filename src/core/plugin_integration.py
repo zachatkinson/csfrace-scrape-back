@@ -1,7 +1,7 @@
 """Integration layer between core converter and plugin system."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 class PluginIntegration:
     """Handles integration between core converter and plugin system."""
 
-    def __init__(self, manager: Optional[PluginManager] = None):
+    def __init__(self, manager: PluginManager | None = None):
         """Initialize plugin integration.
 
         Args:
@@ -37,7 +37,7 @@ class PluginIntegration:
         html_content: str,
         url: str,
         output_dir: Path,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Process content through plugin pipeline.
 

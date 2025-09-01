@@ -1,7 +1,7 @@
 """Tests for health check system."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,7 +30,7 @@ class TestHealthCheckResult:
 
     def test_result_creation(self):
         """Test creating health check result."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         result = HealthCheckResult(
             name="test_check",
             status=HealthStatus.HEALTHY,
@@ -162,7 +162,7 @@ class TestHealthChecker:
                 status=HealthStatus.HEALTHY,
                 message="Test OK",
                 duration_ms=10.0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
         health_checker.register_check("test", test_check)
@@ -383,10 +383,10 @@ class TestHealthChecker:
         """Test overall status when all checks healthy."""
         health_checker._results = {
             "check1": HealthCheckResult(
-                "check1", HealthStatus.HEALTHY, "OK", 10, datetime.now(timezone.utc)
+                "check1", HealthStatus.HEALTHY, "OK", 10, datetime.now(UTC)
             ),
             "check2": HealthCheckResult(
-                "check2", HealthStatus.HEALTHY, "OK", 15, datetime.now(timezone.utc)
+                "check2", HealthStatus.HEALTHY, "OK", 15, datetime.now(UTC)
             ),
         }
 
@@ -397,10 +397,10 @@ class TestHealthChecker:
         """Test overall status when some checks degraded."""
         health_checker._results = {
             "check1": HealthCheckResult(
-                "check1", HealthStatus.HEALTHY, "OK", 10, datetime.now(timezone.utc)
+                "check1", HealthStatus.HEALTHY, "OK", 10, datetime.now(UTC)
             ),
             "check2": HealthCheckResult(
-                "check2", HealthStatus.DEGRADED, "Warning", 15, datetime.now(timezone.utc)
+                "check2", HealthStatus.DEGRADED, "Warning", 15, datetime.now(UTC)
             ),
         }
 
@@ -411,10 +411,10 @@ class TestHealthChecker:
         """Test overall status when some checks unhealthy."""
         health_checker._results = {
             "check1": HealthCheckResult(
-                "check1", HealthStatus.HEALTHY, "OK", 10, datetime.now(timezone.utc)
+                "check1", HealthStatus.HEALTHY, "OK", 10, datetime.now(UTC)
             ),
             "check2": HealthCheckResult(
-                "check2", HealthStatus.UNHEALTHY, "Failed", 15, datetime.now(timezone.utc)
+                "check2", HealthStatus.UNHEALTHY, "Failed", 15, datetime.now(UTC)
             ),
         }
 
@@ -430,10 +430,10 @@ class TestHealthChecker:
                 HealthStatus.UNHEALTHY,
                 "Critical fail",
                 10,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             ),
             "normal_check": HealthCheckResult(
-                "normal_check", HealthStatus.HEALTHY, "OK", 15, datetime.now(timezone.utc)
+                "normal_check", HealthStatus.HEALTHY, "OK", 15, datetime.now(UTC)
             ),
         }
 
@@ -449,7 +449,7 @@ class TestHealthChecker:
 
     def test_get_health_summary(self, health_checker):
         """Test getting health summary."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         health_checker._results = {
             "check1": HealthCheckResult("check1", HealthStatus.HEALTHY, "OK", 10, timestamp),
             "check2": HealthCheckResult("check2", HealthStatus.DEGRADED, "Warning", 15, timestamp),
@@ -468,7 +468,7 @@ class TestHealthChecker:
 
     def test_get_detailed_health(self, health_checker):
         """Test getting detailed health information."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         health_checker._results = {
             "check1": HealthCheckResult(
                 "check1", HealthStatus.HEALTHY, "OK", 10, timestamp, {"detail": "value"}

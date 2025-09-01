@@ -24,7 +24,7 @@ def event_loop():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_db_session(postgres_container) -> AsyncGenerator[AsyncSession, None]:
+async def test_db_session(postgres_container) -> AsyncGenerator[AsyncSession]:
     """Create a test database session using PostgreSQL testcontainer."""
     # Build PostgreSQL async URL from container
     db_url = (
@@ -71,7 +71,7 @@ def client(override_get_db) -> TestClient:
 
 
 @pytest_asyncio.fixture
-async def async_client(override_get_db) -> AsyncGenerator[AsyncClient, None]:
+async def async_client(override_get_db) -> AsyncGenerator[AsyncClient]:
     """Create an async test client."""
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver"

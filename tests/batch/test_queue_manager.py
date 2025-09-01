@@ -1,7 +1,7 @@
 """Tests for batch queue management system."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,7 +30,7 @@ def sample_queue_item():
     """Create sample queue item."""
     return QueueItem(
         priority=Priority.NORMAL.value,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         url="https://example.com/test",
         batch_id=1,
         metadata={"test": "data"},
@@ -44,7 +44,7 @@ class TestQueueItem:
         """Test creating a queue item."""
         item = QueueItem(
             priority=Priority.HIGH.value,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             url="https://example.com",
             batch_id=123,
             metadata={"key": "value"},
@@ -69,8 +69,8 @@ class TestQueueItem:
 
     def test_queue_item_ordering(self):
         """Test that queue items are ordered by priority."""
-        low_item = QueueItem(Priority.LOW.value, datetime.now(timezone.utc), "url1")
-        high_item = QueueItem(Priority.HIGH.value, datetime.now(timezone.utc), "url2")
+        low_item = QueueItem(Priority.LOW.value, datetime.now(UTC), "url1")
+        high_item = QueueItem(Priority.HIGH.value, datetime.now(UTC), "url2")
 
         # Lower numeric value = higher priority
         assert high_item < low_item
@@ -317,9 +317,9 @@ class TestBatchQueueManager:
         assert queue_manager.is_empty() is True
 
         # Add items to different priority queues
-        queue_manager.urgent_queue.append(QueueItem(1, datetime.now(timezone.utc), "url1"))
-        queue_manager.normal_queue.append(QueueItem(3, datetime.now(timezone.utc), "url2"))
-        queue_manager.low_queue.append(QueueItem(4, datetime.now(timezone.utc), "url3"))
+        queue_manager.urgent_queue.append(QueueItem(1, datetime.now(UTC), "url1"))
+        queue_manager.normal_queue.append(QueueItem(3, datetime.now(UTC), "url2"))
+        queue_manager.low_queue.append(QueueItem(4, datetime.now(UTC), "url3"))
 
         assert queue_manager.get_queue_size() == 3
         assert queue_manager.is_empty() is False
@@ -331,8 +331,8 @@ class TestBatchQueueManager:
         queue_manager.processing_items.add("processing_url")
 
         # Add some items to queues
-        queue_manager.urgent_queue.append(QueueItem(1, datetime.now(timezone.utc), "url1"))
-        queue_manager.high_queue.append(QueueItem(2, datetime.now(timezone.utc), "url2"))
+        queue_manager.urgent_queue.append(QueueItem(1, datetime.now(UTC), "url1"))
+        queue_manager.high_queue.append(QueueItem(2, datetime.now(UTC), "url2"))
 
         stats = queue_manager.get_statistics()
 
@@ -356,13 +356,13 @@ class TestBatchQueueManager:
         from datetime import timedelta
 
         # Add old items to low priority queues
-        old_time = datetime.now(timezone.utc) - timedelta(hours=3)
+        old_time = datetime.now(UTC) - timedelta(hours=3)
         old_item = QueueItem(priority=Priority.LOW.value, timestamp=old_time, url="old_url")
         queue_manager.low_queue.append(old_item)
 
         # Add recent item
         recent_item = QueueItem(
-            priority=Priority.LOW.value, timestamp=datetime.now(timezone.utc), url="recent_url"
+            priority=Priority.LOW.value, timestamp=datetime.now(UTC), url="recent_url"
         )
         queue_manager.low_queue.append(recent_item)
 

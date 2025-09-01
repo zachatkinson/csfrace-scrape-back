@@ -236,7 +236,7 @@ class TestContentFetching:
         converter = AsyncWordPressConverter(base_url="https://example.com", output_dir=tmp_path)
 
         with aioresponses() as mock:
-            mock.get("https://example.com", exception=asyncio.TimeoutError())
+            mock.get("https://example.com", exception=TimeoutError())
             mock.get("https://example.com/robots.txt", status=404)
 
             async with aiohttp.ClientSession() as session:

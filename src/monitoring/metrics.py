@@ -5,8 +5,8 @@ import threading
 import time
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import psutil
 import structlog
@@ -47,18 +47,18 @@ class MetricsConfig:
 class MetricsCollector:
     """Comprehensive metrics collector with Prometheus export."""
 
-    def __init__(self, config: Optional[MetricsConfig] = None):
+    def __init__(self, config: MetricsConfig | None = None):
         """Initialize metrics collector.
 
         Args:
             config: Metrics configuration
         """
         self.config = config or MetricsConfig()
-        self.registry: Optional[CollectorRegistry] = None
+        self.registry: CollectorRegistry | None = None
         self.metrics: dict[str, Any] = {}
         self.system_metrics: dict[str, float] = {}
         self.application_metrics: dict[str, float] = {}
-        self._collection_task: Optional[asyncio.Task] = None
+        self._collection_task: asyncio.Task | None = None
         self._collecting = False
         self._lock = threading.Lock()
 
@@ -269,7 +269,7 @@ class MetricsCollector:
         except Exception as e:
             logger.error("Failed to record request metrics", error=str(e))
 
-    def record_batch_job(self, status: str, duration: Optional[float] = None) -> None:
+    def record_batch_job(self, status: str, duration: float | None = None) -> None:
         """Record batch job metrics.
 
         Args:
@@ -334,7 +334,7 @@ class MetricsCollector:
             logger.error("Failed to update cache metrics", error=str(e))
 
     def record_database_query(
-        self, operation: str, status: str, duration: Optional[float] = None
+        self, operation: str, status: str, duration: float | None = None
     ) -> None:
         """Record database query metrics.
 
@@ -363,7 +363,7 @@ class MetricsCollector:
         """
         with self._lock:
             return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "system_metrics": self.system_metrics.copy(),
                 "application_metrics": self.application_metrics.copy(),
                 "config": {

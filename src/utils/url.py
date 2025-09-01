@@ -1,6 +1,5 @@
 """URL processing utilities to eliminate DRY violations."""
 
-from typing import Optional
 from urllib.parse import ParseResult, urljoin, urlparse
 
 import structlog
@@ -8,7 +7,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-def safe_parse_url(url: str) -> Optional[ParseResult]:
+def safe_parse_url(url: str) -> ParseResult | None:
     """Safely parse URL with error handling.
 
     Args:
@@ -28,7 +27,7 @@ def safe_parse_url(url: str) -> Optional[ParseResult]:
         return None
 
 
-def extract_domain(url: str) -> Optional[str]:
+def extract_domain(url: str) -> str | None:
     """Extract domain from URL.
 
     Args:
@@ -56,7 +55,7 @@ def is_same_domain(url1: str, url2: str) -> bool:
     return domain1 is not None and domain1 == domain2
 
 
-def normalize_url(url: str, base_url: Optional[str] = None) -> Optional[str]:
+def normalize_url(url: str, base_url: str | None = None) -> str | None:
     """Normalize URL by resolving relative URLs and cleaning up.
 
     Args:

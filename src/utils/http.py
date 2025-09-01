@@ -1,7 +1,5 @@
 """HTTP utilities to eliminate DRY violations in request handling."""
 
-import asyncio
-from typing import Optional
 
 import aiohttp
 import structlog
@@ -14,7 +12,7 @@ logger = structlog.get_logger(__name__)
 class HTTPResponse:
     """Standardized HTTP response wrapper."""
 
-    def __init__(self, status: int, content: str, headers: Optional[dict[str, str]] = None):
+    def __init__(self, status: int, content: str, headers: dict[str, str] | None = None):
         self.status = status
         self.content = content
         self.headers = headers or {}
@@ -24,8 +22,8 @@ class HTTPResponse:
 async def safe_http_get(
     session: aiohttp.ClientSession,
     url: str,
-    timeout: Optional[int] = None,
-    expected_statuses: Optional[set[int]] = None,
+    timeout: int | None = None,
+    expected_statuses: set[int] | None = None,
     log_errors: bool = True,
 ) -> HTTPResponse:
     """Safely perform HTTP GET request with standardized error handling.
@@ -66,7 +64,7 @@ async def safe_http_get(
                     )
                 return HTTPResponse(status=response.status, content=content)
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         if log_errors:
             logger.error("HTTP request timeout", url=url, timeout=timeout)
         raise
@@ -81,7 +79,7 @@ async def safe_http_get(
 
 
 async def safe_http_get_with_raise(
-    session: aiohttp.ClientSession, url: str, timeout: Optional[int] = None
+    session: aiohttp.ClientSession, url: str, timeout: int | None = None
 ) -> str:
     """HTTP GET that raises for status and returns content directly.
 

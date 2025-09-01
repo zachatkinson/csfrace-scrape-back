@@ -5,7 +5,6 @@ import inspect
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 import structlog
 
@@ -38,7 +37,7 @@ class PluginRegistry:
             logger.warning("Plugin search path does not exist", path=str(path))
 
     def register_plugin(
-        self, plugin_class: type[BasePlugin], config: Optional[PluginConfig] = None
+        self, plugin_class: type[BasePlugin], config: PluginConfig | None = None
     ) -> None:
         """Register a plugin class.
 
@@ -97,7 +96,7 @@ class PluginRegistry:
         else:
             logger.warning("Plugin not found for unregistration", name=plugin_name)
 
-    def get_plugin_class(self, plugin_name: str) -> Optional[type[BasePlugin]]:
+    def get_plugin_class(self, plugin_name: str) -> type[BasePlugin] | None:
         """Get a plugin class by name.
 
         Args:
@@ -108,7 +107,7 @@ class PluginRegistry:
         """
         return self._plugins.get(plugin_name)
 
-    def get_plugin_config(self, plugin_name: str) -> Optional[PluginConfig]:
+    def get_plugin_config(self, plugin_name: str) -> PluginConfig | None:
         """Get plugin configuration by name.
 
         Args:
@@ -120,7 +119,7 @@ class PluginRegistry:
         return self._plugin_configs.get(plugin_name)
 
     def list_plugins(
-        self, plugin_type: Optional[PluginType] = None, enabled_only: bool = False
+        self, plugin_type: PluginType | None = None, enabled_only: bool = False
     ) -> list[str]:
         """List registered plugins.
 

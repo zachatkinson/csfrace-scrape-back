@@ -1,10 +1,11 @@
 """Batch processing for multiple URLs with concurrent execution."""
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any
 
 import structlog
 from rich.console import Console
@@ -40,14 +41,14 @@ class BatchJob:
     url: str
     output_dir: Path
     status: BatchJobStatus = BatchJobStatus.PENDING
-    error: Optional[str] = None
-    start_time: Optional[float] = None
-    end_time: Optional[float] = None
-    progress_task: Optional[TaskID] = None
-    archive_path: Optional[Path] = None
+    error: str | None = None
+    start_time: float | None = None
+    end_time: float | None = None
+    progress_task: TaskID | None = None
+    archive_path: Path | None = None
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Calculate job duration if completed."""
         if self.start_time and self.end_time:
             return self.end_time - self.start_time
@@ -74,7 +75,7 @@ class BatchConfig:
 class BatchProcessor:
     """Processes multiple WordPress URLs concurrently."""
 
-    def __init__(self, batch_config: Optional[BatchConfig] = None):
+    def __init__(self, batch_config: BatchConfig | None = None):
         """Initialize batch processor.
 
         Args:
@@ -92,7 +93,7 @@ class BatchProcessor:
         )
 
     def add_job(
-        self, url: str, output_dir: Optional[Path] = None, custom_slug: Optional[str] = None
+        self, url: str, output_dir: Path | None = None, custom_slug: str | None = None
     ) -> BatchJob:
         """Add a job to the batch processing queue with intelligent directory naming.
 
@@ -138,7 +139,7 @@ class BatchProcessor:
         logger.debug("Added batch job", url=url, output_dir=str(output_dir))
         return job
 
-    def _generate_output_directory(self, url: str, custom_slug: Optional[str] = None) -> Path:
+    def _generate_output_directory(self, url: str, custom_slug: str | None = None) -> Path:
         """Generate intelligent output directory from URL or custom slug.
 
         Args:
@@ -214,7 +215,7 @@ class BatchProcessor:
                 return numbered_dir
             counter += 1
 
-    def add_jobs_from_file(self, file_path: Union[str, Path]) -> int:
+    def add_jobs_from_file(self, file_path: str | Path) -> int:
         """Add jobs from a file containing URLs.
 
         Supports multiple formats:
@@ -413,7 +414,7 @@ class BatchProcessor:
         return added
 
     async def process_all(
-        self, progress_callback: Optional[Callable[[str, int], None]] = None
+        self, progress_callback: Callable[[str, int], None] | None = None
     ) -> dict[str, Any]:
         """Process all jobs in the batch queue.
 
@@ -479,7 +480,7 @@ class BatchProcessor:
         self,
         job: BatchJob,
         progress: Progress,
-        progress_callback: Optional[Callable[[str, int], None]] = None,
+        progress_callback: Callable[[str, int], None] | None = None,
     ) -> BatchJob:
         """Process a single job with semaphore control.
 
@@ -545,7 +546,7 @@ class BatchProcessor:
                     except Exception as e:
                         logger.warning("Failed to create archive", url=job.url, error=str(e))
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 job.status = BatchJobStatus.FAILED
                 job.error = f"Timeout after {self.config.timeout_per_job}s"
                 job.end_time = asyncio.get_event_loop().time()

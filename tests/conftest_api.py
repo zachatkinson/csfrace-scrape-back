@@ -1,6 +1,6 @@
 """Shared fixtures for API tests."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -26,7 +26,7 @@ def sample_job():
         slug="test",
         status=JobStatus.PENDING,
         priority=JobPriority.NORMAL,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         retry_count=0,
         max_retries=3,
         timeout_seconds=30,
@@ -45,7 +45,7 @@ def sample_batch():
         name="Sample Batch",
         description="A sample batch",
         status=JobStatus.PENDING,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         max_concurrent=10,
         continue_on_error=True,
         output_base_directory="batch_output/sample",

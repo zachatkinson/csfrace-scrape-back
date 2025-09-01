@@ -2,9 +2,9 @@
 
 import json
 import statistics
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import case, func
@@ -26,7 +26,7 @@ class MetricsCollector:
             database_service: Database service for persistence
         """
         self.database_service = database_service
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
 
         # Runtime metrics
         self.urls_processed = 0
@@ -41,8 +41,8 @@ class MetricsCollector:
         url: str,
         duration: float,
         success: bool,
-        bytes_processed: Optional[int] = None,
-        error_type: Optional[str] = None,
+        bytes_processed: int | None = None,
+        error_type: str | None = None,
     ):
         """Record the result of processing a single URL.
 
@@ -119,7 +119,7 @@ class MetricsCollector:
         Returns:
             Dictionary with current metrics
         """
-        uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
+        uptime = (datetime.now(UTC) - self.start_time).total_seconds()
 
         metrics = {
             "uptime_seconds": uptime,
@@ -156,9 +156,9 @@ class MetricsCollector:
         self,
         metric_type: str,
         metric_name: str,
-        numeric_value: Optional[float] = None,
-        string_value: Optional[str] = None,
-        json_value: Optional[dict[str, Any]] = None,
+        numeric_value: float | None = None,
+        string_value: str | None = None,
+        json_value: dict[str, Any] | None = None,
         component: str = "batch_processing",
     ):
         """Record a system metric in the database.
@@ -174,7 +174,7 @@ class MetricsCollector:
         try:
             with self.database_service.get_session() as session:
                 metric = SystemMetrics(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     metric_type=metric_type,
                     metric_name=metric_name,
                     numeric_value=numeric_value,
@@ -258,7 +258,7 @@ class BatchMonitor:
 
             return batch_info
 
-    def get_batch_details(self, batch_id: int) -> Optional[dict[str, Any]]:
+    def get_batch_details(self, batch_id: int) -> dict[str, Any] | None:
         """Get detailed information about a specific batch.
 
         Args:
@@ -350,7 +350,7 @@ class BatchMonitor:
                 status_counts[status.value] = count
 
             # Get recent error rate (last hour)
-            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+            one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
             recent_jobs = (
                 session.query(ScrapingJob).filter(ScrapingJob.created_at >= one_hour_ago).all()
             )
@@ -370,7 +370,7 @@ class BatchMonitor:
             }
 
             return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "job_status_counts": status_counts,
                 "total_jobs": sum(status_counts.values()),
                 "recent_error_rate_percent": recent_error_rate,
@@ -416,7 +416,7 @@ class BatchMonitor:
             return False
 
     async def generate_report(
-        self, start_date: datetime, end_date: datetime, output_file: Optional[Path] = None
+        self, start_date: datetime, end_date: datetime, output_file: Path | None = None
     ) -> dict[str, Any]:
         """Generate a comprehensive batch processing report.
 
@@ -516,7 +516,7 @@ class BatchMonitor:
                     }
                     for batch in batches
                 ],
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
             }
 
             # Save report to file if requested
@@ -550,7 +550,7 @@ class AlertManager:
 
         logger.info("Initialized alert manager", thresholds=self.alert_thresholds)
 
-    async def check_error_rate_alert(self) -> Optional[dict[str, Any]]:
+    async def check_error_rate_alert(self) -> dict[str, Any] | None:
         """Check for high error rate and return alert if needed.
 
         Returns:
@@ -558,7 +558,7 @@ class AlertManager:
         """
         with self.database_service.get_session() as session:
             # Check error rate in last hour
-            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+            one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
 
             recent_jobs = (
                 session.query(ScrapingJob).filter(ScrapingJob.created_at >= one_hour_ago).all()
@@ -581,19 +581,19 @@ class AlertManager:
                         "total_jobs": len(recent_jobs),
                         "time_period": "last_hour",
                     },
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
         return None
 
-    async def check_stalled_jobs_alert(self) -> Optional[dict[str, Any]]:
+    async def check_stalled_jobs_alert(self) -> dict[str, Any] | None:
         """Check for jobs that have been running too long.
 
         Returns:
             Alert dictionary if stalled jobs found, None otherwise
         """
         with self.database_service.get_session() as session:
-            threshold_time = datetime.now(timezone.utc) - timedelta(
+            threshold_time = datetime.now(UTC) - timedelta(
                 minutes=self.alert_thresholds["processing_delay_minutes"]
             )
 
@@ -620,7 +620,7 @@ class AlertManager:
                             else None
                         ),
                     },
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
         return None
