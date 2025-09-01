@@ -195,3 +195,38 @@ benchmark.json
 test.db
 *.db
 junit-*.xml
+
+# Debug files and screenshots
+*.debug.png
+*.debug.jpg
+*.debug.jpeg
+*.debug.gif
+*.debug.webp
+debug_screenshots/
+playwright-report/
+.ruff_cache/
+
+# Performance profiling
+profile.stats
+*.prof
+*.cprof
+profile_output/
+
+# Development artifacts
+*.tmp
+*.temp
+.cache/
+cache/
+
+# CI/CD artifacts
+.github/artifacts/
+ci-output/
+
+# uv (modern Python package manager)
+.uv/
+uv.lock
+
+# Modern Python tools cache
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
