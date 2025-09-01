@@ -1,3 +1,21 @@
+# [1.1.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.0.0...v1.1.0) (2025-09-01)
+
+
+### Bug Fixes
+
+* **ci:** resolve ruff linting errors and modernize Python syntax ([52da679](https://github.com/zachatkinson/csfrace-scrape-back/commit/52da679b2d8b5b84fa129d4015ac5bb3be59def3))
+* **ci:** update type annotations to modern Python syntax - replace Union with | operator and update isinstance calls ([ca64a3f](https://github.com/zachatkinson/csfrace-scrape-back/commit/ca64a3fbba79e802e674dfff591642e502315eef))
+* **tests:** add missing BackgroundTasks parameter to create_batch test call ([80db0a1](https://github.com/zachatkinson/csfrace-scrape-back/commit/80db0a1802a3b0414dc0390e70c0c44fe5bb3574))
+* **tests:** correct function signatures and imports in unit tests ([b3afd65](https://github.com/zachatkinson/csfrace-scrape-back/commit/b3afd65a2ae2cf1ecbed26c91a34d500140c07a9))
+* **tests:** resolve test failures and Docker security issues ([f31d016](https://github.com/zachatkinson/csfrace-scrape-back/commit/f31d016b888e7ffbafcaabdc5efcd51a390d0249))
+
+
+### Features
+
+* **api:** connect job endpoints to CLI conversion execution ([87bbd07](https://github.com/zachatkinson/csfrace-scrape-back/commit/87bbd07c48e3739bfe127abb69ee50ee146d0a3f))
+* **api:** secure CORS configuration and enhanced debug exclusions ([52115be](https://github.com/zachatkinson/csfrace-scrape-back/commit/52115be5580b58b309a81f41df4407a2c3781ca8))
+* **docker:** update to latest Python and UV versions for development ([459548f](https://github.com/zachatkinson/csfrace-scrape-back/commit/459548ffb68dc1beff0b1f6ba8b21527a3d5f8f4))
+
 # 1.0.0 (2025-09-01)
 
 
