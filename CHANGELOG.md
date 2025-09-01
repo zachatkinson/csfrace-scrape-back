@@ -1,3 +1,15 @@
+# [1.3.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.2.0...v1.3.0) (2025-09-01)
+
+
+### Bug Fixes
+
+* **config:** correct configuration issues after semantic release ([e4de8ed](https://github.com/zachatkinson/csfrace-scrape-back/commit/e4de8ed16d4b27081fd1c171e40bfa7a6b2c73cd))
+
+
+### Features
+
+* **security:** configure Trivy to allow 2 recent SQLite CVEs ([7b41eac](https://github.com/zachatkinson/csfrace-scrape-back/commit/7b41eacaafb9800edf72686ab604d04bb51329e5))
+
 # [1.2.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.1.0...v1.2.0) (2025-09-01)
 
 
