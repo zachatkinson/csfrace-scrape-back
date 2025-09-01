@@ -1,10 +1,14 @@
 """Job management API endpoints."""
 
+import asyncio
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
+from ...core.converter import AsyncWordPressConverter
+from ...core.config import config as default_config
 from ...database.models import JobStatus
 from ..crud import JobCRUD
 from ..dependencies import DBSession
@@ -13,12 +17,79 @@ from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
+async def execute_conversion_job(job_id: int, url: str, output_dir: str):
+    """Background task to execute the actual WordPress to Shopify conversion.
+    
+    Args:
+        job_id: Database job ID
+        url: WordPress URL to convert
+        output_dir: Output directory for conversion results
+    """
+    # Get database session for background task
+    from ..dependencies import async_session
+    
+    async with async_session() as db:
+        try:
+            # Update job status to running
+            await JobCRUD.update_job_status(db, job_id, JobStatus.RUNNING)
+            
+            # Create output directory
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            # Initialize converter with default config
+            converter = AsyncWordPressConverter(
+                base_url=url,
+                output_dir=output_path,
+                config=default_config
+            )
+            
+            # Execute conversion with progress callback
+            def progress_callback(progress: int):
+                # In a real implementation, you could update job progress in database
+                # For now, we'll just log progress
+                pass
+            
+            # Run the conversion
+            await converter.convert(progress_callback=progress_callback)
+            
+            # Mark job as completed
+            job = await JobCRUD.update_job_status(db, job_id, JobStatus.COMPLETED)
+            if job:
+                job.success = True
+                # Update additional completion metadata
+                if output_path.exists():
+                    # Calculate content size
+                    total_size = sum(f.stat().st_size for f in output_path.rglob('*') if f.is_file())
+                    job.content_size_bytes = total_size
+                    
+                    # Count images downloaded
+                    images_dir = output_path / 'images'
+                    if images_dir.exists():
+                        job.images_downloaded = len(list(images_dir.glob('*')))
+                
+                await db.commit()
+            
+        except Exception as e:
+            # Mark job as failed with error details
+            await JobCRUD.update_job_status(
+                db, 
+                job_id, 
+                JobStatus.FAILED,
+                error_message=str(e),
+                error_type=type(e).__name__
+            )
+            # Re-raise to ensure it's logged
+            raise
+
+
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
-async def create_job(job_data: JobCreate, db: DBSession) -> JobResponse:
-    """Create a new scraping job.
+async def create_job(job_data: JobCreate, background_tasks: BackgroundTasks, db: DBSession) -> JobResponse:
+    """Create a new scraping job and start background conversion.
 
     Args:
         job_data: Job creation data
+        background_tasks: FastAPI background tasks
         db: Database session
 
     Returns:
@@ -28,7 +99,17 @@ async def create_job(job_data: JobCreate, db: DBSession) -> JobResponse:
         HTTPException: If job creation fails
     """
     try:
+        # Create the job record first
         job = await JobCRUD.create_job(db, job_data)
+        
+        # Add background task to execute the conversion
+        background_tasks.add_task(
+            execute_conversion_job,
+            job.id,
+            str(job_data.url),
+            job.output_directory
+        )
+        
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
         raise HTTPException(

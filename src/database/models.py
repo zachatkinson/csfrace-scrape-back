@@ -369,7 +369,15 @@ def get_database_url() -> str:
     """
     import os
 
-    # Get database configuration from environment variables with secure defaults
+    # First check if DATABASE_URL is provided directly (Docker Compose sets this)
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # Replace psycopg with asyncpg for async support if needed
+        if "postgresql://" in database_url:
+            return database_url.replace("postgresql://", "postgresql+psycopg://")
+        return database_url
+    
+    # Fallback: build from individual environment variables
     host = os.getenv("DATABASE_HOST", "localhost")
     port = os.getenv("DATABASE_PORT", "5432")
     database = os.getenv("DATABASE_NAME", "scraper_db")
