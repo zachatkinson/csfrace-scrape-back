@@ -371,9 +371,7 @@ class TestAlertManager:
         assert alert_manager._is_rule_in_cooldown("test_rule") is True
 
         # Set old cooldown
-        alert_manager.rule_cooldowns["test_rule"] = datetime.now(UTC) - timedelta(
-            minutes=15
-        )
+        alert_manager.rule_cooldowns["test_rule"] = datetime.now(UTC) - timedelta(minutes=15)
         assert alert_manager._is_rule_in_cooldown("test_rule") is False
 
     def test_is_rule_rate_limited(self, alert_manager):

@@ -1,6 +1,5 @@
 """HTTP utilities to eliminate DRY violations in request handling."""
 
-
 import aiohttp
 import structlog
 

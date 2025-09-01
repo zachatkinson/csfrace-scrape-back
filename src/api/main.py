@@ -40,7 +40,7 @@ app = FastAPI(
 # CORS middleware - secure configuration
 allowed_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:4321"  # Astro dev server ports
+    "http://localhost:3000,http://localhost:4321",  # Astro dev server ports
 ).split(",")
 
 app.add_middleware(

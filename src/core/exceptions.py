@@ -1,7 +1,6 @@
 """Custom exceptions for the WordPress to Shopify converter."""
 
 
-
 class ConversionError(Exception):
     """Base exception for conversion errors."""
 
@@ -52,9 +51,7 @@ class ConfigurationError(ConversionError):
 class DatabaseError(Exception):
     """Exception raised for database-related errors."""
 
-    def __init__(
-        self, message: str, operation: str | None = None, cause: Exception | None = None
-    ):
+    def __init__(self, message: str, operation: str | None = None, cause: Exception | None = None):
         super().__init__(message)
         self.operation = operation
         self.cause = cause
@@ -71,9 +68,7 @@ class DatabaseError(Exception):
 class BatchProcessingError(Exception):
     """Exception raised during batch processing operations."""
 
-    def __init__(
-        self, message: str, batch_id: int | None = None, cause: Exception | None = None
-    ):
+    def __init__(self, message: str, batch_id: int | None = None, cause: Exception | None = None):
         super().__init__(message)
         self.batch_id = batch_id
         self.cause = cause

@@ -37,9 +37,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 
             # Initialize converter with default config
             converter = AsyncWordPressConverter(
-                base_url=url,
-                output_dir=output_path,
-                config=default_config
+                base_url=url, output_dir=output_path, config=default_config
             )
 
             # Execute conversion with progress callback
@@ -58,31 +56,31 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
                 # Update additional completion metadata
                 if output_path.exists():
                     # Calculate content size
-                    total_size = sum(f.stat().st_size for f in output_path.rglob('*') if f.is_file())
+                    total_size = sum(
+                        f.stat().st_size for f in output_path.rglob("*") if f.is_file()
+                    )
                     job.content_size_bytes = total_size
 
                     # Count images downloaded
-                    images_dir = output_path / 'images'
+                    images_dir = output_path / "images"
                     if images_dir.exists():
-                        job.images_downloaded = len(list(images_dir.glob('*')))
+                        job.images_downloaded = len(list(images_dir.glob("*")))
 
                 await db.commit()
 
         except Exception as e:
             # Mark job as failed with error details
             await JobCRUD.update_job_status(
-                db,
-                job_id,
-                JobStatus.FAILED,
-                error_message=str(e),
-                error_type=type(e).__name__
+                db, job_id, JobStatus.FAILED, error_message=str(e), error_type=type(e).__name__
             )
             # Re-raise to ensure it's logged
             raise
 
 
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
-async def create_job(job_data: JobCreate, background_tasks: BackgroundTasks, db: DBSession) -> JobResponse:
+async def create_job(
+    job_data: JobCreate, background_tasks: BackgroundTasks, db: DBSession
+) -> JobResponse:
     """Create a new scraping job and start background conversion.
 
     Args:
@@ -102,10 +100,7 @@ async def create_job(job_data: JobCreate, background_tasks: BackgroundTasks, db:
 
         # Add background task to execute the conversion
         background_tasks.add_task(
-            execute_conversion_job,
-            job.id,
-            str(job_data.url),
-            job.output_directory
+            execute_conversion_job, job.id, str(job_data.url), job.output_directory
         )
 
         return JobResponse.model_validate(job)

@@ -92,9 +92,7 @@ class PerformanceMonitor:
             tracing=self.config.trace_requests,
         )
 
-    def start_trace(
-        self, operation: str, metadata: dict[str, Any] | None = None
-    ) -> str | None:
+    def start_trace(self, operation: str, metadata: dict[str, Any] | None = None) -> str | None:
         """Start a new request trace.
 
         Args:
@@ -269,9 +267,7 @@ class PerformanceMonitor:
             duration_ms=span.duration_ms,
         )
 
-    def add_span_log(
-        self, span_id: str, message: str, data: dict[str, Any] | None = None
-    ) -> None:
+    def add_span_log(self, span_id: str, message: str, data: dict[str, Any] | None = None) -> None:
         """Add a log entry to a span.
 
         Args:

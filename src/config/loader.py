@@ -18,9 +18,7 @@ class ConfigLoader:
     """Load and merge configuration from YAML/JSON files."""
 
     @staticmethod
-    def load_config(
-        config_path: str | Path, config_type: str | None = None
-    ) -> dict[str, Any]:
+    def load_config(config_path: str | Path, config_type: str | None = None) -> dict[str, Any]:
         """Load configuration from file.
 
         Args:

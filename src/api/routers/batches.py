@@ -66,9 +66,11 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
                     completed_jobs += 1
                 else:
                     await JobCRUD.update_job_status(
-                        db, job.id, JobStatus.FAILED,
+                        db,
+                        job.id,
+                        JobStatus.FAILED,
                         error_message="No output generated",
-                        error_type="ProcessingError"
+                        error_type="ProcessingError",
                     )
                     failed_jobs += 1
 
@@ -90,7 +92,9 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
 
 @router.post("/", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
-async def create_batch(batch_data: BatchCreate, background_tasks: BackgroundTasks, db: DBSession) -> BatchResponse:
+async def create_batch(
+    batch_data: BatchCreate, background_tasks: BackgroundTasks, db: DBSession
+) -> BatchResponse:
     """Create a new batch with multiple jobs and start background processing.
 
     Args:
@@ -110,10 +114,7 @@ async def create_batch(batch_data: BatchCreate, background_tasks: BackgroundTask
 
         # Add background task to execute the batch processing
         background_tasks.add_task(
-            execute_batch_processing,
-            batch.id,
-            batch.output_base_directory,
-            batch.max_concurrent
+            execute_batch_processing, batch.id, batch.output_base_directory, batch.max_concurrent
         )
 
         return BatchResponse.model_validate(batch)

@@ -121,9 +121,7 @@ class JobCRUD:
         return list(jobs), total
 
     @staticmethod
-    async def update_job(
-        db: AsyncSession, job_id: int, job_data: JobUpdate
-    ) -> ScrapingJob | None:
+    async def update_job(db: AsyncSession, job_id: int, job_data: JobUpdate) -> ScrapingJob | None:
         """Update a job.
 
         Args:

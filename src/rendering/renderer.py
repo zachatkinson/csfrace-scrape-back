@@ -29,9 +29,7 @@ class RenderingStrategy(BaseModel):
     )
 
     # Browser settings
-    browser_config: BrowserConfig | None = Field(
-        default=None, description="Browser configuration"
-    )
+    browser_config: BrowserConfig | None = Field(default=None, description="Browser configuration")
 
     # Retry settings
     retry_config: RetryConfig | None = Field(default=None, description="Retry configuration")
