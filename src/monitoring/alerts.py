@@ -297,7 +297,7 @@ class AlertManager:
             # Extract system metrics
             system_metrics = snapshot.get("system_metrics", {})
             for key, value in system_metrics.items():
-                if isinstance(value, (int, float)):
+                if isinstance(value, int | float):
                     metrics[key] = float(value)
 
             # Get health check metrics

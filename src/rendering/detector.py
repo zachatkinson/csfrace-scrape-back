@@ -414,7 +414,7 @@ def get_recommended_wait_conditions(analysis: ContentAnalysis) -> dict[str, Any]
 
     if "ajax_patterns" in analysis.indicators_found:
         current_wait = conditions.get("additional_wait_time", 0.0)
-        if isinstance(current_wait, (int, float)):
+        if isinstance(current_wait, int | float):
             conditions["additional_wait_time"] = max(float(current_wait), 1.5)
         else:
             conditions["additional_wait_time"] = 1.5

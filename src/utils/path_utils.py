@@ -2,9 +2,8 @@
 
 import os
 from pathlib import Path, PurePath
-from typing import Union
 
-PathLike = Union[str, Path, PurePath]
+PathLike = str | Path | PurePath
 
 
 def normalize_path_separators(path: PathLike) -> str:

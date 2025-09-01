@@ -284,7 +284,7 @@ class BaseCacheBackend(abc.ABC):
             Size in bytes
         """
         try:
-            if isinstance(value, (str, bytes)):
+            if isinstance(value, str | bytes):
                 return len(value.encode("utf-8") if isinstance(value, str) else value)
             else:
                 return len(json.dumps(value, default=self._json_serializer).encode("utf-8"))
