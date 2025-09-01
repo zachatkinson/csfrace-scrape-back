@@ -323,7 +323,9 @@ class TestBatchRouterEndpoints:
         mock_background_tasks = MagicMock()
         with patch("src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch):
             result = await create_batch(
-                BatchCreate(name="Test", urls=["https://test.com"]), mock_background_tasks, mock_db_session
+                BatchCreate(name="Test", urls=["https://test.com"]),
+                mock_background_tasks,
+                mock_db_session,
             )
 
             # Verify all required fields are present
@@ -470,7 +472,9 @@ class TestBatchRouterEndpoints:
         with patch("src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch):
             mock_background_tasks = MagicMock()
             result = await create_batch(
-                BatchCreate(name="Field Test", urls=["https://test.com"]), mock_background_tasks, mock_db_session
+                BatchCreate(name="Field Test", urls=["https://test.com"]),
+                mock_background_tasks,
+                mock_db_session,
             )
 
             # Check all expected fields are present
@@ -577,7 +581,9 @@ class TestBatchRouterEndpoints:
         ):
             mock_background_tasks = MagicMock()
             result = await create_batch(
-                BatchCreate(name="Test", urls=["https://test.com"]), mock_background_tasks, mock_db_session
+                BatchCreate(name="Test", urls=["https://test.com"]),
+                mock_background_tasks,
+                mock_db_session,
             )
 
             # Should handle None values gracefully
