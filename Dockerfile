@@ -3,7 +3,7 @@
 #########################
 # Build stage
 #########################
-FROM python:latest as builder
+FROM python:3.13-slim-bullseye as builder
 
 # Install UV from official image (production best practice)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -15,16 +15,15 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_CACHE_DIR=/tmp/.uv-cache
 
-# Install system dependencies for building (including lxml requirements for Python 3.13)
+# Install only essential build dependencies with security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
-    libxml2-dev \
-    libxslt1-dev \
-    pkg-config \
+    build-essential=12.* \
+    libxml2-dev=2.* \
+    libxslt1-dev=1.* \
     && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/*
 
 # Set work directory
 WORKDIR /build
@@ -58,7 +57,7 @@ CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--re
 #########################
 # Production stage
 #########################
-FROM python:latest as production
+FROM python:3.13-slim-bullseye as production
 
 # Copy UV binary from official UV image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -69,11 +68,14 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app/src:$PYTHONPATH" \
     UV_PROJECT_ENVIRONMENT=/usr/local
 
-# Install runtime dependencies and apply security updates
+# Install minimal runtime dependencies with version pinning and security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
+    curl=7.* \
+    ca-certificates=2* \
     && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/*
 
 # Create non-root user
 RUN groupadd -r scraper && useradd -r -g scraper scraper

@@ -85,8 +85,9 @@ class TestJobRouterEndpoints:
         with patch("src.api.routers.jobs.JobCRUD.create_job") as mock_create:
             mock_create.side_effect = SQLAlchemyError("Database error")
 
+            mock_background_tasks = MagicMock()
             with pytest.raises(HTTPException) as exc_info:
-                await create_job(job_create_data, mock_db_session)
+                await create_job(job_create_data, mock_background_tasks, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Failed to create job" in exc_info.value.detail

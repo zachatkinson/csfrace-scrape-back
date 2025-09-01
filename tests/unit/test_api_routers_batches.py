@@ -424,9 +424,9 @@ class TestBatchRouterEndpoints:
             with patch("src.api.routers.batches.BatchCRUD.create_batch") as mock_create:
                 mock_create.side_effect = SQLAlchemyError(db_error)
 
+                mock_background_tasks = MagicMock()
                 with pytest.raises(HTTPException) as exc_info:
-                    mock_background_tasks = MagicMock()
-                await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
+                    await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
                 assert expected_message in exc_info.value.detail
@@ -613,9 +613,9 @@ class TestBatchRouterEndpoints:
             with patch("src.api.routers.batches.BatchCRUD.create_batch") as mock_create:
                 mock_create.side_effect = error
 
+                mock_background_tasks = MagicMock()
                 with pytest.raises(HTTPException) as exc_info:
-                    mock_background_tasks = MagicMock()
-                await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
+                    await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
                 assert "Failed to create batch" in exc_info.value.detail
