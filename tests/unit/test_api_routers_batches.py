@@ -575,8 +575,9 @@ class TestBatchRouterEndpoints:
         with patch(
             "src.api.routers.batches.BatchCRUD.create_batch", return_value=batch_with_none_values
         ):
+            mock_background_tasks = MagicMock()
             result = await create_batch(
-                BatchCreate(name="Test", urls=["https://test.com"]), mock_db_session
+                BatchCreate(name="Test", urls=["https://test.com"]), mock_background_tasks, mock_db_session
             )
 
             # Should handle None values gracefully
