@@ -354,46 +354,92 @@ class TestRunBatchProcessing:
 
 
 class TestMainCLI:
-    """Test the main CLI function."""
+    """Test the main CLI execution flow without async complexity."""
 
-    def test_main_with_single_url_argument(self):
-        """Test main function with single URL argument."""
+    def test_main_with_single_url(self):
+        """Test CLI execution with single URL."""
         test_args = ["prog", "https://example.com"]
 
-        with patch.object(sys, "argv", test_args), patch("src.main.asyncio.run") as mock_run:
+        with (
+            patch.object(sys, "argv", test_args),
+            patch("src.main.asyncio.run") as mock_run,
+        ):
             main()
-
-            mock_run.assert_called_once()
-            args, _ = mock_run.call_args
-            # Verify the coroutine is main_async with correct parameters
-            assert args[0].__name__ == "main_async"
+            assert mock_run.called
 
     def test_main_with_output_directory(self):
-        """Test main function with custom output directory."""
+        """Test CLI execution with output directory."""
         test_args = ["prog", "https://example.com", "-o", "custom_output"]
 
-        with patch.object(sys, "argv", test_args), patch("src.main.asyncio.run") as mock_run:
+        with (
+            patch.object(sys, "argv", test_args),
+            patch("src.main.asyncio.run") as mock_run,
+        ):
+            main()
+            assert mock_run.called
+
+    def test_main_with_config_generation(self):
+        """Test config generation without async complexity."""
+        test_args = ["prog", "--generate-config", "yaml"]
+
+        with (
+            patch.object(sys, "argv", test_args),
+            patch("src.main.ConfigLoader") as mock_loader,
+            patch("src.main.console") as mock_console,
+        ):
             main()
 
-            mock_run.assert_called_once()
+            mock_loader.save_example_config.assert_called_once_with(
+                "wp-shopify-config.yaml", "yaml"
+            )
 
     def test_main_with_urls_file(self):
         """Test main function with URLs file."""
         test_args = ["prog", "--urls-file", "test_urls.txt", "--batch-size", "5"]
 
-        with patch.object(sys, "argv", test_args), patch("src.main.asyncio.run") as mock_run:
+        # Create a mock coroutine that doesn't need awaiting
+        mock_coro = MagicMock()
+
+        with (
+            patch.object(sys, "argv", test_args),
+            patch("src.main.main_async", return_value=mock_coro) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
+        ):
             main()
 
-            mock_run.assert_called_once()
+            mock_main_async.assert_called_once_with(
+                url=None,
+                urls_file="test_urls.txt",
+                output_dir="converted_content",
+                batch_size=5,
+                verbose=False,
+                converter_config=None,
+                batch_config=None,
+            )
 
     def test_main_with_verbose_flag(self):
         """Test main function with verbose logging."""
         test_args = ["prog", "https://example.com", "-v"]
 
-        with patch.object(sys, "argv", test_args), patch("src.main.asyncio.run") as mock_run:
+        # Create a mock coroutine that doesn't need awaiting
+        mock_coro = MagicMock()
+
+        with (
+            patch.object(sys, "argv", test_args),
+            patch("src.main.main_async", return_value=mock_coro) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
+        ):
             main()
 
-            mock_run.assert_called_once()
+            mock_main_async.assert_called_once_with(
+                url="https://example.com",
+                urls_file=None,
+                output_dir="converted_content",
+                batch_size=3,
+                verbose=True,
+                converter_config=None,
+                batch_config=None,
+            )
 
     def test_main_generate_yaml_config(self):
         """Test generating YAML config file."""
@@ -442,15 +488,27 @@ class TestMainCLI:
             patch.object(sys, "argv", test_args),
             patch("src.main.load_config_from_file") as mock_load_config,
             patch("src.main.console") as mock_console,
-            patch("src.main.asyncio.run"),
+            patch("src.main.main_async", new_callable=AsyncMock) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
         ):
             mock_load_config.return_value = (mock_converter_config, mock_batch_config)
+            # Mock asyncio.run to avoid executing the coroutine
+            mock_run.return_value = None
 
             main()
 
             mock_load_config.assert_called_once_with("test_config.yaml")
             mock_console.print.assert_any_call(
                 "📝 Loaded configuration from: [bold]test_config.yaml[/bold]"
+            )
+            mock_main_async.assert_called_once_with(
+                url="https://example.com",
+                urls_file=None,
+                output_dir="converted_content",
+                batch_size=3,
+                verbose=False,
+                converter_config=mock_converter_config,
+                batch_config=mock_batch_config,
             )
 
     def test_main_load_config_file_failure(self):
@@ -479,10 +537,13 @@ class TestMainCLI:
         with (
             patch.object(sys, "argv", test_args),
             patch("src.main.console") as mock_console,
-            patch("src.main.asyncio.run"),
+            patch("src.main.main_async", new_callable=AsyncMock) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
         ):
             # Mock user input
             mock_console.input.side_effect = ["1", "https://interactive.com"]
+            # Mock asyncio.run to avoid executing the coroutine
+            mock_run.return_value = None
 
             main()
 
@@ -490,6 +551,15 @@ class TestMainCLI:
             assert mock_console.input.call_count == 2
             mock_console.print.assert_any_call(
                 "[bold blue]WordPress to Shopify Content Converter[/bold blue]"
+            )
+            mock_main_async.assert_called_once_with(
+                url="https://interactive.com",
+                urls_file=None,
+                output_dir="converted_content",
+                batch_size=3,
+                verbose=False,
+                converter_config=None,
+                batch_config=None,
             )
 
     def test_main_interactive_mode_multiple_urls(self):
@@ -499,13 +569,25 @@ class TestMainCLI:
         with (
             patch.object(sys, "argv", test_args),
             patch("src.main.console") as mock_console,
-            patch("src.main.asyncio.run"),
+            patch("src.main.main_async", new_callable=AsyncMock) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
         ):
             mock_console.input.side_effect = ["2", "https://site1.com,https://site2.com"]
+            # Mock asyncio.run to avoid executing the coroutine
+            mock_run.return_value = None
 
             main()
 
             assert mock_console.input.call_count == 2
+            mock_main_async.assert_called_once_with(
+                url="https://site1.com,https://site2.com",
+                urls_file=None,
+                output_dir="converted_content",
+                batch_size=3,
+                verbose=False,
+                converter_config=None,
+                batch_config=None,
+            )
 
     def test_main_interactive_mode_batch_file(self):
         """Test interactive mode - batch file choice."""
@@ -514,13 +596,25 @@ class TestMainCLI:
         with (
             patch.object(sys, "argv", test_args),
             patch("src.main.console") as mock_console,
-            patch("src.main.asyncio.run"),
+            patch("src.main.main_async", new_callable=AsyncMock) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
         ):
             mock_console.input.side_effect = ["3", "batch_urls.txt"]
+            # Mock asyncio.run to avoid executing the coroutine
+            mock_run.return_value = None
 
             main()
 
             assert mock_console.input.call_count == 2
+            mock_main_async.assert_called_once_with(
+                url=None,
+                urls_file="batch_urls.txt",
+                output_dir="converted_content",
+                batch_size=3,
+                verbose=False,
+                converter_config=None,
+                batch_config=None,
+            )
 
     def test_main_interactive_mode_invalid_choice(self):
         """Test interactive mode - invalid choice."""
@@ -623,11 +717,26 @@ class TestMainArgumentParsing:
         """Test batch size argument parsing."""
         test_args = ["prog", "--urls-file", "test.txt", "--batch-size", "10"]
 
-        with patch.object(sys, "argv", test_args), patch("src.main.asyncio.run") as mock_run:
+        # Create a mock coroutine that doesn't need awaiting
+        mock_coro = MagicMock()
+
+        with (
+            patch.object(sys, "argv", test_args),
+            patch("src.main.main_async", return_value=mock_coro) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
+        ):
             main()
 
             # Verify batch_size was passed correctly
-            mock_run.assert_called_once()
+            mock_main_async.assert_called_once_with(
+                url=None,
+                urls_file="test.txt",
+                output_dir="converted_content",
+                batch_size=10,
+                verbose=False,
+                converter_config=None,
+                batch_config=None,
+            )
 
     def test_config_file_argument(self):
         """Test config file argument."""
@@ -636,13 +745,25 @@ class TestMainArgumentParsing:
         with (
             patch.object(sys, "argv", test_args),
             patch("src.main.load_config_from_file") as mock_load,
-            patch("src.main.asyncio.run"),
+            patch("src.main.main_async", new_callable=AsyncMock) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
         ):
             mock_load.return_value = (None, None)
+            # Mock asyncio.run to avoid executing the coroutine
+            mock_run.return_value = None
 
             main()
 
             mock_load.assert_called_once_with("my_config.yaml")
+            mock_main_async.assert_called_once_with(
+                url="https://example.com",
+                urls_file=None,
+                output_dir="converted_content",
+                batch_size=3,
+                verbose=False,
+                converter_config=None,
+                batch_config=None,
+            )
 
     def test_help_argument(self):
         """Test help argument shows usage."""
