@@ -11,7 +11,7 @@ from src.database.models import JobPriority
 
 
 @dataclass(frozen=True)
-class TestDataSpec:
+class DataSpec:
     """Specification for test data creation following Single Responsibility Principle."""
 
     base_url: str
@@ -25,7 +25,7 @@ class TestDataSpec:
         return f"{self.base_url}-{self.test_id}"
 
 
-class TestJobFactory:
+class JobFactory:
     """Factory for creating test jobs following Factory Pattern and DRY principles.
 
     This class ensures consistent job creation across all tests while maintaining
@@ -45,7 +45,7 @@ class TestJobFactory:
         base_url: str,
         priority: JobPriority = JobPriority.NORMAL,
         output_directory: str = "/tmp/test",
-    ) -> TestDataSpec:
+    ) -> DataSpec:
         """Create job specification with unique identifier.
 
         Args:
@@ -54,20 +54,20 @@ class TestJobFactory:
             output_directory: Output directory path
 
         Returns:
-            TestDataSpec: Immutable specification for job creation
+            DataSpec: Immutable specification for job creation
         """
-        return TestDataSpec(
+        return DataSpec(
             base_url=base_url,
             test_id=self.test_id,
             priority=priority,
             output_directory=output_directory,
         )
 
-    def create_priority_test_jobs(self) -> list[TestDataSpec]:
+    def create_priority_test_jobs(self) -> list[DataSpec]:
         """Create complete set of priority test jobs following DRY principles.
 
         Returns:
-            List[TestDataSpec]: Specifications for all priority levels
+            List[DataSpec]: Specifications for all priority levels
         """
         return [
             self.create_job_spec("https://example.com/priority-test-urgent", JobPriority.URGENT),
@@ -76,11 +76,11 @@ class TestJobFactory:
             self.create_job_spec("https://example.com/priority-test-low", JobPriority.LOW),
         ]
 
-    def create_status_test_jobs(self) -> dict[str, TestDataSpec]:
+    def create_status_test_jobs(self) -> dict[str, DataSpec]:
         """Create jobs for status testing following DRY principles.
 
         Returns:
-            Dict[str, TestDataSpec]: Named job specifications for status tests
+            Dict[str, DataSpec]: Named job specifications for status tests
         """
         return {
             "pending": self.create_job_spec("https://example.com/exclude-test-pending"),
@@ -88,11 +88,11 @@ class TestJobFactory:
             "completed": self.create_job_spec("https://example.com/exclude-test-completed"),
         }
 
-    def create_statistics_test_jobs(self) -> dict[str, list[TestDataSpec]]:
+    def create_statistics_test_jobs(self) -> dict[str, list[DataSpec]]:
         """Create jobs for statistics testing following DRY principles.
 
         Returns:
-            Dict[str, List[TestDataSpec]]: Categorized job specifications
+            Dict[str, List[DataSpec]]: Categorized job specifications
         """
         completed_jobs = [
             self.create_job_spec(f"https://example.com/stats-completed-{i}") for i in range(5)
@@ -105,7 +105,7 @@ class TestJobFactory:
         return {"completed": completed_jobs, "failed": failed_jobs}
 
 
-class TestDataMatcher:
+class DataMatcher:
     """Utility for filtering test data following Single Responsibility Principle."""
 
     @staticmethod

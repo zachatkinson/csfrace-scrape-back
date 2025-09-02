@@ -242,6 +242,7 @@ class TestDatabaseBase:
 
             # Also test queried objects
             queried_parent = session.query(Parent).first()
+            assert queried_parent is not None, "Parent object should be retrievable from database"
             session.refresh(queried_parent)  # Ensure lazy loading works
             assert len(queried_parent.children) == 1
             assert queried_parent.children[0].parent == queried_parent
@@ -499,15 +500,16 @@ class TestDatabaseBaseIntegration:
             Session = sessionmaker(bind=postgres_engine)
             session = Session()
 
-            # Create and save job
-            job = IntegrationJob(
-                url="https://example.com", status="pending", metadata_json='{"test": "data"}'
-            )
+            # Create and save job with unique URL to avoid concurrent test interference
+            import uuid
+
+            unique_url = f"https://example.com/{uuid.uuid4().hex[:8]}"
+            job = IntegrationJob(url=unique_url, status="pending", metadata_json='{"test": "data"}')
             session.add(job)
             session.commit()
 
             # Query and verify
-            queried_job = session.query(IntegrationJob).filter_by(url="https://example.com").first()
+            queried_job = session.query(IntegrationJob).filter_by(url=unique_url).first()
             assert queried_job is not None
             assert queried_job.status == "pending"
             assert queried_job.is_active is True

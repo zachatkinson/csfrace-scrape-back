@@ -801,15 +801,17 @@ class TestDatabaseServiceBatchOperations:
         success = testcontainers_db_service.update_batch_progress(99999)
         assert success is False
 
-    def test_update_batch_progress_with_all_job_states(self, testcontainers_db_service):
+    def test_update_batch_progress_with_all_job_states(
+        self, testcontainers_db_service, test_isolation_id
+    ):
         """Test batch progress update with various job states."""
-        batch = testcontainers_db_service.create_batch(name="Test Batch")
+        batch = testcontainers_db_service.create_batch(name=f"Test Batch {test_isolation_id}")
 
-        # Create jobs in different states
+        # Create jobs in different states with unique identifiers
         jobs = []
         for i in range(10):
             job = testcontainers_db_service.create_job(
-                url=f"https://example.com/test{i}",
+                url=f"https://example.com/batch-progress-test-{test_isolation_id}-{i}",
                 output_directory=f"/tmp/output{i}",
                 batch_id=batch.id,
             )
@@ -901,12 +903,19 @@ class TestDatabaseServiceContentOperations:
         assert content_result.converted_html is None
         assert content_result.title is None
 
-    def test_save_content_result_with_empty_metadata(self, testcontainers_db_service):
+    def test_save_content_result_with_empty_metadata(
+        self, testcontainers_db_service, test_isolation_id
+    ):
         """Test saving content result with empty metadata dictionary."""
         job = testcontainers_db_service.create_job(
-            url="https://example.com/test",
+            url=f"https://example.com/empty-metadata-test-{test_isolation_id}",
             output_directory="/tmp/output",
         )
+
+        # Add small delay to reduce concurrent insertion pressure
+        import time
+
+        time.sleep(0.01)
 
         content_result = testcontainers_db_service.save_content_result(
             job_id=job.id,
@@ -1041,15 +1050,21 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["success_rate_percent"] == 0.0
         assert stats["avg_duration_seconds"] == 0.0
 
-    def test_get_job_statistics_with_null_values(self, testcontainers_db_service):
+    def test_get_job_statistics_with_null_values(
+        self, testcontainers_db_service, test_isolation_id
+    ):
         """Test statistics calculation with jobs having null metrics."""
-        # Create jobs without duration or content metrics
+        # Record initial count to filter out other test jobs
+        initial_stats = testcontainers_db_service.get_job_statistics(days=7)
+        initial_count = initial_stats["total_jobs"]
+
+        # Create jobs without duration or content metrics with unique identifiers
         job1 = testcontainers_db_service.create_job(
-            url="https://example.com/test1",
+            url=f"https://example.com/null-stats-test-{test_isolation_id}-1",
             output_directory="/tmp/output1",
         )
         job2 = testcontainers_db_service.create_job(
-            url="https://example.com/test2",
+            url=f"https://example.com/null-stats-test-{test_isolation_id}-2",
             output_directory="/tmp/output2",
         )
 
@@ -1059,7 +1074,10 @@ class TestDatabaseServiceStatisticsAndAnalytics:
 
         stats = testcontainers_db_service.get_job_statistics(days=7)
 
-        assert stats["total_jobs"] == 2
+        # Verify we added exactly 2 jobs (account for concurrent test jobs)
+        assert stats["total_jobs"] == initial_count + 2, (
+            f"Expected {initial_count + 2} total jobs, got {stats['total_jobs']}"
+        )
         assert stats["avg_duration_seconds"] == 0.0  # Null average becomes 0
         assert stats["total_content_size_bytes"] == 0
         assert stats["total_images_downloaded"] == 0
