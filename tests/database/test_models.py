@@ -296,6 +296,13 @@ class TestDatabaseModels:
 
     def test_cascade_deletion(self, testcontainers_db_service):
         """Test cascade deletion of related records."""
+        # Store IDs for verification
+        batch_id = None
+        job_id = None
+        content_id = None
+        log_entry_id = None
+
+        # Create and delete data in separate session
         with testcontainers_db_service.get_session() as session:
             # Create batch with jobs
             batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
@@ -317,7 +324,7 @@ class TestDatabaseModels:
             session.add_all([content, log_entry])
             session.commit()
 
-            # Store IDs before deletion (objects will be detached after cascade deletion)
+            # Store IDs before deletion
             batch_id = batch.id
             job_id = job.id
             content_id = content.id
@@ -327,10 +334,12 @@ class TestDatabaseModels:
             session.delete(batch)
             session.commit()
 
-            # Verify cascade deletion using stored IDs
-            assert session.get(ScrapingJob, job_id) is None
-            assert session.get(ContentResult, content_id) is None
-            assert session.get(JobLog, log_entry_id) is None
+        # Verify cascade deletion using fresh session
+        with testcontainers_db_service.get_session() as verification_session:
+            assert verification_session.get(Batch, batch_id) is None
+            assert verification_session.get(ScrapingJob, job_id) is None
+            assert verification_session.get(ContentResult, content_id) is None
+            assert verification_session.get(JobLog, log_entry_id) is None
 
 
 class TestDatabaseUtilities:
