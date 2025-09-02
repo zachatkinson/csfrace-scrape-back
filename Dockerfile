@@ -115,4 +115,4 @@ LABEL org.opencontainers.image.title="CSFrace Scraper" \
       org.opencontainers.image.description="WordPress to Shopify content converter" \
       org.opencontainers.image.source="https://github.com/zachatkinson/csfrace-scrape" \
       org.opencontainers.image.vendor="CSFrace Development Team" \
-      org.opencontainers.image.version="1.0.0"
+      org.opencontainers.image.version="1.3.0"
