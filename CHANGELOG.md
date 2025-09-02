@@ -1,3 +1,14 @@
+## [1.4.1](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.4.0...v1.4.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* **config:** correct semantic-release corruption of ruff and mypy configuration ([f5c25aa](https://github.com/zachatkinson/csfrace-scrape-back/commit/f5c25aa860dd437a557f58bf580479b0ac3c96f9))
+* **tests:** add missing Mock import for browser tests ([deb1202](https://github.com/zachatkinson/csfrace-scrape-back/commit/deb1202c1e24b1ad1ac66a86ae89bbd4cf177269))
+* **tests:** add missing Mock import for HTTP tests ([ef9420e](https://github.com/zachatkinson/csfrace-scrape-back/commit/ef9420e7dc47a9436e4050413cdab19d3b7e839d))
+* **tests:** resolve RuntimeWarning and DeprecationWarning issues ([ae9fb35](https://github.com/zachatkinson/csfrace-scrape-back/commit/ae9fb35e38f4f8fb3489e739909f064c50b1e6b0))
+* **tests:** update health check version assertion from 1.3.1 to 1.4.0 ([d7a48ab](https://github.com/zachatkinson/csfrace-scrape-back/commit/d7a48ab4349dfeae1da342e67b9c2fa87f60b1d8))
+
 # [1.4.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.3.1...v1.4.0) (2025-09-02)
 
 
