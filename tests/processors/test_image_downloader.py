@@ -1,7 +1,6 @@
 """Comprehensive tests for async image downloader."""
 
 import asyncio
-import contextlib
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
@@ -44,13 +43,13 @@ class FakeHttpContent:
 
 class FakeAsyncContextManager:
     """Fake async context manager to replace AsyncMock patterns."""
-    
+
     def __init__(self, return_value):
         self.return_value = return_value
-    
+
     async def __aenter__(self):
         return self.return_value
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return None
 
@@ -566,7 +565,7 @@ class TestAsyncImageDownloaderEdgeCases:
                     content_length=1024,
                     content_chunks=[b"chunk1", b"chunk2"],
                 )
-                # Use fake async context manager for session get - avoids AsyncMock issues  
+                # Use fake async context manager for session get - avoids AsyncMock issues
                 fake_context = FakeAsyncContextManager(mock_response)
                 mock_aiohttp_session.get.return_value = fake_context
 
