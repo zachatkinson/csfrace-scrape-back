@@ -79,100 +79,10 @@ jobs:
           uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-report=xml --cov-report=term-missing --tb=short --maxfail=5
           echo "✅ Core tests completed"
       
-      - name: Setup Node.js for semantic-release
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install semantic-release
+      - name: Install python-semantic-release
         run: |
-          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/exec
+          uv add --group dev python-semantic-release
       
-      - name: Create semantic-release config
-        run: |
-          cat > .releaserc.json << 'EOF'
-          {
-            "branches": ["master"],
-            "plugins": [
-              "@semantic-release/commit-analyzer",
-              "@semantic-release/release-notes-generator", 
-              "@semantic-release/changelog",
-              [
-                "@semantic-release/exec",
-                {
-                  "prepareCmd": "uv run python scripts/update_version.py ${nextRelease.version}",
-                  "publishCmd": "echo 'Version ${nextRelease.version} prepared for release'"
-                }
-              ],
-              [
-                "@semantic-release/git",
-                {
-                  "assets": ["CHANGELOG.md", "pyproject.toml"],
-                  "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-                }
-              ],
-              [
-                "@semantic-release/github",
-                {
-                  "assets": [
-                    {
-                      "path": "dist/*.whl",
-                      "label": "Python Wheel"
-                    },
-                    {
-                      "path": "dist/*.tar.gz", 
-                      "label": "Source Distribution"
-                    }
-                  ]
-                }
-              ]
-            ]
-          }
-          EOF
-      
-      - name: Create version update script
-        run: |
-          mkdir -p scripts
-          cat > scripts/update_version.py << 'EOF'
-          #!/usr/bin/env python3
-          """Update version in pyproject.toml for semantic release."""
-          
-          import sys
-          import re
-          from pathlib import Path
-          
-          def update_version(new_version):
-              """Update version in pyproject.toml"""
-              pyproject_path = Path("pyproject.toml")
-              
-              if not pyproject_path.exists():
-                  print(f"❌ pyproject.toml not found")
-                  sys.exit(1)
-              
-              content = pyproject_path.read_text()
-              
-              # Update version line
-              version_pattern = r'version = "[^"]+"'
-              new_version_line = f'version = "{new_version}"'
-              
-              if re.search(version_pattern, content):
-                  updated_content = re.sub(version_pattern, new_version_line, content)
-                  pyproject_path.write_text(updated_content)
-                  print(f"✅ Updated version to {new_version} in pyproject.toml")
-              else:
-                  print(f"❌ Could not find version line in pyproject.toml")
-                  sys.exit(1)
-          
-          if __name__ == "__main__":
-              if len(sys.argv) != 2:
-                  print("Usage: python update_version.py <version>")
-                  sys.exit(1)
-              
-              new_version = sys.argv[1]
-              update_version(new_version)
-          EOF
-          
-          chmod +x scripts/update_version.py
       
       - name: Build package
         run: |
@@ -183,13 +93,13 @@ jobs:
           ls -la dist/
           echo "✅ Package build completed"
       
-      - name: Run semantic-release
+      - name: Run python-semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "🚀 Running semantic release..."
-          semantic-release
+          echo "🚀 Running Python semantic release..."
+          uv run semantic-release version --print
+          uv run semantic-release publish
       
       - name: Upload build artifacts
         if: always()
@@ -206,9 +116,7 @@ jobs:
         if: always()
         run: |
           echo "🧹 Cleaning up temporary files..."
-          rm -f .releaserc.json
-          rm -rf scripts/
-          echo "✅ Cleanup completed"
+          echo "✅ Cleanup completed (python-semantic-release handles cleanup automatically)"
 
   # Optional: Notify on release
   notify:
