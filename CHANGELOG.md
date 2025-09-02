@@ -1,3 +1,23 @@
+# [1.4.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.3.1...v1.4.0) (2025-09-02)
+
+
+### Bug Fixes
+
+* **ci:** add --with-deps to playwright install for proper system dependencies ([2f76a6a](https://github.com/zachatkinson/csfrace-scrape-back/commit/2f76a6a7eae3bb58cff30d02e5a696c37552da2c))
+* **ci:** update Safety command syntax and upgrade dependencies ([54812e5](https://github.com/zachatkinson/csfrace-scrape-back/commit/54812e5dd24a829e8245f37c538919137d390e55))
+* correct semantic-release corruption of ruff and mypy configuration ([17e3061](https://github.com/zachatkinson/csfrace-scrape-back/commit/17e3061c653a161626986f65c5e235dbce4735cf))
+* **test:** update health check version assertion from 1.3.0 to 1.3.1 ([ea9297f](https://github.com/zachatkinson/csfrace-scrape-back/commit/ea9297f8c22cf10d1b4d17d1b6ad9818e999877c))
+
+
+### Features
+
+* update dependencies and fix Safety CLI compatibility ([9297d6b](https://github.com/zachatkinson/csfrace-scrape-back/commit/9297d6bfed33b7dd06e42784b545a458b077a18b))
+
+
+### Performance Improvements
+
+* **ci:** optimize Playwright browser caching for faster CI runs ([bda1299](https://github.com/zachatkinson/csfrace-scrape-back/commit/bda1299321990ea05489f0408d68fee958bd185f))
+
 ## [1.3.1](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.3.0...v1.3.1) (2025-09-02)
 
 
