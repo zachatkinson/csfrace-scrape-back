@@ -8,87 +8,31 @@ on:
     branches:
       - master
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # Don't cancel releases
-
-env:
-  PYTHON_VERSION: "3.13"
-  UV_VERSION: "0.8.13"
-
 jobs:
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    concurrency: release  # Prevent concurrent releases
     # Only run if CI was successful
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
+      id-token: write  # For provenance
+      contents: write  # For creating releases
+      issues: write    # For creating issues
+      pull-requests: write  # For creating PRs
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Full history for semantic release
           token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: false
       
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Python Semantic Release
+        uses: python-semantic-release/python-semantic-release@v9.21.1
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-      
-      - name: Install dependencies
-        run: |
-          uv sync --group dev
-      
-      - name: Install python-semantic-release
-        run: |
-          uv add --group dev python-semantic-release
-      
-      - name: Build package
-        run: |
-          echo "📦 Building Python package..."
-          uv build
-          
-          # Verify build
-          ls -la dist/
-          echo "✅ Package build completed"
-      
-      - name: Run python-semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "🚀 Running Python semantic release..."
-          echo "✅ CI Pipeline was successful - proceeding with release"
-          uv run semantic-release version --print
-          uv run semantic-release publish
-      
-      - name: Upload build artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-artifacts
-          path: |
-            dist/
-            CHANGELOG.md
-          retention-days: 30
-      
-      - name: Post-release cleanup
-        if: always()
-        run: |
-          echo "🧹 Cleaning up temporary files..."
-          echo "✅ Cleanup completed (python-semantic-release handles cleanup automatically)"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Additional configuration comes from pyproject.toml
 
   # Notify when release is skipped due to CI failure
   notify-skip:
