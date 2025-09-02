@@ -18,9 +18,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy import (
-    Enum as SQLEnum,
-)
+from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ..constants import CONSTANTS
@@ -68,12 +66,17 @@ class ScrapingJob(Base):
     domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     slug: Mapped[str | None] = mapped_column(String(255), index=True)
 
-    # Job management
+    # Job management - Using PostgreSQL native enums for better concurrent handling
     status: Mapped[JobStatus] = mapped_column(
-        SQLEnum(JobStatus), default=JobStatus.PENDING, nullable=False, index=True
+        PostgreSQLEnum(JobStatus, name="jobstatus", create_type=False),
+        default=JobStatus.PENDING,
+        nullable=False,
+        index=True,
     )
     priority: Mapped[JobPriority] = mapped_column(
-        SQLEnum(JobPriority), default=JobPriority.NORMAL, nullable=False
+        PostgreSQLEnum(JobPriority, name="jobpriority", create_type=False),
+        default=JobPriority.NORMAL,
+        nullable=False,
     )
 
     # Timing information
@@ -165,9 +168,12 @@ class Batch(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
 
-    # Batch status and timing
+    # Batch status and timing - Using PostgreSQL native enum for consistency
     status: Mapped[JobStatus] = mapped_column(
-        SQLEnum(JobStatus), default=JobStatus.PENDING, nullable=False, index=True
+        PostgreSQLEnum(JobStatus, name="jobstatus", create_type=False),
+        default=JobStatus.PENDING,
+        nullable=False,
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), nullable=False

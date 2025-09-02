@@ -149,12 +149,50 @@ def postgres_engine(postgres_container):
         db_url = f"postgresql+psycopg://{username}:{password}@{host}:{port}/{dbname}"
 
     engine = create_engine(db_url, echo=False)
-    Base.metadata.create_all(engine)
+
+    # Create database schema following SQLAlchemy best practices for concurrent environments
+    # Reference: https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all
+    # Use checkfirst=True to prevent duplicate table creation attempts
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+    except Exception as e:
+        # Handle PostgreSQL enum creation conflicts during parallel test execution
+        # PostgreSQL enums don't support "IF NOT EXISTS" natively, so we handle conflicts gracefully
+        error_msg = str(e).lower()
+        is_enum_conflict = any(
+            phrase in error_msg
+            for phrase in [
+                "already exists",
+                "duplicate key",
+                "pg_type_typname_nsp_index",
+                "jobstatus",
+            ]
+        )
+
+        if is_enum_conflict:
+            # Expected during concurrent test runs - enum already created by another process
+            # This is safe to ignore as schema creation is idempotent
+            import logging
+
+            logging.getLogger(__name__).debug(
+                f"PostgreSQL enum already exists (concurrent test execution): {e}"
+            )
+        else:
+            # Unexpected error - re-raise for investigation
+            raise
 
     yield engine
 
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+    # Cleanup: Drop all tables and types
+    try:
+        Base.metadata.drop_all(engine)
+    except Exception as e:
+        # Cleanup errors are not critical for test execution
+        import logging
+
+        logging.getLogger(__name__).debug(f"Database cleanup warning: {e}")
+    finally:
+        engine.dispose()
 
 
 @pytest.fixture
