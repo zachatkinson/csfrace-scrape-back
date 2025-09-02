@@ -12,6 +12,36 @@ from src.core.exceptions import ConversionError
 from src.processors.image_downloader import AsyncImageDownloader
 
 
+# Fake implementations to replace AsyncMock and avoid coroutine warnings
+class FakeHttpResponse:
+    """Fake HTTP response to replace AsyncMock usage."""
+
+    def __init__(
+        self, status=200, content_type="image/jpeg", content_length=1024, content_chunks=None
+    ):
+        self.status = status
+        self.headers = {"content-type": content_type}
+        self.content_length = content_length
+        self.content = FakeHttpContent(content_chunks or [b"chunk1", b"chunk2"])
+
+    def raise_for_status(self):
+        """Non-async method - no coroutine warning."""
+        if self.status >= 400:
+            raise aiohttp.ClientResponseError(request_info=Mock(), history=(), status=self.status)
+
+
+class FakeHttpContent:
+    """Fake HTTP content to replace AsyncMock usage."""
+
+    def __init__(self, chunks):
+        self.chunks = chunks
+
+    async def iter_chunked(self, size):
+        """Proper async generator - no coroutine warning."""
+        for chunk in self.chunks:
+            yield chunk
+
+
 class TestAsyncImageDownloader:
     """Test async image downloader functionality."""
 
@@ -30,7 +60,7 @@ class TestAsyncImageDownloader:
     @pytest_asyncio.fixture
     async def mock_session(self):
         """Create mock aiohttp session."""
-        session = AsyncMock(spec=aiohttp.ClientSession)
+        session = Mock(spec=aiohttp.ClientSession)
         return session
 
     @pytest.mark.asyncio
@@ -171,21 +201,13 @@ class TestAsyncImageDownloader:
         """Test successful image download with retry."""
         url = "https://example.com/test.jpg"
 
-        # Mock response
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = Mock(return_value=None)
-        mock_response.content_length = 1024
-        mock_response.headers = {"content-type": "image/jpeg"}
-
-        # Mock chunked content properly
-        mock_content = Mock()
-
-        async def mock_iter_chunked(size):
-            yield b"chunk1"
-            yield b"chunk2"
-
-        mock_content.iter_chunked = mock_iter_chunked
-        mock_response.content = mock_content
+        # Use fake response to avoid AsyncMock warnings
+        mock_response = FakeHttpResponse(
+            status=200,
+            content_type="image/jpeg",
+            content_length=1024,
+            content_chunks=[b"chunk1", b"chunk2"],
+        )
 
         # Mock session get
         mock_session.get.return_value.__aenter__.return_value = mock_response
@@ -229,12 +251,12 @@ class TestAsyncImageDownloader:
         """Test download_image with HTTP error response."""
         url = "https://example.com/notfound.jpg"
 
-        mock_response = AsyncMock()
         # Create a mock request_info to avoid AttributeError
         mock_request_info = Mock()
         mock_request_info.real_url = url
 
-        # Mock raise_for_status as a regular method that raises the exception immediately
+        # Use fake response with error to avoid AsyncMock warnings
+        mock_response = FakeHttpResponse(status=404)
         mock_response.raise_for_status = Mock(
             side_effect=aiohttp.ClientResponseError(
                 request_info=mock_request_info, history=None, status=404
@@ -257,19 +279,9 @@ class TestAsyncImageDownloader:
         """Test download_image with file write error."""
         url = "https://example.com/test.jpg"
 
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = Mock(return_value=None)
-        mock_response.content_length = 1024
-        mock_response.headers = {"content-type": "image/jpeg"}
-
-        # Mock chunked content properly
-        mock_content = Mock()
-
-        async def mock_iter_chunked(size):
-            yield b"data"
-
-        mock_content.iter_chunked = mock_iter_chunked
-        mock_response.content = mock_content
+        mock_response = FakeHttpResponse(
+            status=200, content_type="image/jpeg", content_length=1024, content_chunks=[b"data"]
+        )
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -405,19 +417,9 @@ class TestAsyncImageDownloader:
         new_dir = tmp_path / "new_images"
         downloader.output_dir = new_dir
 
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = Mock(return_value=None)
-        mock_response.content_length = 1024
-        mock_response.headers = {"content-type": "image/jpeg"}
-
-        # Mock chunked content properly
-        mock_content = Mock()
-
-        async def mock_iter_chunked(size):
-            yield b"data"
-
-        mock_content.iter_chunked = mock_iter_chunked
-        mock_response.content = mock_content
+        mock_response = FakeHttpResponse(
+            status=200, content_type="image/jpeg", content_length=1024, content_chunks=[b"data"]
+        )
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -441,18 +443,9 @@ class TestAsyncImageDownloader:
         """Test integration with robots checker."""
         url = "https://example.com/test.jpg"
 
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = Mock(return_value=None)
-        mock_response.headers = {"content-type": "image/jpeg"}
-
-        # Mock chunked content properly
-        mock_content = Mock()
-
-        async def mock_iter_chunked(size):
-            yield b"data"
-
-        mock_content.iter_chunked = mock_iter_chunked
-        mock_response.content = mock_content
+        mock_response = FakeHttpResponse(
+            status=200, content_type="image/jpeg", content_length=1024, content_chunks=[b"data"]
+        )
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -523,19 +516,30 @@ class TestAsyncImageDownloaderEdgeCases:
             assert filename1.endswith(".jpg")
             assert filename2.endswith(".jpg")
 
+    @pytest_asyncio.fixture
+    async def mock_aiohttp_session(self):
+        """Create mock aiohttp session for timeout test."""
+        session = Mock(spec=aiohttp.ClientSession)
+        return session
+
     @pytest.mark.asyncio
     async def test_download_image_timeout_handling(self, downloader, mock_aiohttp_session):
         """Test download_image with timeout configuration."""
         url = "https://example.com/slow.jpg"
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
-            mock_robots.check_and_delay = AsyncMock()
+            mock_robots.check_and_delay = Mock(return_value=None)
 
             with patch("src.constants.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_TIMEOUT = 10
 
-                # Verify timeout is passed to session.get
-                mock_response = AsyncMock()
+                # Use shared fake response to avoid duplication
+                mock_response = FakeHttpResponse(
+                    status=200,
+                    content_type="image/jpeg",
+                    content_length=1024,
+                    content_chunks=[b"chunk1", b"chunk2"],
+                )
                 mock_aiohttp_session.get.return_value.__aenter__.return_value = mock_response
 
                 # Mock the timeout object
