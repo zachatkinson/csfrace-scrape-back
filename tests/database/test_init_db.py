@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -15,14 +15,36 @@ class TestInitDb:
     @pytest.mark.asyncio
     async def test_init_db_basic_execution(self):
         """Test that init_db executes without error."""
-        # This should complete without raising any exceptions
-        await init_db()
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
+
+            # This should complete without raising any exceptions
+            await init_db()
 
     @pytest.mark.asyncio
     async def test_init_db_returns_none(self):
         """Test that init_db returns None."""
-        result = await init_db()
-        assert result is None
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
+
+            result = await init_db()
+            assert result is None
 
     @pytest.mark.asyncio
     async def test_init_db_is_coroutine(self):
@@ -37,41 +59,85 @@ class TestInitDb:
     @pytest.mark.asyncio
     async def test_init_db_logging_behavior(self, caplog):
         """Test that init_db logs the expected message."""
-        with caplog.at_level(logging.INFO):
-            await init_db()
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
 
-        # Check that the expected log message was recorded
-        assert "Database initialization completed" in caplog.text
+            with caplog.at_level(logging.INFO):
+                await init_db()
+
+            # Check that the expected log message was recorded
+            assert "Database initialization completed successfully" in caplog.text
 
     @pytest.mark.asyncio
     async def test_init_db_logging_level(self, caplog):
         """Test that init_db logs at INFO level."""
-        with caplog.at_level(logging.INFO):
-            await init_db()
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
 
-        # Check that we have at least one log record at INFO level
-        info_records = [record for record in caplog.records if record.levelno == logging.INFO]
-        assert len(info_records) >= 1
-        assert info_records[0].message == "Database initialization completed successfully"
+            with caplog.at_level(logging.INFO):
+                await init_db()
+
+            # Check that we have at least one log record at INFO level
+            info_records = [record for record in caplog.records if record.levelno == logging.INFO]
+            assert len(info_records) >= 1
+            assert info_records[0].message == "Database initialization completed successfully"
 
     @pytest.mark.asyncio
     async def test_init_db_logger_name(self, caplog):
         """Test that init_db uses the correct logger name."""
-        with caplog.at_level(logging.INFO):
-            await init_db()
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
 
-        # Check logger name
-        assert any(record.name == "src.database.init_db" for record in caplog.records)
+            with caplog.at_level(logging.INFO):
+                await init_db()
+
+            # Check logger name
+            assert any(record.name == "src.database.init_db" for record in caplog.records)
 
     @pytest.mark.asyncio
     async def test_init_db_multiple_calls(self):
         """Test that init_db can be called multiple times safely."""
-        # Call init_db multiple times
-        await init_db()
-        await init_db()
-        await init_db()
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
 
-        # Should complete without any issues
+            # Call init_db multiple times
+            await init_db()
+            await init_db()
+            await init_db()
+
+            # Should complete without any issues
 
     @pytest.mark.asyncio
     async def test_init_db_concurrent_calls(self):
@@ -107,11 +173,24 @@ class TestInitDb:
     @pytest.mark.asyncio
     async def test_init_db_with_mocked_logger(self):
         """Test init_db with fully mocked logger."""
-        with patch("src.database.init_db.logger") as mock_logger:
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+            patch("src.database.init_db.logger") as mock_logger,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
+
             await init_db()
 
             # Verify logger.info was called with expected message
-            mock_logger.info.assert_called_once_with("Database initialization completed successfully")
+            mock_logger.info.assert_called_once_with(
+                "Database initialization completed successfully"
+            )
 
     def test_init_db_function_signature(self):
         """Test that init_db has the expected function signature."""
