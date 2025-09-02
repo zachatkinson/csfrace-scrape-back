@@ -173,16 +173,18 @@ class TestAsyncImageDownloader:
 
         # Mock response
         mock_response = AsyncMock()
-        mock_response.raise_for_status.return_value = None
+        mock_response.raise_for_status = Mock(return_value=None)
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
 
-        # Mock chunked content
+        # Mock chunked content properly
+        mock_content = Mock()
         async def mock_iter_chunked(size):
             yield b"chunk1"
             yield b"chunk2"
 
-        mock_response.content.iter_chunked = mock_iter_chunked
+        mock_content.iter_chunked = mock_iter_chunked
+        mock_response.content = mock_content
 
         # Mock session get
         mock_session.get.return_value.__aenter__.return_value = mock_response
@@ -255,15 +257,17 @@ class TestAsyncImageDownloader:
         url = "https://example.com/test.jpg"
 
         mock_response = AsyncMock()
-        mock_response.raise_for_status.return_value = None
+        mock_response.raise_for_status = Mock(return_value=None)
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
 
-        # Mock chunked content as async generator
+        # Mock chunked content properly
+        mock_content = Mock()
         async def mock_iter_chunked(size):
             yield b"data"
 
-        mock_response.content.iter_chunked = mock_iter_chunked
+        mock_content.iter_chunked = mock_iter_chunked
+        mock_response.content = mock_content
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -400,15 +404,17 @@ class TestAsyncImageDownloader:
         downloader.output_dir = new_dir
 
         mock_response = AsyncMock()
-        mock_response.raise_for_status.return_value = None
+        mock_response.raise_for_status = Mock(return_value=None)
         mock_response.content_length = 1024
         mock_response.headers = {"content-type": "image/jpeg"}
 
-        # Mock chunked content as async generator
+        # Mock chunked content properly
+        mock_content = Mock()
         async def mock_iter_chunked(size):
             yield b"data"
 
-        mock_response.content.iter_chunked = mock_iter_chunked
+        mock_content.iter_chunked = mock_iter_chunked
+        mock_response.content = mock_content
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
@@ -433,14 +439,16 @@ class TestAsyncImageDownloader:
         url = "https://example.com/test.jpg"
 
         mock_response = AsyncMock()
-        mock_response.raise_for_status.return_value = None
+        mock_response.raise_for_status = Mock(return_value=None)
         mock_response.headers = {"content-type": "image/jpeg"}
 
-        # Mock chunked content as async generator
+        # Mock chunked content properly
+        mock_content = Mock()
         async def mock_iter_chunked(size):
             yield b"data"
 
-        mock_response.content.iter_chunked = mock_iter_chunked
+        mock_content.iter_chunked = mock_iter_chunked
+        mock_response.content = mock_content
 
         mock_session.get.return_value.__aenter__.return_value = mock_response
 

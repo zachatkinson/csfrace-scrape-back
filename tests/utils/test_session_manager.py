@@ -475,7 +475,9 @@ class TestSessionManagerAuthentication:
         mock_response = AsyncMock()
         mock_response.status = 302
         mock_response.headers = {"Location": "https://example.com/wp-login.php"}
-        mock_response.__aenter__.return_value = mock_response
+        # Set up proper async context manager
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
         mock_session.get.return_value = mock_response
 
         manager._session = mock_session

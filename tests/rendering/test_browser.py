@@ -195,6 +195,7 @@ class TestBrowserPool:
         mock_pw_instance = AsyncMock()
         mock_browser = AsyncMock()
         mock_context = AsyncMock()
+        mock_context.set_default_timeout = Mock()  # set_default_timeout is synchronous
         mock_browser.new_context = AsyncMock(return_value=mock_context)
 
         browser_pool._playwright = mock_pw_instance
@@ -214,6 +215,7 @@ class TestBrowserPool:
         mock_pw_instance = AsyncMock()
         mock_browser = AsyncMock()
         mock_context = AsyncMock()
+        mock_context.set_default_timeout = Mock()  # set_default_timeout is synchronous
         mock_browser.new_context = AsyncMock(return_value=mock_context)
 
         browser_pool._playwright = mock_pw_instance

@@ -61,7 +61,7 @@ class TestHTTPUtilities:
         response.status = 200
         response.text = AsyncMock(return_value="Sample content")
         response.headers = {"Content-Type": "text/html"}
-        response.raise_for_status = AsyncMock()
+        response.raise_for_status = Mock()
         return response
 
     async def test_safe_http_get_success(self, mock_session, mock_response):

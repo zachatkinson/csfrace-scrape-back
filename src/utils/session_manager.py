@@ -37,7 +37,7 @@ class SessionConfig:
 
     # Keep-alive settings
     keepalive_timeout: float = 30.0
-    enable_cleanup_closed: bool = True
+    # Note: enable_cleanup_closed removed as it's deprecated in Python 3.13+
 
     # Cookie and persistence settings
     cookie_jar_path: Path | None = None
@@ -298,7 +298,7 @@ class EnhancedSessionManager:
             ttl_dns_cache=300,  # Cache DNS for 5 minutes
             use_dns_cache=True,
             keepalive_timeout=self.config.keepalive_timeout,
-            enable_cleanup_closed=self.config.enable_cleanup_closed,
+            # enable_cleanup_closed removed - deprecated in Python 3.13+
             verify_ssl=self.config.verify_ssl,
             ssl_context=self.config.ssl_context,
         )
