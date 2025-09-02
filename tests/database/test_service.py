@@ -49,6 +49,22 @@ class TestDatabaseService:
 
             yield service
         finally:
+            # Clean up database state after each test for complete isolation
+            try:
+                with service.get_session() as session:
+                    from src.database.models import Batch, ContentResult, JobLog, ScrapingJob
+
+                    # Delete child records first
+                    session.query(ContentResult).delete()
+                    session.query(JobLog).delete()
+                    # Then delete parent records
+                    session.query(ScrapingJob).delete()
+                    session.query(Batch).delete()
+                    session.commit()
+            except Exception as cleanup_error:
+                # Don't fail tests due to cleanup issues
+                print(f"Warning: Database cleanup error: {cleanup_error}")
+
             # Clean up environment variables
             for key in [
                 "DATABASE_HOST",
@@ -697,6 +713,22 @@ class TestDatabaseServiceErrorHandling:
 
             yield service
         finally:
+            # Clean up database state after each test for complete isolation
+            try:
+                with service.get_session() as session:
+                    from src.database.models import Batch, ContentResult, JobLog, ScrapingJob
+
+                    # Delete child records first
+                    session.query(ContentResult).delete()
+                    session.query(JobLog).delete()
+                    # Then delete parent records
+                    session.query(ScrapingJob).delete()
+                    session.query(Batch).delete()
+                    session.commit()
+            except Exception as cleanup_error:
+                # Don't fail tests due to cleanup issues
+                print(f"Warning: Database cleanup error: {cleanup_error}")
+
             # Clean up environment variables
             for key in [
                 "DATABASE_HOST",

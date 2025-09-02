@@ -82,8 +82,29 @@ class DatabaseService:
             # Create enum types first with PostgreSQL best practices
             self._create_enums_safely()
 
-            # Create all tables using SQLAlchemy best practices
-            Base.metadata.create_all(bind=self.engine, checkfirst=True)
+            # Create all tables using SQLAlchemy best practices with concurrent safety
+            try:
+                Base.metadata.create_all(bind=self.engine, checkfirst=True)
+            except SQLAlchemyError as table_error:
+                # Handle concurrent table/constraint creation conflicts gracefully
+                error_msg = str(table_error).lower()
+                if any(
+                    phrase in error_msg
+                    for phrase in [
+                        "already exists",
+                        "duplicate key",
+                        "unique constraint",
+                        "pg_type_typname_nsp_index",
+                    ]
+                ):
+                    logger.debug(
+                        f"Database objects already exist (concurrent execution): {table_error}"
+                    )
+                    # Continue - this is expected in concurrent test environments
+                else:
+                    # Unexpected error - re-raise
+                    raise
+
             logger.info("Database tables initialized successfully")
         except SQLAlchemyError as e:
             logger.error("Failed to initialize database tables", error=str(e))
