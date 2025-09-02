@@ -1,6 +1,5 @@
 """Security boundary tests for rendering system."""
 
-
 import pytest
 
 from src.rendering.browser import RenderResult
