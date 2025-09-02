@@ -42,6 +42,19 @@ class FakeHttpContent:
             yield chunk
 
 
+class FakeAsyncContextManager:
+    """Fake async context manager to replace AsyncMock patterns."""
+    
+    def __init__(self, return_value):
+        self.return_value = return_value
+    
+    async def __aenter__(self):
+        return self.return_value
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return None
+
+
 class TestAsyncImageDownloader:
     """Test async image downloader functionality."""
 
@@ -209,8 +222,9 @@ class TestAsyncImageDownloader:
             content_chunks=[b"chunk1", b"chunk2"],
         )
 
-        # Mock session get
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        # Use fake async context manager for session get - avoids AsyncMock issues
+        fake_context = FakeAsyncContextManager(mock_response)
+        mock_session.get.return_value = fake_context
 
         # Mock robots checker
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
@@ -219,7 +233,9 @@ class TestAsyncImageDownloader:
             # Mock file operations
             with patch("src.processors.image_downloader.aopen", create=True) as mock_aopen:
                 mock_file = AsyncMock()
-                mock_aopen.return_value.__aenter__.return_value = mock_file
+                # Use fake async context manager for file operations - avoids AsyncMock issues
+                fake_file_context = FakeAsyncContextManager(mock_file)
+                mock_aopen.return_value = fake_file_context
 
                 # Mock constants - patch the constants module
                 with patch("src.constants.CONSTANTS") as mock_constants:
@@ -263,7 +279,9 @@ class TestAsyncImageDownloader:
             )
         )
 
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        # Use fake async context manager for session get - avoids AsyncMock issues
+        fake_context = FakeAsyncContextManager(mock_response)
+        mock_session.get.return_value = fake_context
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
@@ -283,7 +301,9 @@ class TestAsyncImageDownloader:
             status=200, content_type="image/jpeg", content_length=1024, content_chunks=[b"data"]
         )
 
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        # Use fake async context manager for session get - avoids AsyncMock issues
+        fake_context = FakeAsyncContextManager(mock_response)
+        mock_session.get.return_value = fake_context
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
@@ -421,14 +441,18 @@ class TestAsyncImageDownloader:
             status=200, content_type="image/jpeg", content_length=1024, content_chunks=[b"data"]
         )
 
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        # Use fake async context manager for session get - avoids AsyncMock issues
+        fake_context = FakeAsyncContextManager(mock_response)
+        mock_session.get.return_value = fake_context
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
 
             with patch("src.processors.image_downloader.aopen", create=True) as mock_aopen:
                 mock_file = AsyncMock()
-                mock_aopen.return_value.__aenter__.return_value = mock_file
+                # Use fake async context manager for file operations - avoids AsyncMock issues
+                fake_file_context = FakeAsyncContextManager(mock_file)
+                mock_aopen.return_value = fake_file_context
 
                 with patch("src.constants.CONSTANTS") as mock_constants:
                     mock_constants.DEFAULT_TIMEOUT = 30
@@ -447,7 +471,9 @@ class TestAsyncImageDownloader:
             status=200, content_type="image/jpeg", content_length=1024, content_chunks=[b"data"]
         )
 
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        # Use fake async context manager for session get - avoids AsyncMock issues
+        fake_context = FakeAsyncContextManager(mock_response)
+        mock_session.get.return_value = fake_context
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
@@ -528,7 +554,7 @@ class TestAsyncImageDownloaderEdgeCases:
         url = "https://example.com/slow.jpg"
 
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
-            mock_robots.check_and_delay = Mock(return_value=None)
+            mock_robots.check_and_delay = AsyncMock()
 
             with patch("src.constants.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_TIMEOUT = 10
@@ -540,15 +566,24 @@ class TestAsyncImageDownloaderEdgeCases:
                     content_length=1024,
                     content_chunks=[b"chunk1", b"chunk2"],
                 )
-                mock_aiohttp_session.get.return_value.__aenter__.return_value = mock_response
+                # Use fake async context manager for session get - avoids AsyncMock issues  
+                fake_context = FakeAsyncContextManager(mock_response)
+                mock_aiohttp_session.get.return_value = fake_context
 
                 # Mock the timeout object
                 with patch("aiohttp.ClientTimeout") as mock_timeout:
                     mock_timeout_instance = MagicMock()
                     mock_timeout.return_value = mock_timeout_instance
 
-                    with contextlib.suppress(Exception):
-                        await downloader._download_image(mock_aiohttp_session, url)
+                    # Mock file operations to avoid other failures
+                    with patch("src.processors.image_downloader.aopen", create=True) as mock_aopen:
+                        mock_file = AsyncMock()
+                        fake_file_context = FakeAsyncContextManager(mock_file)
+                        mock_aopen.return_value = fake_file_context
+
+                        # Call the method - should succeed and create timeout
+                        result = await downloader._download_image(mock_aiohttp_session, url)
+                        assert result == "slow.jpg"
 
                     # Should create timeout with correct value
                     mock_timeout.assert_called_with(total=10)
