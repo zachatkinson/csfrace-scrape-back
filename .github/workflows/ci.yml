@@ -159,8 +159,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.13"]
-        # Enable 4-way test sharding for faster execution and bottleneck identification
-        shard: [1, 2, 3, 4]
+        # Enable 8-way test sharding to distribute heavy test files evenly
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
 
     steps:
       - name: Record job start time
@@ -218,7 +218,7 @@ jobs:
             --ignore=tests/performance/ \
             --ignore=tests/e2e/ \
             --ignore=tests/api/ \
-            --splits=4 \
+            --splits=8 \
             --group=${{ matrix.shard }} \
             -n auto \
             --dist=worksteal \
