@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csfrace-scraper"
-version = "1.3.0"
+version = "1.3.1"
 description = "WordPress to Shopify content converter for CSFrace website migration"
 readme = "README.md"
 license = {text = "MIT"}
@@ -139,7 +139,7 @@ known_third_party = [
 
 # Ruff configuration (replaces flake8, isort, and more)
 [tool.ruff]
-target-version = "py313"
+target-version = "1.3.1"
 line-length = 100
 exclude = [
     ".git",
@@ -184,7 +184,7 @@ ignore = [
 
 # MyPy configuration
 [tool.mypy]
-python_version = "3.13"
+python_version = "1.3.1"
 warn_unused_configs = true
 show_error_codes = true
 # More relaxed settings for practical development

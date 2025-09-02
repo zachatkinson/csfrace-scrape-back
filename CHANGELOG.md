@@ -1,3 +1,12 @@
+## [1.3.1](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.3.0...v1.3.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* **config:** prevent semantic release from corrupting Python version fields ([5da3bc4](https://github.com/zachatkinson/csfrace-scrape-back/commit/5da3bc436253f99c5d9e8591249350629047d4de))
+* **semantic-release:** remove conflicting .releaserc.json config ([516e3e5](https://github.com/zachatkinson/csfrace-scrape-back/commit/516e3e53f06ae191f80fade5def50691913dad79))
+* **tests:** resolve two Ubuntu test failures ([5c2be30](https://github.com/zachatkinson/csfrace-scrape-back/commit/5c2be30ac6d23cfc5d7cf43b20f311c3b2fc100a))
+
 # [1.3.0](https://github.com/zachatkinson/csfrace-scrape-back/compare/v1.2.0...v1.3.0) (2025-09-01)
 
 
