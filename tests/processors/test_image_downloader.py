@@ -179,6 +179,7 @@ class TestAsyncImageDownloader:
 
         # Mock chunked content properly
         mock_content = Mock()
+
         async def mock_iter_chunked(size):
             yield b"chunk1"
             yield b"chunk2"
@@ -263,6 +264,7 @@ class TestAsyncImageDownloader:
 
         # Mock chunked content properly
         mock_content = Mock()
+
         async def mock_iter_chunked(size):
             yield b"data"
 
@@ -410,6 +412,7 @@ class TestAsyncImageDownloader:
 
         # Mock chunked content properly
         mock_content = Mock()
+
         async def mock_iter_chunked(size):
             yield b"data"
 
@@ -444,6 +447,7 @@ class TestAsyncImageDownloader:
 
         # Mock chunked content properly
         mock_content = Mock()
+
         async def mock_iter_chunked(size):
             yield b"data"
 
