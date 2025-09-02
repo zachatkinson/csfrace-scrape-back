@@ -373,10 +373,12 @@ class TestMainCLI:
 
         with (
             patch.object(sys, "argv", test_args),
+            patch("src.main.main_async", new_callable=lambda: MagicMock()) as mock_main_async,
             patch("src.main.asyncio.run") as mock_run,
         ):
+            mock_main_async.return_value = "mock_coro"
             main()
-            assert mock_run.called
+            mock_run.assert_called_once_with("mock_coro")
 
     def test_main_with_config_generation(self):
         """Test config generation without async complexity."""
@@ -513,9 +515,12 @@ class TestMainCLI:
             patch.object(sys, "argv", test_args),
             patch("src.main.load_config_from_file") as mock_load_config,
             patch("src.main.console") as mock_console,
+            patch("src.main.main_async", new_callable=lambda: MagicMock()) as mock_main_async,
+            patch("src.main.asyncio.run") as mock_run,
             pytest.raises(SystemExit) as exc_info,
         ):
             mock_load_config.side_effect = Exception("Config file not found")
+            mock_main_async.return_value = "mock_coro"
 
             main()
 
@@ -523,6 +528,8 @@ class TestMainCLI:
                 "❌ [red]Failed to load config: Config file not found[/red]"
             )
             assert exc_info.value.code == 1
+            # Should not reach asyncio.run due to early exit on config error
+            mock_run.assert_not_called()
 
     def test_main_interactive_mode_single_url(self):
         """Test interactive mode - single URL choice."""
@@ -778,7 +785,7 @@ class TestMainEdgeCases:
         with (
             patch.object(sys, "argv", test_args),
             patch("src.main.load_config_from_file") as mock_load,
-            patch("src.main.main_async") as mock_main_async,
+            patch("src.main.main_async", new_callable=lambda: MagicMock()) as mock_main_async,
             patch("src.main.asyncio.run") as mock_run,
         ):
             mock_load.return_value = (None, None)
