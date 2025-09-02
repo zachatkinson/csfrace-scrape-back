@@ -386,12 +386,16 @@ class TestMainCLI:
             patch.object(sys, "argv", test_args),
             patch("src.main.ConfigLoader") as mock_loader,
             patch("src.main.console") as mock_console,
+            # Add asyncio.run mock to prevent any coroutine creation
+            patch("src.main.asyncio.run") as mock_run,
         ):
             main()
 
             mock_loader.save_example_config.assert_called_once_with(
                 "wp-shopify-config.yaml", "yaml"
             )
+            # Config generation should exit early, not call asyncio.run
+            mock_run.assert_not_called()
 
     def test_main_with_urls_file(self):
         """Test main function with URLs file."""
@@ -774,11 +778,13 @@ class TestMainEdgeCases:
         with (
             patch.object(sys, "argv", test_args),
             patch("src.main.load_config_from_file") as mock_load,
+            patch("src.main.main_async") as mock_main_async,
             patch("src.main.asyncio.run") as mock_run,
         ):
             mock_load.return_value = (None, None)
+            mock_main_async.return_value = "mock_coro"
 
             main()
 
-            mock_run.assert_called_once()
+            mock_run.assert_called_once_with("mock_coro")
             mock_load.assert_called_once_with("config.yaml")
