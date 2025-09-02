@@ -94,7 +94,7 @@ jobs:
 
       - name: Run Safety (dependency security)
         run: |
-          uv run safety check --format json --output safety-report.json || 
+          uv run safety check --output json --save-json safety-report.json || 
           echo '{"vulnerabilities": []}' > safety-report.json
         continue-on-error: true
 
