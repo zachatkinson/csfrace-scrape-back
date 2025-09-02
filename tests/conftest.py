@@ -253,16 +253,33 @@ def postgres_session(postgres_engine):
                         existing_tables = [t for t in dependency_order if t in tables]
                         remaining_tables = [t for t in tables if t not in dependency_order]
 
-                        for table in existing_tables + remaining_tables:
-                            try:
-                                # DELETE preferred over TRUNCATE to avoid ACCESS EXCLUSIVE locks
-                                conn.execute(text(f"DELETE FROM {table}"))
-                            except Exception as delete_error:
-                                import logging
-
-                                logging.getLogger(__name__).debug(
-                                    f"Session cleanup warning for {table}: {delete_error}"
+                        # First try TRUNCATE CASCADE for maximum cleanup efficiency
+                        try:
+                            if existing_tables + remaining_tables:
+                                table_list = ", ".join(
+                                    f'"{table}"' for table in existing_tables + remaining_tables
                                 )
+                                conn.execute(
+                                    text(f"TRUNCATE TABLE {table_list} RESTART IDENTITY CASCADE")
+                                )
+                        except Exception as truncate_error:
+                            # Fall back to DELETE if TRUNCATE fails (concurrent access issues)
+                            import logging
+
+                            logging.getLogger(__name__).debug(
+                                f"TRUNCATE failed, using DELETE: {truncate_error}"
+                            )
+
+                            for table in existing_tables + remaining_tables:
+                                try:
+                                    # DELETE with CASCADE to ensure complete cleanup
+                                    conn.execute(text(f"DELETE FROM {table}"))
+                                except Exception as delete_error:
+                                    import logging
+
+                                    logging.getLogger(__name__).debug(
+                                        f"Session cleanup warning for {table}: {delete_error}"
+                                    )
 
                         conn.execute(text("SET session_replication_role = 'origin'"))
                         conn.commit()
@@ -449,6 +466,22 @@ def testcontainers_db_service(postgres_engine):
     # Clean up after test
     with postgres_engine.connect() as conn:
         safe_table_cleanup(conn, "post-test cleanup")
+
+
+@pytest.fixture
+def test_isolation_id():
+    """Generate unique test isolation ID following DRY principles.
+
+    This fixture ensures each test has a unique identifier to prevent
+    data bleeding between concurrent tests, following PostgreSQL and
+    pytest best practices for test isolation.
+
+    Returns:
+        str: 8-character unique identifier for test data isolation
+    """
+    import uuid
+
+    return uuid.uuid4().hex[:8]
 
 
 @pytest.fixture

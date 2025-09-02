@@ -1,13 +1,22 @@
-"""Tests for database service layer functionality with PostgreSQL containers."""
+"""Comprehensive tests for database service layer functionality with PostgreSQL containers.
+
+This module consolidates all database service tests following DRY and SOLID principles.
+Tests are organized into logical groups for better maintainability and coverage.
+"""
 
 import os
+import threading
+import time
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from src.core.exceptions import DatabaseError
 from src.database.models import (
+    JobPriority,
     JobStatus,
     ScrapingJob,
 )
@@ -15,8 +24,8 @@ from src.database.service import DatabaseService
 
 
 @pytest.mark.database
-class TestDatabaseService:
-    """Test database service operations and transaction management."""
+class TestDatabaseServiceCore:
+    """Core database service operations and initialization."""
 
     def test_database_service_initialization(self, postgres_container):
         """Test DatabaseService initialization with PostgreSQL."""
@@ -63,6 +72,25 @@ class TestDatabaseService:
         }
         assert expected_tables.issubset(set(table_names))
 
+    def test_initialize_database_idempotent(self, testcontainers_db_service):
+        """Test that initialize_database is idempotent."""
+        # Should not raise on multiple calls
+        testcontainers_db_service.initialize_database()
+        testcontainers_db_service.initialize_database()
+        testcontainers_db_service.initialize_database()
+
+        # Verify tables still exist
+        from sqlalchemy import inspect
+
+        inspector = inspect(testcontainers_db_service.engine)
+        table_names = inspector.get_table_names()
+        assert "scraping_jobs" in table_names
+
+
+@pytest.mark.database
+class TestDatabaseServiceSessions:
+    """Database session management and transaction tests."""
+
     def test_session_context_manager_success(self, testcontainers_db_service):
         """Test database session context manager with successful transaction."""
         with testcontainers_db_service.get_session() as session:
@@ -102,6 +130,27 @@ class TestDatabaseService:
         with testcontainers_db_service.get_session() as session:
             saved_job = session.query(ScrapingJob).first()
             assert saved_job is None
+
+    def test_session_context_manager_with_commit_error(self, testcontainers_db_service):
+        """Test session context manager when commit fails."""
+        # Mock the SessionLocal constructor to return our mock session
+        with patch.object(testcontainers_db_service, "SessionLocal") as mock_session_factory:
+            mock_session = MagicMock()
+            mock_session.commit.side_effect = SQLAlchemyError("Commit failed")
+            mock_session_factory.return_value = mock_session
+
+            with pytest.raises(SQLAlchemyError):
+                with testcontainers_db_service.get_session():
+                    pass  # Should fail during commit
+
+            # Verify rollback and close were called
+            mock_session.rollback.assert_called_once()
+            mock_session.close.assert_called_once()
+
+
+@pytest.mark.database
+class TestDatabaseServiceJobOperations:
+    """Job creation, retrieval, and status management tests."""
 
     def test_create_job_basic(self, testcontainers_db_service):
         """Test basic job creation with auto-extracted domain and slug."""
@@ -157,14 +206,88 @@ class TestDatabaseService:
         assert retrieved_job is not None
         assert retrieved_job.batch_id == batch.id
 
+    def test_create_job_url_parsing_edge_cases(self, testcontainers_db_service):
+        """Test URL parsing for various edge cases."""
+        # URL with query parameters
+        job1 = testcontainers_db_service.create_job(
+            url="https://example.com/path?query=param",
+            output_directory="/tmp/output",
+        )
+        assert job1.domain == "example.com"
+        assert job1.slug == "path"
+
+        # URL with fragment
+        job2 = testcontainers_db_service.create_job(
+            url="https://example.com/article#section",
+            output_directory="/tmp/output",
+        )
+        assert job2.slug == "article"
+
+        # URL with multiple path segments
+        job3 = testcontainers_db_service.create_job(
+            url="https://example.com/blog/2024/01/post",
+            output_directory="/tmp/output",
+        )
+        assert job3.slug == "post"
+
+        # URL with no path after domain
+        job4 = testcontainers_db_service.create_job(
+            url="https://example.com",
+            output_directory="/tmp/output",
+        )
+        assert job4.slug == "homepage"
+
+        # URL with trailing slash
+        job5 = testcontainers_db_service.create_job(
+            url="https://example.com/page/",
+            output_directory="/tmp/output",
+        )
+        assert job5.slug == "page"
+
     def test_create_job_homepage_slug_extraction(self, testcontainers_db_service):
         """Test slug extraction for homepage URLs."""
         job = testcontainers_db_service.create_job(
             url="https://example.com/",
             output_directory="/tmp/output",
         )
-
         assert job.slug == "homepage"
+
+    def test_create_job_with_priority_string(self, testcontainers_db_service):
+        """Test job creation with string priority."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+            priority="urgent",
+        )
+        assert job.priority == JobPriority.URGENT
+
+    def test_create_job_with_invalid_priority_string(self, testcontainers_db_service):
+        """Test job creation with invalid priority string defaults to NORMAL."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+            priority="invalid_priority",
+        )
+        assert job.priority == JobPriority.NORMAL
+
+    def test_create_job_with_priority_enum(self, testcontainers_db_service):
+        """Test job creation with JobPriority enum directly."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+            priority=JobPriority.URGENT,
+        )
+        assert job.priority == JobPriority.URGENT
+
+    def test_create_job_with_custom_slug_kwarg(self, testcontainers_db_service):
+        """Test job creation with custom_slug in kwargs."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+            custom_slug="my-custom-slug",
+        )
+        # When custom_slug is provided in kwargs, auto-extraction is skipped
+        assert job.slug is None
 
     def test_get_job(self, testcontainers_db_service):
         """Test job retrieval by ID."""
@@ -184,6 +307,11 @@ class TestDatabaseService:
         """Test retrieval of non-existent job."""
         job = testcontainers_db_service.get_job(99999)
         assert job is None
+
+
+@pytest.mark.database
+class TestDatabaseServiceJobStatusUpdates:
+    """Job status update operations."""
 
     def test_update_job_status_to_running(self, testcontainers_db_service):
         """Test updating job status to running (sets started_at)."""
@@ -239,10 +367,37 @@ class TestDatabaseService:
         assert updated_job.error_message == error_msg
         assert updated_job.completed_at is not None
 
+    def test_update_job_status_to_cancelled(self, testcontainers_db_service):
+        """Test updating job status to cancelled."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test-cancel",
+            output_directory="/tmp/output",
+        )
+
+        # Verify job exists before updating
+        retrieved_job = testcontainers_db_service.get_job(job.id)
+        assert retrieved_job is not None
+        assert retrieved_job.status == JobStatus.PENDING
+
+        # Update status
+        success = testcontainers_db_service.update_job_status(job.id, JobStatus.CANCELLED)
+        assert success is True
+
+        # Verify the update
+        updated_job = testcontainers_db_service.get_job(job.id)
+        assert updated_job is not None
+        assert updated_job.status == JobStatus.CANCELLED
+        assert updated_job.completed_at is not None
+
     def test_update_job_status_nonexistent(self, testcontainers_db_service):
         """Test updating status of non-existent job."""
         success = testcontainers_db_service.update_job_status(99999, JobStatus.COMPLETED)
         assert success is False
+
+
+@pytest.mark.database
+class TestDatabaseServiceJobRetrieval:
+    """Job retrieval and filtering operations."""
 
     def test_get_pending_jobs(self, testcontainers_db_service):
         """Test retrieval of pending jobs with priority ordering."""
@@ -293,6 +448,100 @@ class TestDatabaseService:
         pending_jobs = testcontainers_db_service.get_pending_jobs(limit=3)
         assert len(pending_jobs) == 3
 
+    def test_get_pending_jobs_priority_ordering_with_test_isolation(
+        self, testcontainers_db_service, test_isolation_id
+    ):
+        """Test pending jobs with priority ordering using test isolation."""
+        from tests.utils import TestDataMatcher, TestJobFactory
+
+        # Create test data using DRY factory pattern
+        job_factory = TestJobFactory(test_isolation_id)
+        job_specs = job_factory.create_priority_test_jobs()
+
+        # Create jobs in database following SOLID principles
+        created_jobs = {}
+        for spec in job_specs:
+            job = testcontainers_db_service.create_job(
+                url=spec.unique_url,
+                output_directory=spec.output_directory,
+                priority=spec.priority,
+            )
+            created_jobs[spec.priority] = job
+
+        # Get pending jobs and filter using utility class
+        pending_jobs = testcontainers_db_service.get_pending_jobs(limit=10)
+        test_jobs = TestDataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
+
+        # Assert using DRY helper with detailed error messages
+        TestDataMatcher.assert_job_count(test_jobs, 4, "Priority ordering test")
+
+        # Check order: URGENT -> HIGH -> NORMAL -> LOW
+        assert test_jobs[0].id == created_jobs[JobPriority.URGENT].id
+        assert test_jobs[1].id == created_jobs[JobPriority.HIGH].id
+        assert test_jobs[2].id == created_jobs[JobPriority.NORMAL].id
+        assert test_jobs[3].id == created_jobs[JobPriority.LOW].id
+
+    def test_get_pending_jobs_excludes_non_pending_with_test_isolation(
+        self, testcontainers_db_service, test_isolation_id
+    ):
+        """Test that non-pending jobs are excluded using test isolation."""
+        from tests.utils import TestDataMatcher, TestJobFactory
+
+        # Create test jobs using DRY factory pattern
+        job_factory = TestJobFactory(test_isolation_id)
+        job_specs = job_factory.create_status_test_jobs()
+
+        # Create jobs with different statuses following SOLID principles
+        pending_job = testcontainers_db_service.create_job(
+            url=job_specs["pending"].unique_url,
+            output_directory=job_specs["pending"].output_directory,
+        )
+        running_job = testcontainers_db_service.create_job(
+            url=job_specs["running"].unique_url,
+            output_directory=job_specs["running"].output_directory,
+        )
+        testcontainers_db_service.update_job_status(running_job.id, JobStatus.RUNNING)
+
+        completed_job = testcontainers_db_service.create_job(
+            url=job_specs["completed"].unique_url,
+            output_directory=job_specs["completed"].output_directory,
+        )
+        testcontainers_db_service.update_job_status(completed_job.id, JobStatus.COMPLETED)
+
+        # Get pending jobs and filter using utility class
+        pending_jobs = testcontainers_db_service.get_pending_jobs()
+        test_pending_jobs = TestDataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
+
+        # Assert using DRY helper with detailed error messages
+        TestDataMatcher.assert_job_count(test_pending_jobs, 1, "Status exclusion test")
+        assert test_pending_jobs[0].id == pending_job.id
+
+    def test_get_pending_jobs_priority_ordering_edge_case(
+        self, testcontainers_db_service, mock_time_sleep
+    ):
+        """Test pending jobs with same priority ordered by creation time."""
+        # Create jobs with same priority but different creation times
+        job1 = testcontainers_db_service.create_job(
+            url="https://example.com/first",
+            output_directory="/tmp/output1",
+            priority="normal",
+        )
+
+        # Simulate time passing - mocked by mock_time_sleep fixture
+        time.sleep(0.01)  # Instant return with mock_time_sleep
+
+        job2 = testcontainers_db_service.create_job(
+            url="https://example.com/second",
+            output_directory="/tmp/output2",
+            priority="normal",
+        )
+
+        pending_jobs = testcontainers_db_service.get_pending_jobs()
+        assert len(pending_jobs) == 2
+        # First created job should come first when priorities are equal
+        assert pending_jobs[0].id == job1.id
+        assert pending_jobs[1].id == job2.id
+
     def test_get_jobs_by_status(self, testcontainers_db_service):
         """Test job retrieval by status with pagination."""
         # Create jobs with different statuses
@@ -321,6 +570,38 @@ class TestDatabaseService:
         pending_jobs = testcontainers_db_service.get_jobs_by_status(JobStatus.PENDING)
         assert len(pending_jobs) == 1
         assert pending_jobs[0].id == job3.id
+
+    def test_get_jobs_by_status_with_pagination(self, testcontainers_db_service):
+        """Test job retrieval by status with offset pagination."""
+        # Create multiple jobs
+        for i in range(10):
+            job = testcontainers_db_service.create_job(
+                url=f"https://example.com/test{i}",
+                output_directory=f"/tmp/output{i}",
+            )
+            testcontainers_db_service.update_job_status(job.id, JobStatus.COMPLETED)
+
+        # Get first page
+        first_page = testcontainers_db_service.get_jobs_by_status(
+            JobStatus.COMPLETED, limit=5, offset=0
+        )
+        assert len(first_page) == 5
+
+        # Get second page
+        second_page = testcontainers_db_service.get_jobs_by_status(
+            JobStatus.COMPLETED, limit=5, offset=5
+        )
+        assert len(second_page) == 5
+
+        # Verify no overlap
+        first_page_ids = {job.id for job in first_page}
+        second_page_ids = {job.id for job in second_page}
+        assert first_page_ids.isdisjoint(second_page_ids)
+
+
+@pytest.mark.database
+class TestDatabaseServiceRetryOperations:
+    """Job retry and recovery operations."""
 
     def test_get_retry_jobs(self, testcontainers_db_service):
         """Test retrieval of jobs eligible for retry."""
@@ -384,6 +665,49 @@ class TestDatabaseService:
         # Should be eligible now
         retry_jobs = testcontainers_db_service.get_retry_jobs()
         assert len(retry_jobs) == 1
+
+    def test_get_retry_jobs_null_next_retry_at(self, testcontainers_db_service):
+        """Test retry jobs with null next_retry_at (should be eligible)."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+            max_retries=3,
+        )
+
+        testcontainers_db_service.update_job_status(job.id, JobStatus.FAILED)
+
+        # Ensure next_retry_at is None
+        with testcontainers_db_service.get_session() as session:
+            session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
+                {"retry_count": 1, "next_retry_at": None}
+            )
+
+        retry_jobs = testcontainers_db_service.get_retry_jobs()
+        assert len(retry_jobs) == 1
+        assert retry_jobs[0].id == job.id
+
+    def test_get_retry_jobs_with_limit(self, testcontainers_db_service):
+        """Test retrieving retry jobs with limit."""
+        # Create multiple failed jobs
+        for i in range(5):
+            job = testcontainers_db_service.create_job(
+                url=f"https://example.com/test{i}",
+                output_directory="/tmp/test",
+            )
+            with testcontainers_db_service.get_session() as session:
+                db_job = session.get(ScrapingJob, job.id)
+                db_job.status = JobStatus.FAILED
+                db_job.retry_count = 1
+                db_job.max_retries = 3
+                session.commit()
+
+        retry_jobs = testcontainers_db_service.get_retry_jobs(max_jobs=3)
+        assert len(retry_jobs) == 3
+
+
+@pytest.mark.database
+class TestDatabaseServiceBatchOperations:
+    """Batch creation and management operations."""
 
     def test_create_batch(self, testcontainers_db_service):
         """Test batch creation with configuration."""
@@ -449,6 +773,53 @@ class TestDatabaseService:
         assert updated_batch.failed_jobs == 1
         assert updated_batch.skipped_jobs == 1
 
+    def test_update_batch_progress_nonexistent_batch(self, testcontainers_db_service):
+        """Test updating progress for non-existent batch."""
+        success = testcontainers_db_service.update_batch_progress(99999)
+        assert success is False
+
+    def test_update_batch_progress_with_all_job_states(self, testcontainers_db_service):
+        """Test batch progress update with various job states."""
+        batch = testcontainers_db_service.create_batch(name="Test Batch")
+
+        # Create jobs in different states
+        jobs = []
+        for i in range(10):
+            job = testcontainers_db_service.create_job(
+                url=f"https://example.com/test{i}",
+                output_directory=f"/tmp/output{i}",
+                batch_id=batch.id,
+            )
+            jobs.append(job)
+
+        # Set various states
+        testcontainers_db_service.update_job_status(jobs[0].id, JobStatus.COMPLETED)
+        testcontainers_db_service.update_job_status(jobs[1].id, JobStatus.COMPLETED)
+        testcontainers_db_service.update_job_status(jobs[2].id, JobStatus.COMPLETED)
+        testcontainers_db_service.update_job_status(jobs[3].id, JobStatus.FAILED)
+        testcontainers_db_service.update_job_status(jobs[4].id, JobStatus.FAILED)
+        testcontainers_db_service.update_job_status(jobs[5].id, JobStatus.SKIPPED)
+        testcontainers_db_service.update_job_status(jobs[6].id, JobStatus.RUNNING)
+        testcontainers_db_service.update_job_status(jobs[7].id, JobStatus.CANCELLED)
+        # jobs[8] and jobs[9] remain PENDING
+
+        # Update batch progress
+        success = testcontainers_db_service.update_batch_progress(batch.id)
+        assert success is True
+
+        # Verify counts
+        updated_batch = testcontainers_db_service.get_batch(batch.id)
+        assert updated_batch.total_jobs == 10
+        assert updated_batch.completed_jobs == 3
+        assert updated_batch.failed_jobs == 2
+        assert updated_batch.skipped_jobs == 1
+        # RUNNING, CANCELLED, and PENDING are not counted in these specific fields
+
+
+@pytest.mark.database
+class TestDatabaseServiceContentOperations:
+    """Content result and logging operations."""
+
     def test_save_content_result(self, testcontainers_db_service):
         """Test saving converted content results."""
         job = testcontainers_db_service.create_job(
@@ -492,6 +863,39 @@ class TestDatabaseService:
         assert content_result.word_count == 100
         assert content_result.extra_metadata["custom_field"] == "custom_value"
 
+    def test_save_content_result_minimal(self, testcontainers_db_service):
+        """Test saving content result with minimal data."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+        )
+
+        # Save with minimal data
+        content_result = testcontainers_db_service.save_content_result(job_id=job.id)
+
+        assert content_result.id is not None
+        assert content_result.job_id == job.id
+        assert content_result.converted_html is None
+        assert content_result.title is None
+
+    def test_save_content_result_with_empty_metadata(self, testcontainers_db_service):
+        """Test saving content result with empty metadata dictionary."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+        )
+
+        content_result = testcontainers_db_service.save_content_result(
+            job_id=job.id,
+            html_content="<p>Content</p>",
+            metadata={},  # Empty metadata
+            file_paths={},  # Empty file paths
+        )
+
+        assert content_result.id is not None
+        assert content_result.title is None
+        assert content_result.html_file_path is None
+
     def test_add_job_log(self, testcontainers_db_service):
         """Test adding structured log entries for jobs."""
         job = testcontainers_db_service.create_job(
@@ -518,6 +922,28 @@ class TestDatabaseService:
         assert log_entry.context_data["step"] == "initialization"
         assert log_entry.timestamp is not None
 
+    def test_add_job_log_with_null_context(self, testcontainers_db_service):
+        """Test adding job log with null context data."""
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/test",
+            output_directory="/tmp/output",
+        )
+
+        log_entry = testcontainers_db_service.add_job_log(
+            job_id=job.id,
+            level="debug",  # Test lowercase conversion
+            message="Test message",
+            component=None,
+            operation=None,
+            context_data=None,
+        )
+
+        assert log_entry is not None
+        assert log_entry.level == "DEBUG"  # Should be uppercase
+        assert log_entry.component is None
+        assert log_entry.operation is None
+        assert log_entry.context_data is None
+
     def test_add_job_log_error_handling(self, testcontainers_db_service):
         """Test job log creation with database errors."""
         # Create job
@@ -537,6 +963,11 @@ class TestDatabaseService:
                 message="Test error log",
             )
             assert log_entry is None
+
+
+@pytest.mark.database
+class TestDatabaseServiceStatisticsAndAnalytics:
+    """Statistics calculation and analytics operations."""
 
     def test_get_job_statistics(self, testcontainers_db_service):
         """Test job statistics calculation for time period."""
@@ -587,6 +1018,72 @@ class TestDatabaseService:
         assert stats["success_rate_percent"] == 0.0
         assert stats["avg_duration_seconds"] == 0.0
 
+    def test_get_job_statistics_with_null_values(self, testcontainers_db_service):
+        """Test statistics calculation with jobs having null metrics."""
+        # Create jobs without duration or content metrics
+        job1 = testcontainers_db_service.create_job(
+            url="https://example.com/test1",
+            output_directory="/tmp/output1",
+        )
+        job2 = testcontainers_db_service.create_job(
+            url="https://example.com/test2",
+            output_directory="/tmp/output2",
+        )
+
+        # Complete without duration
+        testcontainers_db_service.update_job_status(job1.id, JobStatus.COMPLETED)
+        testcontainers_db_service.update_job_status(job2.id, JobStatus.FAILED)
+
+        stats = testcontainers_db_service.get_job_statistics(days=7)
+
+        assert stats["total_jobs"] == 2
+        assert stats["avg_duration_seconds"] == 0.0  # Null average becomes 0
+        assert stats["total_content_size_bytes"] == 0
+        assert stats["total_images_downloaded"] == 0
+
+    def test_get_job_statistics_with_mixed_data(self, testcontainers_db_service):
+        """Test statistics with mix of complete and incomplete data."""
+        # Create jobs with varying data completeness
+        job1 = testcontainers_db_service.create_job(
+            url="https://example.com/test1",
+            output_directory="/tmp/output1",
+        )
+        job2 = testcontainers_db_service.create_job(
+            url="https://example.com/test2",
+            output_directory="/tmp/output2",
+        )
+        job3 = testcontainers_db_service.create_job(
+            url="https://example.com/test3",
+            output_directory="/tmp/output3",
+        )
+
+        # Update with different combinations of data
+        testcontainers_db_service.update_job_status(job1.id, JobStatus.COMPLETED, duration=5.0)
+        testcontainers_db_service.update_job_status(job2.id, JobStatus.COMPLETED, duration=10.0)
+        # job3 remains pending
+
+        # Add content metrics to only some jobs
+        with testcontainers_db_service.get_session() as session:
+            session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
+                {"content_size_bytes": 2048, "images_downloaded": 10}
+            )
+            # job2 has no content metrics
+
+        stats = testcontainers_db_service.get_job_statistics(days=7)
+
+        assert stats["total_jobs"] == 3
+        assert stats["completed_jobs"] == 2
+        assert stats["pending_jobs"] == 1
+        assert stats["success_rate_percent"] == round(2 / 3 * 100, 2)
+        assert stats["avg_duration_seconds"] == 7.5  # Average of 5.0 and 10.0
+        assert stats["total_content_size_bytes"] == 2048
+        assert stats["total_images_downloaded"] == 10
+
+
+@pytest.mark.database
+class TestDatabaseServiceCleanupOperations:
+    """Database cleanup and maintenance operations."""
+
     def test_cleanup_old_jobs(self, testcontainers_db_service):
         """Test cleanup of old completed jobs."""
         # Create old completed job
@@ -622,10 +1119,94 @@ class TestDatabaseService:
         updated_recent_job = testcontainers_db_service.get_job(recent_job.id)
         assert updated_recent_job.status == JobStatus.COMPLETED
 
+    def test_cleanup_old_jobs_mixed_statuses(self, testcontainers_db_service):
+        """Test cleanup with various job statuses."""
+        now = datetime.now(UTC)
+        old_date = now - timedelta(days=35)
+
+        # Create old jobs with different statuses
+        old_completed = testcontainers_db_service.create_job(
+            url="https://example.com/old-completed",
+            output_directory="/tmp/output",
+        )
+        testcontainers_db_service.update_job_status(old_completed.id, JobStatus.COMPLETED)
+
+        old_failed = testcontainers_db_service.create_job(
+            url="https://example.com/old-failed",
+            output_directory="/tmp/output",
+        )
+        testcontainers_db_service.update_job_status(old_failed.id, JobStatus.FAILED)
+
+        old_pending = testcontainers_db_service.create_job(
+            url="https://example.com/old-pending",
+            output_directory="/tmp/output",
+        )
+        # Leave as PENDING
+
+        # Set old dates
+        with testcontainers_db_service.get_session() as session:
+            session.query(ScrapingJob).filter(
+                ScrapingJob.id.in_([old_completed.id, old_failed.id])
+            ).update({"completed_at": old_date})
+            session.query(ScrapingJob).filter(ScrapingJob.id == old_pending.id).update(
+                {"created_at": old_date}
+            )
+
+        # Cleanup
+        deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)
+
+        # Should only affect completed and failed jobs with old completed_at
+        assert deleted_count == 2
+
+        # Verify statuses
+        assert testcontainers_db_service.get_job(old_completed.id).status == JobStatus.CANCELLED
+        assert testcontainers_db_service.get_job(old_failed.id).status == JobStatus.CANCELLED
+        assert (
+            testcontainers_db_service.get_job(old_pending.id).status == JobStatus.PENDING
+        )  # Unchanged
+
+    def test_cleanup_old_jobs_no_old_jobs(self, testcontainers_db_service):
+        """Test cleanup when no old jobs exist."""
+        # Create only recent jobs
+        job = testcontainers_db_service.create_job(
+            url="https://example.com/recent",
+            output_directory="/tmp/output",
+        )
+        testcontainers_db_service.update_job_status(job.id, JobStatus.COMPLETED)
+
+        deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)
+        assert deleted_count == 0
+
+        # Job should remain unchanged
+        assert testcontainers_db_service.get_job(job.id).status == JobStatus.COMPLETED
+
 
 @pytest.mark.database
 class TestDatabaseServiceErrorHandling:
-    """Test database service error handling and transaction management."""
+    """Database service error handling and transaction management."""
+
+    @pytest.fixture
+    def mock_session(self):
+        """Create a mock database session."""
+        session = MagicMock(spec=Session)
+        session.__enter__ = MagicMock(return_value=session)
+        session.__exit__ = MagicMock(return_value=None)
+        session.commit = MagicMock()
+        session.rollback = MagicMock()
+        session.close = MagicMock()
+        session.flush = MagicMock()
+        session.add = MagicMock()
+        return session
+
+    @pytest.fixture
+    def mock_service(self, mock_session):
+        """Create a database service with mocked dependencies."""
+        with patch("src.database.service.create_database_engine") as mock_engine:
+            with patch("src.database.service.sessionmaker") as mock_sessionmaker:
+                mock_sessionmaker.return_value = MagicMock(return_value=mock_session)
+                service = DatabaseService(echo=False)
+                service.SessionLocal = MagicMock(return_value=mock_session)
+                return service
 
     def test_database_error_handling_in_operations(self, testcontainers_db_service):
         """Test proper exception handling and DatabaseError wrapping."""
@@ -644,17 +1225,13 @@ class TestDatabaseServiceErrorHandling:
 
     def test_integrity_error_handling(self, testcontainers_db_service):
         """Test handling of database integrity constraint violations."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
-            from sqlalchemy.exc import IntegrityError
+        with patch.object(testcontainers_db_service, "get_session") as mock_get_session:
+            mock_session = MagicMock()
+            mock_get_session.return_value.__enter__ = Mock(return_value=mock_session)
+            mock_get_session.return_value.__exit__ = Mock(return_value=None)
 
-            # Mock session context manager
-            mock_ctx = MagicMock()
-            mock_ctx.__enter__ = MagicMock(return_value=mock_session)
-            mock_ctx.__exit__ = MagicMock(return_value=None)
-            mock_session.return_value = mock_ctx
-
-            # Mock integrity error during add/flush
-            mock_session.add.side_effect = IntegrityError("UNIQUE constraint failed", None, None)
+            # Mock IntegrityError during flush
+            mock_session.flush.side_effect = IntegrityError("UNIQUE constraint failed", None, None)
 
             with pytest.raises(DatabaseError, match="Job creation failed"):
                 testcontainers_db_service.create_job(
@@ -675,11 +1252,115 @@ class TestDatabaseServiceErrorHandling:
             with pytest.raises(DatabaseError, match="Database initialization failed"):
                 service.initialize_database()
 
+    def test_get_job_database_error(self, testcontainers_db_service):
+        """Test job retrieval with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Job retrieval failed"):
+                testcontainers_db_service.get_job(1)
+
+    def test_update_job_status_database_error(self, testcontainers_db_service):
+        """Test job status update with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Job status update failed"):
+                testcontainers_db_service.update_job_status(1, JobStatus.COMPLETED)
+
+    def test_get_pending_jobs_database_error(self, testcontainers_db_service):
+        """Test pending jobs retrieval with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Pending jobs retrieval failed"):
+                testcontainers_db_service.get_pending_jobs()
+
+    def test_get_jobs_by_status_database_error(self, testcontainers_db_service):
+        """Test jobs by status retrieval with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Jobs retrieval failed"):
+                testcontainers_db_service.get_jobs_by_status(JobStatus.COMPLETED)
+
+    def test_get_retry_jobs_database_error(self, testcontainers_db_service):
+        """Test retry jobs retrieval with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Retry jobs retrieval failed"):
+                testcontainers_db_service.get_retry_jobs()
+
+    def test_create_batch_database_error(self, testcontainers_db_service):
+        """Test batch creation with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Batch creation failed"):
+                testcontainers_db_service.create_batch(name="Test Batch")
+
+    def test_get_batch_database_error(self, testcontainers_db_service):
+        """Test batch retrieval with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Batch retrieval failed"):
+                testcontainers_db_service.get_batch(1)
+
+    def test_update_batch_progress_database_error(self, testcontainers_db_service):
+        """Test batch progress update with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Batch progress update failed"):
+                testcontainers_db_service.update_batch_progress(1)
+
+    def test_save_content_result_database_error(self, testcontainers_db_service):
+        """Test content result save with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Content result save failed"):
+                testcontainers_db_service.save_content_result(job_id=1)
+
+    def test_add_job_log_exception_handling(self, testcontainers_db_service):
+        """Test job log addition with various exceptions."""
+        # Test with general exception (not just database error)
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = Exception("Unexpected error")
+
+            # Should not raise, returns None
+            log_entry = testcontainers_db_service.add_job_log(
+                job_id=1,
+                level="ERROR",
+                message="Test",
+            )
+            assert log_entry is None
+
+    def test_get_job_statistics_database_error(self, testcontainers_db_service):
+        """Test statistics retrieval with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Statistics retrieval failed"):
+                testcontainers_db_service.get_job_statistics()
+
+    def test_cleanup_old_jobs_database_error(self, testcontainers_db_service):
+        """Test job cleanup with database error."""
+        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+            mock_session.side_effect = SQLAlchemyError("Database error")
+
+            with pytest.raises(DatabaseError, match="Job cleanup failed"):
+                testcontainers_db_service.cleanup_old_jobs()
+
+
+@pytest.mark.database
+class TestDatabaseServiceConcurrency:
+    """Concurrency and thread safety tests."""
+
     def test_concurrent_access_handling(self, testcontainers_db_service, mock_time_sleep):
         """Test handling of concurrent database access."""
-        import threading
-        import time
-
         # PostgreSQL supports concurrent access - this test should pass
 
         # Initialize database first

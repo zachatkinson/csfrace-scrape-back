@@ -225,16 +225,24 @@ class TestDatabaseBase:
             Session = sessionmaker(bind=postgres_engine)
             session = Session()
 
-            # Create parent and child
+            # Create parent and child with explicit relationship
             parent = Parent(name="Test Parent")
             child = Child()
+            child.parent = parent  # Explicit bidirectional setup
             parent.children.append(child)
 
             session.add(parent)
+            session.add(child)  # Explicitly add both objects
             session.commit()
 
-            # Verify relationship works
+            # Refresh and verify relationship works
+            session.refresh(parent)
+            assert len(parent.children) == 1
+            assert parent.children[0].parent == parent
+
+            # Also test queried objects
             queried_parent = session.query(Parent).first()
+            session.refresh(queried_parent)  # Ensure lazy loading works
             assert len(queried_parent.children) == 1
             assert queried_parent.children[0].parent == queried_parent
 
