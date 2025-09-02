@@ -118,13 +118,14 @@ class TestGrafanaCLI:
         GrafanaDashboardProvisioner, "provision_all_dashboards", side_effect=Exception("Test error")
     )
     @patch.object(GrafanaDashboardProvisioner, "__init__", return_value=None)
-    def test_provision_command_error_handling(self, mock_init, mock_provision, runner):
+    def test_provision_command_error_handling(self, mock_init, mock_provision, runner, caplog):
         """Test provision command handles errors gracefully."""
         result = runner.invoke(app, ["provision"])
 
         # Verify command failed with proper error handling
         assert result.exit_code == 1
-        assert "Test error" in result.stdout  # Error message appears in structured logging
+        # Error message appears in stderr (typer.echo with err=True) and structured logging
+        assert "Test error" in result.stderr or "Test error" in caplog.text
 
     @patch.object(GrafanaDashboardProvisioner, "validate_dashboards", return_value=True)
     @patch.object(GrafanaDashboardProvisioner, "__init__", return_value=None)
@@ -153,10 +154,10 @@ class TestGrafanaCLI:
         # Verify validation was called
         mock_validate.assert_called_once()
 
-        # Verify error message (appears in structured logging)
+        # Verify error message (appears in stderr with typer.echo err=True)
         assert (
-            "validation failed" in result.stdout.lower()
-            or "failed validation" in result.stdout.lower()
+            "validation failed" in result.stderr.lower()
+            or "failed validation" in result.stderr.lower()
         )
 
     @patch.object(
@@ -165,13 +166,14 @@ class TestGrafanaCLI:
         side_effect=Exception("Validation error"),
     )
     @patch.object(GrafanaDashboardProvisioner, "__init__", return_value=None)
-    def test_validate_command_error_handling(self, mock_init, mock_validate, runner):
+    def test_validate_command_error_handling(self, mock_init, mock_validate, runner, caplog):
         """Test validate command handles errors gracefully."""
         result = runner.invoke(app, ["validate"])
 
         # Verify command failed
         assert result.exit_code == 1
-        assert "Validation error" in result.stdout  # Error message appears in structured logging
+        # Error message appears in stderr (typer.echo with err=True) and structured logging
+        assert "Validation error" in result.stderr or "Validation error" in caplog.text
 
     def test_status_command_all_present(self, runner):
         """Test status command when all components are present."""
@@ -263,13 +265,14 @@ class TestGrafanaCLI:
         assert "grafana provision" in result.stdout
 
     @patch("pathlib.Path.mkdir", side_effect=OSError("Permission denied"))
-    def test_init_command_error_handling(self, mock_mkdir, runner):
+    def test_init_command_error_handling(self, mock_mkdir, runner, caplog):
         """Test init command handles errors gracefully."""
         result = runner.invoke(app, ["init"])
 
         # Verify command failed
         assert result.exit_code == 1
-        assert "Permission denied" in result.stdout  # Error message appears in structured logging
+        # Error message appears in stderr (typer.echo with err=True) and structured logging
+        assert "Permission denied" in result.stderr or "Permission denied" in caplog.text
 
     def test_app_help(self, runner):
         """Test that CLI app shows help information."""
@@ -358,12 +361,13 @@ class TestGrafanaCLI:
         assert "dashboard2.json" in result.stdout
 
     @patch.object(GrafanaConfig, "__init__", side_effect=Exception("Config error"))
-    def test_status_command_config_error(self, mock_config_init, runner):
+    def test_status_command_config_error(self, mock_config_init, runner, caplog):
         """Test status command handles config initialization errors."""
         result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 1
-        assert "Config error" in result.stdout
+        # Error message appears in stderr (typer.echo with err=True) and structured logging
+        assert "Config error" in result.stderr or "Config error" in caplog.text
 
     @patch("pathlib.Path.glob")
     @patch("pathlib.Path.rglob")
