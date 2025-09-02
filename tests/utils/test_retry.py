@@ -244,7 +244,7 @@ class TestCircuitBreaker:
                 pass
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_half_open_recovery(self, mock_sleep):
+    async def test_circuit_breaker_half_open_recovery(self):
         """Test circuit breaker half-open state and recovery."""
         cb = CircuitBreaker(
             failure_threshold=1,
@@ -278,7 +278,7 @@ class TestCircuitBreaker:
         assert cb.failure_count == 0
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_reopens_on_half_open_failure(self, mock_sleep):
+    async def test_circuit_breaker_reopens_on_half_open_failure(self):
         """Test circuit breaker reopens on failure in half-open state."""
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, name="test")
 
