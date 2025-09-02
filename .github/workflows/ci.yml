@@ -159,6 +159,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.13"]
+        # Future optimization: Add sharding for parallel test execution
+        # shard: [1, 2, 3, 4]  # Uncomment to enable 4-way sharding
 
     steps:
       - name: Record job start time
@@ -186,22 +188,12 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-chromium
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-
-            playwright-${{ runner.os }}-
-
-      - name: Install Playwright browsers with dependencies
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: uv run playwright install --with-deps chromium
-
-      - name: Verify Playwright browser installation
-        run: uv run playwright install --dry-run chromium
+      - name: Install Playwright browsers
+        run: |
+          # Following official Playwright recommendations - no caching
+          # Caching adds complexity without meaningful benefit per official docs
+          # Fresh install ensures version compatibility
+          uv run playwright install --with-deps chromium
         
       - name: Run comprehensive unit tests with coverage (Ubuntu with PostgreSQL)
         env:
@@ -215,10 +207,23 @@ jobs:
           DATABASE_USER: postgres
           DATABASE_PASSWORD: postgres
         run: |
-          # Run unit tests with optimized parallel execution for faster feedback
-          # Include database unit tests now that PostgreSQL service is available  
-          # Limit parallel workers to prevent resource contention and improve performance
-          uv run pytest tests/ --ignore=tests/integration/ --ignore=tests/performance/ --ignore=tests/e2e/ --ignore=tests/api/ -n 4 --dist=worksteal --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-report=term-missing --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+          # Run tests following Playwright best practices
+          # Use single worker in CI for stability (Playwright recommendation)
+          # Enable early failure detection with maxfail
+          uv run pytest tests/ \
+            --ignore=tests/integration/ \
+            --ignore=tests/performance/ \
+            --ignore=tests/e2e/ \
+            --ignore=tests/api/ \
+            -n 1 \
+            --cov=src \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
+            -v \
+            --tb=short \
+            --maxfail=10
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
@@ -293,22 +298,12 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-chromium
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-
-            playwright-${{ runner.os }}-
-
-      - name: Install Playwright browsers with dependencies
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: uv run playwright install --with-deps chromium
-
-      - name: Verify Playwright browser installation
-        run: uv run playwright install --dry-run chromium
+      - name: Install Playwright browsers
+        run: |
+          # Following official Playwright recommendations - no caching
+          # Caching adds complexity without meaningful benefit per official docs
+          # Fresh install ensures version compatibility
+          uv run playwright install --with-deps chromium
         
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         run: |
@@ -475,22 +470,12 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-chromium
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-
-            playwright-${{ runner.os }}-
-
-      - name: Install Playwright browsers with dependencies
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: uv run playwright install --with-deps chromium
-
-      - name: Verify Playwright browser installation
-        run: uv run playwright install --dry-run chromium
+      - name: Install Playwright browsers
+        run: |
+          # Following official Playwright recommendations - no caching
+          # Caching adds complexity without meaningful benefit per official docs
+          # Fresh install ensures version compatibility
+          uv run playwright install --with-deps chromium
 
       - name: Run performance tests
         run: |
