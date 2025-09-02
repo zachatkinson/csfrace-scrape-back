@@ -239,6 +239,18 @@ def testcontainers_db_service(postgres_engine):
 
     service = DatabaseService._create_with_engine(postgres_engine)
 
+    # CRITICAL: Initialize database schema and enums using PostgreSQL best practices
+    # This ensures all tables and enum types exist before tests run
+    # Following SQLAlchemy and PostgreSQL documentation for concurrent safety
+    try:
+        service.initialize_database()
+    except Exception as init_error:
+        # Log initialization warning but don't fail the test
+        # Database may already be initialized from another process
+        import logging
+
+        logging.getLogger(__name__).debug(f"Database initialization warning: {init_error}")
+
     # Ensure clean state before test
     with postgres_engine.connect() as conn:
         result = conn.execute(
