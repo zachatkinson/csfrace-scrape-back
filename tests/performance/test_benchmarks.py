@@ -43,7 +43,13 @@ class TestConcurrencyPerformance:
             tasks = [manager.execute(mock_operation) for _ in range(20)]
             return await asyncio.gather(*tasks)
 
-        result = await benchmark(run_concurrent_operations)
+        # Benchmark requires synchronous wrapper for async functions in asyncio context
+        loop = asyncio.get_event_loop()
+
+        def sync_wrapper():
+            return loop.run_until_complete(run_concurrent_operations())
+
+        result = benchmark(sync_wrapper)
         assert len(result) == 20
         assert all(r == "success" for r in result)
 
@@ -73,7 +79,13 @@ class TestConcurrencyPerformance:
             for i in range(50):
                 mock.get(f"https://httpbin.org/delay/{0.1}", payload={"success": True})
 
-            results = await benchmark(make_requests)
+            # Benchmark requires synchronous wrapper for async functions in asyncio context
+            loop = asyncio.get_event_loop()
+
+            def sync_wrapper():
+                return loop.run_until_complete(make_requests())
+
+            results = benchmark(sync_wrapper)
             assert len(results) >= 40  # Allow some failures for realistic testing
 
     @pytest.mark.benchmark(group="concurrency")
@@ -340,7 +352,13 @@ class TestPerformanceBoundaries:
 
             return results
 
-        results = await benchmark(test_recovery)
+        # Benchmark requires synchronous wrapper for async functions in asyncio context
+        loop = asyncio.get_event_loop()
+
+        def sync_wrapper():
+            return loop.run_until_complete(test_recovery())
+
+        results = benchmark(sync_wrapper)
         assert len(results) == 10
         # Should have some "recovered" results after circuit breaker recovery
         recovered_count = sum(1 for r in results if r == "recovered")
