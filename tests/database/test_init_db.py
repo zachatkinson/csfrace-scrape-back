@@ -52,7 +52,7 @@ class TestInitDb:
         # Check that we have at least one log record at INFO level
         info_records = [record for record in caplog.records if record.levelno == logging.INFO]
         assert len(info_records) >= 1
-        assert info_records[0].message == "Database initialization completed"
+        assert info_records[0].message == "Database initialization completed successfully"
 
     @pytest.mark.asyncio
     async def test_init_db_logger_name(self, caplog):
@@ -111,7 +111,7 @@ class TestInitDb:
             await init_db()
 
             # Verify logger.info was called with expected message
-            mock_logger.info.assert_called_once_with("Database initialization completed")
+            mock_logger.info.assert_called_once_with("Database initialization completed successfully")
 
     def test_init_db_function_signature(self):
         """Test that init_db has the expected function signature."""
@@ -130,7 +130,7 @@ class TestInitDb:
         """Test that init_db has proper documentation."""
         assert init_db.__doc__ is not None
         assert "Initialize the database" in init_db.__doc__
-        assert "placeholder function" in init_db.__doc__
+        assert "PostgreSQL enum safety" in init_db.__doc__
 
     @pytest.mark.asyncio
     async def test_init_db_performance(self):
