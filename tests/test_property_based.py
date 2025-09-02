@@ -13,14 +13,14 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, rule
 
-# CI-optimized settings to reduce test execution time
-# Standard practice: reduce max_examples for CI while keeping comprehensive local testing
-CI_SETTINGS = settings(max_examples=10, deadline=1000)
-
 from src.processors.html_processor import HTMLProcessor
 from src.utils.retry import BulkheadPattern, CircuitBreaker, CircuitBreakerState, RetryConfig
 from src.utils.session_manager import EnhancedSessionManager, PersistentCookieJar, SessionConfig
 from src.utils.url import extract_domain, safe_parse_url
+
+# CI-optimized settings to reduce test execution time
+# Standard practice: reduce max_examples for CI while keeping comprehensive local testing
+CI_SETTINGS = settings(max_examples=10, deadline=1000)
 
 
 class TestRetryConfigProperties:

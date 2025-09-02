@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from typing import Protocol
 from unittest import IsolatedAsyncioTestCase
 
+import pytest
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 
