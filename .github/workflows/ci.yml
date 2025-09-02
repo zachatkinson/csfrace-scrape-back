@@ -131,7 +131,7 @@ jobs:
   # Ubuntu: Full test suite with coverage (primary validation) + PostgreSQL service
   # Windows/macOS: Platform-specific smoke tests (compatibility validation)
   unit-tests-linux:
-    name: Unit Tests - Ubuntu Python ${{ matrix.python-version }}
+    name: Unit Tests - Ubuntu Python ${{ matrix.python-version }} (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 25
@@ -159,8 +159,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.13"]
-        # Future optimization: Add sharding for parallel test execution
-        # shard: [1, 2, 3, 4]  # Uncomment to enable 4-way sharding
+        # Enable 4-way test sharding for faster execution and bottleneck identification
+        shard: [1, 2, 3, 4]
 
     steps:
       - name: Record job start time
@@ -183,10 +183,13 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: unit-linux-${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          cache-suffix: unit-linux-${{ matrix.python-version }}-shard-${{ matrix.shard }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
+        run: |
+          uv sync --frozen --no-editable
+          # Install pytest-split for optimal matrix-based test sharding
+          uv add pytest-split --group=test
 
       - name: Install Playwright browsers
         run: |
@@ -207,23 +210,27 @@ jobs:
           DATABASE_USER: postgres
           DATABASE_PASSWORD: postgres
         run: |
-          # Run tests following Playwright best practices
-          # Use single worker in CI for stability (Playwright recommendation)
-          # Enable early failure detection with maxfail
+          # Run tests using pytest-split for optimal matrix-based sharding (official best practice)
+          # pytest-split distributes tests evenly across shards with duration-based balancing
+          # Each shard runs its subset with internal parallelization via pytest-xdist
           uv run pytest tests/ \
             --ignore=tests/integration/ \
             --ignore=tests/performance/ \
             --ignore=tests/e2e/ \
             --ignore=tests/api/ \
-            -n 1 \
+            --splits=4 \
+            --group=${{ matrix.shard }} \
+            -n auto \
+            --dist=worksteal \
+            --durations=10 \
             --cov=src \
             --cov-branch \
-            --cov-report=xml:coverage.xml \
+            --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
-            --junit-xml=junit-unit-${{ matrix.python-version }}.xml \
+            --junit-xml=junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml \
             -v \
             --tb=short \
-            --maxfail=10
+            --maxfail=3
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
@@ -232,10 +239,10 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-unit-ubuntu-py${{ matrix.python-version }}
+          name: test-results-unit-ubuntu-py${{ matrix.python-version }}-shard-${{ matrix.shard }}
           path: |
-            junit-unit*-${{ matrix.python-version }}.xml
-            coverage.xml
+            junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml
+            coverage-shard-${{ matrix.shard }}.xml
           retention-days: 30
 
       - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
@@ -243,7 +250,7 @@ jobs:
         if: matrix.python-version == env.PYTHON_VERSION
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
+          files: ./coverage-shard-${{ matrix.shard }}.xml
           flags: unit-tests
           name: unit-tests-coverage
           fail_ci_if_error: false
