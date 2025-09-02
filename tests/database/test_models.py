@@ -340,6 +340,8 @@ class TestDatabaseUtilities:
 
     def test_get_database_url_environment_override(self, monkeypatch):
         """Test database URL generation with environment variable overrides."""
+        # Clear DATABASE_URL so individual components are used instead
+        monkeypatch.delenv("DATABASE_URL", raising=False)
         monkeypatch.setenv("DATABASE_HOST", "testhost")
         monkeypatch.setenv("DATABASE_PORT", "5433")
         monkeypatch.setenv("DATABASE_NAME", "testdb")
