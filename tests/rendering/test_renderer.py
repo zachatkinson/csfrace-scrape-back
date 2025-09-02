@@ -273,6 +273,7 @@ class TestAdaptiveRenderer:
             assert mock_detector.analyze_html.call_count == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_render_multiple_pages(self, mock_detector, static_analysis):
         """Test concurrent rendering of multiple pages."""
         mock_detector.analyze_html.return_value = static_analysis

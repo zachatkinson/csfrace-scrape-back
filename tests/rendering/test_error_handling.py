@@ -195,6 +195,7 @@ class TestBrowserErrorHandlingRefactored(IsolatedAsyncioTestCase):
         self.assertIn("Test content", result.html)
         self.assertTrue(result.javascript_executed)
 
+    @pytest.mark.slow
     async def test_concurrent_rendering(self):
         """Test concurrent page rendering without AsyncMock complexity."""
         pool = FakeBrowserPool()

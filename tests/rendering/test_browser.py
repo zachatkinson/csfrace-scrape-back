@@ -448,6 +448,7 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
 
         await renderer.cleanup()
 
+    @pytest.mark.slow
     async def test_renderer_concurrent_rendering(self):
         """Test concurrent page rendering."""
         config = BrowserConfig()

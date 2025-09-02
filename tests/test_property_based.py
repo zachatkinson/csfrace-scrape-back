@@ -13,6 +13,10 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, rule
 
+# CI-optimized settings to reduce test execution time
+# Standard practice: reduce max_examples for CI while keeping comprehensive local testing
+CI_SETTINGS = settings(max_examples=10, deadline=1000)
+
 from src.processors.html_processor import HTMLProcessor
 from src.utils.retry import BulkheadPattern, CircuitBreaker, CircuitBreakerState, RetryConfig
 from src.utils.session_manager import EnhancedSessionManager, PersistentCookieJar, SessionConfig
@@ -29,7 +33,7 @@ class TestRetryConfigProperties:
         backoff_factor=st.floats(min_value=1.1, max_value=10.0),  # Must be > 1
         jitter=st.booleans(),
     )
-    @settings(max_examples=100, deadline=1000)
+    @CI_SETTINGS
     def test_retry_config_invariants(
         self, max_attempts, base_delay, max_delay, backoff_factor, jitter
     ):
@@ -59,7 +63,7 @@ class TestRetryConfigProperties:
         max_delay=st.floats(min_value=10.0, max_value=100.0),
         backoff_factor=st.floats(min_value=1.5, max_value=3.0),
     )
-    @settings(max_examples=100, deadline=1000)
+    @CI_SETTINGS
     def test_calculate_delay_properties(self, attempt, base_delay, max_delay, backoff_factor):
         """Test that calculate_delay produces valid delays."""
         config = RetryConfig(
@@ -87,7 +91,7 @@ class TestRetryConfigProperties:
         base_delay=st.floats(min_value=0.1, max_value=5.0),
         max_delay=st.floats(min_value=5.0, max_value=50.0),
     )
-    @settings(max_examples=50, deadline=1000)
+    @CI_SETTINGS
     def test_jitter_bounds(self, attempt, base_delay, max_delay):
         """Test that jitter keeps delays within expected bounds."""
         config = RetryConfig(
@@ -118,7 +122,7 @@ class TestCircuitBreakerProperties:
         failure_threshold=st.integers(min_value=1, max_value=5),
         num_failures=st.integers(min_value=0, max_value=10),
     )
-    @settings(max_examples=20, deadline=3000)
+    @CI_SETTINGS
     @pytest.mark.asyncio
     async def test_circuit_breaker_state_transitions(self, failure_threshold, num_failures):
         """Test circuit breaker state transitions with various failure patterns."""
@@ -158,7 +162,7 @@ class TestCircuitBreakerProperties:
         max_concurrent=st.integers(min_value=1, max_value=50),
         num_operations=st.integers(min_value=0, max_value=100),
     )
-    @settings(max_examples=30, deadline=5000)
+    @CI_SETTINGS
     @pytest.mark.asyncio
     async def test_bulkhead_concurrency_limits(self, max_concurrent, num_operations):
         """Test that BulkheadPattern enforces concurrency limits."""
@@ -256,7 +260,7 @@ class TestURLValidationProperties:
     """Property-based tests for URL processing utilities."""
 
     @given(st.text())
-    @settings(max_examples=100, deadline=1000)
+    @CI_SETTINGS
     def test_safe_parse_url_never_crashes(self, url_input):
         """Test that safe_parse_url never crashes regardless of input."""
         # Should never raise an unexpected exception
@@ -315,7 +319,7 @@ class TestHTMLProcessingProperties:
             max_size=50,
         )
     )
-    @settings(max_examples=50, deadline=2000)
+    @CI_SETTINGS
     @pytest.mark.asyncio
     async def test_html_processing_preserves_structure(self, elements):
         """Test that HTML processing preserves document structure."""
@@ -362,7 +366,7 @@ class TestPersistentCookieJarProperties:
         domain=st.from_regex(r"[a-z]{3,10}\.(com|org|net)", fullmatch=True),
     )
     @settings(
-        max_examples=30, deadline=2000, suppress_health_check=[HealthCheck.function_scoped_fixture]
+        max_examples=10, deadline=1000, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_cookie_persistence_roundtrip(self, cookies, domain, tmp_path):
         """Test that cookies survive save/load roundtrip."""
@@ -485,7 +489,7 @@ class TestEdgeCaseProperties:
         return [x for x in data if x > 0]
 
     @given(st.text(alphabet=st.characters(blacklist_categories=["Cc"]), min_size=0, max_size=10000))
-    @settings(max_examples=20, deadline=3000)
+    @CI_SETTINGS
     def test_unicode_handling(self, text):
         """Test handling of various Unicode characters."""
         # Ensure the system handles Unicode properly

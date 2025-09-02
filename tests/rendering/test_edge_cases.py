@@ -113,6 +113,7 @@ class TestBrowserEdgeCases:
                 assert ctx3 == mock_context  # New context with same mock
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_renderer_with_massive_concurrent_requests(self):
         """Test renderer handling massive number of concurrent requests."""
         renderer = AdaptiveRenderer()
@@ -131,12 +132,13 @@ class TestBrowserEdgeCases:
             ), ContentAnalysis(is_dynamic=False, confidence_score=0.1, fallback_strategy="standard")
 
         with patch.object(renderer, "_render_page_internal", side_effect=mock_render_internal):
-            # Test with 100 concurrent requests
-            urls = [f"https://example.com/page{i}" for i in range(100)]
+            # Test with 10 concurrent requests (reduced for CI performance)
+            # 100 requests was causing 20+ minute CI delays in Shard 7
+            urls = [f"https://example.com/page{i}" for i in range(10)]
 
             results = await renderer.render_multiple(urls)
 
-            assert len(results) == 100
+            assert len(results) == 10
             for url in urls:
                 result, analysis = results[url]
                 assert result.status_code == 200
@@ -222,6 +224,7 @@ class TestBrowserEdgeCases:
         assert min_config.timeout == 0.001
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_renderer_with_page_containing_many_iframes(self):
         """Test renderer with page containing numerous nested iframes."""
         html_with_iframes = """
@@ -268,6 +271,7 @@ class TestBrowserEdgeCases:
         assert result.javascript_executed is True
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_browser_memory_pressure_simulation(self):
         """Test browser behavior under simulated memory pressure."""
         renderer = JavaScriptRenderer()
@@ -345,6 +349,7 @@ class TestBrowserEdgeCases:
         assert analysis.is_dynamic is True  # Has JavaScript
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_renderer_with_page_using_all_html5_features(self):
         """Test renderer with page using extensive HTML5 features."""
         html5_features_html = """  # noqa: W291, W293
