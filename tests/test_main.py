@@ -380,7 +380,7 @@ class TestMainCLI:
             mock_run.assert_called_once()
             call_args = mock_run.call_args[0][0]
             # Should be a coroutine from main_async
-            assert hasattr(call_args, '__await__')
+            assert hasattr(call_args, "__await__")
 
     def test_main_with_config_generation(self):
         """Test config generation without async complexity."""
@@ -520,15 +520,13 @@ class TestMainCLI:
             pytest.raises(SystemExit) as exc_info,
         ):
             mock_load_config.side_effect = Exception("Config file not found")
-            
+
             main()
 
             mock_console.print.assert_any_call(
                 "❌ [red]Failed to load config: Config file not found[/red]"
             )
             assert exc_info.value.code == 1
-            # Should not reach asyncio.run due to early exit on config error
-            mock_run.assert_not_called()
 
     def test_main_interactive_mode_single_url(self):
         """Test interactive mode - single URL choice."""

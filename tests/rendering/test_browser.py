@@ -10,7 +10,7 @@ Applied the same proven patterns from error handling refactor:
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 from unittest import IsolatedAsyncioTestCase
 
 import pytest
@@ -180,8 +180,8 @@ class TestableBrowserPool:
         self._playwright_impl = playwright_impl
         self._playwright = None
         self._browser = None
-        self._contexts: List[Any] = []
-        self._context_usage: Dict[Any, int] = {}
+        self._contexts: list[Any] = []
+        self._context_usage: dict[Any, int] = {}
 
     async def initialize(self):
         """Initialize using injected Playwright implementation."""
@@ -240,7 +240,9 @@ class TestableBrowserPool:
 class TestableJavaScriptRenderer:
     """Renderer that accepts injected browser pool."""
 
-    def __init__(self, config: Optional[BrowserConfig] = None, pool: Optional[TestableBrowserPool] = None):
+    def __init__(
+        self, config: BrowserConfig | None = None, pool: TestableBrowserPool | None = None
+    ):
         self.config = config or BrowserConfig()
         self._pool = pool
 
