@@ -39,7 +39,12 @@ def setup_logging(verbose: bool = False) -> None:
             # "Remove format_exc_info from your processor chain" warnings
             # when not using exception tracebacks in structured logs
             # Pretty print for development, JSON for production
-            structlog.dev.ConsoleRenderer() if verbose else structlog.processors.JSONRenderer(),
+            # Use plain_traceback to avoid format_exc_info warnings
+            (
+                structlog.dev.ConsoleRenderer(exception_formatter=structlog.dev.plain_traceback)
+                if verbose
+                else structlog.processors.JSONRenderer()
+            ),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         logger_factory=structlog.stdlib.LoggerFactory(),

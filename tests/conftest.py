@@ -18,9 +18,9 @@ from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
 from src.constants import TEST_CONSTANTS
 
-# Configure structlog for tests following official best practices
-# The format_exc_info warnings are expected when transitioning to modern structlog
-# Our configuration correctly excludes format_exc_info as recommended
+# CRITICAL: Configure structlog IMMEDIATELY after imports to prevent warnings
+# This prevents modules from caching loggers with default configuration
+structlog.reset_defaults()
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -29,13 +29,13 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="ISO"),
         structlog.processors.StackInfoRenderer(),
         # NOTE: format_exc_info intentionally omitted per structlog best practices
-        # ConsoleRenderer handles exceptions internally without format_exc_info
-        structlog.dev.ConsoleRenderer(),
+        # Use plain_traceback to avoid warnings about pretty exception formatting
+        structlog.dev.ConsoleRenderer(exception_formatter=structlog.dev.plain_traceback),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     logger_factory=structlog.stdlib.LoggerFactory(),
     context_class=dict,
-    cache_logger_on_first_use=True,
+    cache_logger_on_first_use=False,  # Don't cache during tests to allow reconfiguration
 )
 
 
