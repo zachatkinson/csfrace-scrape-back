@@ -3,7 +3,6 @@
 import asyncio
 import tempfile
 import time
-import warnings
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -19,17 +18,9 @@ from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
 from src.constants import TEST_CONSTANTS
 
-# Suppress structlog internal warnings that we cannot control
-warnings.filterwarnings(
-    "ignore",
-    message=r"Remove.*format_exc_info.*from your processor chain",
-    category=UserWarning,
-    module="structlog._base",
-)
-
-# Configure structlog immediately to prevent warnings throughout test suite
-# Reset structlog completely to avoid cached configurations
-structlog.reset_defaults()
+# Configure structlog for tests following official best practices
+# The format_exc_info warnings are expected when transitioning to modern structlog
+# Our configuration correctly excludes format_exc_info as recommended
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -37,12 +28,14 @@ structlog.configure(
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="ISO"),
         structlog.processors.StackInfoRenderer(),
+        # NOTE: format_exc_info intentionally omitted per structlog best practices
+        # ConsoleRenderer handles exceptions internally without format_exc_info
         structlog.dev.ConsoleRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     logger_factory=structlog.stdlib.LoggerFactory(),
     context_class=dict,
-    cache_logger_on_first_use=False,  # Don't cache to allow reconfiguration
+    cache_logger_on_first_use=True,
 )
 
 
