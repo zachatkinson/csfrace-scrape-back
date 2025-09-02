@@ -1,15 +1,12 @@
 name: Semantic Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.pre-commit-config.yaml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,6 +21,8 @@ jobs:
     name: Semantic Release
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Only run if CI was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: write
       issues: write
@@ -53,36 +52,9 @@ jobs:
         run: |
           uv sync --group dev
       
-      - name: Run quality checks before release
-        run: |
-          echo "🔍 Running pre-release quality checks..."
-          
-          # Linting
-          uv run ruff check src/ tests/
-          
-          # Formatting check
-          uv run ruff format --check src/ tests/
-          
-          # Type checking (non-blocking for now)
-          uv run mypy src/ || echo "⚠️ Type checking failed but continuing..."
-          
-          # Security scanning
-          uv run bandit -r src/ --format json --output bandit-report.json || true
-          
-          echo "✅ Quality checks completed"
-      
-      - name: Run tests
-        run: |
-          echo "🧪 Running core test suite (excluding database/integration tests)..."
-          # Run lightweight tests excluding database integration and performance tests
-          # This matches cross-platform testing approach for fast semantic release validation
-          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" --cov=src --cov-report=xml --cov-report=term-missing --tb=short --maxfail=5
-          echo "✅ Core tests completed"
-      
       - name: Install python-semantic-release
         run: |
           uv add --group dev python-semantic-release
-      
       
       - name: Build package
         run: |
@@ -98,6 +70,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🚀 Running Python semantic release..."
+          echo "✅ CI Pipeline was successful - proceeding with release"
           uv run semantic-release version --print
           uv run semantic-release publish
       
@@ -105,11 +78,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: release-artifacts
           path: |
             dist/
-            bandit-report.json
-            coverage.xml
+            CHANGELOG.md
           retention-days: 30
       
       - name: Post-release cleanup
@@ -118,16 +90,15 @@ jobs:
           echo "🧹 Cleaning up temporary files..."
           echo "✅ Cleanup completed (python-semantic-release handles cleanup automatically)"
 
-  # Optional: Notify on release
-  notify:
-    name: Notify Release
-    needs: release
+  # Notify when release is skipped due to CI failure
+  notify-skip:
+    name: Notify Release Skip
     runs-on: ubuntu-latest
-    if: needs.release.result == 'success'
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     
     steps:
-      - name: Get release info
-        id: release
+      - name: Report CI failure
         run: |
-          echo "Release completed successfully!"
-          # You can add Slack/Discord/email notifications here
+          echo "⚠️ Semantic Release skipped - CI Pipeline failed!"
+          echo "Fix CI issues before releases can proceed."
+          echo "Failed workflow: ${{ github.event.workflow_run.html_url }}"
