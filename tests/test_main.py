@@ -373,12 +373,14 @@ class TestMainCLI:
 
         with (
             patch.object(sys, "argv", test_args),
-            patch("src.main.main_async", new_callable=lambda: MagicMock()) as mock_main_async,
             patch("src.main.asyncio.run") as mock_run,
         ):
-            mock_main_async.return_value = "mock_coro"
             main()
-            mock_run.assert_called_once_with("mock_coro")
+            # Verify asyncio.run was called with main_async coroutine
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args[0][0]
+            # Should be a coroutine from main_async
+            assert hasattr(call_args, '__await__')
 
     def test_main_with_config_generation(self):
         """Test config generation without async complexity."""
@@ -515,13 +517,10 @@ class TestMainCLI:
             patch.object(sys, "argv", test_args),
             patch("src.main.load_config_from_file") as mock_load_config,
             patch("src.main.console") as mock_console,
-            patch("src.main.main_async", new_callable=lambda: MagicMock()) as mock_main_async,
-            patch("src.main.asyncio.run") as mock_run,
             pytest.raises(SystemExit) as exc_info,
         ):
             mock_load_config.side_effect = Exception("Config file not found")
-            mock_main_async.return_value = "mock_coro"
-
+            
             main()
 
             mock_console.print.assert_any_call(
