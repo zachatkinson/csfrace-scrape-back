@@ -1,6 +1,6 @@
 """Unit tests for browser rendering module."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
