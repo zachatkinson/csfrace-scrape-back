@@ -97,6 +97,8 @@ class FakePage:
 class TestableRendererImpl:
     """Renderer that accepts injected dependencies."""
 
+    __test__ = False
+
     def __init__(self, pool: BrowserPoolProtocol, config: BrowserConfig = None):
         self._pool = pool
         self._config = config or BrowserConfig()

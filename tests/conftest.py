@@ -3,12 +3,14 @@
 import asyncio
 import tempfile
 import time
+import warnings
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import pytest
 import pytest_asyncio
+import structlog
 from aioresponses import aioresponses
 from bs4 import BeautifulSoup
 from testcontainers.postgres import PostgresContainer
@@ -16,6 +18,32 @@ from testcontainers.postgres import PostgresContainer
 from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
 from src.constants import TEST_CONSTANTS
+
+# Suppress structlog internal warnings that we cannot control
+warnings.filterwarnings(
+    "ignore",
+    message=r"Remove.*format_exc_info.*from your processor chain",
+    category=UserWarning,
+    module="structlog._base",
+)
+
+# Configure structlog immediately to prevent warnings throughout test suite
+# Reset structlog completely to avoid cached configurations
+structlog.reset_defaults()
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="ISO"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.ConsoleRenderer(),
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    context_class=dict,
+    cache_logger_on_first_use=False,  # Don't cache to allow reconfiguration
+)
 
 
 @pytest.fixture(scope="session")
@@ -412,6 +440,8 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
     config.addinivalue_line("markers", "redis: marks tests that require Redis")
     config.addinivalue_line("markers", "database: marks tests that require PostgreSQL container")
+
+    pass
 
 
 # Skip tests if dependencies not available

@@ -175,6 +175,8 @@ class FakeResponse:
 class TestableBrowserPool:
     """Browser pool that accepts injected Playwright implementation."""
 
+    __test__ = False
+
     def __init__(self, config: BrowserConfig, playwright_impl: PlaywrightProtocol):
         self.config = config
         self._playwright_impl = playwright_impl
@@ -239,6 +241,8 @@ class TestableBrowserPool:
 # STEP 4: Testable renderer with dependency injection
 class TestableJavaScriptRenderer:
     """Renderer that accepts injected browser pool."""
+
+    __test__ = False
 
     def __init__(
         self, config: BrowserConfig | None = None, pool: TestableBrowserPool | None = None
