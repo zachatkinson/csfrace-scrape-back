@@ -452,10 +452,10 @@ class TestDatabaseServiceJobRetrieval:
         self, testcontainers_db_service, test_isolation_id
     ):
         """Test pending jobs with priority ordering using test isolation."""
-        from tests.utils import TestDataMatcher, TestJobFactory
+        from tests.utils import DataMatcher, JobFactory
 
         # Create test data using DRY factory pattern
-        job_factory = TestJobFactory(test_isolation_id)
+        job_factory = JobFactory(test_isolation_id)
         job_specs = job_factory.create_priority_test_jobs()
 
         # Create jobs in database following SOLID principles
@@ -470,10 +470,10 @@ class TestDatabaseServiceJobRetrieval:
 
         # Get pending jobs and filter using utility class
         pending_jobs = testcontainers_db_service.get_pending_jobs(limit=10)
-        test_jobs = TestDataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
+        test_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         # Assert using DRY helper with detailed error messages
-        TestDataMatcher.assert_job_count(test_jobs, 4, "Priority ordering test")
+        DataMatcher.assert_job_count(test_jobs, 4, "Priority ordering test")
 
         # Check order: URGENT -> HIGH -> NORMAL -> LOW
         assert test_jobs[0].id == created_jobs[JobPriority.URGENT].id
@@ -485,10 +485,10 @@ class TestDatabaseServiceJobRetrieval:
         self, testcontainers_db_service, test_isolation_id
     ):
         """Test that non-pending jobs are excluded using test isolation."""
-        from tests.utils import TestDataMatcher, TestJobFactory
+        from tests.utils import DataMatcher, JobFactory
 
         # Create test jobs using DRY factory pattern
-        job_factory = TestJobFactory(test_isolation_id)
+        job_factory = JobFactory(test_isolation_id)
         job_specs = job_factory.create_status_test_jobs()
 
         # Create jobs with different statuses following SOLID principles
@@ -510,10 +510,10 @@ class TestDatabaseServiceJobRetrieval:
 
         # Get pending jobs and filter using utility class
         pending_jobs = testcontainers_db_service.get_pending_jobs()
-        test_pending_jobs = TestDataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
+        test_pending_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         # Assert using DRY helper with detailed error messages
-        TestDataMatcher.assert_job_count(test_pending_jobs, 1, "Status exclusion test")
+        DataMatcher.assert_job_count(test_pending_jobs, 1, "Status exclusion test")
         assert test_pending_jobs[0].id == pending_job.id
 
     def test_get_pending_jobs_priority_ordering_edge_case(
