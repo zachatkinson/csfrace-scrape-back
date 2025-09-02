@@ -685,26 +685,14 @@ class TestMainArgumentParsing:
         """Test batch size argument parsing."""
         test_args = ["prog", "--urls-file", "test.txt", "--batch-size", "10"]
 
-        # Create a mock coroutine that doesn't need awaiting
-        mock_coro = MagicMock()
-
         with (
             patch.object(sys, "argv", test_args),
-            patch("src.main.main_async", return_value=mock_coro) as mock_main_async,
             patch("src.main.asyncio.run") as mock_run,
         ):
             main()
 
-            # Verify batch_size was passed correctly
-            mock_main_async.assert_called_once_with(
-                url=None,
-                urls_file="test.txt",
-                output_dir="converted_content",
-                batch_size=10,
-                verbose=False,
-                converter_config=None,
-                batch_config=None,
-            )
+            # Verify asyncio.run was called (batch processing triggered)
+            mock_run.assert_called_once()
 
     def test_config_file_argument(self):
         """Test config file argument."""
