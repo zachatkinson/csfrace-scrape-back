@@ -465,22 +465,29 @@ class TestSessionManagerAuthentication:
 
     @pytest.mark.asyncio
     async def test_authentication_validation_failure(self):
-        """Test failed authentication validation."""
+        """Test failed authentication validation using fake session (no AsyncMock)."""
         config = SessionConfig(auth_type="basic", username="user", password="pass")
         manager = EnhancedSessionManager("https://example.com", config)
         manager._is_authenticated = True
 
-        # Mock session with login redirect response
-        mock_session = AsyncMock()
-        mock_response = AsyncMock()
-        mock_response.status = 302
-        mock_response.headers = {"Location": "https://example.com/wp-login.php"}
-        # Set up proper async context manager
-        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_response.__aexit__ = AsyncMock(return_value=None)
-        mock_session.get.return_value = mock_response
+        # Create fake session that returns redirect responses (authentication failure)
+        class FakeSessionForAuthValidation:
+            def get(self, url: str, allow_redirects: bool = True):
+                return FakeResponseForAuthValidation()
 
-        manager._session = mock_session
+        class FakeResponseForAuthValidation:
+            def __init__(self):
+                self.status = 302
+                self.headers = {"Location": "https://example.com/wp-login.php"}
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        # Use fake session instead of AsyncMock to avoid coroutine warnings
+        manager._session = FakeSessionForAuthValidation()
 
         result = await manager.validate_authentication()
         assert result is False
