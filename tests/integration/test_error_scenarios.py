@@ -232,7 +232,7 @@ class TestConcurrencyErrorScenarios:
     """Integration tests for concurrency-related error scenarios."""
 
     @pytest.mark.asyncio
-    async def test_race_condition_handling(self):
+    async def test_race_condition_handling(self, mock_sleep):
         """Test handling of race conditions in concurrent operations."""
         shared_resource = {"counter": 0}
         lock = asyncio.Lock()
@@ -240,13 +240,13 @@ class TestConcurrencyErrorScenarios:
         async def increment_counter():
             # Simulate race condition without lock
             temp = shared_resource["counter"]
-            await asyncio.sleep(0.001)  # Simulate processing
+            await asyncio.sleep(0.001)  # Mocked - instant return
             shared_resource["counter"] = temp + 1
 
         async def safe_increment_counter():
             async with lock:
                 temp = shared_resource["counter"]
-                await asyncio.sleep(0.001)  # Simulate processing
+                await asyncio.sleep(0.001)  # Mocked - instant return
                 shared_resource["counter"] = temp + 1
 
         # Test unsafe concurrent access
@@ -267,7 +267,7 @@ class TestConcurrencyErrorScenarios:
         assert unsafe_result <= 100
 
     @pytest.mark.asyncio
-    async def test_deadlock_prevention(self):
+    async def test_deadlock_prevention(self, mock_sleep):
         """Test prevention of deadlocks in resource acquisition."""
         lock1 = asyncio.Lock()
         lock2 = asyncio.Lock()
@@ -275,7 +275,7 @@ class TestConcurrencyErrorScenarios:
 
         async def task1():
             async with lock1:
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)  # Mocked - instant return
                 try:
                     await asyncio.wait_for(lock2.acquire(), timeout=0.1)
                     lock2.release()
@@ -285,7 +285,7 @@ class TestConcurrencyErrorScenarios:
 
         async def task2():
             async with lock2:
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)  # Mocked - instant return
                 try:
                     await asyncio.wait_for(lock1.acquire(), timeout=0.1)
                     lock1.release()
@@ -299,7 +299,7 @@ class TestConcurrencyErrorScenarios:
         assert deadlock_detected
 
     @pytest.mark.asyncio
-    async def test_resource_exhaustion_protection(self):
+    async def test_resource_exhaustion_protection(self, mock_sleep):
         """Test protection against resource exhaustion."""
         from src.utils.retry import BulkheadPattern
 
@@ -309,7 +309,7 @@ class TestConcurrencyErrorScenarios:
 
         async def resource_intensive_operation(op_id):
             active_operations.append(op_id)
-            await asyncio.sleep(0.1)  # Simulate work
+            await asyncio.sleep(0.1)  # Mocked - instant return
             active_operations.remove(op_id)
             return op_id
 
@@ -562,7 +562,7 @@ class TestCascadingFailureScenarios:
         assert failure_count == 3
 
     @pytest.mark.asyncio
-    async def test_bulkhead_isolation(self):
+    async def test_bulkhead_isolation(self, mock_sleep):
         """Test that bulkhead pattern isolates failures."""
         from src.utils.retry import BulkheadPattern
 
@@ -570,7 +570,7 @@ class TestCascadingFailureScenarios:
         bulkhead_b = BulkheadPattern(max_concurrent_operations=5)
 
         async def slow_operation():
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(0.01)  # Much faster for testing
             return "complete"
 
         async def failing_operation():

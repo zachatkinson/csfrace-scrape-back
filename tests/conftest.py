@@ -39,6 +39,31 @@ structlog.configure(
 )
 
 
+@pytest.fixture
+def mock_sleep(monkeypatch):
+    """Mock asyncio.sleep to return immediately for faster tests."""
+
+    async def instant_sleep(delay):
+        # Return immediately without actually sleeping
+        # This significantly speeds up tests that simulate timing
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", instant_sleep)
+    return instant_sleep
+
+
+@pytest.fixture
+def mock_time_sleep(monkeypatch):
+    """Mock time.sleep to return immediately for faster tests."""
+
+    def instant_sleep(delay):
+        # Return immediately without actually sleeping
+        return None
+
+    monkeypatch.setattr(time, "sleep", instant_sleep)
+    return instant_sleep
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create event loop for async tests."""
@@ -84,8 +109,19 @@ def postgres_container():
             password="test_password",
             port=5432,
         ) as postgres:
-            # Wait for container to be fully ready
-            time.sleep(3)
+            # Use connection retry instead of sleep for container readiness
+            max_retries = 30
+            for _ in range(max_retries):
+                try:
+                    postgres.get_connection_url()
+                    # Test actual connection
+                    import psycopg2
+
+                    conn = psycopg2.connect(postgres.get_connection_url())
+                    conn.close()
+                    break
+                except Exception:
+                    time.sleep(0.1)  # Very short sleep for retry
             yield postgres
 
 

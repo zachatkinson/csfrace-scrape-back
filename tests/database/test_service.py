@@ -755,7 +755,7 @@ class TestDatabaseServiceErrorHandling:
             with pytest.raises(DatabaseError, match="Database initialization failed"):
                 service.initialize_database()
 
-    def test_concurrent_access_handling(self, temp_db_service):
+    def test_concurrent_access_handling(self, temp_db_service, mock_time_sleep):
         """Test handling of concurrent database access."""
         import threading
         import time
@@ -772,7 +772,7 @@ class TestDatabaseServiceErrorHandling:
         def create_job_worker(worker_id):
             try:
                 # Add small delay to increase chance of concurrent access
-                time.sleep(0.01)
+                time.sleep(0.01)  # Mocked by mock_time_sleep fixture
                 job = temp_db_service.create_job(
                     url=f"https://example.com/test{worker_id}",
                     output_directory=f"/tmp/output{worker_id}",

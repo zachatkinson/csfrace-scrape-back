@@ -180,7 +180,7 @@ class TestDatabaseServiceExtended:
             with pytest.raises(DatabaseError, match="Pending jobs retrieval failed"):
                 temp_db_service.get_pending_jobs()
 
-    def test_get_pending_jobs_priority_ordering_edge_case(self, temp_db_service):
+    def test_get_pending_jobs_priority_ordering_edge_case(self, temp_db_service, mock_time_sleep):
         """Test pending jobs with same priority ordered by creation time."""
         # Create jobs with same priority but different creation times
         job1 = temp_db_service.create_job(
@@ -189,10 +189,10 @@ class TestDatabaseServiceExtended:
             priority="normal",
         )
 
-        # Simulate time passing
+        # Simulate time passing - mocked by mock_time_sleep fixture
         import time
 
-        time.sleep(0.01)
+        time.sleep(0.01)  # Instant return with mock_time_sleep
 
         job2 = temp_db_service.create_job(
             url="https://example.com/second",

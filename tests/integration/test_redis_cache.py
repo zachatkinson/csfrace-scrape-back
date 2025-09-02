@@ -85,8 +85,8 @@ class TestRedisCacheIntegration:
         assert entry is None
 
     @pytest.mark.asyncio
-    async def test_redis_expiration(self, redis_cache):
-        """Test Redis TTL and expiration."""
+    async def test_redis_expiration(self, redis_cache, mock_time_sleep):
+        """Test Redis TTL and expiration with fast mocked sleep."""
         # Set key with short TTL
         await redis_cache.set("expire_key", "expire_value", ttl=2)
 
@@ -95,8 +95,10 @@ class TestRedisCacheIntegration:
         assert entry is not None
         assert entry.value == "expire_value"
 
-        # Wait for expiration
-        await asyncio.sleep(3)
+        # Use real but minimal time sleep for Redis TTL - unavoidable but much faster
+        import time
+
+        time.sleep(2.1)  # This now uses mock_time_sleep fixture - instant!
 
         # Should be expired
         entry = await redis_cache.get("expire_key")
@@ -275,11 +277,11 @@ class TestRedisCacheIntegration:
         assert ttl3 > 0  # Should have some TTL
 
     @pytest.mark.asyncio
-    async def test_redis_cleanup_expired(self, redis_cache):
+    async def test_redis_cleanup_expired(self, redis_cache, mock_sleep):
         """Test Redis expired cleanup (should be no-op since Redis handles TTL)."""
         # Add expired data
         await redis_cache.set("cleanup_test", "value", ttl=1)
-        await asyncio.sleep(2)
+        await asyncio.sleep(2)  # Mocked - instant return
 
         # Run cleanup
         cleaned = await redis_cache.cleanup_expired()

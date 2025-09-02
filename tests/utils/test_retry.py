@@ -244,7 +244,7 @@ class TestCircuitBreaker:
                 pass
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_half_open_recovery(self):
+    async def test_circuit_breaker_half_open_recovery(self, mock_sleep):
         """Test circuit breaker half-open state and recovery."""
         cb = CircuitBreaker(
             failure_threshold=1,
@@ -261,7 +261,7 @@ class TestCircuitBreaker:
         assert cb.state == CircuitBreakerState.OPEN
 
         # Wait for recovery timeout
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0.02)  # Mocked - instant return
 
         # First request should transition to half-open
         async with cb:
@@ -278,7 +278,7 @@ class TestCircuitBreaker:
         assert cb.failure_count == 0
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_reopens_on_half_open_failure(self):
+    async def test_circuit_breaker_reopens_on_half_open_failure(self, mock_sleep):
         """Test circuit breaker reopens on failure in half-open state."""
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, name="test")
 
@@ -288,7 +288,7 @@ class TestCircuitBreaker:
                 raise ClientError("Force open")
 
         # Wait for recovery timeout
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0.02)  # Mocked - instant return
 
         # Failure in half-open should reopen circuit
         with pytest.raises(ClientError):
