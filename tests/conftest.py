@@ -125,22 +125,54 @@ def postgres_container():
             yield postgres
 
 
-@pytest.fixture(scope="session")
-def postgres_engine(postgres_container):
-    """Create SQLAlchemy engine connected to test container.
+# REMOVED - standardizing on testcontainers_db_service pattern only
 
-    Following DRY principles - reuses existing postgres_container fixture.
+
+@pytest.fixture
+def db_session(testcontainers_db_service):
+    """Create database session following official SQLAlchemy best practices.
+
+    From SQLAlchemy docs: Uses SAVEPOINT isolation for individual test methods.
+    Each test gets a fresh session that can commit/rollback independently.
+    """
+    from sqlalchemy.orm import sessionmaker
+
+    # Get the isolated connection from the service
+    connection = testcontainers_db_service._connection
+
+    # Create session with SAVEPOINT isolation (official SQLAlchemy pattern)
+    SessionLocal = sessionmaker(bind=connection)
+    session = SessionLocal()
+
+    try:
+        yield session
+    finally:
+        # Official pattern: rollback any uncommitted changes
+        session.rollback()
+        session.close()
+
+
+@pytest.fixture
+def testcontainers_db_service(postgres_container):
+    """Create DatabaseService using official SQLAlchemy best practices.
+
+    Following official SQLAlchemy documentation:
+    https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
+
+    Uses ExternalTransaction pattern with SAVEPOINT isolation for concurrent testing.
+    This is the ONLY database fixture pattern used throughout the codebase.
     """
     from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
 
-    from src.database.models import Base
+    from src.database.service import DatabaseService
 
+    # Create engine from container following DRY principles
     if hasattr(postgres_container, "host"):
-        # CI container (our custom CIPostgresContainer class)
+        # CI container
         db_url = f"postgresql+psycopg://{postgres_container.username}:{postgres_container.password}@{postgres_container.host}:{postgres_container.port}/{postgres_container.dbname}"
     else:
-        # Testcontainer (actual PostgresContainer from testcontainers library)
-        # Get connection details and build URL with psycopg driver
+        # Testcontainer
         host = postgres_container.get_container_host_ip()
         port = postgres_container.get_exposed_port(5432)
         username = postgres_container.username or "test"
@@ -148,324 +180,41 @@ def postgres_engine(postgres_container):
         dbname = postgres_container.dbname or "test"
         db_url = f"postgresql+psycopg://{username}:{password}@{host}:{port}/{dbname}"
 
-    engine = create_engine(db_url, echo=False)
+    # Initialize schema once with temporary engine
+    init_engine = create_engine(db_url, echo=False)
+    temp_service = DatabaseService._create_with_engine(init_engine)
+    temp_service.initialize_database()
+    init_engine.dispose()
 
-    # Create database schema following SQLAlchemy best practices for concurrent environments
-    # Reference: https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all
-    # Use checkfirst=True to prevent duplicate table creation attempts
-    try:
-        Base.metadata.create_all(engine, checkfirst=True)
-    except Exception as e:
-        # Handle PostgreSQL enum creation conflicts during parallel test execution
-        # PostgreSQL enums don't support "IF NOT EXISTS" natively, so we handle conflicts gracefully
-        error_msg = str(e).lower()
-        is_enum_conflict = any(
-            phrase in error_msg
-            for phrase in [
-                "already exists",
-                "duplicate key",
-                "pg_type_typname_nsp_index",
-                "jobstatus",
-            ]
-        )
+    # NEW engine for each test - complete isolation
+    test_engine = create_engine(db_url, echo=False)
 
-        if is_enum_conflict:
-            # Expected during concurrent test runs - enum already created by another process
-            # This is safe to ignore as schema creation is idempotent
-            import logging
+    # OFFICIAL SQLAlchemy testing pattern: External transaction for complete isolation
+    connection = test_engine.connect()
+    transaction = connection.begin()
 
-            logging.getLogger(__name__).debug(
-                f"PostgreSQL enum already exists (concurrent test execution): {e}"
-            )
-        else:
-            # Unexpected error - re-raise for investigation
-            raise
+    # Create isolated session factory
+    SessionLocal = sessionmaker(bind=connection)
 
-    yield engine
-
-    # Cleanup: Drop all tables and types
-    try:
-        Base.metadata.drop_all(engine)
-    except Exception as e:
-        # Cleanup errors are not critical for test execution
-        import logging
-
-        logging.getLogger(__name__).debug(f"Database cleanup warning: {e}")
-    finally:
-        engine.dispose()
-
-
-@pytest.fixture
-def postgres_session(postgres_engine):
-    """Create database session with PostgreSQL advisory locks for deadlock prevention."""
-    import hashlib
-    import time
-
-    from sqlalchemy import text
-    from sqlalchemy.orm import sessionmaker
-
-    SessionLocal = sessionmaker(bind=postgres_engine)
-    session = SessionLocal()
-
-    # Use PostgreSQL advisory locks to prevent deadlocks during concurrent cleanup
-    # Generate unique lock ID based on worker process and timestamp
-    worker_id = getattr(pytest, "current_worker_id", "master")
-    lock_key = int(hashlib.md5(f"{worker_id}_{time.time()}".encode()).hexdigest()[:8], 16)
-
-    try:
-        yield session
-    finally:
-        session.rollback()
-
-        # Use PostgreSQL advisory locks following official best practices for concurrent safety
-        with postgres_engine.connect() as conn:
-            lock_acquired = False
-            try:
-                # PostgreSQL advisory lock for safe concurrent cleanup (official method)
-                lock_acquired = conn.execute(
-                    text("SELECT pg_try_advisory_lock(:lock_key)"), {"lock_key": lock_key}
-                ).scalar()
-
-                if lock_acquired:
-                    # Consistent table ordering to prevent deadlocks (PostgreSQL best practice)
-                    result = conn.execute(
-                        text("""
-                        SELECT tablename FROM pg_tables
-                        WHERE schemaname = 'public'
-                        AND tablename != 'alembic_version'
-                        ORDER BY tablename
-                    """)
-                    )
-                    tables = [row[0] for row in result]
-
-                    if tables:
-                        # Official PostgreSQL method for safe bulk operations
-                        conn.execute(text("SET session_replication_role = 'replica'"))
-
-                        # Delete in proper dependency order to avoid foreign key violations
-                        dependency_order = [
-                            "job_logs",
-                            "content_results",
-                            "scraping_jobs",
-                            "batches",
-                            "system_metrics",
-                        ]
-                        existing_tables = [t for t in dependency_order if t in tables]
-                        remaining_tables = [t for t in tables if t not in dependency_order]
-
-                        # First try TRUNCATE CASCADE for maximum cleanup efficiency
-                        try:
-                            if existing_tables + remaining_tables:
-                                table_list = ", ".join(
-                                    f'"{table}"' for table in existing_tables + remaining_tables
-                                )
-                                conn.execute(
-                                    text(f"TRUNCATE TABLE {table_list} RESTART IDENTITY CASCADE")
-                                )
-                        except Exception as truncate_error:
-                            # Fall back to DELETE if TRUNCATE fails (concurrent access issues)
-                            import logging
-
-                            logging.getLogger(__name__).debug(
-                                f"TRUNCATE failed, using DELETE: {truncate_error}"
-                            )
-
-                            for table in existing_tables + remaining_tables:
-                                try:
-                                    # DELETE with CASCADE to ensure complete cleanup
-                                    conn.execute(text(f"DELETE FROM {table}"))
-                                except Exception as delete_error:
-                                    import logging
-
-                                    logging.getLogger(__name__).debug(
-                                        f"Session cleanup warning for {table}: {delete_error}"
-                                    )
-
-                        conn.execute(text("SET session_replication_role = 'origin'"))
-                        conn.commit()
-                else:
-                    # Lock not acquired - concurrent process handling cleanup
-                    import logging
-
-                    logging.getLogger(__name__).debug(
-                        "Session cleanup lock not acquired, concurrent cleanup in progress"
-                    )
-
-            except Exception as cleanup_error:
-                import logging
-
-                logging.getLogger(__name__).debug(f"Session cleanup error: {cleanup_error}")
-
-            finally:
-                # CRITICAL: Always release advisory lock (PostgreSQL requirement)
-                if lock_acquired:
-                    try:
-                        unlock_result = conn.execute(
-                            text("SELECT pg_advisory_unlock(:lock_key)"), {"lock_key": lock_key}
-                        ).scalar()
-
-                        if not unlock_result:
-                            import logging
-
-                            logging.getLogger(__name__).warning(
-                                f"Failed to release session cleanup lock {lock_key}"
-                            )
-                    except Exception as unlock_error:
-                        import logging
-
-                        logging.getLogger(__name__).warning(
-                            f"Error releasing session lock: {unlock_error}"
-                        )
-
-        session.close()
-
-
-@pytest.fixture
-def testcontainers_db_service(postgres_engine):
-    """Create DatabaseService instance using test container."""
-    from sqlalchemy import text
-
-    from src.database.service import DatabaseService
-
-    service = DatabaseService._create_with_engine(postgres_engine)
-
-    # CRITICAL: Initialize database schema and enums using PostgreSQL best practices
-    # This ensures all tables and enum types exist before tests run
-    # Following SQLAlchemy and PostgreSQL documentation for concurrent safety
-    try:
-        service.initialize_database()
-    except Exception as init_error:
-        # Log initialization warning but don't fail the test
-        # Database may already be initialized from another process
-        import logging
-
-        logging.getLogger(__name__).debug(f"Database initialization warning: {init_error}")
-
-    # Ensure clean state before test using advisory locks for concurrency safety
-    import hashlib
-    import time
-
-    worker_id = getattr(pytest, "current_worker_id", "master")
-    cleanup_lock_key = int(
-        hashlib.md5(f"cleanup_{worker_id}_{time.time()}".encode()).hexdigest()[:8], 16
-    )
-
-    def safe_table_cleanup(conn, operation_name="cleanup"):
-        """Safely clean tables following official PostgreSQL best practices.
-
-        Following PostgreSQL documentation for advisory locks and deadlock prevention:
-        - https://www.postgresql.org/docs/current/explicit-locking.html
-        - Acquire locks in consistent order to prevent deadlocks
-        - Use pg_try_advisory_lock for non-blocking acquisition
-        - Ensure proper lock release with pg_advisory_unlock
-        """
-        lock_acquired = False
-        try:
-            # Use PostgreSQL advisory lock for safe concurrent cleanup
-            # Lock key based on consistent hash to avoid conflicts
-            lock_acquired = conn.execute(
-                text("SELECT pg_try_advisory_lock(:lock_key)"), {"lock_key": cleanup_lock_key}
-            ).scalar()
-
-            if lock_acquired:
-                # Following PostgreSQL best practices: consistent lock acquisition order
-                # Get table list in deterministic order to prevent deadlocks
-                result = conn.execute(
-                    text("""
-                    SELECT tablename FROM pg_tables
-                    WHERE schemaname = 'public'
-                    AND tablename != 'alembic_version'
-                    ORDER BY tablename
-                """)
-                )
-                tables = [row[0] for row in result]
-
-                if tables:
-                    # PostgreSQL method: Temporarily disable foreign key checks for cleanup
-                    # This is the official way to handle cascading deletes safely
-                    conn.execute(text("SET session_replication_role = 'replica'"))
-
-                    # Delete in proper dependency order following PostgreSQL recommendations
-                    # Start with child tables to avoid foreign key violations
-                    dependency_order = [
-                        "job_logs",  # Child of scraping_jobs
-                        "content_results",  # Child of scraping_jobs
-                        "scraping_jobs",  # Child of batches
-                        "batches",  # Parent table
-                        "system_metrics",  # Independent table
-                    ]
-
-                    # Process known tables in dependency order, then handle any additional tables
-                    existing_tables = [t for t in dependency_order if t in tables]
-                    remaining_tables = [t for t in tables if t not in dependency_order]
-
-                    for table in existing_tables + remaining_tables:
-                        try:
-                            # Use DELETE instead of TRUNCATE to avoid lock escalation
-                            # TRUNCATE requires ACCESS EXCLUSIVE lock which can cause deadlocks
-                            conn.execute(text(f"DELETE FROM {table}"))
-                        except Exception as delete_error:
-                            # Log cleanup warnings but don't fail tests
-                            import logging
-
-                            logging.getLogger(__name__).debug(
-                                f"Table {operation_name} warning for {table}: {delete_error}"
-                            )
-
-                    # Re-enable foreign key checks
-                    conn.execute(text("SET session_replication_role = 'origin'"))
-
-                    # Commit the cleanup transaction
-                    conn.commit()
-
-                    import logging
-
-                    logging.getLogger(__name__).debug(
-                        f"Successfully completed {operation_name} for {len(existing_tables + remaining_tables)} tables"
-                    )
-            else:
-                # Lock not acquired - another process is handling cleanup
-                import logging
-
-                logging.getLogger(__name__).debug(
-                    f"Advisory lock not acquired for {operation_name}, concurrent cleanup in progress"
-                )
-
-        except Exception as cleanup_error:
-            # Handle cleanup errors gracefully to prevent test failures
-            import logging
-
-            logging.getLogger(__name__).warning(f"Table {operation_name} error: {cleanup_error}")
-
-        finally:
-            # CRITICAL: Always release advisory lock following PostgreSQL best practices
-            if lock_acquired:
-                try:
-                    unlock_result = conn.execute(
-                        text("SELECT pg_advisory_unlock(:lock_key)"), {"lock_key": cleanup_lock_key}
-                    ).scalar()
-
-                    if not unlock_result:
-                        import logging
-
-                        logging.getLogger(__name__).warning(
-                            f"Failed to release advisory lock {cleanup_lock_key} for {operation_name}"
-                        )
-                except Exception as unlock_error:
-                    import logging
-
-                    logging.getLogger(__name__).warning(
-                        f"Error releasing advisory lock: {unlock_error}"
-                    )
-
-    with postgres_engine.connect() as conn:
-        safe_table_cleanup(conn, "pre-test cleanup")
+    # Create service with isolated session
+    service = DatabaseService._create_with_engine(test_engine)
+    service._session_factory = SessionLocal
+    service.engine = test_engine
+    service._connection = connection
+    service._transaction = transaction
 
     yield service
 
-    # Clean up after test
-    with postgres_engine.connect() as conn:
-        safe_table_cleanup(conn, "post-test cleanup")
+    # GUARANTEED cleanup: External transaction rollback removes ALL test data
+    try:
+        transaction.rollback()
+        connection.close()
+    except Exception as cleanup_error:
+        import logging
+
+        logging.getLogger(__name__).debug(f"Test cleanup: {cleanup_error}")
+    finally:
+        test_engine.dispose()
 
 
 @pytest.fixture

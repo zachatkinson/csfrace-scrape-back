@@ -70,10 +70,10 @@ class TestDatabaseBase:
         # Clean up by removing the table from metadata
         Base.metadata.remove(Base.metadata.tables["simple_model"])
 
-    def test_base_create_all(self, postgres_engine):
+    def test_base_create_all(self, testcontainers_db_service):
         """Test creating tables using Base.metadata.create_all."""
-        # Use the postgres_engine fixture instead of creating our own
-        engine = postgres_engine
+        # Use standardized testcontainers_db_service pattern
+        engine = testcontainers_db_service.engine
 
         # Create a test model
         class CreateAllTest(Base):
@@ -100,12 +100,12 @@ class TestDatabaseBase:
         finally:
             # Clean up
             Base.metadata.remove(Base.metadata.tables["create_all_test"])
-            postgres_engine.dispose()
+            # No need to dispose - handled by fixture cleanup
 
-    def test_base_drop_all(self, postgres_engine):
+    def test_base_drop_all(self, testcontainers_db_service):
         """Test dropping tables using Base.metadata.drop_all."""
-        # Use the postgres_engine fixture instead of creating our own
-        engine = postgres_engine
+        # Use standardized testcontainers_db_service pattern
+        engine = testcontainers_db_service.engine
 
         # Create a test model
         class DropAllTest(Base):
@@ -132,12 +132,12 @@ class TestDatabaseBase:
         finally:
             # Clean up metadata
             Base.metadata.remove(Base.metadata.tables["drop_all_test"])
-            postgres_engine.dispose()
+            # No need to dispose - handled by fixture cleanup
 
-    def test_base_with_session(self, postgres_engine):
+    def test_base_with_session(self, testcontainers_db_service):
         """Test using Base-derived models with SQLAlchemy sessions."""
-        # Use the postgres_engine fixture
-        engine = postgres_engine
+        # Use standardized testcontainers_db_service pattern
+        engine = testcontainers_db_service.engine
         Session = sessionmaker(bind=engine)
 
         # Create test model
@@ -168,7 +168,7 @@ class TestDatabaseBase:
         finally:
             # Clean up
             Base.metadata.remove(Base.metadata.tables["session_test"])
-            postgres_engine.dispose()
+            # No need to dispose - handled by fixture cleanup
 
     def test_base_table_inheritance(self):
         """Test that multiple models can inherit from Base."""
@@ -197,7 +197,7 @@ class TestDatabaseBase:
             if "model2" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables["model2"])
 
-    def test_base_with_relationships(self, postgres_engine):
+    def test_base_with_relationships(self, testcontainers_db_service):
         """Test Base with models that have relationships."""
         from sqlalchemy import ForeignKey
         from sqlalchemy.orm import relationship
@@ -219,10 +219,11 @@ class TestDatabaseBase:
             assert hasattr(Parent, "children")
             assert hasattr(Child, "parent")
 
-            # Use the provided engine
-            Base.metadata.create_all(postgres_engine)
+            # Use standardized engine
+            engine = testcontainers_db_service.engine
+            Base.metadata.create_all(engine)
 
-            Session = sessionmaker(bind=postgres_engine)
+            Session = sessionmaker(bind=engine)
             session = Session()
 
             # Create parent and child with explicit relationship
@@ -248,7 +249,6 @@ class TestDatabaseBase:
             assert queried_parent.children[0].parent == queried_parent
 
             session.close()
-            postgres_engine.dispose()
 
         finally:
             # Clean up
@@ -256,7 +256,7 @@ class TestDatabaseBase:
                 if table_name in Base.metadata.tables:
                     Base.metadata.remove(Base.metadata.tables[table_name])
 
-    def test_base_with_complex_columns(self, postgres_engine):
+    def test_base_with_complex_columns(self, testcontainers_db_service):
         """Test Base with various column types and constraints."""
         from datetime import datetime
 
@@ -276,10 +276,11 @@ class TestDatabaseBase:
             # Should create without error
             assert ComplexModel.__tablename__ == "complex_model"
 
-            # Use the provided engine
-            Base.metadata.create_all(postgres_engine)
+            # Use standardized engine
+            engine = testcontainers_db_service.engine
+            Base.metadata.create_all(engine)
 
-            Session = sessionmaker(bind=postgres_engine)
+            Session = sessionmaker(bind=engine)
             session = Session()
 
             # Create instance
@@ -296,7 +297,6 @@ class TestDatabaseBase:
             assert queried.created_at is not None
 
             session.close()
-            postgres_engine.dispose()
 
         finally:
             if "complex_model" in Base.metadata.tables:
@@ -381,9 +381,9 @@ class TestDatabaseBaseEdgeCases:
             or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
-    def test_base_with_invalid_tablename(self, postgres_engine):
+    def test_base_with_invalid_tablename(self, testcontainers_db_service):
         """Test behavior with invalid table names."""
-        engine = postgres_engine
+        engine = testcontainers_db_service.engine
 
         class InvalidTable(Base):
             __tablename__ = ""  # Empty tablename should cause issues
@@ -397,7 +397,7 @@ class TestDatabaseBaseEdgeCases:
             # Clean up the problematic table from metadata
             if "" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables[""])
-            postgres_engine.dispose()
+            # No need to dispose - handled by fixture cleanup
 
     def test_base_without_primary_key(self):
         """Test model without primary key."""
@@ -428,9 +428,9 @@ class TestDatabaseBaseEdgeCases:
             if "duplicate_name" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables["duplicate_name"])
 
-    def test_base_metadata_bound_engine(self, postgres_engine):
+    def test_base_metadata_bound_engine(self, testcontainers_db_service):
         """Test Base.metadata with bound engine."""
-        engine = postgres_engine
+        engine = testcontainers_db_service.engine
 
         # Bind metadata to engine
         Base.metadata.bind = engine
@@ -458,7 +458,7 @@ class TestDatabaseBaseEdgeCases:
             Base.metadata.bind = None
             if "bound_test" in Base.metadata.tables:
                 Base.metadata.remove(Base.metadata.tables["bound_test"])
-            postgres_engine.dispose()
+            # No need to dispose - handled by fixture cleanup
 
 
 class TestDatabaseBaseIntegration:
@@ -473,7 +473,7 @@ class TestDatabaseBaseIntegration:
             or "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
         )
 
-    def test_base_with_real_models(self, postgres_engine):
+    def test_base_with_real_models(self, testcontainers_db_service):
         """Test Base with models similar to actual application models."""
         from datetime import datetime
 
@@ -495,9 +495,10 @@ class TestDatabaseBaseIntegration:
 
         try:
             # Test database operations
-            Base.metadata.create_all(postgres_engine)
+            engine = testcontainers_db_service.engine
+            Base.metadata.create_all(engine)
 
-            Session = sessionmaker(bind=postgres_engine)
+            Session = sessionmaker(bind=engine)
             session = Session()
 
             # Create and save job with unique URL to avoid concurrent test interference
@@ -524,7 +525,6 @@ class TestDatabaseBaseIntegration:
             assert updated_job.status == "completed"
 
             session.close()
-            postgres_engine.dispose()
 
         finally:
             if "integration_jobs" in Base.metadata.tables:
