@@ -525,13 +525,14 @@ jobs:
           retention-days: 30
 
       - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         if: matrix.python-version == env.PYTHON_VERSION
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage-shard-${{ matrix.shard }}.xml
           flags: unit-tests
           name: unit-tests-coverage
+          slug: zachatkinson/csfrace-scrape-back
           fail_ci_if_error: false
 
       - name: Calculate and report job duration
