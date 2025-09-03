@@ -1073,9 +1073,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["success_rate_percent"] == 0.0
         assert stats["avg_duration_seconds"] == 0.0
 
-    def test_get_job_statistics_with_null_values(
-        self, db_service_with_session, test_isolation_id
-    ):
+    def test_get_job_statistics_with_null_values(self, db_service_with_session, test_isolation_id):
         """Test statistics calculation with jobs having null metrics."""
         # Record initial count to filter out other test jobs
         initial_stats = db_service_with_session.get_job_statistics(days=7)
