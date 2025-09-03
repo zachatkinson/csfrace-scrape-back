@@ -357,7 +357,7 @@ jobs:
   integration-tests:
     name: Integration Tests - ${{ matrix.test-type }}
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [quality, unit-tests-linux]  # Run AFTER unit tests to avoid database conflicts
     timeout-minutes: 15
     permissions:
       contents: read
@@ -367,19 +367,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TEMPORARILY DISABLED DATABASE INTEGRATION TEST - Testing conflict hypothesis
-        # test-type: ["redis", "database", "converter"]
-        test-type: ["redis", "converter"]
+        test-type: ["redis", "database", "converter"]
         include:
           - test-type: "redis"
             services: '{"redis": {"image": "redis:7-alpine", "ports": ["6379:6379"], "options": "--health-cmd \"redis-cli ping\" --health-interval 10s --health-timeout 5s --health-retries 5"}}'
             env-vars: "REDIS_URL=redis://localhost:6379"
             test-path: "tests/integration/test_redis_cache.py"
-          # TEMPORARILY DISABLED - Testing if this conflicts with Shard 2
-          # - test-type: "database" 
-          #   services: '{"postgres": {"image": "postgres:17.6", "env": {"POSTGRES_DB": "test_db", "POSTGRES_USER": "test_user", "POSTGRES_PASSWORD": "test_password"}, "ports": ["5432:5432"], "options": "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"}}'
-          #   env-vars: "DATABASE_HOST=localhost DATABASE_PORT=5432 DATABASE_NAME=test_db DATABASE_USER=test_user DATABASE_PASSWORD=test_password"
-          #   test-path: "tests/database/"
+          - test-type: "database" 
+            services: '{"postgres": {"image": "postgres:17.6", "env": {"POSTGRES_DB": "test_db", "POSTGRES_USER": "test_user", "POSTGRES_PASSWORD": "test_password"}, "ports": ["5432:5432"], "options": "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"}}'
+            env-vars: "DATABASE_HOST=localhost DATABASE_PORT=5432 DATABASE_NAME=test_db DATABASE_USER=test_user DATABASE_PASSWORD=test_password"
+            test-path: "tests/database/"
           - test-type: "converter"
             services: "{}"
             env-vars: ""
