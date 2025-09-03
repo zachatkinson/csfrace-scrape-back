@@ -135,7 +135,7 @@ def db_session(testcontainers_db_service):
     From SQLAlchemy docs: Uses nested SAVEPOINT isolation for individual test methods.
     Each test gets a fresh session that can commit/rollback independently.
     Tests can call commit() and it will be rolled back after the test.
-    
+
     This is the official SQLAlchemy testing pattern from:
     https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
     """
@@ -148,10 +148,10 @@ def db_session(testcontainers_db_service):
     # Create session with SAVEPOINT isolation (official SQLAlchemy pattern)
     SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
-    
+
     # Start a nested transaction (SAVEPOINT)
     session.begin_nested()
-    
+
     # Automatically restart savepoint after commits
     # This allows tests to call commit() without breaking isolation
     @event.listens_for(session, "after_transaction_end")
@@ -238,20 +238,20 @@ def testcontainers_db_service(postgres_container):
 @pytest.fixture
 def db_service_with_session(testcontainers_db_service, db_session):
     """DatabaseService that uses the transactional test session.
-    
+
     This ensures that all database operations through the service
     are rolled back after each test, preventing data bleeding.
     """
     # Replace the service's session factory to use our test session
     original_factory = testcontainers_db_service._session_factory
-    
+
     def test_session_factory():
         return db_session
-    
+
     testcontainers_db_service._session_factory = test_session_factory
-    
+
     yield testcontainers_db_service
-    
+
     # Restore original factory (though fixture cleanup will handle it)
     testcontainers_db_service._session_factory = original_factory
 
