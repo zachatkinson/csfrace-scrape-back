@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Progressive CI/CD Pipeline
 
 on:
   push:
@@ -32,18 +32,179 @@ env:
   UV_VERSION: "0.8.14"
 
 jobs:
+  # Progressive CI: Detect what changed to run only relevant tests
+  detect-changes:
+    name: Detect Code Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      # Core components
+      core-changed: ${{ steps.changes.outputs.core }}
+      utils-changed: ${{ steps.changes.outputs.utils }}
+      api-changed: ${{ steps.changes.outputs.api }}
+      processors-changed: ${{ steps.changes.outputs.processors }}
+      rendering-changed: ${{ steps.changes.outputs.rendering }}
+      caching-changed: ${{ steps.changes.outputs.caching }}
+      database-changed: ${{ steps.changes.outputs.database }}
+      batch-changed: ${{ steps.changes.outputs.batch }}
+      monitoring-changed: ${{ steps.changes.outputs.monitoring }}
+      
+      # Test types
+      unit-tests-changed: ${{ steps.changes.outputs.unit-tests }}
+      integration-tests-changed: ${{ steps.changes.outputs.integration-tests }}
+      performance-tests-changed: ${{ steps.changes.outputs.performance-tests }}
+      
+      # Infrastructure
+      docker-changed: ${{ steps.changes.outputs.docker }}
+      dependencies-changed: ${{ steps.changes.outputs.dependencies }}
+      config-changed: ${{ steps.changes.outputs.config }}
+      
+      # Overall change detection
+      any-code-changed: ${{ steps.changes.outputs.any-code }}
+      force-full-ci: ${{ steps.force-full.outputs.force }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect changed files
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            # Core application components
+            core:
+              - 'src/core/**'
+              - 'src/__init__.py'
+              - 'src/main.py'
+            
+            utils:
+              - 'src/utils/**'
+            
+            api:
+              - 'src/api/**'
+              - 'src/server/**'
+            
+            processors:
+              - 'src/processors/**'
+            
+            rendering:
+              - 'src/rendering/**'
+            
+            caching:
+              - 'src/caching/**'
+            
+            database:
+              - 'src/database/**'
+              - 'alembic/**'
+              - 'migrations/**'
+            
+            batch:
+              - 'src/batch/**'
+            
+            monitoring:
+              - 'src/monitoring/**'
+            
+            # Test files
+            unit-tests:
+              - 'tests/unit/**'
+              - 'tests/test_*.py'
+              - 'tests/**/test_*.py'
+              - '!tests/integration/**'
+              - '!tests/performance/**'
+              - '!tests/e2e/**'
+            
+            integration-tests:
+              - 'tests/integration/**'
+              - 'tests/database/**'
+            
+            performance-tests:
+              - 'tests/performance/**'
+            
+            # Infrastructure
+            docker:
+              - 'Dockerfile'
+              - 'docker-compose*.yml'
+              - '.dockerignore'
+            
+            dependencies:
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements/**'
+            
+            config:
+              - '.github/workflows/**'
+              - 'pyproject.toml'
+              - '.pre-commit-config.yaml'
+            
+            # Catch-all for any code changes
+            any-code:
+              - 'src/**'
+              - 'tests/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Dockerfile'
+
+      - name: Check for force full CI conditions
+        id: force-full
+        run: |
+          # Force full CI for certain conditions
+          force_full_ci=false
+          
+          # Always run full CI on master branch pushes
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
+            force_full_ci=true
+            echo "::notice title=Progressive CI::Full CI forced - master branch push"
+          fi
+          
+          # Always run full CI on scheduled runs
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            force_full_ci=true
+            echo "::notice title=Progressive CI::Full CI forced - scheduled run"
+          fi
+          
+          # Force full CI if dependencies changed
+          if [[ "${{ steps.changes.outputs.dependencies }}" == "true" ]]; then
+            force_full_ci=true
+            echo "::notice title=Progressive CI::Full CI forced - dependencies changed"
+          fi
+          
+          # Force full CI if config changed
+          if [[ "${{ steps.changes.outputs.config }}" == "true" ]]; then
+            force_full_ci=true  
+            echo "::notice title=Progressive CI::Full CI forced - CI config changed"
+          fi
+          
+          # Check commit message for force flags
+          if [[ "${{ github.event.head_commit.message }}" == *"[force ci]"* ]]; then
+            force_full_ci=true
+            echo "::notice title=Progressive CI::Full CI forced - [force ci] in commit message"
+          fi
+          
+          echo "force=${force_full_ci}" >> $GITHUB_OUTPUT
+          
+          # Log what changed for debugging
+          echo "::notice title=Progressive CI Changes::Core: ${{ steps.changes.outputs.core }}, Utils: ${{ steps.changes.outputs.utils }}, API: ${{ steps.changes.outputs.api }}, Processors: ${{ steps.changes.outputs.processors }}"
   # Code quality and security checks (foundational job)
   quality:
     name: Code Quality & Security
     runs-on: ubuntu-latest
+    needs: detect-changes
     timeout-minutes: 15
     permissions:
       contents: read
       security-events: write  # Required for SARIF upload
       actions: read
     
+    # Skip quality checks only if no code changed and not forced
+    if: ${{ needs.detect-changes.outputs.any-code-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true' }}
+    
     outputs:
       quality-passed: ${{ steps.quality-check.outputs.passed }}
+      skipped: ${{ steps.quality-check.outputs.skipped || 'false' }}
     
     steps:
       - name: Record job start time
@@ -131,10 +292,13 @@ jobs:
   # Ubuntu: Full test suite with coverage (primary validation) + PostgreSQL service
   # Windows/macOS: Platform-specific smoke tests (compatibility validation)
   unit-tests-linux:
-    name: Unit Tests - Ubuntu Python ${{ matrix.python-version }} (Shard ${{ matrix.shard }})
+    name: Unit Tests - Ubuntu (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [detect-changes, quality]
     timeout-minutes: 25
+    
+    # Run if unit tests changed, core components changed, or forced
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.unit-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true' || needs.detect-changes.outputs.processors-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true') }}
     permissions:
       contents: read
       checks: write
@@ -159,7 +323,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.13"]
         # Enable 4-way test sharding following PostgreSQL best practices
         # PostgreSQL official docs recommend max 20 parallel test scripts (40 processes)
         # GitHub Actions runners have 2-4 cores, so 4 shards aligns with both constraints
@@ -176,17 +339,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install UV
+      - name: Install UV (manages Python version automatically)
         uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: unit-linux-${{ matrix.python-version }}-shard-${{ matrix.shard }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          cache-suffix: unit-linux-shard-${{ matrix.shard }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Cache test durations for optimal shard balancing
         uses: actions/cache@v4
@@ -287,10 +445,13 @@ jobs:
 
   # Cross-platform compatibility tests (Windows/macOS)
   unit-tests-cross-platform:
-    name: Unit Tests - ${{ matrix.os }} Python ${{ matrix.python-version }}
+    name: Unit Tests - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: quality
+    needs: [detect-changes, quality]
     timeout-minutes: 15
+    
+    # Run cross-platform tests only if core functionality changed or forced
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true') }}
     permissions:
       contents: read
       checks: write
@@ -299,7 +460,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
-        python-version: ["3.13"]
 
     steps:
       - name: Record job start time
@@ -312,17 +472,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install UV
+      - name: Install UV (manages Python version automatically)
         uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: unit-cross-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          cache-suffix: unit-cross-${{ matrix.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
@@ -339,14 +494,14 @@ jobs:
           # Platform-specific tests with parallel execution
           # Exclude database tests since PostgreSQL service containers are not available
           # Reduced test scope for faster feedback on platform compatibility
-          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" -n auto --dist=worksteal --junit-xml=junit-unit-${{ matrix.python-version }}.xml -v --tb=short --maxfail=5
+          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" -n auto --dist=worksteal --junit-xml=junit-unit-cross-platform.xml -v --tb=short --maxfail=5
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-unit-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: junit-unit*-${{ matrix.python-version }}.xml
+          name: test-results-unit-${{ matrix.os }}
+          path: junit-unit-cross-platform.xml
           retention-days: 30
 
       - name: Calculate and report job duration
@@ -362,8 +517,11 @@ jobs:
   integration-tests:
     name: Integration Tests - ${{ matrix.test-type }}
     runs-on: ubuntu-latest
-    needs: [quality]  # Run IN PARALLEL with unit tests - database isolation is now perfect
+    needs: [detect-changes, quality]  # Run IN PARALLEL with unit tests - database isolation is now perfect
     timeout-minutes: 15
+    
+    # Run integration tests based on what changed
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.integration-tests-changed == 'true' || (matrix.test-type == 'redis' && needs.detect-changes.outputs.caching-changed == 'true') || (matrix.test-type == 'database' && needs.detect-changes.outputs.database-changed == 'true') || (matrix.test-type == 'converter' && (needs.detect-changes.outputs.processors-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true')) || needs.detect-changes.outputs.force-full-ci == 'true') }}
     permissions:
       contents: read
       checks: write
@@ -395,12 +553,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install UV
+      - name: Install UV (manages Python version automatically)
         uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -472,12 +625,13 @@ jobs:
   performance:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    needs: [quality, unit-tests-linux, unit-tests-cross-platform, integration-tests]
+    needs: [detect-changes, quality, unit-tests-linux, unit-tests-cross-platform, integration-tests]
     timeout-minutes: 60
     permissions:
       contents: read
     
-    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # Run performance tests if performance code changed, core changed, or forced
+    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && (needs.detect-changes.outputs.performance-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.processors-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
 
     steps:
       - name: Checkout code
@@ -485,12 +639,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install UV
+      - name: Install UV (manages Python version automatically)
         uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -535,9 +684,10 @@ jobs:
   docker-security:
     name: Docker Build & Security Scan
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [detect-changes, quality]
     timeout-minutes: 15
-    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && (github.event_name == 'schedule' || contains(github.event.head_commit.message, '[docker]') || github.event_name == 'push' && github.ref == 'refs/heads/master') }}
+    # Run Docker scan if Docker files changed, dependencies changed, or forced
+    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && (needs.detect-changes.outputs.docker-changed == 'true' || needs.detect-changes.outputs.dependencies-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true' || github.event_name == 'schedule' || contains(github.event.head_commit.message, '[docker]') || github.event_name == 'push' && github.ref == 'refs/heads/master') }}
     permissions:
       contents: read
       security-events: write

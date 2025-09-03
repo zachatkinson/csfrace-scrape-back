@@ -371,8 +371,14 @@ version_variables = [
     "src/__init__.py:__version__"  # Also update package __version__ if it exists
 ]
 
-# Build configuration - Use UV build (UV will be installed in workflow)  
-build_command = "uv build"
+# Build configuration - Official UV integration pattern per PSR documentation
+# Install UV in container, update lock file, and build with UV
+build_command = """
+python -m pip install uv
+uv lock --upgrade-package "$PACKAGE_NAME"
+git add uv.lock
+uv build
+"""
 build_command_env = []
 
 # Commit and changelog configuration
