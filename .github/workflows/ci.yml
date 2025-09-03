@@ -845,22 +845,30 @@ jobs:
           files: ./junit-performance.xml
           flags: performance-tests
 
+      # Best practice: Use separate job for benchmark storage to avoid git conflicts
       - name: Store benchmark results
         uses: benchmark-action/github-action-benchmark@v1
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
           tool: 'pytest'
           output-file-path: benchmark.json
-          # GitHub Actions best practice: use dedicated checkout for gh-pages
-          gh-pages-branch: gh-pages  
+          # Prevent git conflicts by disabling auto-push and manual handling
+          auto-push: false
+          gh-pages-branch: gh-pages
           benchmark-data-dir-path: benchmarks
-          # Official recommendation: let action handle git operations
-          auto-push: true
           # Performance regression alerting
           alert-threshold: '200%'
           comment-on-alert: true
           fail-on-alert: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Manual push following official best practices
+      - name: Push benchmark data to gh-pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git push 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git' gh-pages:gh-pages
 
       - name: Performance Regression Check (PRs)
         uses: benchmark-action/github-action-benchmark@v1
