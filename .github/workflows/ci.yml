@@ -762,6 +762,10 @@ jobs:
 
       - name: Create gh-pages branch if it doesn't exist
         run: |
+          # Configure git authentication with GITHUB_TOKEN
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
           # Check if gh-pages branch exists, create it if not
           if ! git ls-remote --exit-code --heads origin gh-pages; then
             echo "Creating gh-pages branch for benchmark storage..."
@@ -770,13 +774,15 @@ jobs:
             mkdir -p benchmarks
             echo "# Performance Benchmarks" > README.md
             echo "This branch contains historical performance benchmark data." >> README.md
-            git add README.md benchmarks/
-            git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "Initialize gh-pages branch for performance benchmarks"
-            git push origin gh-pages
+            git add README.md
+            git commit -m "Initialize gh-pages branch for performance benchmarks"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
             git checkout master
           else
             echo "gh-pages branch already exists"
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run performance tests
         run: |
