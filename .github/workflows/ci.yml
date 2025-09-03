@@ -142,26 +142,28 @@ jobs:
     # PostgreSQL service container for database unit tests
     services:
       postgres:
+        # Using official Docker Hub postgres image (GitHub Actions best practice)
         image: postgres:13
         env:
-          POSTGRES_USER: postgres
+          # Required environment variables per Docker official docs
           POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
           POSTGRES_DB: test_db
-          # PostgreSQL configuration optimizations for CI
-          POSTGRES_INITDB_ARGS: "--auth-host=md5"
-        command: >-
-          postgres
-          -c max_connections=200
-          -c shared_buffers=128MB
-          -c work_mem=4MB
-          -c maintenance_work_mem=64MB
-          -c effective_cache_size=256MB
+          # PostgreSQL initialization arguments for CI optimization
+          POSTGRES_INITDB_ARGS: >-
+            --auth-host=md5
+            --shared_preload_libraries=''
+        # PostgreSQL configuration per Docker official image docs
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          -e POSTGRES_PASSWORD=postgres
+          -e POSTGRES_USER=postgres
+          -e POSTGRES_DB=test_db
         ports:
+          # Explicit port mapping for runner-based jobs (GitHub Actions best practice)
           - 5432:5432
     
     strategy:
