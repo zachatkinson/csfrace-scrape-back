@@ -722,8 +722,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, quality, unit-tests-linux, unit-tests-cross-platform, integration-tests]
     timeout-minutes: 60
+    
+    # Concurrency control for performance jobs (GitHub Actions best practice)
+    concurrency:
+      group: performance-${{ github.ref }}
+      cancel-in-progress: false  # Don't cancel performance tests as they take time to run
+    
+    # Optimized permissions for benchmark uploads (GitHub Actions best practice)
     permissions:
       contents: read
+      actions: write  # For benchmark data uploads
     
     # Use computed condition for cleaner logic (GitHub Actions best practice)
     if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && needs.detect-changes.outputs.should-run-performance == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
