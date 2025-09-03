@@ -195,6 +195,9 @@ jobs:
           key: pytest-durations-${{ runner.os }}-${{ hashFiles('tests/**/*.py') }}
           restore-keys: |
             pytest-durations-${{ runner.os }}-
+      
+      - name: Create pytest cache directory
+        run: mkdir -p .pytest_cache
 
       - name: Install dependencies with UV
         run: |
