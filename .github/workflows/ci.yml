@@ -152,6 +152,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          -c max_connections=200
+          -c shared_buffers=128MB
+          -c work_mem=4MB
+          -c maintenance_work_mem=64MB
+          -c effective_cache_size=256MB
         ports:
           - 5432:5432
     
@@ -200,15 +205,22 @@ jobs:
           # Fresh install ensures version compatibility
           uv run playwright install --with-deps chromium
         
+      - name: Create shard-specific database
+        run: |
+          # Create isolated database for this shard to eliminate data bleeding
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE test_db_shard_${{ matrix.shard }};" || true
+          echo "Created database test_db_shard_${{ matrix.shard }}"
+        
       - name: Run comprehensive unit tests with coverage (Ubuntu with PostgreSQL)
         env:
           # PostgreSQL connection settings for database unit tests
-          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
+          # Each shard uses its own database to eliminate data bleeding
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db_shard_${{ matrix.shard }}
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db_shard_${{ matrix.shard }}
           # Override default credentials to match service container
           DATABASE_HOST: localhost
           DATABASE_PORT: 5432
-          DATABASE_NAME: test_db
+          DATABASE_NAME: test_db_shard_${{ matrix.shard }}
           DATABASE_USER: postgres
           DATABASE_PASSWORD: postgres
         run: |
