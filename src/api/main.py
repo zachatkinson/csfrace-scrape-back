@@ -1,6 +1,5 @@
 """Main FastAPI application for the CSFrace scraper API."""
 
-import os
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -9,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .. import __version__
+from ..constants import CONSTANTS
 from ..database.init_db import init_db
 from .routers import batches, health, jobs
 
@@ -39,10 +39,7 @@ app = FastAPI(
 )
 
 # CORS middleware - secure configuration
-allowed_origins = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:4321",  # Astro dev server ports
-).split(",")
+allowed_origins = CONSTANTS.ALLOWED_ORIGINS_DEFAULT.split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,10 +55,10 @@ app.add_middleware(
 async def global_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
     """Global exception handler for unhandled errors."""
     return JSONResponse(
-        status_code=500,
+        status_code=CONSTANTS.HTTP_STATUS_SERVER_ERROR,
         content={
-            "detail": "Internal server error",
-            "type": "internal_error",
+            "detail": CONSTANTS.ERROR_INTERNAL_SERVER,
+            "type": CONSTANTS.ERROR_TYPE_INTERNAL,
             "path": str(request.url.path),
         },
     )
@@ -87,4 +84,4 @@ async def root() -> dict[str, Any]:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host=CONSTANTS.LOCALHOST_IP, port=CONSTANTS.DEFAULT_API_PORT)

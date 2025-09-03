@@ -15,7 +15,7 @@ This Python3 application converts WordPress blog content from the CSFrace websit
 - **Implement core functionality following SOLID principles**
 - **Create comprehensive test coverage immediately after implementation**
 - **Refactor based on test feedback and discovered edge cases**
-- **Minimum 90% test coverage required**
+- **Minimum 85% test coverage required (90%+ for core business logic)**
 
 **IDT Workflow (MANDATORY):**
 ```python

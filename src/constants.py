@@ -114,6 +114,17 @@ class AppConstants:
     HTTP_STATUS_NOT_FOUND: int = 404
     HTTP_STATUS_SERVER_ERROR: int = 500
 
+    # API Error Messages
+    ERROR_INTERNAL_SERVER: str = "Internal server error"
+    ERROR_TYPE_INTERNAL: str = "internal_error"
+
+    # Development server configuration
+    LOCALHOST_IP: str = "127.0.0.1"
+    DEFAULT_API_PORT: int = int(environ.get("API_PORT", "8000"))
+    ALLOWED_ORIGINS_DEFAULT: str = environ.get(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4321"
+    )
+
     # Timeout configurations
     ROBOTS_TIMEOUT: int = int(environ.get("ROBOTS_TIMEOUT", "10"))  # Robots.txt fetch timeout
 
