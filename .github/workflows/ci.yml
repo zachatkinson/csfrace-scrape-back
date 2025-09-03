@@ -555,17 +555,20 @@ jobs:
         
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         run: |
-          # Platform-specific tests with parallel execution
-          # Exclude database tests since PostgreSQL service containers are not available
-          # Reduced test scope for faster feedback on platform compatibility
-          uv run pytest tests/utils/ tests/config/ tests/caching/test_file_cache.py tests/batch/test_processor.py tests/test_main.py tests/unit/ -k "not integration and not performance and not e2e and not database" -n auto --dist=worksteal --junit-xml=junit-unit-cross-platform.xml -v --tb=short --maxfail=5
+          # SMOKE TESTS ONLY - comprehensive testing handled by Ubuntu shards
+          # Focus on platform-specific compatibility and core functionality validation
+          # Exclude tests/unit/ entirely (covered by Ubuntu shards) to avoid duplication
+          uv run pytest tests/test_main.py tests/utils/test_http.py tests/config/ tests/caching/test_file_cache.py -k "not integration and not performance and not e2e and not database and not slow" -x --tb=short --maxfail=3 --junit-xml=junit-smoke-${{ matrix.os }}.xml -v
+          
+          # Verify core imports work on platform
+          uv run python -c "import src.main; import src.core.converter; print('✓ Core imports successful')"
 
-      - name: Upload test results
+      - name: Upload smoke test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-unit-${{ matrix.os }}
-          path: junit-unit-cross-platform.xml
+          name: smoke-test-results-${{ matrix.os }}
+          path: junit-smoke-${{ matrix.os }}.xml
           retention-days: 30
 
       - name: Calculate and report job duration
