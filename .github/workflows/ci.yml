@@ -730,8 +730,9 @@ jobs:
     
     # Optimized permissions for benchmark uploads (GitHub Actions best practice)
     permissions:
-      contents: read
-      actions: write  # For benchmark data uploads
+      contents: write  # Required to create gh-pages branch
+      actions: write   # For benchmark data uploads
+      pages: write     # For GitHub Pages deployment
     
     # Use computed condition for cleaner logic (GitHub Actions best practice)
     if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && needs.detect-changes.outputs.should-run-performance == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
@@ -758,6 +759,24 @@ jobs:
           # Caching adds complexity without meaningful benefit per official docs
           # Fresh install ensures version compatibility
           uv run playwright install --with-deps chromium
+
+      - name: Create gh-pages branch if it doesn't exist
+        run: |
+          # Check if gh-pages branch exists, create it if not
+          if ! git ls-remote --exit-code --heads origin gh-pages; then
+            echo "Creating gh-pages branch for benchmark storage..."
+            git checkout --orphan gh-pages
+            git reset --hard
+            mkdir -p benchmarks
+            echo "# Performance Benchmarks" > README.md
+            echo "This branch contains historical performance benchmark data." >> README.md
+            git add README.md benchmarks/
+            git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "Initialize gh-pages branch for performance benchmarks"
+            git push origin gh-pages
+            git checkout master
+          else
+            echo "gh-pages branch already exists"
+          fi
 
       - name: Run performance tests
         run: |
