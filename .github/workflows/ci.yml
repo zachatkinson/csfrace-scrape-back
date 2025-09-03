@@ -791,6 +791,10 @@ jobs:
           # Remove --benchmark-compare-fail for initial runs (requires baseline comparison)
           uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean -v
           
+          # Clean git state before benchmark action
+          git add benchmark.json || true
+          git stash || true
+          
           # Generate human-readable benchmark report
           echo "## 🚀 Performance Benchmark Results" > benchmark-report.md
           echo "" >> benchmark-report.md
