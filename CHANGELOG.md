@@ -1,6 +1,134 @@
 # CHANGELOG
 
 
+## v2.1.0 (2025-09-03)
+
+### Bug Fixes
+
+- **ci**: Resolve benchmark git conflicts using official best practices
+  ([`ad5f1e9`](https://github.com/zachatkinson/csfrace-scrape-back/commit/ad5f1e94906e189bfbd1fe9e8838f481ee9ed2a2))
+
+- Set auto-push: false to prevent github-action-benchmark git conflicts - Add manual push step
+  following official documentation recommendations - Separate benchmark storage from automatic git
+  operations - Use dedicated gh-pages push with proper authentication - Resolves: "local changes
+  would be overwritten by checkout" for benchmark.json - Follows
+  benchmark-action/github-action-benchmark official examples
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **ci**: Resolve Performance Benchmarks git state conflict
+  ([`4f6d917`](https://github.com/zachatkinson/csfrace-scrape-back/commit/4f6d91773f6494c9aeed11c7a6e179a14c062d59))
+
+- Remove manual git state management before github-action-benchmark - Use GitHub Actions best
+  practice: let action handle git operations automatically - Enable token authentication and full
+  fetch-depth for gh-pages operations - Follow official github-action-benchmark documentation
+  recommendations - Resolves: "local changes would be overwritten by checkout" error
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **ci**: Use comment-only benchmarks to eliminate git conflicts
+  ([`f5aa164`](https://github.com/zachatkinson/csfrace-scrape-back/commit/f5aa1645a7e40bca4aa7aafa40f86addd520a908))
+
+- Remove gh-pages branch management entirely (root cause of conflicts) - Use comment-only approach
+  following GitHub Actions best practices - Add summary-always for better visibility of performance
+  trends - Maintain performance regression detection and alerting - Eliminates "local changes would
+  be overwritten" errors permanently - Prioritizes CI reliability over dashboard complexity
+
+Benefits: - Zero git conflicts in CI/CD pipeline - Robust performance monitoring without branch
+  complications - Scalable team workflow (no git state dependencies) - Industry standard pattern
+  used by major open source projects
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+### Features
+
+- Implement CLAUDE.md DRY compliance and realistic test coverage target
+  ([`29307ac`](https://github.com/zachatkinson/csfrace-scrape-back/commit/29307ac20e8ef039982fac7dce84f1e0a171657c))
+
+Phase 1 CLAUDE.md Core Compliance: - Update test coverage requirement from 60% to realistic 85%
+  (90%+ for core logic) - Update CLAUDE.md to reflect industry best practices for coverage targets -
+  Add comprehensive API error message constants to constants.py - Replace all hardcoded values in
+  main.py with environment-configurable constants: * Error messages now use
+  CONSTANTS.ERROR_INTERNAL_SERVER * HTTP status codes use CONSTANTS.HTTP_STATUS_SERVER_ERROR *
+  Localhost IP and ports now configurable via API_PORT env var * CORS origins configurable via
+  ALLOWED_ORIGINS env var - Remove unused imports and ensure code passes linting
+
+Current unit test coverage: 23% → Target: 85% Next: Identify and write missing tests for core
+  modules
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **ci**: Add CodeCov Test Analytics for Performance Benchmarks shard
+  ([`2d87a9b`](https://github.com/zachatkinson/csfrace-scrape-back/commit/2d87a9bbcb0a0b81ce4d51784401e24bf0604a3d))
+
+- Add junit-xml output to performance tests for CodeCov Test Analytics - Upload performance test
+  results to CodeCov with performance-tests flag - Include junit-performance.xml in benchmark
+  artifacts for completeness - Ensures comprehensive test analytics coverage across all CI shards -
+  Maintains consistency with existing unit and integration test patterns
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **codecov**: Add Test Analytics with comprehensive test failure tracking
+  ([`10d7cde`](https://github.com/zachatkinson/csfrace-scrape-back/commit/10d7cdeaeffd9060bc174601976c6b153635f690))
+
+Based on CodeCov documentation review: - Add codecov/test-results-action@v1 for Test Analytics
+  feature - Upload JUnit XML files for both unit and integration tests - Enable flaky test detection
+  and test performance insights - Configure test failure tracking across all test types - Add proper
+  flags for unit-tests and integration-tests categorization - Use !cancelled() condition to ensure
+  test results upload even on failures
+
+Benefits: - Test Analytics dashboard for failure patterns - Flaky test identification and reporting
+  - Test performance monitoring and optimization insights - Enhanced PR comments with detailed test
+  failure information - Complete CodeCov feature utilization alongside existing coverage tracking
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **codecov**: Enhance coverage configuration for backend-specific targets
+  ([`f7fe2ff`](https://github.com/zachatkinson/csfrace-scrape-back/commit/f7fe2ff8cda5e375fdf6af6c24b0d15e889d62e5))
+
+- Update .codecov.yml with CLAUDE.md IDT requirements: * Project target: 85% overall coverage * Core
+  business logic target: 90% (src/core/, src/processors/, src/security/) * Patch coverage: 80% for
+  new code - Add enhanced ignore patterns for CLI and migration files - Configure unit-tests flag
+  with proper path targeting - Maintain 1% threshold to avoid CI failures on small drops
+
+Backend CodeCov setup is now production-ready and aligned with CLAUDE.md standards.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+### Refactoring
+
+- **ci**: Implement artifacts-based benchmark storage for historical comparison
+  ([`80cfccb`](https://github.com/zachatkinson/csfrace-scrape-back/commit/80cfccb35d329c0815cb85c5e8c6c1f956b89a4d))
+
+- Replace comment-only approach with artifacts-based historical tracking - Create timestamped
+  benchmark files for trend analysis - Generate benchmark summaries with commit and timestamp
+  metadata - Store artifacts for 6 months (180 days) for long-term performance tracking - Enable
+  proper performance regression detection through historical data - Maintain zero git conflicts
+  while preserving essential benchmark data
+
+This approach provides: - ✅ Historical benchmark data for meaningful comparison - ✅ No git branch
+  conflicts or CI complications - ✅ Downloadable benchmark results for analysis - ✅ Foundation for
+  future automated regression detection - ✅ Industry standard artifact-based approach
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v2.0.1 (2025-09-03)
 
 ### Bug Fixes
