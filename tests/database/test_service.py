@@ -53,15 +53,15 @@ class TestDatabaseServiceCore:
             ]:
                 os.environ.pop(key, None)
 
-    def test_initialize_database(self, testcontainers_db_service):
+    def test_initialize_database(self, db_service_with_session):
         """Test database table creation."""
         # Should not raise any exceptions
-        testcontainers_db_service.initialize_database()
+        db_service_with_session.initialize_database()
 
         # Verify tables were created by checking engine with inspector
         from sqlalchemy import inspect
 
-        inspector = inspect(testcontainers_db_service.engine)
+        inspector = inspect(db_service_with_session.engine)
         table_names = inspector.get_table_names()
         expected_tables = {
             "scraping_jobs",
@@ -72,17 +72,17 @@ class TestDatabaseServiceCore:
         }
         assert expected_tables.issubset(set(table_names))
 
-    def test_initialize_database_idempotent(self, testcontainers_db_service):
+    def test_initialize_database_idempotent(self, db_service_with_session):
         """Test that initialize_database is idempotent."""
         # Should not raise on multiple calls
-        testcontainers_db_service.initialize_database()
-        testcontainers_db_service.initialize_database()
-        testcontainers_db_service.initialize_database()
+        db_service_with_session.initialize_database()
+        db_service_with_session.initialize_database()
+        db_service_with_session.initialize_database()
 
         # Verify tables still exist
         from sqlalchemy import inspect
 
-        inspector = inspect(testcontainers_db_service.engine)
+        inspector = inspect(db_service_with_session.engine)
         table_names = inspector.get_table_names()
         assert "scraping_jobs" in table_names
 
@@ -158,9 +158,9 @@ class TestDatabaseServiceSessions:
 class TestDatabaseServiceJobOperations:
     """Job creation, retrieval, and status management tests."""
 
-    def test_create_job_basic(self, testcontainers_db_service):
+    def test_create_job_basic(self, db_service_with_session):
         """Test basic job creation with auto-extracted domain and slug."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/blog/test-post",
             output_directory="/tmp/output",
         )
@@ -172,9 +172,9 @@ class TestDatabaseServiceJobOperations:
         assert job.output_directory == "/tmp/output"
         assert job.status == JobStatus.PENDING
 
-    def test_create_job_with_custom_fields(self, testcontainers_db_service):
+    def test_create_job_with_custom_fields(self, db_service_with_session):
         """Test job creation with custom domain, slug, and additional fields."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/blog/post",
             output_directory="/tmp/output",
             domain="custom.com",
@@ -190,16 +190,16 @@ class TestDatabaseServiceJobOperations:
         assert job.max_retries == 5
         assert job.timeout_seconds == 60
 
-    def test_create_job_with_batch(self, testcontainers_db_service):
+    def test_create_job_with_batch(self, db_service_with_session):
         """Test job creation associated with a batch."""
         # Create batch first
-        batch = testcontainers_db_service.create_batch(
+        batch = db_service_with_session.create_batch(
             name="Test Batch",
             description="Test batch for job creation",
         )
 
         # Create job in batch
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
             batch_id=batch.id,
@@ -208,14 +208,14 @@ class TestDatabaseServiceJobOperations:
         assert job.batch_id == batch.id
 
         # Verify batch relationship through fresh query to avoid DetachedInstanceError
-        retrieved_job = testcontainers_db_service.get_job(job.id)
+        retrieved_job = db_service_with_session.get_job(job.id)
         assert retrieved_job is not None
         assert retrieved_job.batch_id == batch.id
 
-    def test_create_job_url_parsing_edge_cases(self, testcontainers_db_service):
+    def test_create_job_url_parsing_edge_cases(self, db_service_with_session):
         """Test URL parsing for various edge cases."""
         # URL with query parameters
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url="https://example.com/path?query=param",
             output_directory="/tmp/output",
         )
@@ -223,71 +223,71 @@ class TestDatabaseServiceJobOperations:
         assert job1.slug == "path"
 
         # URL with fragment
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url="https://example.com/article#section",
             output_directory="/tmp/output",
         )
         assert job2.slug == "article"
 
         # URL with multiple path segments
-        job3 = testcontainers_db_service.create_job(
+        job3 = db_service_with_session.create_job(
             url="https://example.com/blog/2024/01/post",
             output_directory="/tmp/output",
         )
         assert job3.slug == "post"
 
         # URL with no path after domain
-        job4 = testcontainers_db_service.create_job(
+        job4 = db_service_with_session.create_job(
             url="https://example.com",
             output_directory="/tmp/output",
         )
         assert job4.slug == "homepage"
 
         # URL with trailing slash
-        job5 = testcontainers_db_service.create_job(
+        job5 = db_service_with_session.create_job(
             url="https://example.com/page/",
             output_directory="/tmp/output",
         )
         assert job5.slug == "page"
 
-    def test_create_job_homepage_slug_extraction(self, testcontainers_db_service):
+    def test_create_job_homepage_slug_extraction(self, db_service_with_session):
         """Test slug extraction for homepage URLs."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/",
             output_directory="/tmp/output",
         )
         assert job.slug == "homepage"
 
-    def test_create_job_with_priority_string(self, testcontainers_db_service):
+    def test_create_job_with_priority_string(self, db_service_with_session):
         """Test job creation with string priority."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
             priority="urgent",
         )
         assert job.priority == JobPriority.URGENT
 
-    def test_create_job_with_invalid_priority_string(self, testcontainers_db_service):
+    def test_create_job_with_invalid_priority_string(self, db_service_with_session):
         """Test job creation with invalid priority string defaults to NORMAL."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
             priority="invalid_priority",
         )
         assert job.priority == JobPriority.NORMAL
 
-    def test_create_job_with_priority_enum(self, testcontainers_db_service):
+    def test_create_job_with_priority_enum(self, db_service_with_session):
         """Test job creation with JobPriority enum directly."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
             priority=JobPriority.URGENT,
         )
         assert job.priority == JobPriority.URGENT
 
-    def test_create_job_with_custom_slug_kwarg(self, testcontainers_db_service):
+    def test_create_job_with_custom_slug_kwarg(self, db_service_with_session):
         """Test job creation with custom_slug in kwargs."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
             custom_slug="my-custom-slug",
@@ -295,23 +295,23 @@ class TestDatabaseServiceJobOperations:
         # When custom_slug is provided in kwargs, auto-extraction is skipped
         assert job.slug is None
 
-    def test_get_job(self, testcontainers_db_service):
+    def test_get_job(self, db_service_with_session):
         """Test job retrieval by ID."""
         # Create job
-        created_job = testcontainers_db_service.create_job(
+        created_job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
         # Retrieve job
-        retrieved_job = testcontainers_db_service.get_job(created_job.id)
+        retrieved_job = db_service_with_session.get_job(created_job.id)
         assert retrieved_job is not None
         assert retrieved_job.id == created_job.id
         assert retrieved_job.url == created_job.url
 
-    def test_get_job_nonexistent(self, testcontainers_db_service):
+    def test_get_job_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent job."""
-        job = testcontainers_db_service.get_job(99999)
+        job = db_service_with_session.get_job(99999)
         assert job is None
 
 
@@ -319,48 +319,48 @@ class TestDatabaseServiceJobOperations:
 class TestDatabaseServiceJobStatusUpdates:
     """Job status update operations."""
 
-    def test_update_job_status_to_running(self, testcontainers_db_service):
+    def test_update_job_status_to_running(self, db_service_with_session):
         """Test updating job status to running (sets started_at)."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
-        success = testcontainers_db_service.update_job_status(job.id, JobStatus.RUNNING)
+        success = db_service_with_session.update_job_status(job.id, JobStatus.RUNNING)
         assert success is True
 
         # Verify update
-        updated_job = testcontainers_db_service.get_job(job.id)
+        updated_job = db_service_with_session.get_job(job.id)
         assert updated_job.status == JobStatus.RUNNING
         assert updated_job.started_at is not None
 
-    def test_update_job_status_to_completed(self, testcontainers_db_service):
+    def test_update_job_status_to_completed(self, db_service_with_session):
         """Test updating job status to completed with duration."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
-        success = testcontainers_db_service.update_job_status(
+        success = db_service_with_session.update_job_status(
             job.id, JobStatus.COMPLETED, duration=5.5
         )
         assert success is True
 
         # Verify update
-        updated_job = testcontainers_db_service.get_job(job.id)
+        updated_job = db_service_with_session.get_job(job.id)
         assert updated_job.status == JobStatus.COMPLETED
         assert updated_job.completed_at is not None
         assert updated_job.duration_seconds == 5.5
 
-    def test_update_job_status_to_failed_with_error(self, testcontainers_db_service):
+    def test_update_job_status_to_failed_with_error(self, db_service_with_session):
         """Test updating job status to failed with error message."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
         error_msg = "Connection timeout"
-        success = testcontainers_db_service.update_job_status(
+        success = db_service_with_session.update_job_status(
             job.id,
             JobStatus.FAILED,
             error_message=error_msg,
@@ -368,36 +368,36 @@ class TestDatabaseServiceJobStatusUpdates:
         assert success is True
 
         # Verify update
-        updated_job = testcontainers_db_service.get_job(job.id)
+        updated_job = db_service_with_session.get_job(job.id)
         assert updated_job.status == JobStatus.FAILED
         assert updated_job.error_message == error_msg
         assert updated_job.completed_at is not None
 
-    def test_update_job_status_to_cancelled(self, testcontainers_db_service):
+    def test_update_job_status_to_cancelled(self, db_service_with_session):
         """Test updating job status to cancelled."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test-cancel",
             output_directory="/tmp/output",
         )
 
         # Verify job exists before updating
-        retrieved_job = testcontainers_db_service.get_job(job.id)
+        retrieved_job = db_service_with_session.get_job(job.id)
         assert retrieved_job is not None
         assert retrieved_job.status == JobStatus.PENDING
 
         # Update status
-        success = testcontainers_db_service.update_job_status(job.id, JobStatus.CANCELLED)
+        success = db_service_with_session.update_job_status(job.id, JobStatus.CANCELLED)
         assert success is True
 
         # Verify the update
-        updated_job = testcontainers_db_service.get_job(job.id)
+        updated_job = db_service_with_session.get_job(job.id)
         assert updated_job is not None
         assert updated_job.status == JobStatus.CANCELLED
         assert updated_job.completed_at is not None
 
-    def test_update_job_status_nonexistent(self, testcontainers_db_service):
+    def test_update_job_status_nonexistent(self, db_service_with_session):
         """Test updating status of non-existent job."""
-        success = testcontainers_db_service.update_job_status(99999, JobStatus.COMPLETED)
+        success = db_service_with_session.update_job_status(99999, JobStatus.COMPLETED)
         assert success is False
 
 
@@ -405,7 +405,7 @@ class TestDatabaseServiceJobStatusUpdates:
 class TestDatabaseServiceJobRetrieval:
     """Job retrieval and filtering operations."""
 
-    def test_get_pending_jobs(self, testcontainers_db_service, test_isolation_id):
+    def test_get_pending_jobs(self, db_service_with_session, test_isolation_id):
         """Test retrieval of pending jobs with priority ordering using isolation IDs."""
         from tests.utils import DataMatcher, JobFactory
 
@@ -416,7 +416,7 @@ class TestDatabaseServiceJobRetrieval:
         # Create jobs in database following SOLID principles
         created_jobs = {}
         for spec in job_specs:
-            job = testcontainers_db_service.create_job(
+            job = db_service_with_session.create_job(
                 url=spec.unique_url,
                 output_directory=spec.output_directory,
                 priority=spec.priority,
@@ -424,13 +424,13 @@ class TestDatabaseServiceJobRetrieval:
             created_jobs[spec.priority] = job
 
         # Mark one as running to exclude it from pending results
-        testcontainers_db_service.update_job_status(
+        db_service_with_session.update_job_status(
             created_jobs[JobPriority.LOW].id, JobStatus.RUNNING
         )
 
         # Get pending jobs and filter using utility class
         # Use a larger limit to account for concurrent tests
-        pending_jobs = testcontainers_db_service.get_pending_jobs(limit=1000)
+        pending_jobs = db_service_with_session.get_pending_jobs(limit=1000)
         test_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         # Assert using DRY helper with detailed error messages
@@ -441,31 +441,31 @@ class TestDatabaseServiceJobRetrieval:
         assert test_jobs[1].id == created_jobs[JobPriority.HIGH].id
         assert test_jobs[2].id == created_jobs[JobPriority.NORMAL].id
 
-    def test_get_pending_jobs_with_limit(self, testcontainers_db_service, test_isolation_id):
+    def test_get_pending_jobs_with_limit(self, db_service_with_session, test_isolation_id):
         """Test pending jobs retrieval with limit."""
         from tests.utils import DataMatcher
 
         # Create multiple jobs with isolation
         for i in range(5):
-            testcontainers_db_service.create_job(
+            db_service_with_session.create_job(
                 url=f"https://example.com/test{i}-{test_isolation_id}",
                 output_directory=f"/tmp/output{i}",
             )
 
         # Get with limit and filter by isolation
-        pending_jobs = testcontainers_db_service.get_pending_jobs(limit=10)
+        pending_jobs = db_service_with_session.get_pending_jobs(limit=10)
         test_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         # Should return our 5 test jobs
         DataMatcher.assert_job_count(test_jobs, 5, "Limit test with isolation")
 
         # Test limit functionality by getting limited results
-        limited_jobs = testcontainers_db_service.get_pending_jobs(limit=3)
+        limited_jobs = db_service_with_session.get_pending_jobs(limit=3)
         limited_test_jobs = DataMatcher.filter_jobs_by_test_id(limited_jobs, test_isolation_id)
         assert len(limited_test_jobs) <= 3
 
     def test_get_pending_jobs_priority_ordering_with_test_isolation(
-        self, testcontainers_db_service, test_isolation_id
+        self, db_service_with_session, test_isolation_id
     ):
         """Test pending jobs with priority ordering using test isolation."""
         from tests.utils import DataMatcher, JobFactory
@@ -477,7 +477,7 @@ class TestDatabaseServiceJobRetrieval:
         # Create jobs in database following SOLID principles
         created_jobs = {}
         for spec in job_specs:
-            job = testcontainers_db_service.create_job(
+            job = db_service_with_session.create_job(
                 url=spec.unique_url,
                 output_directory=spec.output_directory,
                 priority=spec.priority,
@@ -486,7 +486,7 @@ class TestDatabaseServiceJobRetrieval:
 
         # Get pending jobs and filter using utility class
         # Use a larger limit to account for concurrent tests
-        pending_jobs = testcontainers_db_service.get_pending_jobs(limit=1000)
+        pending_jobs = db_service_with_session.get_pending_jobs(limit=1000)
         test_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         # Assert using DRY helper with detailed error messages
@@ -499,7 +499,7 @@ class TestDatabaseServiceJobRetrieval:
         assert test_jobs[3].id == created_jobs[JobPriority.LOW].id
 
     def test_get_pending_jobs_excludes_non_pending_with_test_isolation(
-        self, testcontainers_db_service, test_isolation_id
+        self, db_service_with_session, test_isolation_id
     ):
         """Test that non-pending jobs are excluded using test isolation."""
         from tests.utils import DataMatcher, JobFactory
@@ -509,24 +509,24 @@ class TestDatabaseServiceJobRetrieval:
         job_specs = job_factory.create_status_test_jobs()
 
         # Create jobs with different statuses following SOLID principles
-        pending_job = testcontainers_db_service.create_job(
+        pending_job = db_service_with_session.create_job(
             url=job_specs["pending"].unique_url,
             output_directory=job_specs["pending"].output_directory,
         )
-        running_job = testcontainers_db_service.create_job(
+        running_job = db_service_with_session.create_job(
             url=job_specs["running"].unique_url,
             output_directory=job_specs["running"].output_directory,
         )
-        testcontainers_db_service.update_job_status(running_job.id, JobStatus.RUNNING)
+        db_service_with_session.update_job_status(running_job.id, JobStatus.RUNNING)
 
-        completed_job = testcontainers_db_service.create_job(
+        completed_job = db_service_with_session.create_job(
             url=job_specs["completed"].unique_url,
             output_directory=job_specs["completed"].output_directory,
         )
-        testcontainers_db_service.update_job_status(completed_job.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(completed_job.id, JobStatus.COMPLETED)
 
         # Get pending jobs and filter using utility class
-        pending_jobs = testcontainers_db_service.get_pending_jobs()
+        pending_jobs = db_service_with_session.get_pending_jobs()
         test_pending_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         # Assert using DRY helper with detailed error messages
@@ -534,13 +534,13 @@ class TestDatabaseServiceJobRetrieval:
         assert test_pending_jobs[0].id == pending_job.id
 
     def test_get_pending_jobs_priority_ordering_edge_case(
-        self, testcontainers_db_service, mock_time_sleep, test_isolation_id
+        self, db_service_with_session, mock_time_sleep, test_isolation_id
     ):
         """Test pending jobs with same priority ordered by creation time."""
         from tests.utils import DataMatcher
 
         # Create jobs with same priority but different creation times with isolation
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url=f"https://example.com/first-{test_isolation_id}",
             output_directory="/tmp/output1",
             priority="normal",
@@ -549,7 +549,7 @@ class TestDatabaseServiceJobRetrieval:
         # Simulate time passing - mocked by mock_time_sleep fixture
         time.sleep(0.01)  # Instant return with mock_time_sleep
 
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url=f"https://example.com/second-{test_isolation_id}",
             output_directory="/tmp/output2",
             priority="normal",
@@ -557,7 +557,7 @@ class TestDatabaseServiceJobRetrieval:
 
         # Get pending jobs and filter by isolation
         # Use a larger limit to account for concurrent tests
-        pending_jobs = testcontainers_db_service.get_pending_jobs(limit=1000)
+        pending_jobs = db_service_with_session.get_pending_jobs(limit=1000)
         test_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
         DataMatcher.assert_job_count(test_jobs, 2, "Priority edge case test")
@@ -565,57 +565,57 @@ class TestDatabaseServiceJobRetrieval:
         assert test_jobs[0].id == job1.id
         assert test_jobs[1].id == job2.id
 
-    def test_get_jobs_by_status(self, testcontainers_db_service):
+    def test_get_jobs_by_status(self, db_service_with_session):
         """Test job retrieval by status with pagination."""
         # Create jobs with different statuses
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url="https://example.com/test1",
             output_directory="/tmp/output1",
         )
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url="https://example.com/test2",
             output_directory="/tmp/output2",
         )
-        job3 = testcontainers_db_service.create_job(
+        job3 = db_service_with_session.create_job(
             url="https://example.com/test3",
             output_directory="/tmp/output3",
         )
 
         # Update some statuses
-        testcontainers_db_service.update_job_status(job1.id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(job2.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(job1.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(job2.id, JobStatus.COMPLETED)
 
         # Get completed jobs
-        completed_jobs = testcontainers_db_service.get_jobs_by_status(JobStatus.COMPLETED)
+        completed_jobs = db_service_with_session.get_jobs_by_status(JobStatus.COMPLETED)
         assert len(completed_jobs) == 2
 
         # Get pending jobs
-        pending_jobs = testcontainers_db_service.get_jobs_by_status(JobStatus.PENDING)
+        pending_jobs = db_service_with_session.get_jobs_by_status(JobStatus.PENDING)
         assert len(pending_jobs) == 1
         assert pending_jobs[0].id == job3.id
 
-    def test_get_jobs_by_status_with_pagination(self, testcontainers_db_service, test_isolation_id):
+    def test_get_jobs_by_status_with_pagination(self, db_service_with_session, test_isolation_id):
         """Test job retrieval by status with offset pagination."""
         # Create multiple jobs with unique identifiers for test isolation
         created_job_ids = []
         for i in range(7):  # Create 7 jobs for meaningful pagination test
-            job = testcontainers_db_service.create_job(
+            job = db_service_with_session.create_job(
                 url=f"https://example.com/pagination-test-{test_isolation_id}-{i}",
                 output_directory=f"/tmp/output{i}",
             )
-            testcontainers_db_service.update_job_status(job.id, JobStatus.COMPLETED)
+            db_service_with_session.update_job_status(job.id, JobStatus.COMPLETED)
             created_job_ids.append(job.id)
 
         # Test basic pagination functionality with limit and offset
         # Test 1: Get first 3 jobs
-        first_page = testcontainers_db_service.get_jobs_by_status(
+        first_page = db_service_with_session.get_jobs_by_status(
             JobStatus.COMPLETED, limit=3, offset=0
         )
         assert len(first_page) >= 3, "Should return at least 3 completed jobs"
         assert len(first_page) <= 3, "Should not return more than 3 jobs when limit=3"
 
         # Test 2: Get next 3 jobs (offset=3)
-        second_page = testcontainers_db_service.get_jobs_by_status(
+        second_page = db_service_with_session.get_jobs_by_status(
             JobStatus.COMPLETED, limit=3, offset=3
         )
         assert len(second_page) >= 3, "Should return at least 3 jobs from offset=3"
@@ -627,7 +627,7 @@ class TestDatabaseServiceJobRetrieval:
         assert first_page_ids.isdisjoint(second_page_ids), "Pagination should return different jobs"
 
         # Test 4: Verify our created jobs exist in database
-        all_completed = testcontainers_db_service.get_jobs_by_status(JobStatus.COMPLETED)
+        all_completed = db_service_with_session.get_jobs_by_status(JobStatus.COMPLETED)
         test_jobs = [job for job in all_completed if job.id in created_job_ids]
         assert len(test_jobs) == 7, f"Expected 7 test jobs, got {len(test_jobs)}"
 
@@ -636,26 +636,26 @@ class TestDatabaseServiceJobRetrieval:
 class TestDatabaseServiceRetryOperations:
     """Job retry and recovery operations."""
 
-    def test_get_retry_jobs(self, testcontainers_db_service):
+    def test_get_retry_jobs(self, db_service_with_session):
         """Test retrieval of jobs eligible for retry."""
         # Create failed jobs
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url="https://example.com/test1",
             output_directory="/tmp/output1",
             max_retries=3,
         )
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url="https://example.com/test2",
             output_directory="/tmp/output2",
             max_retries=3,
         )
 
         # Make them failed with different retry counts
-        testcontainers_db_service.update_job_status(job1.id, JobStatus.FAILED)
-        testcontainers_db_service.update_job_status(job2.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(job1.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
         # Update retry counts directly
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update({"retry_count": 1})
             session.query(ScrapingJob).filter(ScrapingJob.id == job2.id).update(
                 {
@@ -664,72 +664,72 @@ class TestDatabaseServiceRetryOperations:
             )
 
         # Get retry jobs
-        retry_jobs = testcontainers_db_service.get_retry_jobs()
+        retry_jobs = db_service_with_session.get_retry_jobs()
         assert len(retry_jobs) == 1
         assert retry_jobs[0].id == job1.id
 
-    def test_get_retry_jobs_with_future_retry_time(self, testcontainers_db_service):
+    def test_get_retry_jobs_with_future_retry_time(self, db_service_with_session):
         """Test retry jobs filtering by next_retry_at time."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
-        testcontainers_db_service.update_job_status(job.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(job.id, JobStatus.FAILED)
 
         # Set future retry time
         future_time = datetime.now(UTC) + timedelta(hours=1)
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
                 {"next_retry_at": future_time}
             )
 
         # Should not be eligible yet
-        retry_jobs = testcontainers_db_service.get_retry_jobs()
+        retry_jobs = db_service_with_session.get_retry_jobs()
         assert len(retry_jobs) == 0
 
         # Set past retry time
         past_time = datetime.now(UTC) - timedelta(minutes=1)
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
                 {"next_retry_at": past_time}
             )
 
         # Should be eligible now
-        retry_jobs = testcontainers_db_service.get_retry_jobs()
+        retry_jobs = db_service_with_session.get_retry_jobs()
         assert len(retry_jobs) == 1
 
-    def test_get_retry_jobs_null_next_retry_at(self, testcontainers_db_service):
+    def test_get_retry_jobs_null_next_retry_at(self, db_service_with_session):
         """Test retry jobs with null next_retry_at (should be eligible)."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
             max_retries=3,
         )
 
-        testcontainers_db_service.update_job_status(job.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(job.id, JobStatus.FAILED)
 
         # Ensure next_retry_at is None
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
                 {"retry_count": 1, "next_retry_at": None}
             )
 
-        retry_jobs = testcontainers_db_service.get_retry_jobs()
+        retry_jobs = db_service_with_session.get_retry_jobs()
         assert len(retry_jobs) == 1
         assert retry_jobs[0].id == job.id
 
-    def test_get_retry_jobs_with_limit(self, testcontainers_db_service, test_isolation_id):
+    def test_get_retry_jobs_with_limit(self, db_service_with_session, test_isolation_id):
         """Test retrieving retry jobs with limit."""
         # Create multiple failed jobs with unique identifiers for test isolation
         created_job_ids = []
         for i in range(5):
-            job = testcontainers_db_service.create_job(
+            job = db_service_with_session.create_job(
                 url=f"https://example.com/retry-test-{test_isolation_id}-{i}",
                 output_directory="/tmp/test",
             )
             created_job_ids.append(job.id)
-            with testcontainers_db_service.get_session() as session:
+            with db_service_with_session.get_session() as session:
                 db_job = session.get(ScrapingJob, job.id)
                 db_job.status = JobStatus.FAILED
                 db_job.retry_count = 1
@@ -737,7 +737,7 @@ class TestDatabaseServiceRetryOperations:
                 session.commit()
 
         # Get retry jobs and filter to our test jobs
-        retry_jobs = testcontainers_db_service.get_retry_jobs(
+        retry_jobs = db_service_with_session.get_retry_jobs(
             max_jobs=10
         )  # Get more to ensure we get ours
         test_retry_jobs = [job for job in retry_jobs if job.id in created_job_ids]
@@ -746,7 +746,7 @@ class TestDatabaseServiceRetryOperations:
         assert len(test_retry_jobs) == 5, f"Expected 5 test retry jobs, got {len(test_retry_jobs)}"
 
         # Test the limit functionality with our known jobs
-        limited_retry_jobs = testcontainers_db_service.get_retry_jobs(max_jobs=3)
+        limited_retry_jobs = db_service_with_session.get_retry_jobs(max_jobs=3)
         assert len(limited_retry_jobs) <= 3, "Should not return more than 3 jobs when max_jobs=3"
         assert len(limited_retry_jobs) >= 1, "Should return at least 1 retry job"
 
@@ -755,9 +755,9 @@ class TestDatabaseServiceRetryOperations:
 class TestDatabaseServiceBatchOperations:
     """Batch creation and management operations."""
 
-    def test_create_batch(self, testcontainers_db_service):
+    def test_create_batch(self, db_service_with_session):
         """Test batch creation with configuration."""
-        batch = testcontainers_db_service.create_batch(
+        batch = db_service_with_session.create_batch(
             name="Test Batch",
             description="A comprehensive test batch",
             output_base_directory="/tmp/batch_output",
@@ -773,28 +773,28 @@ class TestDatabaseServiceBatchOperations:
         assert batch.max_concurrent == 5
         assert batch.continue_on_error is False
 
-    def test_get_batch(self, testcontainers_db_service):
+    def test_get_batch(self, db_service_with_session):
         """Test batch retrieval by ID."""
-        created_batch = testcontainers_db_service.create_batch(name="Test Batch")
+        created_batch = db_service_with_session.create_batch(name="Test Batch")
 
-        retrieved_batch = testcontainers_db_service.get_batch(created_batch.id)
+        retrieved_batch = db_service_with_session.get_batch(created_batch.id)
         assert retrieved_batch is not None
         assert retrieved_batch.id == created_batch.id
         assert retrieved_batch.name == created_batch.name
 
-    def test_get_batch_nonexistent(self, testcontainers_db_service):
+    def test_get_batch_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent batch."""
-        batch = testcontainers_db_service.get_batch(99999)
+        batch = db_service_with_session.get_batch(99999)
         assert batch is None
 
-    def test_update_batch_progress(self, testcontainers_db_service):
+    def test_update_batch_progress(self, db_service_with_session):
         """Test batch progress counter updates based on job statuses."""
         # Create batch with jobs
-        batch = testcontainers_db_service.create_batch(name="Progress Test Batch")
+        batch = db_service_with_session.create_batch(name="Progress Test Batch")
 
         jobs = []
         for i in range(5):
-            job = testcontainers_db_service.create_job(
+            job = db_service_with_session.create_job(
                 url=f"https://example.com/test{i}",
                 output_directory=f"/tmp/output{i}",
                 batch_id=batch.id,
@@ -802,38 +802,38 @@ class TestDatabaseServiceBatchOperations:
             jobs.append(job)
 
         # Update job statuses
-        testcontainers_db_service.update_job_status(jobs[0].id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(jobs[1].id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(jobs[2].id, JobStatus.FAILED)
-        testcontainers_db_service.update_job_status(jobs[3].id, JobStatus.SKIPPED)
+        db_service_with_session.update_job_status(jobs[0].id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(jobs[1].id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(jobs[2].id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(jobs[3].id, JobStatus.SKIPPED)
         # jobs[4] remains PENDING
 
         # Update batch progress
-        success = testcontainers_db_service.update_batch_progress(batch.id)
+        success = db_service_with_session.update_batch_progress(batch.id)
         assert success is True
 
         # Verify progress counters
-        updated_batch = testcontainers_db_service.get_batch(batch.id)
+        updated_batch = db_service_with_session.get_batch(batch.id)
         assert updated_batch.total_jobs == 5
         assert updated_batch.completed_jobs == 2
         assert updated_batch.failed_jobs == 1
         assert updated_batch.skipped_jobs == 1
 
-    def test_update_batch_progress_nonexistent_batch(self, testcontainers_db_service):
+    def test_update_batch_progress_nonexistent_batch(self, db_service_with_session):
         """Test updating progress for non-existent batch."""
-        success = testcontainers_db_service.update_batch_progress(99999)
+        success = db_service_with_session.update_batch_progress(99999)
         assert success is False
 
     def test_update_batch_progress_with_all_job_states(
-        self, testcontainers_db_service, test_isolation_id
+        self, db_service_with_session, test_isolation_id
     ):
         """Test batch progress update with various job states."""
-        batch = testcontainers_db_service.create_batch(name=f"Test Batch {test_isolation_id}")
+        batch = db_service_with_session.create_batch(name=f"Test Batch {test_isolation_id}")
 
         # Create jobs in different states with unique identifiers
         jobs = []
         for i in range(10):
-            job = testcontainers_db_service.create_job(
+            job = db_service_with_session.create_job(
                 url=f"https://example.com/batch-progress-test-{test_isolation_id}-{i}",
                 output_directory=f"/tmp/output{i}",
                 batch_id=batch.id,
@@ -841,22 +841,22 @@ class TestDatabaseServiceBatchOperations:
             jobs.append(job)
 
         # Set various states
-        testcontainers_db_service.update_job_status(jobs[0].id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(jobs[1].id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(jobs[2].id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(jobs[3].id, JobStatus.FAILED)
-        testcontainers_db_service.update_job_status(jobs[4].id, JobStatus.FAILED)
-        testcontainers_db_service.update_job_status(jobs[5].id, JobStatus.SKIPPED)
-        testcontainers_db_service.update_job_status(jobs[6].id, JobStatus.RUNNING)
-        testcontainers_db_service.update_job_status(jobs[7].id, JobStatus.CANCELLED)
+        db_service_with_session.update_job_status(jobs[0].id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(jobs[1].id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(jobs[2].id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(jobs[3].id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(jobs[4].id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(jobs[5].id, JobStatus.SKIPPED)
+        db_service_with_session.update_job_status(jobs[6].id, JobStatus.RUNNING)
+        db_service_with_session.update_job_status(jobs[7].id, JobStatus.CANCELLED)
         # jobs[8] and jobs[9] remain PENDING
 
         # Update batch progress
-        success = testcontainers_db_service.update_batch_progress(batch.id)
+        success = db_service_with_session.update_batch_progress(batch.id)
         assert success is True
 
         # Verify counts
-        updated_batch = testcontainers_db_service.get_batch(batch.id)
+        updated_batch = db_service_with_session.get_batch(batch.id)
         assert updated_batch.total_jobs == 10
         assert updated_batch.completed_jobs == 3
         assert updated_batch.failed_jobs == 2
@@ -868,9 +868,9 @@ class TestDatabaseServiceBatchOperations:
 class TestDatabaseServiceContentOperations:
     """Content result and logging operations."""
 
-    def test_save_content_result(self, testcontainers_db_service):
+    def test_save_content_result(self, db_service_with_session):
         """Test saving converted content results."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
@@ -890,7 +890,7 @@ class TestDatabaseServiceContentOperations:
             "images": "/tmp/output/images",
         }
 
-        content_result = testcontainers_db_service.save_content_result(
+        content_result = db_service_with_session.save_content_result(
             job_id=job.id,
             html_content="<p>Converted content</p>",
             metadata=metadata,
@@ -911,15 +911,15 @@ class TestDatabaseServiceContentOperations:
         assert content_result.word_count == 100
         assert content_result.extra_metadata["custom_field"] == "custom_value"
 
-    def test_save_content_result_minimal(self, testcontainers_db_service):
+    def test_save_content_result_minimal(self, db_service_with_session):
         """Test saving content result with minimal data."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
         # Save with minimal data
-        content_result = testcontainers_db_service.save_content_result(job_id=job.id)
+        content_result = db_service_with_session.save_content_result(job_id=job.id)
 
         assert content_result.id is not None
         assert content_result.job_id == job.id
@@ -927,10 +927,10 @@ class TestDatabaseServiceContentOperations:
         assert content_result.title is None
 
     def test_save_content_result_with_empty_metadata(
-        self, testcontainers_db_service, test_isolation_id
+        self, db_service_with_session, test_isolation_id
     ):
         """Test saving content result with empty metadata dictionary."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url=f"https://example.com/empty-metadata-test-{test_isolation_id}",
             output_directory="/tmp/output",
         )
@@ -940,7 +940,7 @@ class TestDatabaseServiceContentOperations:
 
         time.sleep(0.01)
 
-        content_result = testcontainers_db_service.save_content_result(
+        content_result = db_service_with_session.save_content_result(
             job_id=job.id,
             html_content="<p>Content</p>",
             metadata={},  # Empty metadata
@@ -951,14 +951,14 @@ class TestDatabaseServiceContentOperations:
         assert content_result.title is None
         assert content_result.html_file_path is None
 
-    def test_add_job_log(self, testcontainers_db_service):
+    def test_add_job_log(self, db_service_with_session):
         """Test adding structured log entries for jobs."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
-        log_entry = testcontainers_db_service.add_job_log(
+        log_entry = db_service_with_session.add_job_log(
             job_id=job.id,
             level="INFO",
             message="Processing started successfully",
@@ -977,14 +977,14 @@ class TestDatabaseServiceContentOperations:
         assert log_entry.context_data["step"] == "initialization"
         assert log_entry.timestamp is not None
 
-    def test_add_job_log_with_null_context(self, testcontainers_db_service):
+    def test_add_job_log_with_null_context(self, db_service_with_session):
         """Test adding job log with null context data."""
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
-        log_entry = testcontainers_db_service.add_job_log(
+        log_entry = db_service_with_session.add_job_log(
             job_id=job.id,
             level="debug",  # Test lowercase conversion
             message="Test message",
@@ -999,20 +999,20 @@ class TestDatabaseServiceContentOperations:
         assert log_entry.operation is None
         assert log_entry.context_data is None
 
-    def test_add_job_log_error_handling(self, testcontainers_db_service):
+    def test_add_job_log_error_handling(self, db_service_with_session):
         """Test job log creation with database errors."""
         # Create job
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
         )
 
         # Mock database error
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = Exception("Database error")
 
             # Should not raise, returns None on error
-            log_entry = testcontainers_db_service.add_job_log(
+            log_entry = db_service_with_session.add_job_log(
                 job_id=job.id,
                 level="ERROR",
                 message="Test error log",
@@ -1024,27 +1024,27 @@ class TestDatabaseServiceContentOperations:
 class TestDatabaseServiceStatisticsAndAnalytics:
     """Statistics calculation and analytics operations."""
 
-    def test_get_job_statistics(self, testcontainers_db_service):
+    def test_get_job_statistics(self, db_service_with_session):
         """Test job statistics calculation for time period."""
         # Create jobs with different statuses and timing
         now = datetime.now(UTC)
 
         # Recent jobs (within 7 days)
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url="https://example.com/test1",
             output_directory="/tmp/output1",
         )
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url="https://example.com/test2",
             output_directory="/tmp/output2",
         )
 
         # Update statuses and add metrics
-        testcontainers_db_service.update_job_status(job1.id, JobStatus.COMPLETED, duration=2.5)
-        testcontainers_db_service.update_job_status(job2.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(job1.id, JobStatus.COMPLETED, duration=2.5)
+        db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
         # Add content metrics
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
                 {
                     "content_size_bytes": 1024,
@@ -1053,7 +1053,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
             )
 
         # Get statistics
-        stats = testcontainers_db_service.get_job_statistics(days=7)
+        stats = db_service_with_session.get_job_statistics(days=7)
 
         assert stats["period_days"] == 7
         assert stats["total_jobs"] == 2
@@ -1065,37 +1065,37 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["total_content_size_bytes"] == 1024
         assert stats["total_images_downloaded"] == 5
 
-    def test_get_job_statistics_empty(self, testcontainers_db_service):
+    def test_get_job_statistics_empty(self, db_service_with_session):
         """Test job statistics with no jobs in time period."""
-        stats = testcontainers_db_service.get_job_statistics(days=1)
+        stats = db_service_with_session.get_job_statistics(days=1)
 
         assert stats["total_jobs"] == 0
         assert stats["success_rate_percent"] == 0.0
         assert stats["avg_duration_seconds"] == 0.0
 
     def test_get_job_statistics_with_null_values(
-        self, testcontainers_db_service, test_isolation_id
+        self, db_service_with_session, test_isolation_id
     ):
         """Test statistics calculation with jobs having null metrics."""
         # Record initial count to filter out other test jobs
-        initial_stats = testcontainers_db_service.get_job_statistics(days=7)
+        initial_stats = db_service_with_session.get_job_statistics(days=7)
         initial_count = initial_stats["total_jobs"]
 
         # Create jobs without duration or content metrics with unique identifiers
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url=f"https://example.com/null-stats-test-{test_isolation_id}-1",
             output_directory="/tmp/output1",
         )
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url=f"https://example.com/null-stats-test-{test_isolation_id}-2",
             output_directory="/tmp/output2",
         )
 
         # Complete without duration
-        testcontainers_db_service.update_job_status(job1.id, JobStatus.COMPLETED)
-        testcontainers_db_service.update_job_status(job2.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(job1.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
-        stats = testcontainers_db_service.get_job_statistics(days=7)
+        stats = db_service_with_session.get_job_statistics(days=7)
 
         # Verify we added exactly 2 jobs (account for concurrent test jobs)
         assert stats["total_jobs"] == initial_count + 2, (
@@ -1105,35 +1105,35 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["total_content_size_bytes"] == 0
         assert stats["total_images_downloaded"] == 0
 
-    def test_get_job_statistics_with_mixed_data(self, testcontainers_db_service):
+    def test_get_job_statistics_with_mixed_data(self, db_service_with_session):
         """Test statistics with mix of complete and incomplete data."""
         # Create jobs with varying data completeness
-        job1 = testcontainers_db_service.create_job(
+        job1 = db_service_with_session.create_job(
             url="https://example.com/test1",
             output_directory="/tmp/output1",
         )
-        job2 = testcontainers_db_service.create_job(
+        job2 = db_service_with_session.create_job(
             url="https://example.com/test2",
             output_directory="/tmp/output2",
         )
-        job3 = testcontainers_db_service.create_job(
+        job3 = db_service_with_session.create_job(
             url="https://example.com/test3",
             output_directory="/tmp/output3",
         )
 
         # Update with different combinations of data
-        testcontainers_db_service.update_job_status(job1.id, JobStatus.COMPLETED, duration=5.0)
-        testcontainers_db_service.update_job_status(job2.id, JobStatus.COMPLETED, duration=10.0)
+        db_service_with_session.update_job_status(job1.id, JobStatus.COMPLETED, duration=5.0)
+        db_service_with_session.update_job_status(job2.id, JobStatus.COMPLETED, duration=10.0)
         # job3 remains pending
 
         # Add content metrics to only some jobs
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
                 {"content_size_bytes": 2048, "images_downloaded": 10}
             )
             # job2 has no content metrics
 
-        stats = testcontainers_db_service.get_job_statistics(days=7)
+        stats = db_service_with_session.get_job_statistics(days=7)
 
         assert stats["total_jobs"] == 3
         assert stats["completed_jobs"] == 2
@@ -1148,67 +1148,67 @@ class TestDatabaseServiceStatisticsAndAnalytics:
 class TestDatabaseServiceCleanupOperations:
     """Database cleanup and maintenance operations."""
 
-    def test_cleanup_old_jobs(self, testcontainers_db_service):
+    def test_cleanup_old_jobs(self, db_service_with_session):
         """Test cleanup of old completed jobs."""
         # Create old completed job
-        old_job = testcontainers_db_service.create_job(
+        old_job = db_service_with_session.create_job(
             url="https://example.com/old",
             output_directory="/tmp/output",
         )
-        testcontainers_db_service.update_job_status(old_job.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(old_job.id, JobStatus.COMPLETED)
 
         # Create recent job
-        recent_job = testcontainers_db_service.create_job(
+        recent_job = db_service_with_session.create_job(
             url="https://example.com/recent",
             output_directory="/tmp/output",
         )
-        testcontainers_db_service.update_job_status(recent_job.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(recent_job.id, JobStatus.COMPLETED)
 
         # Manually set old completion date
         old_date = datetime.now(UTC) - timedelta(days=35)
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).update(
                 {"completed_at": old_date}
             )
 
         # Cleanup jobs older than 30 days
-        deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)
+        deleted_count = db_service_with_session.cleanup_old_jobs(days=30)
         assert deleted_count == 1
 
         # Verify old job was marked as cancelled (soft delete)
-        updated_old_job = testcontainers_db_service.get_job(old_job.id)
+        updated_old_job = db_service_with_session.get_job(old_job.id)
         assert updated_old_job.status == JobStatus.CANCELLED
 
         # Recent job should remain completed
-        updated_recent_job = testcontainers_db_service.get_job(recent_job.id)
+        updated_recent_job = db_service_with_session.get_job(recent_job.id)
         assert updated_recent_job.status == JobStatus.COMPLETED
 
-    def test_cleanup_old_jobs_mixed_statuses(self, testcontainers_db_service):
+    def test_cleanup_old_jobs_mixed_statuses(self, db_service_with_session):
         """Test cleanup with various job statuses."""
         now = datetime.now(UTC)
         old_date = now - timedelta(days=35)
 
         # Create old jobs with different statuses
-        old_completed = testcontainers_db_service.create_job(
+        old_completed = db_service_with_session.create_job(
             url="https://example.com/old-completed",
             output_directory="/tmp/output",
         )
-        testcontainers_db_service.update_job_status(old_completed.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(old_completed.id, JobStatus.COMPLETED)
 
-        old_failed = testcontainers_db_service.create_job(
+        old_failed = db_service_with_session.create_job(
             url="https://example.com/old-failed",
             output_directory="/tmp/output",
         )
-        testcontainers_db_service.update_job_status(old_failed.id, JobStatus.FAILED)
+        db_service_with_session.update_job_status(old_failed.id, JobStatus.FAILED)
 
-        old_pending = testcontainers_db_service.create_job(
+        old_pending = db_service_with_session.create_job(
             url="https://example.com/old-pending",
             output_directory="/tmp/output",
         )
         # Leave as PENDING
 
         # Set old dates
-        with testcontainers_db_service.get_session() as session:
+        with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(
                 ScrapingJob.id.in_([old_completed.id, old_failed.id])
             ).update({"completed_at": old_date})
@@ -1217,32 +1217,32 @@ class TestDatabaseServiceCleanupOperations:
             )
 
         # Cleanup
-        deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)
+        deleted_count = db_service_with_session.cleanup_old_jobs(days=30)
 
         # Should only affect completed and failed jobs with old completed_at
         assert deleted_count == 2
 
         # Verify statuses
-        assert testcontainers_db_service.get_job(old_completed.id).status == JobStatus.CANCELLED
-        assert testcontainers_db_service.get_job(old_failed.id).status == JobStatus.CANCELLED
+        assert db_service_with_session.get_job(old_completed.id).status == JobStatus.CANCELLED
+        assert db_service_with_session.get_job(old_failed.id).status == JobStatus.CANCELLED
         assert (
-            testcontainers_db_service.get_job(old_pending.id).status == JobStatus.PENDING
+            db_service_with_session.get_job(old_pending.id).status == JobStatus.PENDING
         )  # Unchanged
 
-    def test_cleanup_old_jobs_no_old_jobs(self, testcontainers_db_service):
+    def test_cleanup_old_jobs_no_old_jobs(self, db_service_with_session):
         """Test cleanup when no old jobs exist."""
         # Create only recent jobs
-        job = testcontainers_db_service.create_job(
+        job = db_service_with_session.create_job(
             url="https://example.com/recent",
             output_directory="/tmp/output",
         )
-        testcontainers_db_service.update_job_status(job.id, JobStatus.COMPLETED)
+        db_service_with_session.update_job_status(job.id, JobStatus.COMPLETED)
 
-        deleted_count = testcontainers_db_service.cleanup_old_jobs(days=30)
+        deleted_count = db_service_with_session.cleanup_old_jobs(days=30)
         assert deleted_count == 0
 
         # Job should remain unchanged
-        assert testcontainers_db_service.get_job(job.id).status == JobStatus.COMPLETED
+        assert db_service_with_session.get_job(job.id).status == JobStatus.COMPLETED
 
 
 @pytest.mark.unit
@@ -1272,24 +1272,24 @@ class TestDatabaseServiceErrorHandling:
                 service.SessionLocal = MagicMock(return_value=mock_session)
                 return service
 
-    def test_database_error_handling_in_operations(self, testcontainers_db_service):
+    def test_database_error_handling_in_operations(self, db_service_with_session):
         """Test proper exception handling and DatabaseError wrapping."""
         # Mock session to raise SQLAlchemy error
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             from sqlalchemy.exc import SQLAlchemyError
 
             mock_session.side_effect = SQLAlchemyError("Database connection failed")
 
             # Should wrap in DatabaseError
             with pytest.raises(DatabaseError, match="Job creation failed"):
-                testcontainers_db_service.create_job(
+                db_service_with_session.create_job(
                     url="https://example.com/test",
                     output_directory="/tmp/output",
                 )
 
-    def test_integrity_error_handling(self, testcontainers_db_service):
+    def test_integrity_error_handling(self, db_service_with_session):
         """Test handling of database integrity constraint violations."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_get_session:
+        with patch.object(db_service_with_session, "get_session") as mock_get_session:
             mock_session = MagicMock()
             mock_get_session.return_value.__enter__ = Mock(return_value=mock_session)
             mock_get_session.return_value.__exit__ = Mock(return_value=None)
@@ -1298,7 +1298,7 @@ class TestDatabaseServiceErrorHandling:
             mock_session.flush.side_effect = IntegrityError("UNIQUE constraint failed", None, None)
 
             with pytest.raises(DatabaseError, match="Job creation failed"):
-                testcontainers_db_service.create_job(
+                db_service_with_session.create_job(
                     url="https://example.com/test",
                     output_directory="/tmp/output",
                 )
@@ -1316,119 +1316,119 @@ class TestDatabaseServiceErrorHandling:
             with pytest.raises(DatabaseError, match="Database initialization failed"):
                 service.initialize_database()
 
-    def test_get_job_database_error(self, testcontainers_db_service):
+    def test_get_job_database_error(self, db_service_with_session):
         """Test job retrieval with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Job retrieval failed"):
-                testcontainers_db_service.get_job(1)
+                db_service_with_session.get_job(1)
 
-    def test_update_job_status_database_error(self, testcontainers_db_service):
+    def test_update_job_status_database_error(self, db_service_with_session):
         """Test job status update with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Job status update failed"):
-                testcontainers_db_service.update_job_status(1, JobStatus.COMPLETED)
+                db_service_with_session.update_job_status(1, JobStatus.COMPLETED)
 
-    def test_get_pending_jobs_database_error(self, testcontainers_db_service):
+    def test_get_pending_jobs_database_error(self, db_service_with_session):
         """Test pending jobs retrieval with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Pending jobs retrieval failed"):
-                testcontainers_db_service.get_pending_jobs()
+                db_service_with_session.get_pending_jobs()
 
-    def test_get_jobs_by_status_database_error(self, testcontainers_db_service):
+    def test_get_jobs_by_status_database_error(self, db_service_with_session):
         """Test jobs by status retrieval with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Jobs retrieval failed"):
-                testcontainers_db_service.get_jobs_by_status(JobStatus.COMPLETED)
+                db_service_with_session.get_jobs_by_status(JobStatus.COMPLETED)
 
-    def test_get_retry_jobs_database_error(self, testcontainers_db_service):
+    def test_get_retry_jobs_database_error(self, db_service_with_session):
         """Test retry jobs retrieval with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Retry jobs retrieval failed"):
-                testcontainers_db_service.get_retry_jobs()
+                db_service_with_session.get_retry_jobs()
 
-    def test_create_batch_database_error(self, testcontainers_db_service):
+    def test_create_batch_database_error(self, db_service_with_session):
         """Test batch creation with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Batch creation failed"):
-                testcontainers_db_service.create_batch(name="Test Batch")
+                db_service_with_session.create_batch(name="Test Batch")
 
-    def test_get_batch_database_error(self, testcontainers_db_service):
+    def test_get_batch_database_error(self, db_service_with_session):
         """Test batch retrieval with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Batch retrieval failed"):
-                testcontainers_db_service.get_batch(1)
+                db_service_with_session.get_batch(1)
 
-    def test_update_batch_progress_database_error(self, testcontainers_db_service):
+    def test_update_batch_progress_database_error(self, db_service_with_session):
         """Test batch progress update with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Batch progress update failed"):
-                testcontainers_db_service.update_batch_progress(1)
+                db_service_with_session.update_batch_progress(1)
 
-    def test_save_content_result_database_error(self, testcontainers_db_service):
+    def test_save_content_result_database_error(self, db_service_with_session):
         """Test content result save with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Content result save failed"):
-                testcontainers_db_service.save_content_result(job_id=1)
+                db_service_with_session.save_content_result(job_id=1)
 
-    def test_add_job_log_exception_handling(self, testcontainers_db_service):
+    def test_add_job_log_exception_handling(self, db_service_with_session):
         """Test job log addition with various exceptions."""
         # Test with general exception (not just database error)
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = Exception("Unexpected error")
 
             # Should not raise, returns None
-            log_entry = testcontainers_db_service.add_job_log(
+            log_entry = db_service_with_session.add_job_log(
                 job_id=1,
                 level="ERROR",
                 message="Test",
             )
             assert log_entry is None
 
-    def test_get_job_statistics_database_error(self, testcontainers_db_service):
+    def test_get_job_statistics_database_error(self, db_service_with_session):
         """Test statistics retrieval with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Statistics retrieval failed"):
-                testcontainers_db_service.get_job_statistics()
+                db_service_with_session.get_job_statistics()
 
-    def test_cleanup_old_jobs_database_error(self, testcontainers_db_service):
+    def test_cleanup_old_jobs_database_error(self, db_service_with_session):
         """Test job cleanup with database error."""
-        with patch.object(testcontainers_db_service, "get_session") as mock_session:
+        with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Job cleanup failed"):
-                testcontainers_db_service.cleanup_old_jobs()
+                db_service_with_session.cleanup_old_jobs()
 
 
 @pytest.mark.integration
 class TestDatabaseServiceConcurrency:
     """Concurrency and thread safety tests."""
 
-    def test_concurrent_access_handling(self, testcontainers_db_service, mock_time_sleep):
+    def test_concurrent_access_handling(self, db_service_with_session, mock_time_sleep):
         """Test handling of concurrent database access."""
         # PostgreSQL supports concurrent access - this test should pass
 
         # Initialize database first
-        testcontainers_db_service.initialize_database()
+        db_service_with_session.initialize_database()
 
         results = []
         errors = []
@@ -1438,7 +1438,7 @@ class TestDatabaseServiceConcurrency:
             try:
                 # Add small delay to increase chance of concurrent access
                 time.sleep(0.01)  # Mocked by mock_time_sleep fixture
-                job = testcontainers_db_service.create_job(
+                job = db_service_with_session.create_job(
                     url=f"https://example.com/test{worker_id}",
                     output_directory=f"/tmp/output{worker_id}",
                 )
