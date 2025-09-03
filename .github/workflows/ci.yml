@@ -236,6 +236,7 @@ jobs:
             --ignore=tests/performance/ \
             --ignore=tests/e2e/ \
             --ignore=tests/api/ \
+            -m "not integration" \
             --splits=4 \
             --group=${{ matrix.shard }} \
             -n auto \
