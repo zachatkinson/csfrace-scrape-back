@@ -159,7 +159,7 @@ class TestInitDb:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_concurrent_calls(self):
+    async def test_init_db_concurrent_calls(self, testcontainers_db_service):
         """Test that init_db handles concurrent calls safely."""
         # PostgreSQL enum creation can conflict during concurrent initialization
         # Use a semaphore to limit concurrent database operations to prevent deadlocks
@@ -167,7 +167,7 @@ class TestInitDb:
 
         async def safe_init_db():
             async with semaphore:
-                return await init_db()
+                return await init_db(testcontainers_db_service.engine)
 
         # Create multiple concurrent calls with limited concurrency
         tasks = [safe_init_db() for _ in range(5)]
@@ -247,12 +247,12 @@ class TestInitDb:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_performance(self):
-        """Test that init_db completes quickly."""
+    async def test_init_db_performance(self, testcontainers_db_service):
+        """Test that init_db completes quickly using testcontainer."""
         import time
 
         start_time = time.time()
-        await init_db()
+        await init_db(testcontainers_db_service.engine)
         execution_time = time.time() - start_time
 
         # Should complete very quickly (less than 1 second)
@@ -260,23 +260,23 @@ class TestInitDb:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_in_different_event_loops(self):
+    async def test_init_db_in_different_event_loops(self, testcontainers_db_service):
         """Test init_db behavior in different event loops."""
         # Test in current event loop
-        await init_db()
+        await init_db(testcontainers_db_service.engine)
 
         # Test creating a new event loop
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
 
         try:
-            await init_db()
+            await init_db(testcontainers_db_service.engine)
         finally:
             new_loop.close()
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_logging_integration(self):
+    async def test_init_db_logging_integration(self, testcontainers_db_service):
         """Test integration with the logging system."""
         # Configure a test handler
         import logging
@@ -293,7 +293,7 @@ class TestInitDb:
             test_logger.addHandler(test_handler)
             test_logger.setLevel(logging.INFO)
 
-            await init_db()
+            await init_db(testcontainers_db_service.engine)
 
         finally:
             # Restore original logger state
@@ -354,7 +354,7 @@ class TestInitDbEdgeCases:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_with_no_handlers(self):
+    async def test_init_db_with_no_handlers(self, testcontainers_db_service):
         """Test init_db when logger has no handlers."""
         from src.database.init_db import logger
 
@@ -363,7 +363,7 @@ class TestInitDbEdgeCases:
 
         try:
             # Should still work without handlers
-            await init_db()
+            await init_db(testcontainers_db_service.engine)
         finally:
             # Restore handlers
             logger.handlers = original_handlers
@@ -371,7 +371,7 @@ class TestInitDbEdgeCases:
     @pytest.mark.asyncio
     @pytest.mark.slow
     @pytest.mark.integration
-    async def test_init_db_stress_test(self):
+    async def test_init_db_stress_test(self, testcontainers_db_service):
         """Stress test with serialized database operations to prevent PostgreSQL deadlocks."""
         # PostgreSQL has strict limits on concurrent DDL operations (CREATE TYPE, etc.)
         # Use semaphore to prevent enum creation conflicts and deadlocks
@@ -380,7 +380,7 @@ class TestInitDbEdgeCases:
         async def safe_init_db():
             async with semaphore:
                 await asyncio.sleep(0.01)  # Small delay to reduce contention
-                return await init_db()
+                return await init_db(testcontainers_db_service.engine)
 
         # Reduce stress test size to prevent PostgreSQL deadlocks (100 -> 20)
         tasks = [safe_init_db() for _ in range(20)]
@@ -404,7 +404,7 @@ class TestInitDbIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_real_logging_system(self):
+    async def test_init_db_real_logging_system(self, testcontainers_db_service):
         """Test init_db with real logging system."""
         import os
         import tempfile
@@ -427,7 +427,7 @@ class TestInitDbIntegration:
             logger.setLevel(logging.INFO)
 
             # Call init_db
-            await init_db()
+            await init_db(testcontainers_db_service.engine)
 
             # Flush handler
             file_handler.flush()
@@ -451,11 +451,11 @@ class TestInitDbIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_in_task(self):
+    async def test_init_db_in_task(self, testcontainers_db_service):
         """Test init_db when called from asyncio task."""
 
         async def task_wrapper():
-            return await init_db()
+            return await init_db(testcontainers_db_service.engine)
 
         # Create and run task
         task = asyncio.create_task(task_wrapper())
@@ -465,17 +465,17 @@ class TestInitDbIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_with_timeout(self):
+    async def test_init_db_with_timeout(self, testcontainers_db_service):
         """Test init_db with asyncio timeout."""
         # Should complete well within timeout
-        result = await asyncio.wait_for(init_db(), timeout=5.0)
+        result = await asyncio.wait_for(init_db(testcontainers_db_service.engine), timeout=5.0)
         assert result is None
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_init_db_completes_immediately(self):
+    async def test_init_db_completes_immediately(self, testcontainers_db_service):
         """Test that init_db completes immediately (placeholder implementation)."""
-        task = asyncio.create_task(init_db())
+        task = asyncio.create_task(init_db(testcontainers_db_service.engine))
 
         # Task should complete immediately since it's just a placeholder
         result = await task

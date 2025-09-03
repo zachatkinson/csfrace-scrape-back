@@ -10,7 +10,7 @@ from .models import Base, JobPriority, JobStatus, get_database_url
 logger = logging.getLogger(__name__)
 
 
-async def init_db() -> None:
+async def init_db(engine=None) -> None:
     """Initialize the database with PostgreSQL enum safety for concurrent environments.
 
     Following PostgreSQL and SQLAlchemy best practices:
@@ -18,11 +18,16 @@ async def init_db() -> None:
     2. Create tables using checkfirst=True
     3. Handle duplicate enum creation gracefully
 
+    Args:
+        engine: Optional SQLAlchemy Engine. If None, creates engine from get_database_url().
+                This enables dependency injection for testing (SQLAlchemy best practice).
+
     Reference: https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#postgresql-enums
     """
     try:
-        # Get database engine
-        engine = create_engine(get_database_url(), echo=False)
+        # Use provided engine or create one (dependency injection pattern)
+        if engine is None:
+            engine = create_engine(get_database_url(), echo=False)
 
         # Create enum types first with PostgreSQL best practices
         await _create_enums_safely(engine)

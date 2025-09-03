@@ -130,42 +130,26 @@ def postgres_container():
 
 @pytest.fixture
 def db_session(testcontainers_db_service):
-    """Create database session following official SQLAlchemy best practices.
+    """Create database session following official SQLAlchemy 2.0 best practices.
 
-    From SQLAlchemy docs: Uses nested SAVEPOINT isolation for individual test methods.
-    Each test gets a fresh session that can commit/rollback independently.
-    Tests can call commit() and it will be rolled back after the test.
+    Uses the official SQLAlchemy 2.0 pattern with join_transaction_mode="create_savepoint".
+    This automatically handles SAVEPOINT creation and isolation without manual event handling.
 
-    This is the official SQLAlchemy testing pattern from:
+    Official SQLAlchemy 2.0 testing pattern from:
     https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
     """
-    from sqlalchemy import event
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.orm import Session
 
     # Get the isolated connection from the service
     connection = testcontainers_db_service._connection
 
-    # Create session with SAVEPOINT isolation (official SQLAlchemy pattern)
-    SessionLocal = sessionmaker(bind=connection)
-    session = SessionLocal()
-
-    # Start a nested transaction (SAVEPOINT)
-    session.begin_nested()
-
-    # Automatically restart savepoint after commits
-    # This allows tests to call commit() without breaking isolation
-    @event.listens_for(session, "after_transaction_end")
-    def restart_savepoint(session, transaction):
-        """Restart savepoint after test commits for continuous isolation."""
-        if transaction.nested and not transaction._parent.nested:
-            # Expire all objects and restart nested transaction
-            session.expire_all()
-            session.begin_nested()
+    # OFFICIAL SQLAlchemy 2.0 pattern - handles SAVEPOINT automatically
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
 
     try:
         yield session
     finally:
-        # Official pattern: rollback everything including nested transactions
+        # Official pattern: close session (rollback handled automatically)
         session.close()
 
 
@@ -180,7 +164,7 @@ def testcontainers_db_service(postgres_container):
     This is the ONLY database fixture pattern used throughout the codebase.
     """
     from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.orm import Session
 
     from src.database.service import DatabaseService
 
@@ -197,10 +181,37 @@ def testcontainers_db_service(postgres_container):
         dbname = postgres_container.dbname or "test"
         db_url = f"postgresql+psycopg://{username}:{password}@{host}:{port}/{dbname}"
 
-    # Initialize schema once with temporary engine
+    # Clean and initialize schema following SQLAlchemy test suite best practices
     init_engine = create_engine(db_url, echo=False)
-    temp_service = DatabaseService._create_with_engine(init_engine)
-    temp_service.initialize_database()
+
+    # SQLAlchemy recommends drop_all() + create_all() for test suites
+    # This ensures completely clean state between test sessions
+    from src.database.models import Base
+
+    Base.metadata.drop_all(init_engine, checkfirst=True)
+
+    # Create PostgreSQL enum types first (required for tables)
+    from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+
+    from src.database.models import JobPriority, JobStatus
+
+    with init_engine.connect() as conn:
+        # Create enum types that the tables need
+        try:
+            JobStatusEnum = PostgreSQLEnum(JobStatus, name="jobstatus", create_type=True)
+            JobStatusEnum.create(conn, checkfirst=True)
+
+            JobPriorityEnum = PostgreSQLEnum(JobPriority, name="jobpriority", create_type=True)
+            JobPriorityEnum.create(conn, checkfirst=True)
+
+            conn.commit()
+        except Exception:
+            # Enum might already exist, continue
+            conn.rollback()
+
+    # Now create all tables
+    Base.metadata.create_all(init_engine, checkfirst=True)
+
     init_engine.dispose()
 
     # NEW engine for each test - complete isolation
@@ -211,8 +222,9 @@ def testcontainers_db_service(postgres_container):
     connection = test_engine.connect()
     transaction = connection.begin()
 
-    # Create isolated session factory
-    SessionLocal = sessionmaker(bind=connection)
+    # Create isolated session factory using SQLAlchemy 2.0 pattern
+    def SessionLocal():
+        return Session(bind=connection, join_transaction_mode="create_savepoint")
 
     # Create service with isolated session
     service = DatabaseService._create_with_engine(test_engine)
