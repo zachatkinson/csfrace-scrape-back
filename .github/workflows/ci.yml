@@ -298,7 +298,7 @@ jobs:
     timeout-minutes: 25
     
     # Run if unit tests changed, core components changed, or forced
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.unit-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true' || needs.detect-changes.outputs.processors-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true') }}
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.unit-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true' || needs.detect-changes.outputs.processors-changed == 'true') }}
     permissions:
       contents: read
       checks: write
@@ -451,7 +451,7 @@ jobs:
     timeout-minutes: 15
     
     # Run cross-platform tests only if core functionality changed or forced
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true') }}
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true') }}
     permissions:
       contents: read
       checks: write
@@ -521,7 +521,7 @@ jobs:
     timeout-minutes: 15
     
     # Run integration tests based on what changed
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.integration-tests-changed == 'true' || (matrix.test-type == 'redis' && needs.detect-changes.outputs.caching-changed == 'true') || (matrix.test-type == 'database' && needs.detect-changes.outputs.database-changed == 'true') || (matrix.test-type == 'converter' && (needs.detect-changes.outputs.processors-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true')) || needs.detect-changes.outputs.force-full-ci == 'true') }}
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.integration-tests-changed == 'true') }}
     permissions:
       contents: read
       checks: write
@@ -631,7 +631,7 @@ jobs:
       contents: read
     
     # Run performance tests if performance code changed, core changed, or forced
-    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && (needs.detect-changes.outputs.performance-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.processors-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.performance-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
 
     steps:
       - name: Checkout code
@@ -687,7 +687,7 @@ jobs:
     needs: [detect-changes, quality]
     timeout-minutes: 15
     # Run Docker scan if Docker files changed, dependencies changed, or forced
-    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && (needs.detect-changes.outputs.docker-changed == 'true' || needs.detect-changes.outputs.dependencies-changed == 'true' || needs.detect-changes.outputs.force-full-ci == 'true' || github.event_name == 'schedule' || contains(github.event.head_commit.message, '[docker]') || github.event_name == 'push' && github.ref == 'refs/heads/master') }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.docker-changed == 'true' || needs.detect-changes.outputs.dependencies-changed == 'true' || github.event_name == 'schedule' || contains(github.event.head_commit.message, '[docker]')) }}
     permissions:
       contents: read
       security-events: write
