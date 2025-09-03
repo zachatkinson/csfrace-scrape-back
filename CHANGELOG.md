@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v2.1.1 (2025-09-03)
+
+### Bug Fixes
+
+- **ci**: Adjust artifact retention to repository maximum (90 days)
+  ([`796bd01`](https://github.com/zachatkinson/csfrace-scrape-back/commit/796bd01091c76f91bf7699db626f609cd916b930))
+
+- Reduce benchmark artifact retention from 180 to 90 days - Aligns with repository retention policy
+  limits - Resolves warning: "Retention days cannot be greater than the maximum allowed" - Still
+  provides 3 months of historical benchmark data for trend analysis
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v2.1.0 (2025-09-03)
 
 ### Bug Fixes
