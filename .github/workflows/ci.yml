@@ -791,10 +791,6 @@ jobs:
           # Remove --benchmark-compare-fail for initial runs (requires baseline comparison)
           uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean -v
           
-          # Clean git state before benchmark action
-          git add benchmark.json || true
-          git stash || true
-          
           # Generate human-readable benchmark report
           echo "## 🚀 Performance Benchmark Results" > benchmark-report.md
           echo "" >> benchmark-report.md
@@ -817,6 +813,13 @@ jobs:
               max_time = f\"{stats['max']:.4f}s\"
               print(f'| {name} | {mean} | {min_time} | {max_time} |')
           " >> benchmark-report.md
+
+      - name: Clean git state before benchmark action
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          # Handle any uncommitted changes before github-action-benchmark runs
+          git add benchmark.json || true
+          git stash || true
 
       - name: Continuous Benchmark (Store Results)
         uses: benchmark-action/github-action-benchmark@v1
