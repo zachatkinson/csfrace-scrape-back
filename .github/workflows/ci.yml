@@ -545,13 +545,6 @@ jobs:
 
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
-
-      - name: Install Playwright browsers
-        run: |
-          # Following official Playwright recommendations - no caching
-          # Caching adds complexity without meaningful benefit per official docs
-          # Fresh install ensures version compatibility
-          uv run playwright install --with-deps chromium
         
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         run: |
@@ -561,7 +554,7 @@ jobs:
           uv run pytest tests/test_main.py tests/utils/test_http.py tests/config/ tests/caching/test_file_cache.py -k "not integration and not performance and not e2e and not database and not slow" -x --tb=short --maxfail=3 --junit-xml=junit-smoke-${{ matrix.os }}.xml -v
           
           # Verify core imports work on platform
-          uv run python -c "import src.main; import src.core.converter; print('✓ Core imports successful')"
+          uv run python -c "import src.main; import src.core.converter; print('Core imports successful')"
 
       - name: Upload smoke test results
         uses: actions/upload-artifact@v4
@@ -727,13 +720,67 @@ jobs:
         run: |
           # Run all performance tests including memory profiling and benchmarks
           # Don't use --benchmark-only as it skips non-benchmark tests (memory profiler, cache tests)
-          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean -v
+          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean --benchmark-compare-fail=mean:10% -v
+          
+          # Generate human-readable benchmark report
+          echo "## 🚀 Performance Benchmark Results" > benchmark-report.md
+          echo "" >> benchmark-report.md
+          
+          # Extract key metrics from benchmark.json for reporting
+          uv run python -c "
+          import json
+          
+          with open('benchmark.json', 'r') as f:
+              data = json.load(f)
+          
+          print('| Test | Mean Time | Min Time | Max Time |')
+          print('|------|-----------|----------|----------|')
+          
+          for benchmark in data.get('benchmarks', []):
+              name = benchmark['name']
+              stats = benchmark['stats']
+              mean = f\"{stats['mean']:.4f}s\"
+              min_time = f\"{stats['min']:.4f}s\"
+              max_time = f\"{stats['max']:.4f}s\"
+              print(f'| {name} | {mean} | {min_time} | {max_time} |')
+          " >> benchmark-report.md
 
-      - name: Upload benchmark results
+      - name: Continuous Benchmark (Store Results)
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark.json
+          # Store benchmark data in gh-pages branch for historical tracking
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmarks
+          # Auto-push results to gh-pages for continuous monitoring
+          auto-push: true
+          # Alert on performance regression > 200% of previous
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Performance Regression Check (PRs)
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.event_name == 'pull_request'
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark.json
+          # For PRs: compare against master branch without storing
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload benchmark results and report
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmark.json
+          path: |
+            benchmark.json
+            benchmark-report.md
           retention-days: 90
 
       - name: Calculate and report job duration
