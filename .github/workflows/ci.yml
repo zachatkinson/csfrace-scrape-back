@@ -818,8 +818,9 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           # Handle any uncommitted changes before github-action-benchmark runs
-          git add benchmark.json || true
-          git stash || true
+          # Don't stash benchmark.json as the action needs it - commit it instead
+          git add benchmark.json benchmark-report.md || true
+          git commit -m "temp: benchmark results for github-action-benchmark" || true
 
       - name: Continuous Benchmark (Store Results)
         uses: benchmark-action/github-action-benchmark@v1
