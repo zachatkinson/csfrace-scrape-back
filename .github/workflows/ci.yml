@@ -282,12 +282,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false  # Security best practice
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install UV
+      - name: Install UV (manages Python version automatically)
         uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
