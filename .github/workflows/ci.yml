@@ -188,6 +188,14 @@ jobs:
           enable-cache: true
           cache-suffix: unit-linux-${{ matrix.python-version }}-shard-${{ matrix.shard }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
+      - name: Cache test durations for optimal shard balancing
+        uses: actions/cache@v4
+        with:
+          path: .pytest_cache/durations.json
+          key: pytest-durations-${{ runner.os }}-${{ hashFiles('tests/**/*.py') }}
+          restore-keys: |
+            pytest-durations-${{ runner.os }}-
+
       - name: Install dependencies with UV
         run: |
           uv sync --frozen --no-editable
@@ -228,7 +236,7 @@ jobs:
             --ignore=tests/performance/ \
             --ignore=tests/e2e/ \
             --ignore=tests/api/ \
-            --splits=8 \
+            --splits=4 \
             --group=${{ matrix.shard }} \
             -n auto \
             --dist=worksteal \
@@ -420,7 +428,7 @@ jobs:
       - name: Run integration tests
         run: |
           if [ "${{ matrix.test-type }}" = "database" ]; then
-            uv run pytest ${{ matrix.test-path }} -m "database" --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
+            uv run pytest ${{ matrix.test-path }} -m "integration" --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
           else
             uv run pytest ${{ matrix.test-path }} --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
           fi
