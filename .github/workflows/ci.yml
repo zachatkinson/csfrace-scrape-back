@@ -78,82 +78,88 @@ jobs:
           persist-credentials: false
 
       - name: Detect changed files
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: changes
         with:
+          # Performance optimization: specify base for better git operations
+          base: ${{ github.event.repository.default_branch }}
+          # Enable detailed file listing for debugging (shell format is most useful)
+          list-files: shell  
+          # Optimize git fetch depth for better performance
+          initial-fetch-depth: 100
           filters: |
-            # Core application components
+            # Core application components (quoted for safety per best practices)
             core:
-              - 'src/core/**'
-              - 'src/__init__.py'
-              - 'src/main.py'
+              - "src/core/**"
+              - "src/__init__.py"
+              - "src/main.py"
             
             utils:
-              - 'src/utils/**'
+              - "src/utils/**"
             
             api:
-              - 'src/api/**'
-              - 'src/server/**'
+              - "src/api/**"
+              - "src/server/**"
             
             processors:
-              - 'src/processors/**'
+              - "src/processors/**"
             
             rendering:
-              - 'src/rendering/**'
+              - "src/rendering/**"
             
             caching:
-              - 'src/caching/**'
+              - "src/caching/**"
             
             database:
-              - 'src/database/**'
-              - 'alembic/**'
-              - 'migrations/**'
+              - "src/database/**"
+              - "alembic/**"
+              - "migrations/**"
             
             batch:
-              - 'src/batch/**'
+              - "src/batch/**"
             
             monitoring:
-              - 'src/monitoring/**'
+              - "src/monitoring/**"
             
-            # Test files
+            # Test files (quoted for safety per best practices)
             unit-tests:
-              - 'tests/unit/**'
-              - 'tests/test_*.py'
-              - 'tests/**/test_*.py'
-              - '!tests/integration/**'
-              - '!tests/performance/**'
-              - '!tests/e2e/**'
+              - "tests/unit/**"
+              - "tests/test_*.py"
+              - "tests/**/test_*.py"
+              - "!tests/integration/**"
+              - "!tests/performance/**"
+              - "!tests/e2e/**"
             
             integration-tests:
-              - 'tests/integration/**'
-              - 'tests/database/**'
+              - "tests/integration/**"
+              - "tests/database/**"
             
             performance-tests:
-              - 'tests/performance/**'
+              - "tests/performance/**"
             
-            # Infrastructure
+            # Infrastructure (quoted for safety per best practices)
             docker:
-              - 'Dockerfile'
-              - 'docker-compose*.yml'
-              - '.dockerignore'
+              - "Dockerfile"
+              - "docker-compose*.yml"
+              - ".dockerignore"
             
             dependencies:
-              - 'pyproject.toml'
-              - 'uv.lock'
-              - 'requirements/**'
+              - "pyproject.toml"
+              - "uv.lock"
+              - "requirements/**"
             
             config:
-              - '.github/workflows/**'
-              - 'pyproject.toml'
-              - '.pre-commit-config.yaml'
+              - ".github/workflows/**"
+              - "pyproject.toml"
+              - ".pre-commit-config.yaml"
             
-            # Catch-all for any code changes
+            # Catch-all for any code changes (quoted for safety per best practices)
             any-code:
-              - 'src/**'
-              - 'tests/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
-              - 'Dockerfile'
+              - "src/**"
+              - "tests/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "Dockerfile"
 
       - name: Check for force full CI conditions
         id: force-full
