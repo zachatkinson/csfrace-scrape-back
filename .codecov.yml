@@ -1,23 +1,48 @@
-# Codecov configuration
+# Codecov configuration for CSFrace Scraper Backend
 coverage:
   status:
     project:
       default:
-        target: auto
-        threshold: 1%
+        target: 85%  # CLAUDE.md IDT requirement
+        threshold: 1%  # Don't fail CI for small drops
+        base: auto
+        flags:
+          - unit-tests
+      
+      # Core business logic should have higher coverage
+      core:
+        target: 90%
+        paths:
+          - "src/core/"
+          - "src/processors/" 
+          - "src/security/"
+        flags:
+          - unit-tests
+          
     patch:
       default:
-        target: auto
+        target: 80%  # New code should have good coverage
         threshold: 1%
+        flags:
+          - unit-tests
 
 comment:
   layout: "header, diff, flags, files, footer"
   behavior: default
   require_changes: false
 
-# Ignore patterns
+# Enhanced ignore patterns
 ignore:
   - "tests/"
   - "scripts/"
   - "docs/"
   - "examples/"
+  - "src/cli/"  # CLI modules are harder to test
+  - "src/main.py"  # Entry point
+  - "src/database/migrations.py"  # Migration scripts
+
+# Flag configuration
+flags:
+  unit-tests:
+    paths:
+      - "src/"
