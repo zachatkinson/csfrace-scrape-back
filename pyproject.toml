@@ -385,10 +385,10 @@ upload_to_pypi = false
 upload_to_release = true
 remove_dist = false
 
-# Branch configuration
-branches = [
-    { match = "(main|master)", prerelease = false }
-]
+# Branch configuration - Updated for python-semantic-release v9.21.1+ format
+[tool.semantic_release.branches.master]
+match = "(main|master)"
+prerelease = false
 
 # Version control
 allow_zero_version = false  
