@@ -859,7 +859,7 @@ jobs:
             junit-performance.xml
             benchmark_*.json
             benchmark_summary.md
-          retention-days: 180  # 6 months for historical comparison
+          retention-days: 90  # Maximum allowed by repository policy
 
       - name: Calculate and report job duration
         if: always()
