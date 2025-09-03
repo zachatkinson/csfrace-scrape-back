@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756900693675,
+  "lastUpdate": 1756934941536,
   "repoUrl": "https://github.com/zachatkinson/csfrace-scrape-back",
   "entries": {
     "Benchmark": [
@@ -440,6 +440,226 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0004060176092450542",
             "extra": "mean: 20.757680541663603 msec\nrounds: 48"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "zach.atkinson85@gmail.com",
+            "name": "zachatkinson",
+            "username": "zachatkinson"
+          },
+          "committer": {
+            "email": "zach.atkinson85@gmail.com",
+            "name": "zachatkinson",
+            "username": "zachatkinson"
+          },
+          "distinct": true,
+          "id": "555b30c27ed1365fd3da748a3514eebdf2cbfd1d",
+          "message": "fix(api): update root endpoint to use dynamic version from package\n\n- Fixed hardcoded \"1.1.0\" in root endpoint to use __version__ import\n- Ensures root endpoint returns current package version automatically\n- Completes version assertion fix across all API endpoints\n- Resolves CI test failure: AssertionError: assert '1.1.0' == '2.0.0'\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+          "timestamp": "2025-09-03T17:20:21-04:00",
+          "tree_id": "22b5ec996a81615f953b3d6fe1a5bc92ab6edee9",
+          "url": "https://github.com/zachatkinson/csfrace-scrape-back/commit/555b30c27ed1365fd3da748a3514eebdf2cbfd1d"
+        },
+        "date": 1756934941202,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/performance/test_benchmarks.py::TestConcurrencyPerformance::test_resilience_manager_concurrent_performance",
+            "value": 691.3472390421107,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015413296006926066",
+            "extra": "mean: 1.4464511370372146 msec\nrounds: 540"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestConcurrencyPerformance::test_session_manager_concurrent_requests",
+            "value": 1073.1117271303783,
+            "unit": "iter/sec",
+            "range": "stddev: 0.001927557112527914",
+            "extra": "mean: 931.8694174315964 usec\nrounds: 872"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestConcurrencyPerformance::test_threaded_html_processing_performance",
+            "value": 0.13705732273218507,
+            "unit": "iter/sec",
+            "range": "stddev: 0.1105909065977665",
+            "extra": "mean: 7.296217232800001 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestPerformanceBoundaries::test_retry_mechanism_under_stress",
+            "value": 377.0636279752156,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00014161474662681696",
+            "extra": "mean: 2.6520722918035733 msec\nrounds: 305"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestPerformanceBoundaries::test_url_validator_performance_stress",
+            "value": 58.445188794614026,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0005029828162917227",
+            "extra": "mean: 17.110048245616316 msec\nrounds: 57"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestPerformanceBoundaries::test_circuit_breaker_recovery_performance",
+            "value": 6.642709456650326,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006262477337740624",
+            "extra": "mean: 150.54098128570917 msec\nrounds: 7"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestPerformanceRegression::test_html_processor_baseline_performance",
+            "value": 426.6125056093249,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0005971757434815561",
+            "extra": "mean: 2.3440475533451917 msec\nrounds: 13572"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestPerformanceRegression::test_session_config_creation_performance",
+            "value": 422917.4739241901,
+            "unit": "iter/sec",
+            "range": "stddev: 4.039229920931122e-7",
+            "extra": "mean: 2.3645275063268123 usec\nrounds: 1116508"
+          },
+          {
+            "name": "tests/performance/test_benchmarks.py::TestPerformanceRegression::test_retry_config_delay_calculation_performance",
+            "value": 41226.66154165794,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000014974123655239273",
+            "extra": "mean: 24.256147905392215 usec\nrounds: 287258"
+          },
+          {
+            "name": "tests/performance/test_caching_performance.py::TestCachePerformance::test_simple_cache_benchmark",
+            "value": 569.111611529703,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005223235939237929",
+            "extra": "mean: 1.7571245775712099 msec\nrounds: 535"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_html_processor_performance_large_content",
+            "value": 8.641280477383477,
+            "unit": "iter/sec",
+            "range": "stddev: 0.02763121865193127",
+            "extra": "mean: 115.72359011112592 msec\nrounds: 9"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_html_processor_performance_complex_content",
+            "value": 159.2469774148857,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000329294941248078",
+            "extra": "mean: 6.279554037592204 msec\nrounds: 133"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_metadata_extraction_performance",
+            "value": 48.5348244013342,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007175629134860813",
+            "extra": "mean: 20.60376260416656 msec\nrounds: 48"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_concurrent_processing_performance",
+            "value": 95.23959600953384,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0003279736127324376",
+            "extra": "mean: 10.499834542556188 msec\nrounds: 94"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_memory_efficiency_large_content",
+            "value": 8.712410078017513,
+            "unit": "iter/sec",
+            "range": "stddev: 0.026992277120712185",
+            "extra": "mean: 114.77880300000152 msec\nrounds: 10"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_soup_parsing_performance",
+            "value": 72.00874571543974,
+            "unit": "iter/sec",
+            "range": "stddev: 0.013546351993914548",
+            "extra": "mean: 13.88720203448267 msec\nrounds: 87"
+          },
+          {
+            "name": "tests/performance/test_html_processing_performance.py::TestHTMLProcessingPerformance::test_processing_scalability",
+            "value": 5.237194623672556,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0008691821510596115",
+            "extra": "mean: 190.94192059999386 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/performance/test_rendering_benchmarks.py::TestRenderingPerformanceBenchmarks::test_content_detector_speed_benchmark",
+            "value": 1008.9733754364553,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006771428378262256",
+            "extra": "mean: 991.1064299069601 usec\nrounds: 535"
+          },
+          {
+            "name": "tests/performance/test_rendering_benchmarks.py::TestRenderingPerformanceBenchmarks::test_large_content_handling_performance",
+            "value": 9.338390619706784,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0023139757248754485",
+            "extra": "mean: 107.08483299999277 msec\nrounds: 11"
+          },
+          {
+            "name": "tests/performance/test_rendering_benchmarks.py::TestRenderingPerformanceBenchmarks::test_concurrent_detection_benchmark",
+            "value": 141.30484922525702,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00015628883875961068",
+            "extra": "mean: 7.076897965517652 msec\nrounds: 87"
+          },
+          {
+            "name": "tests/performance/test_rendering_benchmarks.py::TestBrowserSpecificPerformance::test_browser_config_creation_performance",
+            "value": 374300.50955721724,
+            "unit": "iter/sec",
+            "range": "stddev: 4.986523784658476e-7",
+            "extra": "mean: 2.6716501165947135 usec\nrounds: 61309"
+          },
+          {
+            "name": "tests/performance/test_rendering_benchmarks.py::TestResourceLimitPerformance::test_cpu_intensive_content_detection",
+            "value": 4.414709585954118,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0014488374497154744",
+            "extra": "mean: 226.51546619999863 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/performance/test_rendering_performance.py::TestRenderingPerformanceBenchmarks::test_large_content_handling_performance",
+            "value": 9.337206320500215,
+            "unit": "iter/sec",
+            "range": "stddev: 0.005220950239482826",
+            "extra": "mean: 107.09841527272022 msec\nrounds: 11"
+          },
+          {
+            "name": "tests/performance/test_rendering_performance.py::TestRenderingPerformanceBenchmarks::test_content_detector_speed_benchmark_various_sizes",
+            "value": 720.6761926373784,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001639099544183169",
+            "extra": "mean: 1.387585728814506 msec\nrounds: 649"
+          },
+          {
+            "name": "tests/performance/test_rendering_performance.py::TestBrowserConfigPerformance::test_browser_config_creation_performance",
+            "value": 366760.87152318005,
+            "unit": "iter/sec",
+            "range": "stddev: 6.748109153149278e-7",
+            "extra": "mean: 2.726572209971417 usec\nrounds: 35660"
+          },
+          {
+            "name": "tests/performance/test_rendering_performance.py::TestBrowserConfigPerformance::test_browser_pool_creation_performance",
+            "value": 438289.93437307497,
+            "unit": "iter/sec",
+            "range": "stddev: 4.3455168276010386e-7",
+            "extra": "mean: 2.281594719783809 usec\nrounds: 33293"
+          },
+          {
+            "name": "tests/performance/test_rendering_performance.py::TestContentDetectionStress::test_cpu_intensive_content_detection",
+            "value": 7.5372473238650475,
+            "unit": "iter/sec",
+            "range": "stddev: 0.001432965741067293",
+            "extra": "mean: 132.674430999991 msec\nrounds: 8"
+          },
+          {
+            "name": "tests/performance/test_rendering_performance.py::TestContentDetectionStress::test_concurrent_content_analysis_performance",
+            "value": 48.1754325236799,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00034461868048792365",
+            "extra": "mean: 20.757468020831265 msec\nrounds: 48"
           }
         ]
       }
