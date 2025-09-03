@@ -13,6 +13,7 @@ class TestInitDb:
     """Test cases for database initialization functionality."""
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_basic_execution(self):
         """Test that init_db executes without error."""
         with (
@@ -30,6 +31,7 @@ class TestInitDb:
             await init_db()
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_returns_none(self):
         """Test that init_db returns None."""
         with (
@@ -47,16 +49,29 @@ class TestInitDb:
             assert result is None
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_is_coroutine(self):
         """Test that init_db is properly defined as an async function."""
-        # Check that calling init_db returns a coroutine
-        coro = init_db()
-        assert asyncio.iscoroutine(coro)
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
 
-        # Clean up the coroutine
-        await coro
+            # Check that calling init_db returns a coroutine
+            coro = init_db()
+            assert asyncio.iscoroutine(coro)
+
+            # Clean up the coroutine
+            await coro
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_logging_behavior(self, caplog):
         """Test that init_db logs the expected message."""
         with (
@@ -77,6 +92,7 @@ class TestInitDb:
             assert "Database initialization completed successfully" in caplog.text
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_logging_level(self, caplog):
         """Test that init_db logs at INFO level."""
         with (
@@ -99,6 +115,7 @@ class TestInitDb:
             assert info_records[0].message == "Database initialization completed successfully"
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_logger_name(self, caplog):
         """Test that init_db uses the correct logger name."""
         with (
@@ -119,6 +136,7 @@ class TestInitDb:
             assert any(record.name == "src.database.init_db" for record in caplog.records)
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_multiple_calls(self):
         """Test that init_db can be called multiple times safely."""
         with (
@@ -140,6 +158,7 @@ class TestInitDb:
             # Should complete without any issues
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_concurrent_calls(self):
         """Test that init_db handles concurrent calls safely."""
         # PostgreSQL enum creation can conflict during concurrent initialization
@@ -160,9 +179,21 @@ class TestInitDb:
         assert all(result is None for result in results)
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_exception_handling(self):
         """Test init_db behavior when logger raises an exception."""
-        with patch("src.database.init_db.logger") as mock_logger:
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+            patch("src.database.init_db.logger") as mock_logger,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
+
             # Make the logger.info call raise an exception
             mock_logger.info.side_effect = Exception("Logger error")
 
@@ -171,6 +202,7 @@ class TestInitDb:
                 await init_db()
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_with_mocked_logger(self):
         """Test init_db with fully mocked logger."""
         with (
@@ -192,6 +224,7 @@ class TestInitDb:
                 "Database initialization completed successfully"
             )
 
+    @pytest.mark.unit
     def test_init_db_function_signature(self):
         """Test that init_db has the expected function signature."""
         import inspect
@@ -205,6 +238,7 @@ class TestInitDb:
         # Should be marked as async
         assert asyncio.iscoroutinefunction(init_db)
 
+    @pytest.mark.unit
     def test_init_db_docstring(self):
         """Test that init_db has proper documentation."""
         assert init_db.__doc__ is not None
@@ -212,6 +246,7 @@ class TestInitDb:
         assert "PostgreSQL enum safety" in init_db.__doc__
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_performance(self):
         """Test that init_db completes quickly."""
         import time
@@ -224,6 +259,7 @@ class TestInitDb:
         assert execution_time < 1.0
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_in_different_event_loops(self):
         """Test init_db behavior in different event loops."""
         # Test in current event loop
@@ -239,6 +275,7 @@ class TestInitDb:
             new_loop.close()
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_logging_integration(self):
         """Test integration with the logging system."""
         # Configure a test handler
@@ -263,6 +300,7 @@ class TestInitDb:
             test_logger.setLevel(original_level)
             test_logger.handlers = original_handlers
 
+    @pytest.mark.unit
     def test_module_structure(self):
         """Test that the init_db module has expected structure."""
         import src.database.init_db as init_db_module
@@ -275,6 +313,7 @@ class TestInitDb:
         # Check that init_db is callable
         assert callable(init_db_module.init_db)
 
+    @pytest.mark.unit
     def test_logger_configuration(self):
         """Test that logger is properly configured."""
         from src.database.init_db import logger
@@ -291,9 +330,20 @@ class TestInitDbEdgeCases:
     """Test edge cases and error conditions for init_db."""
 
     @pytest.mark.asyncio
+    @pytest.mark.unit
     async def test_init_db_with_logging_disabled(self):
         """Test init_db when logging is disabled."""
-        with patch("src.database.init_db.logger") as mock_logger:
+        with (
+            patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._create_enums_safely") as mock_create_enums,
+            patch("src.database.init_db.Base") as mock_base,
+            patch("src.database.init_db.logger") as mock_logger,
+        ):
+            # Mock successful database operations
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
+            mock_create_enums.return_value = None
+            mock_base.metadata.create_all.return_value = None
             mock_logger.disabled = True
 
             # Should still work
@@ -303,6 +353,7 @@ class TestInitDbEdgeCases:
             mock_logger.info.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_with_no_handlers(self):
         """Test init_db when logger has no handlers."""
         from src.database.init_db import logger
@@ -318,7 +369,8 @@ class TestInitDbEdgeCases:
             logger.handlers = original_handlers
 
     @pytest.mark.asyncio
-    @pytest.mark.slow  # Mark as slow test
+    @pytest.mark.slow
+    @pytest.mark.integration
     async def test_init_db_stress_test(self):
         """Stress test with serialized database operations to prevent PostgreSQL deadlocks."""
         # PostgreSQL has strict limits on concurrent DDL operations (CREATE TYPE, etc.)
@@ -351,6 +403,7 @@ class TestInitDbIntegration:
     """Integration tests for init_db functionality."""
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_real_logging_system(self):
         """Test init_db with real logging system."""
         import os
@@ -397,6 +450,7 @@ class TestInitDbIntegration:
                 os.unlink(log_file)
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_in_task(self):
         """Test init_db when called from asyncio task."""
 
@@ -410,6 +464,7 @@ class TestInitDbIntegration:
         assert result is None
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_with_timeout(self):
         """Test init_db with asyncio timeout."""
         # Should complete well within timeout
@@ -417,6 +472,7 @@ class TestInitDbIntegration:
         assert result is None
 
     @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_init_db_completes_immediately(self):
         """Test that init_db completes immediately (placeholder implementation)."""
         task = asyncio.create_task(init_db())

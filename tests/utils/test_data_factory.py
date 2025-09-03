@@ -139,3 +139,67 @@ class DataMatcher:
                 f"{test_context}: Expected {expected_count} jobs, got {actual_count}. "
                 f"Job URLs: {job_urls}"
             )
+
+
+class MockSessionFactory:
+    """Factory for creating mock database sessions following DRY principles.
+
+    This class provides standardized mock session creation for unit testing,
+    following the SOLID principle of Single Responsibility.
+    """
+
+    @staticmethod
+    def create_mock_session(mocker, commit_side_effect=None) -> Any:
+        """Create a mock database session with standard behavior.
+
+        Args:
+            mocker: pytest-mock fixture
+            commit_side_effect: Optional exception to raise on commit
+
+        Returns:
+            MagicMock: Configured mock session
+        """
+        mock_session = mocker.MagicMock()
+
+        # Configure context manager behavior
+        mock_session.__enter__ = mocker.MagicMock(return_value=mock_session)
+        mock_session.__exit__ = mocker.MagicMock(return_value=None)
+
+        # Configure standard session methods
+        mock_session.add = mocker.MagicMock()
+        mock_session.commit = mocker.MagicMock()
+        mock_session.rollback = mocker.MagicMock()
+        mock_session.close = mocker.MagicMock()
+        mock_session.flush = mocker.MagicMock()
+        mock_session.query = mocker.MagicMock()
+
+        # Set up commit side effect if provided
+        if commit_side_effect:
+            mock_session.commit.side_effect = commit_side_effect
+
+        return mock_session
+
+    @staticmethod
+    def create_mock_service(mocker, commit_side_effect=None) -> tuple[Any, Any]:
+        """Create a DatabaseService with mocked session factory.
+
+        Args:
+            mocker: pytest-mock fixture
+            commit_side_effect: Optional exception to raise on commit
+
+        Returns:
+            Tuple[Any, Any]: (mocked_service, mock_session)
+        """
+        from src.database.service import DatabaseService
+
+        # Create mock session using DRY factory method
+        mock_session = MockSessionFactory.create_mock_session(mocker, commit_side_effect)
+
+        # Create mock session factory that returns our mock session
+        mock_session_factory = mocker.MagicMock(return_value=mock_session)
+
+        # Create service with mocked dependencies
+        service = DatabaseService()
+        service.SessionLocal = mock_session_factory
+
+        return service, mock_session

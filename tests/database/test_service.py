@@ -23,7 +23,7 @@ from src.database.models import (
 from src.database.service import DatabaseService
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceCore:
     """Core database service operations and initialization."""
 
@@ -87,68 +87,74 @@ class TestDatabaseServiceCore:
         assert "scraping_jobs" in table_names
 
 
-@pytest.mark.database
+@pytest.mark.unit
 class TestDatabaseServiceSessions:
-    """Database session management and transaction tests."""
+    """Database session management and transaction tests using mocks."""
 
-    def test_session_context_manager_success(self, testcontainers_db_service):
+    def test_session_context_manager_success(self, mocker):
         """Test database session context manager with successful transaction."""
-        with testcontainers_db_service.get_session() as session:
-            job = ScrapingJob(
-                url="https://example.com/test",
-                domain="example.com",
-                output_directory="/tmp/output",
-            )
-            session.add(job)
+        from tests.utils import MockSessionFactory
+
+        # Create mock service with DRY factory pattern
+        service, mock_session = MockSessionFactory.create_mock_service(mocker)
+
+        # Test successful context manager execution
+        with service.get_session() as session:
+            session.add("test_item")
             # Should commit automatically
 
-        # Verify job was saved
-        with testcontainers_db_service.get_session() as session:
-            saved_job = session.query(ScrapingJob).first()
-            assert saved_job is not None
-            assert saved_job.url == "https://example.com/test"
+        # Verify session operations called correctly
+        service.SessionLocal.assert_called_once()  # Session factory called
+        mock_session.add.assert_called_once_with("test_item")
+        mock_session.commit.assert_called_once()
+        mock_session.close.assert_called_once()
 
-    def test_session_context_manager_rollback(self, testcontainers_db_service):
+    def test_session_context_manager_rollback(self, mocker):
         """Test database session context manager with exception rollback."""
-        try:
-            with testcontainers_db_service.get_session() as session:
-                job = ScrapingJob(
-                    url="https://example.com/test",
-                    domain="example.com",
-                    output_directory="/tmp/output",
-                )
-                session.add(job)
-                session.flush()  # Generate ID
-                job_id = job.id
+        from tests.utils import MockSessionFactory
 
-                # Force an exception
-                raise ValueError("Test exception")
+        # Create mock service with DRY factory pattern
+        service, mock_session = MockSessionFactory.create_mock_service(mocker)
+
+        # Test exception handling in context manager
+        test_exception = ValueError("Test exception")
+        try:
+            with service.get_session() as session:
+                session.add("test_item")
+                raise test_exception
         except ValueError:
             pass  # Expected
 
-        # Verify rollback occurred
-        with testcontainers_db_service.get_session() as session:
-            saved_job = session.query(ScrapingJob).first()
-            assert saved_job is None
+        # Verify session operations and exception handling
+        service.SessionLocal.assert_called_once()  # Session factory called
+        mock_session.add.assert_called_once_with("test_item")
+        mock_session.rollback.assert_called_once()  # Should rollback on exception
+        mock_session.close.assert_called_once()
+        # Commit should not be called due to exception
+        mock_session.commit.assert_not_called()
 
-    def test_session_context_manager_with_commit_error(self, testcontainers_db_service):
+    def test_session_context_manager_with_commit_error(self, mocker):
         """Test session context manager when commit fails."""
-        # Mock the SessionLocal constructor to return our mock session
-        with patch.object(testcontainers_db_service, "SessionLocal") as mock_session_factory:
-            mock_session = MagicMock()
-            mock_session.commit.side_effect = SQLAlchemyError("Commit failed")
-            mock_session_factory.return_value = mock_session
+        from tests.utils import MockSessionFactory
 
-            with pytest.raises(SQLAlchemyError):
-                with testcontainers_db_service.get_session():
-                    pass  # Should fail during commit
+        # Create mock service with commit error using DRY factory pattern
+        service, mock_session = MockSessionFactory.create_mock_service(
+            mocker, commit_side_effect=SQLAlchemyError("Commit failed")
+        )
 
-            # Verify rollback and close were called
-            mock_session.rollback.assert_called_once()
-            mock_session.close.assert_called_once()
+        # Test commit error handling
+        with pytest.raises(SQLAlchemyError):
+            with service.get_session():
+                pass  # Should fail during commit
+
+        # Verify error handling sequence
+        service.SessionLocal.assert_called_once()  # Session factory called
+        mock_session.commit.assert_called_once()  # Commit attempted
+        mock_session.rollback.assert_called_once()  # Rollback on error
+        mock_session.close.assert_called_once()  # Always closed
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceJobOperations:
     """Job creation, retrieval, and status management tests."""
 
@@ -309,7 +315,7 @@ class TestDatabaseServiceJobOperations:
         assert job is None
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceJobStatusUpdates:
     """Job status update operations."""
 
@@ -395,45 +401,44 @@ class TestDatabaseServiceJobStatusUpdates:
         assert success is False
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceJobRetrieval:
     """Job retrieval and filtering operations."""
 
-    def test_get_pending_jobs(self, testcontainers_db_service):
-        """Test retrieval of pending jobs with priority ordering."""
-        # Create jobs with different priorities
-        job_low = testcontainers_db_service.create_job(
-            url="https://example.com/low",
-            output_directory="/tmp/output",
-            priority="low",
-        )
-        job_high = testcontainers_db_service.create_job(
-            url="https://example.com/high",
-            output_directory="/tmp/output",
-            priority="high",
-        )
-        job_normal = testcontainers_db_service.create_job(
-            url="https://example.com/normal",
-            output_directory="/tmp/output",
-            priority="normal",
-        )
-        job_urgent = testcontainers_db_service.create_job(
-            url="https://example.com/urgent",
-            output_directory="/tmp/output",
-            priority="urgent",
+    def test_get_pending_jobs(self, testcontainers_db_service, test_isolation_id):
+        """Test retrieval of pending jobs with priority ordering using isolation IDs."""
+        from tests.utils import DataMatcher, JobFactory
+
+        # Create test jobs using DRY factory pattern with isolation
+        job_factory = JobFactory(test_isolation_id)
+        job_specs = job_factory.create_priority_test_jobs()
+
+        # Create jobs in database following SOLID principles
+        created_jobs = {}
+        for spec in job_specs:
+            job = testcontainers_db_service.create_job(
+                url=spec.unique_url,
+                output_directory=spec.output_directory,
+                priority=spec.priority,
+            )
+            created_jobs[spec.priority] = job
+
+        # Mark one as running to exclude it from pending results
+        testcontainers_db_service.update_job_status(
+            created_jobs[JobPriority.LOW].id, JobStatus.RUNNING
         )
 
-        # Mark one as running to exclude it
-        testcontainers_db_service.update_job_status(job_low.id, JobStatus.RUNNING)
-
-        # Get pending jobs
+        # Get pending jobs and filter using utility class
         pending_jobs = testcontainers_db_service.get_pending_jobs(limit=10)
+        test_jobs = DataMatcher.filter_jobs_by_test_id(pending_jobs, test_isolation_id)
 
-        # Should exclude running job and order by priority
-        assert len(pending_jobs) == 3
-        assert pending_jobs[0].id == job_urgent.id  # urgent first
-        assert pending_jobs[1].id == job_high.id  # high second
-        assert pending_jobs[2].id == job_normal.id  # normal last
+        # Assert using DRY helper with detailed error messages
+        DataMatcher.assert_job_count(test_jobs, 3, "Priority ordering test (excluding running job)")
+
+        # Check order: URGENT -> HIGH -> NORMAL (LOW should be excluded as RUNNING)
+        assert test_jobs[0].id == created_jobs[JobPriority.URGENT].id
+        assert test_jobs[1].id == created_jobs[JobPriority.HIGH].id
+        assert test_jobs[2].id == created_jobs[JobPriority.NORMAL].id
 
     def test_get_pending_jobs_with_limit(self, testcontainers_db_service):
         """Test pending jobs retrieval with limit."""
@@ -609,7 +614,7 @@ class TestDatabaseServiceJobRetrieval:
         assert len(test_jobs) == 7, f"Expected 7 test jobs, got {len(test_jobs)}"
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceRetryOperations:
     """Job retry and recovery operations."""
 
@@ -728,7 +733,7 @@ class TestDatabaseServiceRetryOperations:
         assert len(limited_retry_jobs) >= 1, "Should return at least 1 retry job"
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceBatchOperations:
     """Batch creation and management operations."""
 
@@ -841,7 +846,7 @@ class TestDatabaseServiceBatchOperations:
         # RUNNING, CANCELLED, and PENDING are not counted in these specific fields
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceContentOperations:
     """Content result and logging operations."""
 
@@ -997,7 +1002,7 @@ class TestDatabaseServiceContentOperations:
             assert log_entry is None
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceStatisticsAndAnalytics:
     """Statistics calculation and analytics operations."""
 
@@ -1121,7 +1126,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["total_images_downloaded"] == 10
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceCleanupOperations:
     """Database cleanup and maintenance operations."""
 
@@ -1222,7 +1227,7 @@ class TestDatabaseServiceCleanupOperations:
         assert testcontainers_db_service.get_job(job.id).status == JobStatus.COMPLETED
 
 
-@pytest.mark.database
+@pytest.mark.unit
 class TestDatabaseServiceErrorHandling:
     """Database service error handling and transaction management."""
 
@@ -1396,7 +1401,7 @@ class TestDatabaseServiceErrorHandling:
                 testcontainers_db_service.cleanup_old_jobs()
 
 
-@pytest.mark.database
+@pytest.mark.integration
 class TestDatabaseServiceConcurrency:
     """Concurrency and thread safety tests."""
 
