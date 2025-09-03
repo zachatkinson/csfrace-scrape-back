@@ -783,29 +783,6 @@ jobs:
           # Fresh install ensures version compatibility
           uv run playwright install --with-deps chromium
 
-      - name: Create gh-pages branch if it doesn't exist
-        run: |
-          # Configure git authentication with GITHUB_TOKEN
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Check if gh-pages branch exists, create it if not
-          if ! git ls-remote --exit-code --heads origin gh-pages; then
-            echo "Creating gh-pages branch for benchmark storage..."
-            git checkout --orphan gh-pages
-            git reset --hard
-            mkdir -p benchmarks
-            echo "# Performance Benchmarks" > README.md
-            echo "This branch contains historical performance benchmark data." >> README.md
-            git add README.md
-            git commit -m "Initialize gh-pages branch for performance benchmarks"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
-            git checkout master
-          else
-            echo "gh-pages branch already exists"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run performance tests
         run: |
@@ -845,40 +822,30 @@ jobs:
           files: ./junit-performance.xml
           flags: performance-tests
 
-      # Best practice: Use separate job for benchmark storage to avoid git conflicts
-      - name: Store benchmark results
+      # Official best practice: Use comment-only approach to avoid git conflicts
+      - name: Performance regression check
         uses: benchmark-action/github-action-benchmark@v1
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
           tool: 'pytest'
           output-file-path: benchmark.json
-          # Prevent git conflicts by disabling auto-push and manual handling
-          auto-push: false
-          gh-pages-branch: gh-pages
-          benchmark-data-dir-path: benchmarks
-          # Performance regression alerting
-          alert-threshold: '200%'
+          # Comment-only approach - no branch management needed
           comment-on-alert: true
+          summary-always: true
+          # Performance regression alerting  
+          alert-threshold: '200%'
           fail-on-alert: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          
-      # Manual push following official best practices
-      - name: Push benchmark data to gh-pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git push 'https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git' gh-pages:gh-pages
 
-      - name: Performance Regression Check (PRs)
+      - name: Performance regression check (PRs)
         uses: benchmark-action/github-action-benchmark@v1
         if: github.event_name == 'pull_request'
         with:
           tool: 'pytest'
           output-file-path: benchmark.json
-          # For PRs: compare against master branch without storing
-          alert-threshold: '150%'
+          # For PRs: compare and comment without storing
           comment-on-alert: true
+          alert-threshold: '150%'
           fail-on-alert: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
