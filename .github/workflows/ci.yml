@@ -810,7 +810,7 @@ jobs:
           # Run all performance tests including memory profiling and benchmarks
           # Don't use --benchmark-only as it skips non-benchmark tests (memory profiler, cache tests)
           # Remove --benchmark-compare-fail for initial runs (requires baseline comparison)
-          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean -v
+          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean --junit-xml=junit-performance.xml -v
           
           # Generate human-readable benchmark report
           echo "## 🚀 Performance Benchmark Results" > benchmark-report.md
@@ -834,6 +834,14 @@ jobs:
               max_time = f\"{stats['max']:.4f}s\"
               print(f'| {name} | {mean} | {min_time} | {max_time} |')
           " >> benchmark-report.md
+
+      - name: Upload performance test results to Codecov (Test Analytics)
+        uses: codecov/test-results-action@v1
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./junit-performance.xml
+          flags: performance-tests
 
       - name: Clean git state before benchmark action
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -879,6 +887,7 @@ jobs:
           path: |
             benchmark.json
             benchmark-report.md
+            junit-performance.xml
           retention-days: 90
 
       - name: Calculate and report job duration
