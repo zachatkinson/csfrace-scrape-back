@@ -420,7 +420,10 @@ jobs:
             pytest-durations-${{ runner.os }}-
       
       - name: Create pytest cache directory
-        run: mkdir -p .pytest_cache
+        run: |
+          mkdir -p .pytest_cache
+          # Create empty durations file to prevent cache warning
+          touch .pytest_cache/durations.json
 
       - name: Install dependencies with UV
         run: |
@@ -428,8 +431,10 @@ jobs:
           # Install pytest-split for optimal matrix-based test sharding
           uv add pytest-split --group=test
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers (Shard 4 only - dedicated rendering shard)
+        if: matrix.shard == 4
         run: |
+          # Shard 4 is the dedicated rendering shard for all Playwright tests
           # Following official Playwright recommendations - no caching
           # Caching adds complexity without meaningful benefit per official docs
           # Fresh install ensures version compatibility
@@ -457,25 +462,54 @@ jobs:
           # Run tests using pytest-split for optimal matrix-based sharding (official best practice)
           # pytest-split distributes tests evenly across shards with duration-based balancing
           # Each shard runs its subset with internal parallelization via pytest-xdist
-          uv run pytest tests/ \
-            --ignore=tests/integration/ \
-            --ignore=tests/performance/ \
-            --ignore=tests/e2e/ \
-            --ignore=tests/api/ \
-            -m "not integration" \
-            --splits=4 \
-            --group=${{ matrix.shard }} \
-            -n auto \
-            --dist=worksteal \
-            --durations=10 \
-            --cov=src \
-            --cov-branch \
+          
+          # Shard-specific test execution for dedicated Playwright optimization
+          if [ "${{ matrix.shard }}" = "4" ]; then
+            echo "::notice title=Shard ${{ matrix.shard }}::Dedicated rendering shard - includes Playwright tests"
+            # Shard 4: Dedicated rendering shard (includes tests/rendering/)
+            uv run pytest tests/ \
+              --ignore=tests/integration/ \
+              --ignore=tests/performance/ \
+              --ignore=tests/e2e/ \
+              --ignore=tests/api/ \
+              -m "not integration" \
+              --splits=4 \
+              --group=${{ matrix.shard }} \
+              -n auto \
+              --dist=worksteal \
+              --durations=10 \
+              --cov=src \
+              --cov-branch \
             --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
             --junit-xml=junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml \
             -v \
-            --tb=short \
-            --maxfail=3
+              --tb=short \
+              --maxfail=3
+          else
+            echo "::notice title=Shard ${{ matrix.shard }}::Standard unit tests shard - excludes rendering tests for speed"
+            # Shards 1-3: Exclude rendering tests (no Playwright needed)
+            uv run pytest tests/ \
+              --ignore=tests/integration/ \
+              --ignore=tests/performance/ \
+              --ignore=tests/e2e/ \
+              --ignore=tests/api/ \
+              --ignore=tests/rendering/ \
+              -m "not integration" \
+              --splits=4 \
+              --group=${{ matrix.shard }} \
+              -n auto \
+              --dist=worksteal \
+              --durations=10 \
+              --cov=src \
+              --cov-branch \
+              --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
+              --cov-report=term-missing \
+              --junit-xml=junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml \
+              -v \
+              --tb=short \
+              --maxfail=3
+          fi
           
           # Verify minimum coverage threshold
           uv run coverage report --fail-under=28
