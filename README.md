@@ -1,7 +1,8 @@
 # WordPress to Shopify Content Converter
 
-[![CI/CD Pipeline](https://github.com/zachatkinson/csfrace-scrape/actions/workflows/ci.yml/badge.svg)](https://github.com/zachatkinson/csfrace-scrape/actions)
-[![Code Coverage](https://codecov.io/gh/zachatkinson/csfrace-scrape/branch/main/graph/badge.svg)](https://codecov.io/gh/zachatkinson/csfrace-scrape)
+[![CI/CD Pipeline](https://github.com/zachatkinson/csfrace-scrape-back/actions/workflows/ci.yml/badge.svg)](https://github.com/zachatkinson/csfrace-scrape-back/actions)
+[![Semantic Release](https://img.shields.io/github/v/release/zachatkinson/csfrace-scrape-back?label=release&logo=semantic-release)](https://github.com/zachatkinson/csfrace-scrape-back/releases)
+[![Code Coverage](https://codecov.io/gh/zachatkinson/csfrace-scrape-back/branch/master/graph/badge.svg)](https://codecov.io/gh/zachatkinson/csfrace-scrape-back)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
@@ -41,8 +42,8 @@ A high-performance, async Python application that converts WordPress blog conten
 
 ```bash
 # Clone the repository
-git clone https://github.com/zachatkinson/csfrace-scrape.git
-cd csfrace-scrape
+git clone https://github.com/zachatkinson/csfrace-scrape-back.git
+cd csfrace-scrape-back
 
 # Install with uv (recommended)
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -450,7 +451,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Related Repositories
 
 - **[csfrace-scrape-front](https://github.com/zachatkinson/csfrace-scrape-front)** - Modern Astro/React frontend with Tailwind CSS
-- **[csfrace-scrape](https://github.com/zachatkinson/csfrace-scrape)** - Backend API and scraping engine (this repository)
+- **[csfrace-scrape-back](https://github.com/zachatkinson/csfrace-scrape-back)** - Backend API and scraping engine (this repository)
 
 ## 🙏 Acknowledgments
 
@@ -461,9 +462,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📖 [Documentation](https://github.com/zachatkinson/csfrace-scrape/wiki)
-- 🐛 [Bug Reports](https://github.com/zachatkinson/csfrace-scrape/issues)
-- 💬 [Discussions](https://github.com/zachatkinson/csfrace-scrape/discussions)
+- 📖 [Documentation](https://github.com/zachatkinson/csfrace-scrape-back/wiki)
+- 🐛 [Bug Reports](https://github.com/zachatkinson/csfrace-scrape-back/issues)
+- 💬 [Discussions](https://github.com/zachatkinson/csfrace-scrape-back/discussions)
 - 📧 [Email](mailto:dev@csfrace.com)
 
 ---
