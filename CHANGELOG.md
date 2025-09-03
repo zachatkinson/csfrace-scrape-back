@@ -1,6 +1,60 @@
 # CHANGELOG
 
 
+## v2.0.1 (2025-09-03)
+
+### Bug Fixes
+
+- **api**: Update root endpoint to use dynamic version from package
+  ([`555b30c`](https://github.com/zachatkinson/csfrace-scrape-back/commit/555b30c27ed1365fd3da748a3514eebdf2cbfd1d))
+
+- Fixed hardcoded "1.1.0" in root endpoint to use __version__ import - Ensures root endpoint returns
+  current package version automatically - Completes version assertion fix across all API endpoints -
+  Resolves CI test failure: AssertionError: assert '1.1.0' == '2.0.0'
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **ci**: Update CodeCov configuration for backend repository
+  ([`9196062`](https://github.com/zachatkinson/csfrace-scrape-back/commit/9196062b32e776b2745186fc7957fed746b054b9))
+
+- Upgrade codecov-action from v3 to v5 (latest version) - Add backend-specific repository slug:
+  zachatkinson/csfrace-scrape-back - Ensures coverage reports are tracked correctly for backend repo
+  - Maintains existing token and file configuration - Follows CodeCov setup guide for separate
+  repository tracking
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **tests**: Update all version assertions to use dynamic imports
+  ([`39fcb92`](https://github.com/zachatkinson/csfrace-scrape-back/commit/39fcb925975a8bcac0e531649888b94564cdf99e))
+
+- Updated src/api/main.py to import __version__ instead of hardcoded "1.1.0" - Fixed
+  tests/unit/test_api_routers_health.py to use __version__ instead of "1.4.1" - Fixed
+  tests/unit/test_api_main.py to use __version__ in multiple assertions - Fixed
+  tests/api/test_health.py to use __version__ instead of "1.1.0" - Fixed tests/conftest.py
+  plugin_config fixture to use __version__ - Prevents future CI failures when semantic release
+  updates package version
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+### Chores
+
+- Update UV lock file
+  ([`80ba65a`](https://github.com/zachatkinson/csfrace-scrape-back/commit/80ba65ac62062a2d5eb1033c8ae789123f31b063))
+
+- Update uv.lock after package rebuilds during development - Ensures reproducible dependency
+  resolution - No functional changes to codebase
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v2.0.0 (2025-09-03)
 
 ### Bug Fixes
