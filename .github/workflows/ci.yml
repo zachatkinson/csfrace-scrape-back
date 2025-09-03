@@ -535,6 +535,16 @@ jobs:
           slug: zachatkinson/csfrace-scrape-back
           fail_ci_if_error: false
 
+      - name: Upload test results to Codecov (Test Analytics)
+        uses: codecov/test-results-action@v1
+        if: ${{ !cancelled() && matrix.python-version == env.PYTHON_VERSION }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml
+          flags: unit-tests
+          name: unit-tests-results
+          fail_ci_if_error: false
+
       - name: Calculate and report job duration
         if: always()
         run: |
@@ -701,6 +711,16 @@ jobs:
           name: test-results-${{ matrix.test-type }}-integration
           path: junit-${{ matrix.test-type }}-integration.xml
           retention-days: 30
+
+      - name: Upload integration test results to Codecov (Test Analytics)
+        uses: codecov/test-results-action@v1
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./junit-${{ matrix.test-type }}-integration.xml
+          flags: integration-tests
+          name: integration-tests-${{ matrix.test-type }}
+          fail_ci_if_error: false
 
       - name: Calculate and report job duration
         if: always()
