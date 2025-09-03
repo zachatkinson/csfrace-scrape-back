@@ -234,21 +234,31 @@ class TestInitDb:
 
         # Should have one optional parameter for dependency injection (SQLAlchemy best practice)
         # This enables testing with testcontainers while maintaining backward compatibility
-        assert len(sig.parameters) == 1, "init_db should accept optional engine parameter for dependency injection"
-        
+        assert len(sig.parameters) == 1, (
+            "init_db should accept optional engine parameter for dependency injection"
+        )
+
         # Parameter should be named 'engine' with default None (SQLAlchemy pattern)
-        engine_param = sig.parameters['engine']
-        assert engine_param.name == 'engine', "Parameter should be named 'engine' following SQLAlchemy conventions"
-        assert engine_param.default is None, "Engine parameter should default to None for backward compatibility"
-        
+        engine_param = sig.parameters["engine"]
+        assert engine_param.name == "engine", (
+            "Parameter should be named 'engine' following SQLAlchemy conventions"
+        )
+        assert engine_param.default is None, (
+            "Engine parameter should default to None for backward compatibility"
+        )
+
         # Parameter should be optional to maintain API compatibility
-        assert engine_param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD, "Engine parameter should accept both positional and keyword arguments"
+        assert engine_param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD, (
+            "Engine parameter should accept both positional and keyword arguments"
+        )
 
         # Should be marked as async
         assert asyncio.iscoroutinefunction(init_db), "init_db should be an async function"
-        
+
         # Return type should be None
-        assert sig.return_annotation == None or sig.return_annotation == type(None), "init_db should return None"
+        assert sig.return_annotation is None or sig.return_annotation is type(None), (
+            "init_db should return None"
+        )
 
     @pytest.mark.unit
     def test_init_db_docstring(self):
