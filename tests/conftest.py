@@ -471,11 +471,12 @@ def mock_wordpress_server(mock_responses):
 @pytest.fixture
 def plugin_config():
     """Sample plugin configuration."""
+    from src import __version__
     from src.plugins.base import PluginConfig, PluginType
 
     return PluginConfig(
         name="test_plugin",
-        version="1.1.0",
+        version=__version__,
         plugin_type=PluginType.HTML_PROCESSOR,
         enabled=True,
         priority=100,

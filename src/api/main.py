@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .. import __version__
 from ..database.init_db import init_db
 from .routers import batches, health, jobs
 
@@ -31,7 +32,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="CSFrace Scraper API",
     description="API for managing WordPress to Shopify content conversion jobs",
-    version="1.1.0",
+    version=__version__,
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,

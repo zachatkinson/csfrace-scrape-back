@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, patch
 from fastapi import status
 from fastapi.testclient import TestClient
 
+from src import __version__
+
 
 class TestHealthEndpoints:
     """Test health and monitoring API endpoints."""
@@ -17,7 +19,7 @@ class TestHealthEndpoints:
         data = response.json()
 
         assert data["message"] == "CSFrace Scraper API"
-        assert data["version"] == "1.1.0"
+        assert data["version"] == __version__
         assert data["docs"] == "/docs"
         assert data["health"] == "/health"
 
@@ -84,7 +86,7 @@ class TestHealthEndpoints:
 
         assert data["status"] == "healthy"
         assert "timestamp" in data
-        assert data["version"] == "1.1.0"
+        assert data["version"] == __version__
         assert data["database"]["status"] == "healthy"
         assert data["database"]["connected"] is True
 
@@ -270,7 +272,7 @@ active_jobs 5
         response = client.get("/health/")
         data = response.json()
 
-        assert data["version"] == "1.1.0"
+        assert data["version"] == __version__
         # TODO: In future, this should come from package metadata
 
     def test_concurrent_health_checks(self, client: TestClient):

@@ -6,6 +6,7 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 
+from src import __version__
 from src.api.main import app, global_exception_handler, lifespan
 
 
@@ -16,7 +17,7 @@ class TestFastAPIApp:
         """Test that FastAPI app is properly configured."""
         assert app.title == "CSFrace Scraper API"
         assert app.description == "API for managing WordPress to Shopify content conversion jobs"
-        assert app.version == "1.1.0"
+        assert app.version == __version__
         assert app.docs_url == "/docs"
         assert app.redoc_url == "/redoc"
 
@@ -61,7 +62,7 @@ class TestFastAPIApp:
             data = response.json()
 
             assert data["message"] == "CSFrace Scraper API"
-            assert data["version"] == "1.1.0"
+            assert data["version"] == __version__
             assert data["docs"] == "/docs"
             assert data["health"] == "/health"
 
@@ -257,7 +258,7 @@ class TestAppIntegration:
         openapi_schema = app.openapi()
 
         assert openapi_schema["info"]["title"] == "CSFrace Scraper API"
-        assert openapi_schema["info"]["version"] == "1.1.0"
+        assert openapi_schema["info"]["version"] == __version__
         assert (
             openapi_schema["info"]["description"]
             == "API for managing WordPress to Shopify content conversion jobs"

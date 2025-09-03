@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy import text
 
+from src import __version__
 from src.api.routers.health import (
     get_metrics,
     health_check,
@@ -45,7 +46,7 @@ class TestHealthRouterEndpoints:
 
                 assert isinstance(result, HealthCheckResponse)
                 assert result.status == "healthy"
-                assert result.version == "1.4.1"
+                assert result.version == __version__
                 assert result.database["status"] == "healthy"
                 assert result.database["connected"] is True
                 # Cache may be configured in the environment
