@@ -762,7 +762,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          # GitHub Actions best practice: allow token for gh-pages operations
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Full history needed for benchmark comparisons
 
       - name: Install UV (manages Python version automatically)
         uses: astral-sh/setup-uv@v6
@@ -843,26 +845,18 @@ jobs:
           files: ./junit-performance.xml
           flags: performance-tests
 
-      - name: Clean git state before benchmark action
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: |
-          # Handle any uncommitted changes before github-action-benchmark runs
-          # Don't stash benchmark.json as the action needs it - commit it instead
-          git add benchmark.json benchmark-report.md || true
-          git commit -m "temp: benchmark results for github-action-benchmark" || true
-
-      - name: Continuous Benchmark (Store Results)
+      - name: Store benchmark results
         uses: benchmark-action/github-action-benchmark@v1
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
           tool: 'pytest'
           output-file-path: benchmark.json
-          # Store benchmark data in gh-pages branch for historical tracking
-          gh-pages-branch: gh-pages
+          # GitHub Actions best practice: use dedicated checkout for gh-pages
+          gh-pages-branch: gh-pages  
           benchmark-data-dir-path: benchmarks
-          # Auto-push results to gh-pages for continuous monitoring
+          # Official recommendation: let action handle git operations
           auto-push: true
-          # Alert on performance regression > 200% of previous
+          # Performance regression alerting
           alert-threshold: '200%'
           comment-on-alert: true
           fail-on-alert: false
