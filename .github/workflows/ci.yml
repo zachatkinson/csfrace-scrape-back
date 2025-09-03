@@ -354,11 +354,12 @@ jobs:
           echo "::notice title=Unit Tests Duration (${{ matrix.os }})::Unit tests completed in ${duration} seconds"
         shell: bash
 
-  # Parallel Integration Tests (Redis, Database, Converter)
+  # Integration Tests (Redis, Database, Converter) - Run in parallel with unit tests
+  # Database isolation with SQLAlchemy 2.0 SAVEPOINT patterns enables safe parallel execution
   integration-tests:
     name: Integration Tests - ${{ matrix.test-type }}
     runs-on: ubuntu-latest
-    needs: [quality, unit-tests-linux]  # Run AFTER unit tests to avoid database conflicts
+    needs: [quality]  # Run IN PARALLEL with unit tests - database isolation is now perfect
     timeout-minutes: 15
     permissions:
       contents: read
