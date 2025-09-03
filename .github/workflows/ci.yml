@@ -763,7 +763,8 @@ jobs:
         run: |
           # Run all performance tests including memory profiling and benchmarks
           # Don't use --benchmark-only as it skips non-benchmark tests (memory profiler, cache tests)
-          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean --benchmark-compare-fail=mean:10% -v
+          # Remove --benchmark-compare-fail for initial runs (requires baseline comparison)
+          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean -v
           
           # Generate human-readable benchmark report
           echo "## 🚀 Performance Benchmark Results" > benchmark-report.md
