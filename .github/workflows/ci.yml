@@ -59,9 +59,16 @@ jobs:
       dependencies-changed: ${{ steps.changes.outputs.dependencies }}
       config-changed: ${{ steps.changes.outputs.config }}
       
-      # Overall change detection
+      # Overall change detection  
       any-code-changed: ${{ steps.changes.outputs.any-code }}
       force-full-ci: ${{ steps.force-full.outputs.force }}
+      
+      # Computed conditions for better maintainability
+      should-run-unit-tests: ${{ steps.compute-conditions.outputs.unit-tests }}
+      should-run-integration-tests: ${{ steps.compute-conditions.outputs.integration-tests }}
+      should-run-cross-platform: ${{ steps.compute-conditions.outputs.cross-platform }}
+      should-run-performance: ${{ steps.compute-conditions.outputs.performance }}
+      should-run-docker: ${{ steps.compute-conditions.outputs.docker }}
       
     steps:
       - name: Checkout code
@@ -188,6 +195,63 @@ jobs:
           
           # Log what changed for debugging
           echo "::notice title=Progressive CI Changes::Core: ${{ steps.changes.outputs.core }}, Utils: ${{ steps.changes.outputs.utils }}, API: ${{ steps.changes.outputs.api }}, Processors: ${{ steps.changes.outputs.processors }}"
+
+      - name: Compute test execution conditions
+        id: compute-conditions
+        run: |
+          # Using official GitHub Actions best practice: compute complex conditions in a dedicated step
+          
+          force_full="${{ steps.force-full.outputs.force }}"
+          
+          # Unit tests: run if unit tests changed, core components changed, or forced
+          if [[ "$force_full" == "true" || \
+                "${{ steps.changes.outputs.unit-tests }}" == "true" || \
+                "${{ steps.changes.outputs.core }}" == "true" || \
+                "${{ steps.changes.outputs.utils }}" == "true" || \
+                "${{ steps.changes.outputs.processors }}" == "true" ]]; then
+            echo "unit-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "unit-tests=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Integration tests: run if integration tests changed or forced
+          if [[ "$force_full" == "true" || \
+                "${{ steps.changes.outputs.integration-tests }}" == "true" ]]; then
+            echo "integration-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "integration-tests=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Cross-platform tests: run if core functionality changed or forced
+          if [[ "$force_full" == "true" || \
+                "${{ steps.changes.outputs.core }}" == "true" || \
+                "${{ steps.changes.outputs.utils }}" == "true" ]]; then
+            echo "cross-platform=true" >> $GITHUB_OUTPUT
+          else
+            echo "cross-platform=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Performance tests: run if performance code changed, core changed, or forced
+          if [[ "$force_full" == "true" || \
+                "${{ steps.changes.outputs.performance-tests }}" == "true" || \
+                "${{ steps.changes.outputs.core }}" == "true" ]]; then
+            echo "performance=true" >> $GITHUB_OUTPUT
+          else
+            echo "performance=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Docker scan: run if Docker files changed, dependencies changed, or forced
+          if [[ "$force_full" == "true" || \
+                "${{ steps.changes.outputs.docker }}" == "true" || \
+                "${{ steps.changes.outputs.dependencies }}" == "true" || \
+                "${{ github.event_name }}" == "schedule" || \
+                "${{ contains(github.event.head_commit.message, '[docker]') }}" == "true" ]]; then
+            echo "docker=true" >> $GITHUB_OUTPUT
+          else
+            echo "docker=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "::notice title=Computed Conditions::Unit Tests: $(echo $([[ "$force_full" == "true" || "${{ steps.changes.outputs.unit-tests }}" == "true" || "${{ steps.changes.outputs.core }}" == "true" || "${{ steps.changes.outputs.utils }}" == "true" || "${{ steps.changes.outputs.processors }}" == "true" ]] && echo true || echo false))"
   # Code quality and security checks (foundational job)
   quality:
     name: Code Quality & Security
@@ -297,8 +361,8 @@ jobs:
     needs: [detect-changes, quality]
     timeout-minutes: 25
     
-    # Run if unit tests changed, core components changed, or forced
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.unit-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true' || needs.detect-changes.outputs.processors-changed == 'true') }}
+    # Use computed condition for cleaner logic (GitHub Actions best practice)
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && needs.detect-changes.outputs.should-run-unit-tests == 'true' }}
     permissions:
       contents: read
       checks: write
@@ -450,8 +514,8 @@ jobs:
     needs: [detect-changes, quality]
     timeout-minutes: 15
     
-    # Run cross-platform tests only if core functionality changed or forced
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.utils-changed == 'true') }}
+    # Use computed condition for cleaner logic (GitHub Actions best practice)
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && needs.detect-changes.outputs.should-run-cross-platform == 'true' }}
     permissions:
       contents: read
       checks: write
@@ -520,8 +584,8 @@ jobs:
     needs: [detect-changes, quality]  # Run IN PARALLEL with unit tests - database isolation is now perfect
     timeout-minutes: 15
     
-    # Run integration tests based on what changed
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.integration-tests-changed == 'true') }}
+    # Use computed condition for cleaner logic (GitHub Actions best practice)
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && needs.detect-changes.outputs.should-run-integration-tests == 'true' }}
     permissions:
       contents: read
       checks: write
@@ -630,8 +694,8 @@ jobs:
     permissions:
       contents: read
     
-    # Run performance tests if performance code changed, core changed, or forced
-    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.performance-tests-changed == 'true' || needs.detect-changes.outputs.core-changed == 'true') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # Use computed condition for cleaner logic (GitHub Actions best practice)
+    if: ${{ !contains(github.event.head_commit.message, '[skip performance]') && needs.detect-changes.outputs.should-run-performance == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
 
     steps:
       - name: Checkout code
@@ -686,8 +750,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, quality]
     timeout-minutes: 15
-    # Run Docker scan if Docker files changed, dependencies changed, or forced
-    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && (needs.detect-changes.outputs.force-full-ci == 'true' || needs.detect-changes.outputs.docker-changed == 'true' || needs.detect-changes.outputs.dependencies-changed == 'true' || github.event_name == 'schedule' || contains(github.event.head_commit.message, '[docker]')) }}
+    # Use computed condition for cleaner logic (GitHub Actions best practice)  
+    if: ${{ !contains(github.event.head_commit.message, '[skip docker]') && needs.detect-changes.outputs.should-run-docker == 'true' }}
     permissions:
       contents: read
       security-events: write
