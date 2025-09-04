@@ -376,6 +376,7 @@ dev = [
     "pytest-split>=0.10.0",
     "types-bleach>=6.2.0.20250809",
     "types-aiofiles>=24.1.0.20250822",
+    "pylint>=3.3.8",
 ]
 
 # Python Semantic Release configuration - Best Practices 2025
@@ -418,7 +419,6 @@ major_on_zero = true
 
 # Enhanced changelog configuration - 2025 Best Practices
 [tool.semantic_release.changelog]
-template_dir = "templates"
 exclude_commit_patterns = [
     "chore\\(deps\\).*",      # Ignore dependency updates
     "chore\\(release\\).*",   # Ignore release commits  
