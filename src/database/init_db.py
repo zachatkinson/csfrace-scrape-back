@@ -7,12 +7,17 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 import sqlalchemy.exc
 
-from alembic import command  # type: ignore[attr-defined] # pylint: disable=no-name-in-module
-from alembic.config import Config  # pylint: disable=no-name-in-module
+logger = logging.getLogger(__name__)
+
+try:
+    from alembic import command
+    from alembic.config import Config
+except ImportError as e:
+    logger.warning("Alembic not available: %s", e)
+    command = None  # type: ignore[assignment]
+    Config = None   # type: ignore[assignment]
 
 from .models import Base, JobPriority, JobStatus, get_database_url
-
-logger = logging.getLogger(__name__)
 
 
 async def init_db(engine=None) -> None:
@@ -61,6 +66,9 @@ async def init_db(engine=None) -> None:
 
 async def _run_alembic_migrations() -> None:
     """Run Alembic migrations to upgrade database to latest schema."""
+    if command is None or Config is None:
+        raise ImportError("Alembic is not available - cannot run migrations")
+    
     # Get the project root directory (where alembic.ini is located)
     backend_root = Path(__file__).parent.parent.parent
     alembic_ini_path = backend_root / "alembic.ini"
