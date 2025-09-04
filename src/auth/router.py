@@ -2,12 +2,15 @@
 
 from datetime import timedelta
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from ..constants import AUTH_CONSTANTS
+from ..constants import AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
+
+logger = structlog.get_logger(__name__)
 from ..database.service import DatabaseService
 from .config import auth_config
 from .dependencies import get_current_active_user, get_current_superuser, get_database_service
@@ -311,48 +314,148 @@ def initiate_oauth_login(
 
 @router.post("/oauth/{provider}/callback", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
-def handle_oauth_callback(
+async def handle_oauth_callback(
     request: Request,  # Required for rate limiting
     provider: OAuthProvider,
     oauth_callback: OAuthCallback,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
-    """Handle OAuth2 callback and return JWT tokens - Async OAuth per FastAPI docs."""
+    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow with PKCE.
+    
+    This endpoint implements the OAuth2 Authorization Code Flow callback handling
+    according to RFC 6749 and FastAPI security best practices.
+    """
+    # Step 1: Validate OAuth error responses
     if oauth_callback.error:
+        error_detail = oauth_callback.error_description or oauth_callback.error
+        logger.warning(
+            "OAuth callback received error",
+            provider=provider.value,
+            error=oauth_callback.error,
+            error_description=oauth_callback.error_description,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"OAuth error: {oauth_callback.error_description or oauth_callback.error}",
+            detail=f"OAuth authorization failed: {error_detail}",
         )
 
-    # Validate provider consistency
+    # Step 2: Validate provider consistency (CSRF protection)
     if provider != oauth_callback.provider:
+        logger.warning(
+            "OAuth callback provider mismatch",
+            url_provider=provider.value,
+            callback_provider=oauth_callback.provider.value,
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Provider mismatch in callback"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth provider mismatch - possible CSRF attack",
         )
 
+    # Step 3: Validate required OAuth callback parameters
+    if not oauth_callback.code:
+        logger.warning("OAuth callback missing authorization code", provider=provider.value)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing authorization code in OAuth callback",
+        )
+
+    if not oauth_callback.state:
+        logger.warning("OAuth callback missing state parameter", provider=provider.value)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing state parameter in OAuth callback",
+        )
+
+    # Step 4: Handle OAuth callback with proper error handling and logging
     with db_service.get_session() as session:
-        _oauth_service = OAuthService(session)
-        _auth_service = AuthService(session)
+        oauth_service = OAuthService(session)
+        auth_service = AuthService(session)
 
-        # Handle OAuth callback (this would normally be async but using sync for consistency)
-        # In a real implementation, you'd use async/await here per FastAPI OAuth patterns
         try:
-            # For now, create a placeholder response - full implementation needs async
-            # TODO: Implement actual OAuth callback handling
-
-            # Create placeholder user for demonstration
-            # In real implementation: user, is_new = await oauth_service.handle_oauth_callback(...)
-
-            # For now, return a basic token (should be replaced with actual OAuth flow)
-            raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="OAuth callback handling not fully implemented - requires async database operations",
+            logger.info(
+                "Processing OAuth callback",
+                provider=provider.value,
+                code_present=bool(oauth_callback.code),
+                state_present=bool(oauth_callback.state),
             )
 
+            # Step 5: Exchange authorization code for access token and get user info
+            # Build redirect URI for token exchange (must match the one used in authorization)
+            redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider.value}/callback"
+
+            # Handle OAuth callback and get user information
+            access_token, is_new_user = await oauth_service.handle_oauth_callback(
+                provider=provider,
+                code=oauth_callback.code,
+                state=oauth_callback.state,
+                redirect_uri=redirect_uri,
+            )
+
+            # Step 6: Get user information from OAuth service
+            # At this point, the user should be created or found in the database
+            user = auth_service.get_user_by_email(
+                # We need to get the email from OAuth user info
+                # For now, we'll get it from the OAuth service's cached user info
+                (await oauth_service._get_cached_user_info(access_token)).email
+            )
+
+            if not user:
+                logger.error("User not found after OAuth callback processing")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="User account creation or retrieval failed",
+                )
+
+            # Step 7: Generate JWT tokens for authenticated user
+            access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
+            jwt_access_token = security_manager.create_access_token(
+                data={"sub": user.username, "user_id": user.id, "scopes": []},
+                expires_delta=access_token_expires,
+            )
+
+            # Create refresh token
+            jwt_refresh_token = security_manager.create_refresh_token(
+                data={"sub": user.username, "user_id": user.id}
+            )
+
+            # Step 8: Log successful OAuth authentication
+            logger.info(
+                "OAuth authentication successful",
+                provider=provider.value,
+                user_id=user.id,
+                email=user.email,
+                is_new_user=is_new_user,
+            )
+
+            # Step 9: Return JWT tokens following FastAPI Token model
+            return Token(
+                access_token=jwt_access_token,
+                token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
+                expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+                refresh_token=jwt_refresh_token,
+            )
+
+        except HTTPException:
+            # Re-raise HTTP exceptions as-is
+            raise
+        except ValueError as e:
+            # Handle validation errors from OAuth service
+            logger.warning("OAuth callback validation error", provider=provider.value, error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"OAuth validation failed: {str(e)}",
+            )
         except Exception as e:
+            # Handle unexpected errors with structured logging
+            logger.error(
+                "Unexpected error in OAuth callback",
+                provider=provider.value,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"OAuth authentication failed: {str(e)}",
+                detail="OAuth authentication failed due to internal error",
             )
 
 

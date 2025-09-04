@@ -365,3 +365,284 @@ class TestOAuthProviderInterface:
             assert callable(provider.get_authorization_url)
             assert callable(provider.exchange_code_for_token)
             assert callable(provider.get_user_info)
+
+
+class TestOAuthCallbackHandling:
+    """Test OAuth2 callback handling functionality - comprehensive security validation."""
+
+    @pytest.fixture
+    def mock_db_session(self):
+        """Mock database session for testing."""
+        return Mock(spec=Session)
+
+    @pytest.fixture
+    def oauth_service(self, mock_db_session):
+        """Create OAuth service instance for testing."""
+        return OAuthService(mock_db_session)
+
+    @pytest.fixture
+    def sample_oauth_user_info(self):
+        """Sample OAuth user information for testing."""
+        return OAuthUserInfo(
+            provider=OAuthProvider.GOOGLE,
+            provider_id="123456789",
+            email="test@example.com",
+            name="Test User",
+            avatar_url="https://example.com/avatar.jpg"
+        )
+
+    @pytest.fixture
+    def sample_user(self):
+        """Sample user for testing."""
+        from src.auth.models import User
+        from datetime import datetime, UTC
+        return User(
+            id="user123",
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            is_active=True,
+            is_superuser=False,
+            created_at=datetime.now(UTC)
+        )
+
+    def test_oauth_state_storage_and_retrieval(self, oauth_service):
+        """Test OAuth state storage and retrieval for CSRF protection."""
+        provider = OAuthProvider.GOOGLE
+        state = "test_state_123"
+        redirect_uri = "https://example.com/callback"
+        
+        # Store state
+        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        
+        # Verify state is stored
+        assert state in oauth_service._oauth_state_cache
+        cached_data = oauth_service._oauth_state_cache[state]
+        assert cached_data["provider"] == provider
+        assert cached_data["redirect_uri"] == redirect_uri
+        assert "created_at" in cached_data
+
+    def test_oauth_state_cleanup_expired_states(self, oauth_service):
+        """Test automatic cleanup of expired OAuth states."""
+        import time
+        
+        provider = OAuthProvider.GOOGLE
+        old_state = "old_state_123"
+        new_state = "new_state_456"
+        redirect_uri = "https://example.com/callback"
+        
+        # Manually add an old state (simulate expired)
+        oauth_service._oauth_state_cache[old_state] = {
+            "provider": provider,
+            "redirect_uri": redirect_uri,
+            "created_at": time.time() - 700,  # 700 seconds ago (>10 minutes)
+        }
+        
+        # Store a new state (should trigger cleanup)
+        oauth_service._store_oauth_state(new_state, provider, redirect_uri)
+        
+        # Old state should be cleaned up
+        assert old_state not in oauth_service._oauth_state_cache
+        assert new_state in oauth_service._oauth_state_cache
+
+    @pytest.mark.asyncio
+    async def test_validate_oauth_state_success(self, oauth_service):
+        """Test successful OAuth state validation."""
+        provider = OAuthProvider.GOOGLE
+        state = "valid_state_123"
+        redirect_uri = "https://example.com/callback"
+        
+        # Store state first
+        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        
+        # Should validate successfully and clean up state
+        await oauth_service._validate_oauth_state(state, provider)
+        
+        # State should be removed after validation (one-time use)
+        assert state not in oauth_service._oauth_state_cache
+
+    @pytest.mark.asyncio
+    async def test_validate_oauth_state_missing_state(self, oauth_service):
+        """Test OAuth state validation with missing state parameter."""
+        provider = OAuthProvider.GOOGLE
+        
+        with pytest.raises(ValueError, match="Missing state parameter"):
+            await oauth_service._validate_oauth_state("", provider)
+
+    @pytest.mark.asyncio
+    async def test_validate_oauth_state_invalid_state(self, oauth_service):
+        """Test OAuth state validation with invalid state."""
+        provider = OAuthProvider.GOOGLE
+        invalid_state = "nonexistent_state"
+        
+        with pytest.raises(ValueError, match="Invalid or expired state parameter"):
+            await oauth_service._validate_oauth_state(invalid_state, provider)
+
+    @pytest.mark.asyncio
+    async def test_validate_oauth_state_provider_mismatch(self, oauth_service):
+        """Test OAuth state validation with provider mismatch."""
+        stored_provider = OAuthProvider.GOOGLE
+        callback_provider = OAuthProvider.GITHUB
+        state = "test_state_123"
+        redirect_uri = "https://example.com/callback"
+        
+        # Store state for Google
+        oauth_service._store_oauth_state(state, stored_provider, redirect_uri)
+        
+        # Try to validate with GitHub provider
+        with pytest.raises(ValueError, match="State parameter provider mismatch"):
+            await oauth_service._validate_oauth_state(state, callback_provider)
+
+    @pytest.mark.asyncio
+    async def test_validate_oauth_state_expired(self, oauth_service):
+        """Test OAuth state validation with expired state."""
+        import time
+        
+        provider = OAuthProvider.GOOGLE
+        state = "expired_state_123"
+        redirect_uri = "https://example.com/callback"
+        
+        # Manually add expired state
+        oauth_service._oauth_state_cache[state] = {
+            "provider": provider,
+            "redirect_uri": redirect_uri,
+            "created_at": time.time() - 700,  # 700 seconds ago (>10 minutes)
+        }
+        
+        with pytest.raises(ValueError, match="Expired state parameter"):
+            await oauth_service._validate_oauth_state(state, provider)
+        
+        # Expired state should be cleaned up
+        assert state not in oauth_service._oauth_state_cache
+
+    @pytest.mark.asyncio
+    async def test_get_cached_user_info_success(self, oauth_service, sample_oauth_user_info):
+        """Test successful retrieval of cached OAuth user info."""
+        # Cache user info
+        oauth_service._cached_oauth_user_info = sample_oauth_user_info
+        
+        # Retrieve cached info
+        result = await oauth_service._get_cached_user_info("dummy_token")
+        
+        assert result == sample_oauth_user_info
+        assert result.email == "test@example.com"
+        assert result.provider == OAuthProvider.GOOGLE
+
+    @pytest.mark.asyncio
+    async def test_get_cached_user_info_no_cache(self, oauth_service):
+        """Test cached user info retrieval when no cache exists."""
+        with pytest.raises(ValueError, match="No cached OAuth user information available"):
+            await oauth_service._get_cached_user_info("dummy_token")
+
+    @pytest.mark.asyncio
+    @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")
+    @patch.object(OAuthService, "_find_or_create_user")
+    @patch.object(OAuthService, "_link_oauth_account")
+    async def test_handle_oauth_callback_success(
+        self,
+        mock_link_account,
+        mock_find_user,
+        mock_create_provider,
+        oauth_service,
+        sample_oauth_user_info,
+        sample_user
+    ):
+        """Test successful OAuth callback handling."""
+        # Mock provider and its methods
+        mock_provider = AsyncMock()
+        mock_provider.exchange_code_for_token.return_value = "access_token_123"
+        mock_provider.get_user_info.return_value = sample_oauth_user_info
+        mock_create_provider.return_value = mock_provider
+        
+        # Mock user operations
+        mock_find_user.return_value = (sample_user, True)  # New user
+        mock_linked_account = Mock(id="link123")
+        mock_link_account.return_value = mock_linked_account
+        
+        # Store valid state
+        provider = OAuthProvider.GOOGLE
+        state = "valid_state_123"
+        code = "auth_code_123"
+        redirect_uri = "https://example.com/callback"
+        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        
+        # Handle callback
+        access_token, is_new_user = await oauth_service.handle_oauth_callback(
+            provider, code, state, redirect_uri
+        )
+        
+        # Verify results
+        assert access_token == "access_token_123"
+        assert is_new_user is True
+        assert oauth_service._cached_oauth_user_info == sample_oauth_user_info
+        
+        # Verify all methods were called correctly
+        mock_provider.exchange_code_for_token.assert_called_once_with(code, redirect_uri)
+        mock_provider.get_user_info.assert_called_once_with("access_token_123")
+        mock_find_user.assert_called_once_with(sample_oauth_user_info)
+        mock_link_account.assert_called_once_with(sample_user.id, sample_oauth_user_info)
+
+    @pytest.mark.asyncio
+    @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")
+    async def test_handle_oauth_callback_invalid_state(
+        self,
+        mock_create_provider,
+        oauth_service
+    ):
+        """Test OAuth callback handling with invalid state."""
+        provider = OAuthProvider.GOOGLE
+        state = "invalid_state_123"
+        code = "auth_code_123"
+        redirect_uri = "https://example.com/callback"
+        
+        # Don't store the state (making it invalid)
+        
+        with pytest.raises(ValueError, match="Invalid or expired state parameter"):
+            await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)
+
+    @pytest.mark.asyncio
+    @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")
+    async def test_handle_oauth_callback_token_exchange_failure(
+        self,
+        mock_create_provider,
+        oauth_service
+    ):
+        """Test OAuth callback handling when token exchange fails."""
+        # Mock provider that fails token exchange
+        mock_provider = AsyncMock()
+        mock_provider.exchange_code_for_token.side_effect = Exception("Token exchange failed")
+        mock_create_provider.return_value = mock_provider
+        
+        # Store valid state
+        provider = OAuthProvider.GOOGLE
+        state = "valid_state_123"
+        code = "invalid_code_123"
+        redirect_uri = "https://example.com/callback"
+        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        
+        with pytest.raises(Exception, match="Token exchange failed"):
+            await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)
+
+    @pytest.mark.asyncio
+    @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")
+    async def test_handle_oauth_callback_user_info_failure(
+        self,
+        mock_create_provider,
+        oauth_service
+    ):
+        """Test OAuth callback handling when user info retrieval fails."""
+        # Mock provider that succeeds token exchange but fails user info
+        mock_provider = AsyncMock()
+        mock_provider.exchange_code_for_token.return_value = "access_token_123"
+        mock_provider.get_user_info.side_effect = Exception("User info retrieval failed")
+        mock_create_provider.return_value = mock_provider
+        
+        # Store valid state
+        provider = OAuthProvider.GOOGLE
+        state = "valid_state_123"
+        code = "auth_code_123"
+        redirect_uri = "https://example.com/callback"
+        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        
+        with pytest.raises(Exception, match="User info retrieval failed"):
+            await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)

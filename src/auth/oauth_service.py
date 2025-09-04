@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 import httpx
+import structlog
 from sqlalchemy.orm import Session
+
+logger = structlog.get_logger(__name__)
 
 from ..constants import (
     OAUTH_CONSTANTS,
@@ -246,6 +249,8 @@ class OAuthService:
         self.db_session = db_session
         self.auth_service = auth_service or AuthService(db_session)
         self.provider_factory = OAuthProviderFactory()
+        self._oauth_state_cache: dict[str, dict] = {}  # In-memory state cache (temporary)
+        self._cached_oauth_user_info: OAuthUserInfo | None = None  # Temporary cache
 
     def initiate_oauth_login(
         self, provider: OAuthProvider, redirect_uri: str | None = None
@@ -262,33 +267,57 @@ class OAuthService:
 
         authorization_url = oauth_provider.get_authorization_url(state, redirect_uri)
 
-        # TODO: Store state in cache/session for validation
-        # self._store_oauth_state(state, provider, redirect_uri)
+        # Store state in cache for validation (CSRF protection)
+        self._store_oauth_state(state, provider, redirect_uri)
 
         return SSOLoginResponse(authorization_url=authorization_url, state=state, provider=provider)
 
     async def handle_oauth_callback(
         self, provider: OAuthProvider, code: str, state: str, redirect_uri: str
     ) -> tuple[str, bool]:
-        """Handle OAuth callback and return access token and whether user is new."""
-        # TODO: Validate state parameter
-        # self._validate_oauth_state(state, provider)
+        """Handle OAuth callback and return access token and whether user is new.
+        
+        Implements OAuth2 Authorization Code Flow with proper validation and security checks.
+        """
+        # Step 1: Validate state parameter (CSRF protection)
+        await self._validate_oauth_state(state, provider)
 
         oauth_provider = self.provider_factory.create_provider(provider)
 
-        # Exchange code for access token
-        access_token = await oauth_provider.exchange_code_for_token(code, redirect_uri)
+        try:
+            # Step 2: Exchange authorization code for access token
+            access_token = await oauth_provider.exchange_code_for_token(code, redirect_uri)
 
-        # Get user information
-        oauth_user_info = await oauth_provider.get_user_info(access_token)
+            # Step 3: Get user information from OAuth provider
+            oauth_user_info = await oauth_provider.get_user_info(access_token)
 
-        # Find or create user
-        user, is_new_user = self._find_or_create_user(oauth_user_info)
+            # Step 4: Find or create user account
+            user, is_new_user = self._find_or_create_user(oauth_user_info)
 
-        # Link account if not already linked
-        self._link_oauth_account(user.id, oauth_user_info)
+            # Step 5: Link OAuth account to user account
+            linked_account = self._link_oauth_account(user.id, oauth_user_info)
 
-        return access_token, is_new_user
+            # Step 6: Cache user info for token generation (temporary solution)
+            self._cached_oauth_user_info = oauth_user_info
+
+            logger.info(
+                "OAuth callback processed successfully",
+                provider=provider.value,
+                user_id=user.id,
+                is_new_user=is_new_user,
+                linked_account_id=getattr(linked_account, 'id', None),
+            )
+
+            return access_token, is_new_user
+
+        except Exception as e:
+            logger.error(
+                "OAuth callback processing failed",
+                provider=provider.value,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise
 
     def _find_or_create_user(self, oauth_user_info: OAuthUserInfo) -> tuple[User, bool]:
         """Find existing user or create new one from OAuth info."""
@@ -329,3 +358,92 @@ class OAuthService:
         # self.db_session.commit()
 
         return linked_account
+
+    async def _validate_oauth_state(self, state: str, provider: OAuthProvider) -> None:
+        """Validate OAuth state parameter for CSRF protection.
+        
+        Args:
+            state: State parameter from OAuth callback
+            provider: OAuth provider
+            
+        Raises:
+            ValueError: If state is invalid or expired
+        """
+        if not state:
+            raise ValueError("Missing state parameter")
+        
+        # Check if state exists in cache
+        cached_state = self._oauth_state_cache.get(state)
+        if not cached_state:
+            logger.warning("Invalid OAuth state parameter", state=state, provider=provider.value)
+            raise ValueError("Invalid or expired state parameter")
+        
+        # Validate provider matches
+        if cached_state.get("provider") != provider:
+            logger.warning(
+                "OAuth state provider mismatch",
+                cached_provider=cached_state.get("provider"),
+                callback_provider=provider.value,
+            )
+            raise ValueError("State parameter provider mismatch")
+        
+        # Check expiration (states should expire after 10 minutes)
+        import time
+        state_created = cached_state.get("created_at", 0)
+        if time.time() - state_created > 600:  # 10 minutes
+            logger.warning("Expired OAuth state parameter", state=state, provider=provider.value)
+            # Clean up expired state
+            self._oauth_state_cache.pop(state, None)
+            raise ValueError("Expired state parameter")
+        
+        # Clean up used state (one-time use)
+        self._oauth_state_cache.pop(state, None)
+        
+        logger.debug("OAuth state validation successful", state=state, provider=provider.value)
+
+    def _store_oauth_state(self, state: str, provider: OAuthProvider, redirect_uri: str) -> None:
+        """Store OAuth state for validation.
+        
+        Args:
+            state: Generated state parameter
+            provider: OAuth provider
+            redirect_uri: Redirect URI used
+        """
+        import time
+        
+        self._oauth_state_cache[state] = {
+            "provider": provider,
+            "redirect_uri": redirect_uri,
+            "created_at": time.time(),
+        }
+        
+        # Clean up old states (simple cleanup - in production, use Redis with TTL)
+        current_time = time.time()
+        expired_states = [
+            s for s, data in self._oauth_state_cache.items()
+            if current_time - data.get("created_at", 0) > 600  # 10 minutes
+        ]
+        for expired_state in expired_states:
+            self._oauth_state_cache.pop(expired_state, None)
+        
+        logger.debug("OAuth state stored", state=state, provider=provider.value)
+
+    async def _get_cached_user_info(self, access_token: str) -> OAuthUserInfo:
+        """Get cached OAuth user information.
+        
+        This is a temporary solution. In production, this should be replaced
+        with proper token-to-user mapping in the database.
+        
+        Args:
+            access_token: OAuth access token
+            
+        Returns:
+            Cached OAuthUserInfo
+            
+        Raises:
+            ValueError: If no cached user info is available
+        """
+        if not self._cached_oauth_user_info:
+            raise ValueError("No cached OAuth user information available")
+        
+        return self._cached_oauth_user_info
