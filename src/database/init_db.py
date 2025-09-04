@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import sqlalchemy.exc
 from sqlalchemy import create_engine, text

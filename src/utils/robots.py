@@ -11,6 +11,7 @@ from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 from ..constants import CONSTANTS
 from ..core.config import config
 from ..core.exceptions import RateLimitError
+from ..utils.http import safe_http_get
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +39,7 @@ class RobotsChecker:
         if session is None:
             logger.warning("No session provided for robots.txt fetch", url=base_url)
             return None
-            
+
         parsed_url = urlparse(base_url)
         domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
@@ -48,6 +49,7 @@ class RobotsChecker:
             return self._cache[domain]
 
         robots_url = urljoin(domain, "/robots.txt")
+        result = None
 
         try:
             logger.debug("Fetching robots.txt", url=robots_url)
@@ -57,8 +59,6 @@ class RobotsChecker:
                 stop=stop_after_attempt(3), wait=wait_fixed(1), reraise=True
             ):
                 with attempt:
-                    from ..utils.http import safe_http_get
-
                     http_response = await safe_http_get(
                         session,
                         robots_url,
@@ -80,32 +80,26 @@ class RobotsChecker:
                         lines = robots_content.splitlines()
                         rp.parse(lines)
 
-                        # Cache the result
-                        self._cache[domain] = rp
-
+                        result = rp
                         logger.info("Successfully loaded robots.txt", domain=domain, url=robots_url)
-                        return rp
                     elif http_response.status == CONSTANTS.HTTP_STATUS_NOT_FOUND:
                         logger.info("No robots.txt found", domain=domain)
-                        # Cache the fact that there's no robots.txt
-                        self._cache[domain] = None
-                        return None
+                        result = None
                     else:
                         logger.warning(
                             "Unexpected robots.txt response",
                             domain=domain,
                             status=http_response.status,
                         )
-                        return None
+                        result = None
 
-        except Exception as e:
+        except (TimeoutError, aiohttp.ClientError, OSError) as e:
             logger.warning("Failed to fetch robots.txt", domain=domain, error=str(e))
-            # Cache the failure to avoid repeated requests
-            self._cache[domain] = None
-            return None
-        
-        # Fallback return (should not be reached)
-        return None
+            result = None
+
+        # Cache the result (success or failure) to avoid repeated requests
+        self._cache[domain] = result
+        return result
 
     async def can_fetch(
         self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
@@ -133,7 +127,7 @@ class RobotsChecker:
             logger.debug("Robots.txt check", url=url, allowed=can_fetch)
             return can_fetch
 
-        except Exception as e:
+        except (TimeoutError, aiohttp.ClientError, OSError, ValueError) as e:
             logger.warning("Error checking robots.txt", url=url, error=str(e))
             # Default to allowing if we can't check
             return True
@@ -168,7 +162,7 @@ class RobotsChecker:
             # Fallback to default
             return config.rate_limit_delay
 
-        except Exception as e:
+        except (TimeoutError, aiohttp.ClientError, OSError, ValueError) as e:
             logger.warning("Error getting crawl delay", url=url, error=str(e))
             return config.rate_limit_delay
 
