@@ -298,57 +298,11 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Apply auto-fixes with Ruff (official best practice)
-        if: github.event_name == 'push'
-        run: |
-          # Apply auto-fixes using Ruff (supports both linting and formatting)
-          echo "::group::Apply Ruff Auto-Fixes"
-          if uv run ruff check src/ tests/ --fix --show-fixes; then
-            echo "::notice title=Ruff Auto-Fix::Auto-fixes applied successfully"
-          else
-            echo "::notice title=Ruff Auto-Fix::Some issues require manual attention"
-          fi
-          
-          # Apply Ruff formatting
-          if uv run ruff format src/ tests/ --diff; then
-            echo "::notice title=Ruff Format::Code formatting applied"
-            uv run ruff format src/ tests/
-          fi
-          echo "::endgroup::"
-          
-          # Check if any changes were made
-          if ! git diff --quiet; then
-            echo "::group::Commit Auto-Fixes"
-            git config --local user.name "github-actions[bot]"
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git commit -m "style: apply Ruff auto-fixes
-            
-            🤖 Auto-fixes applied by GitHub Actions
-            
-            Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-            
-            # Push the changes
-            git push
-            echo "::notice title=Auto-Fix Commit::Auto-fixes committed and pushed"
-            echo "::endgroup::"
-          else
-            echo "::notice title=Auto-Fix Status::No auto-fixes needed"
-          fi
-
-      - name: Run Ruff (final linting check)
-        run: |
-          # Run ruff and capture output, but don't fail on warnings
-          if ! uv run ruff check src/ tests/ --output-format=github; then
-            echo "::notice title=Ruff Linting::Some linting warnings remain after auto-fixes"
-            echo "::notice::ARG001 warnings for FastAPI dependencies are acceptable - they ensure proper authorization"
-            # Show statistics without failing
-            echo "::group::Linting Statistics"
-            uv run ruff check src/ tests/ --statistics || true
-            echo "::endgroup::"
-          else
-            echo "::notice title=Ruff Linting::All linting checks passed!"
-          fi
+      - name: Run Ruff (Official Action)
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./src ./tests"
+          version: "0.8.14"
 
 
       - name: Run Bandit Security Analysis (Official Action)
