@@ -104,7 +104,7 @@ class RobotsChecker:
         return None
 
     async def can_fetch(
-        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession = None
+        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
     ) -> bool:
         """Check if we're allowed to fetch the given URL according to robots.txt.
 
@@ -135,7 +135,7 @@ class RobotsChecker:
             return True
 
     async def get_crawl_delay(
-        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession = None
+        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
     ) -> float:
         """Get the crawl delay specified in robots.txt.
 
@@ -169,7 +169,7 @@ class RobotsChecker:
             return config.rate_limit_delay
 
     async def enforce_crawl_delay(
-        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession = None
+        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
     ) -> None:
         """Enforce crawl delay by sleeping if necessary.
 
@@ -201,7 +201,7 @@ class RobotsChecker:
         self._last_request[domain] = asyncio.get_event_loop().time()
 
     async def check_and_delay(
-        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession = None
+        self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
     ) -> None:
         """Check robots.txt permissions and enforce crawl delay.
 

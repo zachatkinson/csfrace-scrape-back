@@ -15,17 +15,17 @@ logger = logging.getLogger(__name__)
 # Import alembic only when available
 if TYPE_CHECKING:
     from alembic import command
-    from alembic.config import Config
+    from alembic.config import Config as AlembicConfig
     
 # Runtime imports with proper error handling
 try:
     from alembic import command  # type: ignore[import-untyped]
-    from alembic.config import Config  # type: ignore[import-untyped]
+    from alembic.config import Config as AlembicConfig  # type: ignore[import-untyped]
     ALEMBIC_AVAILABLE = True
 except ImportError:
     ALEMBIC_AVAILABLE = False
     command = None  # type: ignore[assignment]
-    Config = None  # type: ignore[assignment]
+    AlembicConfig = None  # type: ignore[assignment]
     logger.warning("Alembic not available - migrations will use fallback method")
 
 
@@ -86,7 +86,7 @@ async def _run_alembic_migrations() -> None:
         raise FileNotFoundError(f"alembic.ini not found at {alembic_ini_path}")
 
     # Create Alembic config
-    alembic_cfg = Config(str(alembic_ini_path))
+    alembic_cfg = AlembicConfig(str(alembic_ini_path))
 
     # Set the script location relative to the config file
     alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))

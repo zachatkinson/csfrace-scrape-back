@@ -695,7 +695,9 @@ dev = [
     { name = "tenacity" },
     { name = "testcontainers" },
     { name = "twine" },
+    { name = "types-aiofiles" },
     { name = "types-beautifulsoup4" },
+    { name = "types-bleach" },
     { name = "types-psutil" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
@@ -816,7 +818,9 @@ dev = [
     { name = "tenacity", specifier = ">=9.1.2" },
     { name = "testcontainers", specifier = ">=4.12.0" },
     { name = "twine", specifier = ">=6.1.0" },
+    { name = "types-aiofiles", specifier = ">=24.1.0.20250822" },
     { name = "types-beautifulsoup4", specifier = ">=4.12.0" },
+    { name = "types-bleach", specifier = ">=6.2.0.20250809" },
     { name = "types-psutil", specifier = ">=7.0.0.20250822" },
     { name = "types-pyyaml", specifier = ">=6.0.0" },
     { name = "types-requests", specifier = ">=2.31.0" },
@@ -3244,6 +3248,15 @@ wheels = [
 ]
 
 [[package]]
+name = "types-aiofiles"
+version = "24.1.0.20250822"
+source = { registry = "https://pkgs.safetycli.com/repository/creative-branding/pypi/simple/" }
+sdist = { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/19/48/c64471adac9206cc844afb33ed311ac5a65d2f59df3d861e0f2d0cad7414/types_aiofiles-24.1.0.20250822.tar.gz", hash = "sha256:9ab90d8e0c307fe97a7cf09338301e3f01a163e39f3b529ace82466355c84a7b", size = 14484, upload-time = "2025-08-22T03:02:23.039Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/bc/8e/5e6d2215e1d8f7c2a94c6e9d0059ae8109ce0f5681956d11bb0a228cef04/types_aiofiles-24.1.0.20250822-py3-none-any.whl", hash = "sha256:0ec8f8909e1a85a5a79aed0573af7901f53120dd2a29771dd0b3ef48e12328b0", size = 14322, upload-time = "2025-08-22T03:02:21.918Z" },
+]
+
+[[package]]
 name = "types-beautifulsoup4"
 version = "4.12.0.20250516"
 source = { registry = "https://pkgs.safetycli.com/repository/creative-branding/pypi/simple/" }
@@ -3253,6 +3266,18 @@ dependencies = [
 sdist = { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/6d/d1/32b410f6d65eda94d3dfb0b3d0ca151f12cb1dc4cef731dcf7cbfd8716ff/types_beautifulsoup4-4.12.0.20250516.tar.gz", hash = "sha256:aa19dd73b33b70d6296adf92da8ab8a0c945c507e6fb7d5db553415cc77b417e", size = 16628, upload-time = "2025-05-16T03:09:09.93Z" }
 wheels = [
     { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/7c/79/d84de200a80085b32f12c5820d4fd0addcbe7ba6dce8c1c9d8605e833c8e/types_beautifulsoup4-4.12.0.20250516-py3-none-any.whl", hash = "sha256:5923399d4a1ba9cc8f0096fe334cc732e130269541d66261bb42ab039c0376ee", size = 16879, upload-time = "2025-05-16T03:09:09.051Z" },
+]
+
+[[package]]
+name = "types-bleach"
+version = "6.2.0.20250809"
+source = { registry = "https://pkgs.safetycli.com/repository/creative-branding/pypi/simple/" }
+dependencies = [
+    { name = "types-html5lib" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/53/50/f85660f9893da1a2cea3e14675c9ab4a75f2a5c12a8ab79de959e5f3f2ad/types_bleach-6.2.0.20250809.tar.gz", hash = "sha256:188d7a1119f6c953140b513ed57ba4213755695815472c19d0c22ac09c79b90b", size = 11216, upload-time = "2025-08-09T03:16:46.876Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/7d/41/51075b7c9fd62f8ea636e6ca619ca25e5617c066a1a19d12e2f7d9343edb/types_bleach-6.2.0.20250809-py3-none-any.whl", hash = "sha256:0b372a75117947d9ac8a31ae733fd0f8d92ec75c4772e7b37093ba3fa5b48fb9", size = 11968, upload-time = "2025-08-09T03:16:46.174Z" },
 ]
 
 [[package]]

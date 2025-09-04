@@ -446,7 +446,15 @@ class BatchProcessor:
         """
         if not self.jobs:
             logger.warning("No jobs to process")
-            return {"status": "no_jobs", "results": []}
+            return {
+                "total": 0,
+                "successful": 0,
+                "failed": 0,
+                "skipped": 0,
+                "jobs": [],
+                "total_duration": 0.0,
+                "average_duration": 0.0,
+            }
 
         logger.info("Starting batch processing", total_jobs=len(self.jobs))
 
