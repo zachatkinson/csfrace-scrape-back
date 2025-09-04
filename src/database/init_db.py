@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import sqlalchemy.exc
 from sqlalchemy import create_engine, text
@@ -12,11 +12,6 @@ from .models import Base, JobPriority, JobStatus, get_database_url
 
 logger = logging.getLogger(__name__)
 
-# Import alembic only when available
-if TYPE_CHECKING:
-    from alembic import command
-    from alembic.config import Config as AlembicConfig
-    
 # Runtime imports with proper error handling
 try:
     from alembic import command  # type: ignore[import-untyped]
@@ -25,7 +20,7 @@ try:
 except ImportError:
     ALEMBIC_AVAILABLE = False
     command = None  # type: ignore[assignment]
-    AlembicConfig = None  # type: ignore[assignment]
+    AlembicConfig = None  # type: ignore[assignment,misc]
     logger.warning("Alembic not available - migrations will use fallback method")
 
 

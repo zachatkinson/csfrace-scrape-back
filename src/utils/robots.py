@@ -24,7 +24,7 @@ class RobotsChecker:
         self._last_request: dict[str, float] = {}
 
     async def get_robots_parser(
-        self, base_url: str, session: aiohttp.ClientSession
+        self, base_url: str, session: aiohttp.ClientSession | None
     ) -> RobotFileParser | None:
         """Get robots.txt parser for a domain with caching.
 
@@ -35,6 +35,10 @@ class RobotsChecker:
         Returns:
             RobotFileParser instance or None if not available
         """
+        if session is None:
+            logger.warning("No session provided for robots.txt fetch", url=base_url)
+            return None
+            
         parsed_url = urlparse(base_url)
         domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
