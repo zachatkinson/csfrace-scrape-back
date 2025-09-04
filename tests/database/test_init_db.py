@@ -1,12 +1,17 @@
 """Tests for database initialization module."""
 
 import asyncio
+import inspect
 import logging
+import os
+import tempfile
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.database.init_db import init_db
+import src.database.init_db as init_db_module
+from src.database.init_db import init_db, logger
 
 
 class TestInitDb:
@@ -128,7 +133,11 @@ class TestInitDb:
             info_records = [record for record in caplog.records if record.levelno == logging.INFO]
             assert len(info_records) >= 1
             # Check the final success message
-            success_records = [r for r in info_records if "Database initialization completed successfully" in r.message]
+            success_records = [
+                r
+                for r in info_records
+                if "Database initialization completed successfully" in r.message
+            ]
             assert len(success_records) >= 1
 
     @pytest.mark.asyncio
@@ -247,8 +256,6 @@ class TestInitDb:
     @pytest.mark.unit
     def test_init_db_function_signature(self):
         """Test that init_db function follows SQLAlchemy dependency injection best practices."""
-        import inspect
-
         # Get function signature
         sig = inspect.signature(init_db)
 
@@ -291,8 +298,6 @@ class TestInitDb:
     @pytest.mark.integration
     async def test_init_db_performance(self, testcontainers_db_service):
         """Test that init_db completes quickly using testcontainer."""
-        import time
-
         start_time = time.time()
         await init_db(testcontainers_db_service.engine)
         execution_time = time.time() - start_time
@@ -321,8 +326,6 @@ class TestInitDb:
     async def test_init_db_logging_integration(self, testcontainers_db_service):
         """Test integration with the logging system."""
         # Configure a test handler
-        import logging
-
         test_logger = logging.getLogger("src.database.init_db")
         test_handler = logging.StreamHandler()
         test_formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
@@ -345,8 +348,6 @@ class TestInitDb:
     @pytest.mark.unit
     def test_module_structure(self):
         """Test that the init_db module has expected structure."""
-        import src.database.init_db as init_db_module
-
         # Check that required components exist
         assert hasattr(init_db_module, "init_db")
         assert hasattr(init_db_module, "logger")
@@ -358,8 +359,6 @@ class TestInitDb:
     @pytest.mark.unit
     def test_logger_configuration(self):
         """Test that logger is properly configured."""
-        from src.database.init_db import logger
-
         # Logger should exist and have correct name
         assert logger is not None
         assert logger.name == "src.database.init_db"
@@ -398,8 +397,6 @@ class TestInitDbEdgeCases:
     @pytest.mark.integration
     async def test_init_db_with_no_handlers(self, testcontainers_db_service):
         """Test init_db when logger has no handlers."""
-        from src.database.init_db import logger
-
         original_handlers = logger.handlers.copy()
         logger.handlers.clear()
 
@@ -448,9 +445,6 @@ class TestInitDbIntegration:
     @pytest.mark.integration
     async def test_init_db_real_logging_system(self, testcontainers_db_service):
         """Test init_db with real logging system."""
-        import os
-        import tempfile
-
         # Create temporary log file
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".log") as f:
             log_file = f.name
@@ -463,8 +457,6 @@ class TestInitDbIntegration:
             file_handler.setFormatter(formatter)
 
             # Add handler to logger
-            from src.database.init_db import logger
-
             logger.addHandler(file_handler)
             logger.setLevel(logging.INFO)
 
