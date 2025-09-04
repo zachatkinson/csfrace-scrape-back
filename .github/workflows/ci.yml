@@ -308,7 +308,6 @@ jobs:
           VALIDATE_PYTHON_BLACK: true  
           VALIDATE_PYTHON_ISORT: true
           VALIDATE_PYTHON_MYPY: true
-          VALIDATE_PYTHON_PYLINT: true
           VALIDATE_PYTHON_FLAKE8: true
           # Security scanning
           VALIDATE_PYTHON_BANDIT: true
@@ -321,8 +320,8 @@ jobs:
           FIX_PYTHON_RUFF: true
           # Performance optimization
           SUPPRESS_POSSUM: true
-          # Continue on errors for non-critical issues
-          VALIDATE_PYTHON_PYLINT: false  # Too strict for FastAPI patterns
+          # Include Pylint for comprehensive code quality
+          VALIDATE_PYTHON_PYLINT: true
 
       - name: Run Safety CLI (Dependency Vulnerability Scanning)
         uses: pyupio/safety-action@v1
