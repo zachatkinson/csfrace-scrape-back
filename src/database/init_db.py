@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+import sqlalchemy.exc
 
 from alembic import command  # type: ignore[attr-defined] # pylint: disable=no-name-in-module
 from alembic.config import Config  # pylint: disable=no-name-in-module
@@ -106,7 +107,11 @@ async def _create_enums_safely(engine) -> None:
                         pg_enum.create(conn, checkfirst=True)
                         logger.debug("Created PostgreSQL enum type: %s", enum_name)
                         
-                    except Exception as create_error:  # pylint: disable=broad-exception-caught
+                    except (
+                        sqlalchemy.exc.ProgrammingError,  # Type already exists
+                        sqlalchemy.exc.IntegrityError,    # Duplicate key
+                        sqlalchemy.exc.DatabaseError,     # General DB errors
+                    ) as create_error:
                         error_msg = str(create_error).lower()
                         # Handle concurrent enum creation race conditions gracefully
                         if any(phrase in error_msg for phrase in ["already exists", "duplicate key", "relation already exists"]):
