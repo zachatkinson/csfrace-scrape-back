@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import sqlalchemy.exc
 from sqlalchemy import create_engine, text
@@ -11,13 +12,15 @@ from .models import Base, JobPriority, JobStatus, get_database_url
 
 logger = logging.getLogger(__name__)
 
+# Optional imports with proper typing
+command: Any | None = None
+Config: Any | None = None
+
 try:
     from alembic import command
     from alembic.config import Config
 except ImportError as e:
     logger.warning("Alembic not available: %s", e)
-    command = None  # type: ignore[assignment]
-    Config = None   # type: ignore[assignment]
 
 
 async def init_db(engine=None) -> None:
