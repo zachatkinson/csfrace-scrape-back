@@ -1,7 +1,11 @@
 """Database initialization utilities with PostgreSQL enum safety."""
 
 import logging
+import os
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
@@ -11,35 +15,61 @@ logger = logging.getLogger(__name__)
 
 
 async def init_db(engine=None) -> None:
-    """Initialize the database with PostgreSQL enum safety for concurrent environments.
+    """Initialize the database using Alembic migrations for production-ready schema management.
 
     Following PostgreSQL and SQLAlchemy best practices:
-    1. Create enum types first with concurrent safety
-    2. Create tables using checkfirst=True
-    3. Handle duplicate enum creation gracefully
+    1. Run Alembic migrations to create enums and schema
+    2. Fallback to direct creation for development/testing
+    3. Handle concurrent execution gracefully
 
     Args:
         engine: Optional SQLAlchemy Engine. If None, creates engine from get_database_url().
                 This enables dependency injection for testing (SQLAlchemy best practice).
 
-    Reference: https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#postgresql-enums
+    Reference: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
     """
     try:
         # Use provided engine or create one (dependency injection pattern)
         if engine is None:
             engine = create_engine(get_database_url(), echo=False)
 
-        # Create enum types first with PostgreSQL best practices
-        await _create_enums_safely(engine)
-
-        # Create all tables using SQLAlchemy best practices
-        Base.metadata.create_all(engine, checkfirst=True)
-
-        logger.info("Database initialization completed successfully")
+        # Try to run Alembic migrations first (production approach)
+        try:
+            await _run_alembic_migrations()
+            logger.info("Database initialized using Alembic migrations")
+        except Exception as alembic_error:
+            logger.warning(f"Alembic migration failed, falling back to direct creation: {alembic_error}")
+            
+            # Fallback to direct enum creation (testing/development)
+            await _create_enums_safely(engine)
+            
+            # Create all tables using SQLAlchemy best practices
+            Base.metadata.create_all(engine, checkfirst=True)
+            
+            logger.info("Database initialized using direct creation fallback")
 
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         raise
+
+
+async def _run_alembic_migrations() -> None:
+    """Run Alembic migrations to upgrade database to latest schema."""
+    # Get the project root directory (where alembic.ini is located)
+    backend_root = Path(__file__).parent.parent.parent
+    alembic_ini_path = backend_root / "alembic.ini"
+    
+    if not alembic_ini_path.exists():
+        raise FileNotFoundError(f"alembic.ini not found at {alembic_ini_path}")
+    
+    # Create Alembic config
+    alembic_cfg = Config(str(alembic_ini_path))
+    
+    # Set the script location relative to the config file
+    alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))
+    
+    # Run the upgrade command
+    command.upgrade(alembic_cfg, "head")
 
 
 async def _create_enums_safely(engine) -> None:
