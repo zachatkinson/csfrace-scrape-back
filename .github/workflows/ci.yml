@@ -298,24 +298,43 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Apply auto-fixes with official lint-action
-        uses: wearerequired/lint-action@v2
+      - name: Apply auto-fixes with Ruff (official best practice)
         if: github.event_name == 'push'
-        with:
-          ruff: true
-          ruff_args: "src/ tests/"
-          ruff_auto_fix: true
-          mypy: true
-          mypy_args: "src/ --show-error-codes"
-          auto_fix: true
-          git_name: "Lint Action"
-          git_email: "lint-action@github.com"
-          commit_message: "style: apply lint auto-fixes
-
-          🤖 Applied by official lint-action
+        run: |
+          # Apply auto-fixes using Ruff (supports both linting and formatting)
+          echo "::group::Apply Ruff Auto-Fixes"
+          if uv run ruff check src/ tests/ --fix --show-fixes; then
+            echo "::notice title=Ruff Auto-Fix::Auto-fixes applied successfully"
+          else
+            echo "::notice title=Ruff Auto-Fix::Some issues require manual attention"
+          fi
           
-          Co-Authored-By: Lint Action <lint-action@github.com>"
-          continue_on_error: true
+          # Apply Ruff formatting
+          if uv run ruff format src/ tests/ --diff; then
+            echo "::notice title=Ruff Format::Code formatting applied"
+            uv run ruff format src/ tests/
+          fi
+          echo "::endgroup::"
+          
+          # Check if any changes were made
+          if ! git diff --quiet; then
+            echo "::group::Commit Auto-Fixes"
+            git config --local user.name "github-actions[bot]"
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "style: apply Ruff auto-fixes
+            
+            🤖 Auto-fixes applied by GitHub Actions
+            
+            Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            
+            # Push the changes
+            git push
+            echo "::notice title=Auto-Fix Commit::Auto-fixes committed and pushed"
+            echo "::endgroup::"
+          else
+            echo "::notice title=Auto-Fix Status::No auto-fixes needed"
+          fi
 
       - name: Run Ruff (final linting check)
         run: |
@@ -332,50 +351,33 @@ jobs:
           fi
 
 
-      - name: Run Bandit (security scan)
-        run: uv run bandit -r src/ -f sarif -o bandit-report.sarif
-        continue-on-error: true
-
-      - name: Get current commit SHA (after potential auto-fixes)
-        id: get-sha
-        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Upload Bandit SARIF results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('bandit-report.sarif') != ''
-        continue-on-error: true
+      - name: Run Bandit Security Analysis (Official Action)
+        uses: PyCQA/bandit-action@v1
         with:
-          sarif_file: bandit-report.sarif
-          category: bandit-security-analysis
-          wait-for-processing: false
-          checkout_path: ${{ github.workspace }}
-          ref: ${{ github.ref }}
-          sha: ${{ steps.get-sha.outputs.sha }}
+          targets: "src/"
+          severity: "medium"
+          confidence: "medium"
+          exit_zero: true
 
-      - name: Run Safety (dependency security)
-        run: |
-          # Safety 3.x requires authentication, fall back to pip-audit if unavailable
-          if [[ -n "$SAFETY_API_KEY" ]]; then
-            uv run safety scan --output json --save-json safety-report.json || 
-            echo '{"vulnerabilities": [], "note": "Safety scan failed - using pip-audit instead"}' > safety-report.json
-          else
-            echo '{"vulnerabilities": [], "note": "Safety 3.x requires API key - using pip-audit for vulnerability scanning"}' > safety-report.json
-            echo "::notice title=Safety Scanner::Safety 3.x requires authentication - using pip-audit for vulnerability scanning"
-          fi
+      - name: Run pip-audit (Official Dependency Vulnerability Scanning)
+        uses: homoluctus/pip-audit-action@v1
+        with:
+          type: pip
+
+      - name: Run Safety CLI (Official Action)
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}
         continue-on-error: true
-
-      - name: Run pip-audit (package vulnerabilities) 
-        run: uv run pip-audit --format=json --output=pip-audit-report.json
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-reports
-          path: |
-            safety-report.json
-            pip-audit-report.json
+          path: pip-audit-report.json
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Calculate job duration and set outputs
         id: quality-check
