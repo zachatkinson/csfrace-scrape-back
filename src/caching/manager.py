@@ -17,11 +17,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    
-    # Create a dummy RedisCache class for runtime
-    class RedisCache(BaseCacheBackend):  # type: ignore[misc]
-        def __init__(self, *args, **kwargs):
-            raise ImportError("Redis package not available")
+    RedisCache = None  # type: ignore[assignment,misc]
 
 logger = structlog.get_logger(__name__)
 
@@ -55,7 +51,7 @@ class CacheManager:
             if self.config.backend == CacheBackend.FILE:
                 self.backend = FileCache(self.config)
             elif self.config.backend == CacheBackend.REDIS:
-                if not REDIS_AVAILABLE:
+                if not REDIS_AVAILABLE or RedisCache is None:
                     raise ValueError(
                         "Redis backend requested but redis package not available. Install with: pip install redis"
                     )

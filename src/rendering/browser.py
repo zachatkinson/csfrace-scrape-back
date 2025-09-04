@@ -258,7 +258,7 @@ class JavaScriptRenderer:
 
     def __init__(
         self,
-        config: BrowserConfig = None,
+        config: BrowserConfig | None = None,
         pool_config: dict[str, Any] | None = None,
         retry_config: RetryConfig | None = None,
     ):

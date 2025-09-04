@@ -584,16 +584,7 @@ class BatchProcessor:
         Returns:
             Summary dictionary with statistics
         """
-        class BatchSummary(TypedDict):
-            total: int
-            successful: int
-            failed: int
-            skipped: int
-            jobs: list[dict[str, Any]]
-            total_duration: float
-            average_duration: float
-
-        summary: BatchSummary = {
+        summary: dict[str, Any] = {
             "total": len(self.jobs),
             "successful": 0,
             "failed": 0,
