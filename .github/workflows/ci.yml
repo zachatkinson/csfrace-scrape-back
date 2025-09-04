@@ -471,7 +471,7 @@ jobs:
               --cov-branch \
             --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
-            --junit-xml=junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml \
+            --junit-xml=junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml \
             -v \
               --tb=short \
               --maxfail=3
@@ -494,7 +494,7 @@ jobs:
               --cov-branch \
               --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
               --cov-report=term-missing \
-              --junit-xml=junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml \
+              --junit-xml=junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml \
               -v \
               --tb=short \
               --maxfail=3
@@ -507,29 +507,41 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-unit-ubuntu-py${{ matrix.python-version }}-shard-${{ matrix.shard }}
+          name: test-results-unit-ubuntu-py${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}
           path: |
-            junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml
+            junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml
             coverage-shard-${{ matrix.shard }}.xml
           retention-days: 30
 
+      - name: Publish Test Results (Official GitHub Action)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml
+          check_name: "Unit Tests Results (Shard ${{ matrix.shard }})"
+          comment_mode: off
+
       - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
         uses: codecov/codecov-action@v5
-        if: matrix.python-version == env.PYTHON_VERSION
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage-shard-${{ matrix.shard }}.xml
           flags: unit-tests
-          name: unit-tests-coverage
-          slug: zachatkinson/csfrace-scrape-back
+          name: unit-tests-shard-${{ matrix.shard }}
+          env_vars: SHARD
           fail_ci_if_error: false
+        env:
+          SHARD: ${{ matrix.shard }}
 
       - name: Upload test results to Codecov (Test Analytics)
         uses: codecov/test-results-action@v1
-        if: ${{ !cancelled() && matrix.python-version == env.PYTHON_VERSION }}
+        if: ${{ !cancelled() }}
         with:
-          files: ./junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml
           flags: unit-tests
-          name: unit-tests-results
+          name: unit-tests-shard-${{ matrix.shard }}
           fail_ci_if_error: false
 
       - name: Calculate and report job duration
@@ -886,7 +898,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -915,7 +927,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -930,7 +942,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Hadolint results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('hadolint-results.sarif') != ''
         with:
           sarif_file: hadolint-results.sarif
@@ -954,7 +966,7 @@ jobs:
           persist-credentials: false
           
       - name: Dependency Review
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
           allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT
