@@ -205,56 +205,56 @@ class TestBatchProcessorURLParsing:
     def test_generate_output_directory_basic_url(self, processor):
         """Test directory generation from basic URL."""
         url = "https://example.com/my-blog-post"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_my-blog-post")
 
     def test_generate_output_directory_www_removal(self, processor):
         """Test www prefix removal in domain."""
         url = "https://www.example.com/test-post"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_test-post")
 
     def test_generate_output_directory_custom_slug(self, processor):
         """Test directory generation with custom slug."""
         url = "https://example.com/ignored-path"
-        output_dir = processor._generate_output_directory(url, custom_slug="my-custom-slug")
+        output_dir = processor._generate_output_directory(url, custom_slug="my-custom-slug")  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_my-custom-slug")
 
     def test_generate_output_directory_nested_path(self, processor):
         """Test directory generation from nested URL path."""
         url = "https://example.com/category/subcategory/final-post"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_final-post")
 
     def test_generate_output_directory_html_extension_removal(self, processor):
         """Test removal of .html extensions from slugs."""
         url = "https://example.com/my-post.html"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_my-post")
 
     def test_generate_output_directory_php_extension_removal(self, processor):
         """Test removal of .php extensions from slugs."""
         url = "https://example.com/index.php"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_homepage")
 
     def test_generate_output_directory_root_path(self, processor):
         """Test directory generation for root path URLs."""
         url = "https://example.com/"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         assert output_dir == Path("/tmp/batch_test/example-com_homepage")
 
     def test_generate_output_directory_special_characters_cleanup(self, processor):
         """Test cleanup of special characters in slugs."""
         url = "https://example.com/my-post!@#$%^&*()_+{}[]|\\\\;':,./<>?"
-        output_dir = processor._generate_output_directory(url)
+        output_dir = processor._generate_output_directory(url)  # pylint: disable=protected-access
 
         # Should clean up special characters
         assert "example-com" in str(output_dir)
