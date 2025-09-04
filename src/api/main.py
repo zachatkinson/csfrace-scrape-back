@@ -23,7 +23,7 @@ async def lifespan(_app: FastAPI):
     # Startup
     try:
         await init_db()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Database initialization failed: {e}")
         # Don't raise - allow app to start for health checks
 
@@ -105,7 +105,9 @@ async def add_security_headers(request: Request, call_next):
     # Strict-Transport-Security: Force HTTPS (only add if HTTPS detected)
     if _is_https_request(request):
         # 1 year max-age, include subdomains, allow preloading
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
 
     # Permissions-Policy: Control browser features
     permissions_policy = [
@@ -136,7 +138,9 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     response = JSONResponse(
         status_code=429, content={"detail": f"Rate limit exceeded: {exc.detail}"}
     )
-    response = request.app.state.limiter._inject_headers(response, request.state.view_rate_limit)
+    response = request.app.state.limiter._inject_headers(  # pylint: disable=protected-access
+        response, request.state.view_rate_limit
+    )
     return response
 
 
