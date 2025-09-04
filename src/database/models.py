@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -364,6 +365,42 @@ class SystemMetrics(Base):
         return (
             f"<SystemMetrics(id={self.id}, type='{self.metric_type}', name='{self.metric_name}')>"
         )
+
+
+# PostgreSQL enum metadata event listener (SQLAlchemy best practice)
+from sqlalchemy import event
+
+@event.listens_for(Base.metadata, "before_create")
+def _create_enums_before_tables(target, connection, **kw):
+    """Create PostgreSQL enum types before table creation.
+    
+    This event listener follows SQLAlchemy best practices for PostgreSQL enum handling
+    by ensuring enum types exist before any table creation attempts.
+    """
+    enum_definitions = [
+        ("jobstatus", JobStatus),
+        ("jobpriority", JobPriority),
+    ]
+    
+    for enum_name, enum_class in enum_definitions:
+        try:
+            # Check if enum type already exists using PostgreSQL system catalogs
+            result = connection.execute(
+                text("SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = :enum_name)"),
+                {"enum_name": enum_name},
+            ).scalar()
+            
+            if not result:
+                # Create enum type using SQLAlchemy PostgreSQL dialect
+                pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
+                pg_enum.create(connection, checkfirst=True)
+            
+        except Exception as e:
+            # Handle concurrent enum creation gracefully (for parallel tests)
+            error_msg = str(e).lower()
+            if not any(phrase in error_msg for phrase in ["already exists", "duplicate key"]):
+                # Only re-raise if it's not a concurrency issue
+                raise
 
 
 # Database configuration and utilities

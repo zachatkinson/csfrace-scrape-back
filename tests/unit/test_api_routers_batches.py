@@ -4,8 +4,10 @@ from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.datastructures import URL, Headers
+from starlette.types import Scope
 
 from src.api.routers.batches import create_batch, get_batch, list_batches
 from src.api.schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
@@ -14,6 +16,19 @@ from src.database.models import Batch, JobStatus, ScrapingJob
 
 class TestBatchRouterEndpoints:
     """Test batch router endpoint functions."""
+
+    @pytest.fixture
+    def mock_request(self):
+        """Mock Request object for SlowAPI rate limiting."""
+        # Create a minimal mock request that satisfies SlowAPI requirements
+        mock_request = MagicMock(spec=Request)
+        mock_request.client = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_request.url = MagicMock()
+        mock_request.url.path = "/batches/"
+        mock_request.method = "POST"
+        mock_request.headers = {}
+        return mock_request
 
     @pytest.fixture
     def mock_db_session(self):
@@ -101,13 +116,13 @@ class TestBatchRouterEndpoints:
         return sample_batch
 
     @pytest.mark.asyncio
-    async def test_create_batch_success(self, mock_db_session, batch_create_data, sample_batch):
+    async def test_create_batch_success(self, mock_request, mock_db_session, batch_create_data, sample_batch):
         """Test successful batch creation."""
         mock_background_tasks = MagicMock()
         with patch(
             "src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch
         ) as mock_create:
-            result = await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
+            result = await create_batch(mock_request, batch_create_data, mock_background_tasks, mock_db_session)
 
             assert isinstance(result, BatchResponse)
             assert result.id == sample_batch.id
@@ -118,14 +133,14 @@ class TestBatchRouterEndpoints:
             mock_create.assert_called_once_with(mock_db_session, batch_create_data)
 
     @pytest.mark.asyncio
-    async def test_create_batch_database_error(self, mock_db_session, batch_create_data):
+    async def test_create_batch_database_error(self, mock_request, mock_db_session, batch_create_data):
         """Test batch creation with database error."""
         with patch("src.api.routers.batches.BatchCRUD.create_batch") as mock_create:
             mock_create.side_effect = SQLAlchemyError("Database connection failed")
 
             with pytest.raises(HTTPException) as exc_info:
                 mock_background_tasks = MagicMock()
-                await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
+                await create_batch(mock_request, batch_create_data, mock_background_tasks, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Failed to create batch" in exc_info.value.detail

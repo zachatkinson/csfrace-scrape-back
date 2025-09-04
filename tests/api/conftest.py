@@ -7,6 +7,7 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -34,9 +35,10 @@ async def test_db_session(postgres_container) -> AsyncGenerator[AsyncSession]:
     )
     engine = create_async_engine(db_url, echo=False)
 
-    # Create tables
+    # Create tables with automatic enum creation via metadata event listener
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+        # The Base.metadata event listener will automatically create enums before tables
         await conn.run_sync(Base.metadata.create_all)
 
     # Create session
