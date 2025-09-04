@@ -6,7 +6,7 @@ import logging
 import os
 import tempfile
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 
@@ -248,10 +248,13 @@ class TestInitDb:
 
             await init_db()
 
-            # Verify logger.info was called with expected message
-            mock_logger.info.assert_called_once_with(
-                "Database initialization completed successfully"
-            )
+            # Verify logger.info was called twice (either Alembic or fallback + completion)
+            assert mock_logger.info.call_count == 2
+            # Check the final call is always the completion message
+            mock_logger.info.assert_any_call("Database initialization completed successfully")
+            # First call could be either Alembic success or fallback message
+            first_call = mock_logger.info.call_args_list[0]
+            assert "Database initialized using" in first_call[0][0]
 
     @pytest.mark.unit
     def test_init_db_function_signature(self):
@@ -292,7 +295,8 @@ class TestInitDb:
         """Test that init_db has proper documentation."""
         assert init_db.__doc__ is not None
         assert "Initialize the database" in init_db.__doc__
-        assert "PostgreSQL enum safety" in init_db.__doc__
+        assert "Alembic migrations" in init_db.__doc__
+        assert "best practices" in init_db.__doc__
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -390,8 +394,13 @@ class TestInitDbEdgeCases:
             # Should still work
             await init_db()
 
-            # Logger.info should still be called even if disabled
-            mock_logger.info.assert_called_once()
+            # Logger.info should be called twice (either Alembic or fallback + completion) even if disabled
+            assert mock_logger.info.call_count == 2
+            # Check the final call is always the completion message
+            mock_logger.info.assert_any_call("Database initialization completed successfully")
+            # First call could be either Alembic success or fallback message
+            first_call = mock_logger.info.call_args_list[0]
+            assert "Database initialized using" in first_call[0][0]
 
     @pytest.mark.asyncio
     @pytest.mark.integration
