@@ -435,7 +435,7 @@ class BatchProcessor:
 
     async def process_all(
         self, progress_callback: Callable[[str, int], None] | None = None
-    ) -> dict[str, Any]:
+    ) -> BatchSummary:
         """Process all jobs in the batch queue.
 
         Args:
