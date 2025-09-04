@@ -381,6 +381,9 @@ dev = [
 
 # Python Semantic Release configuration - Best Practices 2025
 [tool.semantic_release]
+# Files to include in version commits
+assets = ["CHANGELOG.md"]
+
 version_toml = [
     "pyproject.toml:project.version"  # Update project version in [project] section only
 ]
