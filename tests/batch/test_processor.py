@@ -12,6 +12,7 @@ import pytest
 
 from src.batch.processor import BatchConfig, BatchJob, BatchJobStatus, BatchProcessor
 from src.core.exceptions import ConversionError
+from src.utils.path_utils import get_directory_name
 
 
 class TestBatchProcessor:
@@ -263,8 +264,6 @@ class TestBatchProcessorURLParsing:
 
     def test_generate_output_directory_length_limit(self, processor):
         """Test slug length limiting."""
-        from src.utils.path_utils import get_directory_name
-
         long_slug = "a" * 100  # Very long slug
         url = f"https://example.com/{long_slug}"
         output_dir = processor._generate_output_directory(url)
@@ -450,9 +449,9 @@ class TestBatchProcessorAsyncProcessing:
         # Mock Progress and AsyncWordPressConverter
         mock_progress = MagicMock()
 
-        with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+        with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
             mock_converter = AsyncMock()
-            MockConverter.return_value = mock_converter
+            mock_converter_class.return_value = mock_converter
             mock_converter.convert = AsyncMock()
 
             result = await processor._process_single_job(job, mock_progress)
@@ -470,12 +469,12 @@ class TestBatchProcessorAsyncProcessing:
         job = BatchJob(url="https://example.com/test", output_dir=Path("/tmp/test"))
         mock_progress = MagicMock()
 
-        with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+        with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
             mock_converter = AsyncMock()
-            MockConverter.return_value = mock_converter
+            mock_converter_class.return_value = mock_converter
 
             # Create a proper async function that takes time
-            async def slow_convert(**kwargs):
+            async def slow_convert(**_kwargs):
                 await asyncio.sleep(1)  # Longer than timeout
 
             mock_converter.convert = slow_convert
@@ -491,9 +490,9 @@ class TestBatchProcessorAsyncProcessing:
         job = BatchJob(url="https://example.com/test", output_dir=Path("/tmp/test"))
         mock_progress = MagicMock()
 
-        with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+        with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
             mock_converter = AsyncMock()
-            MockConverter.return_value = mock_converter
+            mock_converter_class.return_value = mock_converter
             mock_converter.convert = AsyncMock(side_effect=ConversionError("Test error"))
 
             result = await processor._process_single_job(job, mock_progress)
@@ -525,9 +524,9 @@ class TestBatchProcessorAsyncProcessing:
         processor.add_job("https://example.com/post1")
         processor.add_job("https://example.com/post2")
 
-        with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+        with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
             mock_converter = AsyncMock()
-            MockConverter.return_value = mock_converter
+            mock_converter_class.return_value = mock_converter
             mock_converter.convert = AsyncMock()
 
             with patch.object(processor, "_create_summary_report", new=AsyncMock()) as mock_summary:
@@ -727,9 +726,9 @@ class TestBatchProcessorEdgeCases:
         processor = BatchProcessor(batch_config=config)
         processor.add_job("https://example.com/test")
 
-        with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+        with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
             mock_converter = AsyncMock()
-            MockConverter.return_value = mock_converter
+            mock_converter_class.return_value = mock_converter
             mock_converter.convert = AsyncMock(side_effect=ConversionError("Test error"))
 
             # The exception gets caught in _process_single_job and doesn't bubble up to process_all
@@ -787,9 +786,9 @@ class TestBatchProcessorEdgeCases:
             job = BatchJob(url="https://example.com/test", output_dir=job_dir)
             mock_progress = MagicMock()
 
-            with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+            with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
                 mock_converter = AsyncMock()
-                MockConverter.return_value = mock_converter
+                mock_converter_class.return_value = mock_converter
                 mock_converter.convert = AsyncMock()
 
                 with patch.object(processor, "_create_archive", new=AsyncMock()) as mock_archive:
@@ -810,9 +809,9 @@ class TestBatchProcessorEdgeCases:
         job = BatchJob(url="https://example.com/test", output_dir=Path("/tmp/test"))
         mock_progress = MagicMock()
 
-        with patch("src.batch.processor.AsyncWordPressConverter") as MockConverter:
+        with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter_class:
             mock_converter = AsyncMock()
-            MockConverter.return_value = mock_converter
+            mock_converter_class.return_value = mock_converter
             mock_converter.convert = AsyncMock()
 
             with patch.object(processor, "_create_archive", new=AsyncMock()) as mock_archive:
