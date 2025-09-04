@@ -71,8 +71,11 @@ class TestBatchProcessor:
         """Test processing with no jobs."""
         summary = await batch_processor.process_all()
 
-        assert summary["status"] == "no_jobs"
-        assert summary["results"] == []
+        assert summary["total"] == 0
+        assert summary["successful"] == 0
+        assert summary["failed"] == 0
+        assert summary["skipped"] == 0
+        assert summary["jobs"] == []
 
     def test_batch_config_defaults(self):
         """Test batch configuration defaults."""

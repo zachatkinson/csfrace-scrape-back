@@ -4,7 +4,7 @@ from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.routers.jobs import (
@@ -70,7 +70,9 @@ class TestJobRouterEndpoints:
             "src.api.routers.jobs.JobCRUD.create_job", return_value=sample_job
         ) as mock_create:
             mock_background_tasks = MagicMock()
-            result = await create_job(job_create_data, mock_background_tasks, mock_db_session)
+            mock_request = MagicMock(spec=Request)
+            mock_request.client.host = "127.0.0.1"
+            result = await create_job(mock_request, job_create_data, mock_background_tasks, mock_db_session)
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
@@ -86,8 +88,10 @@ class TestJobRouterEndpoints:
             mock_create.side_effect = SQLAlchemyError("Database error")
 
             mock_background_tasks = MagicMock()
+            mock_request = MagicMock(spec=Request)
+            mock_request.client.host = "127.0.0.1"
             with pytest.raises(HTTPException) as exc_info:
-                await create_job(job_create_data, mock_background_tasks, mock_db_session)
+                await create_job(mock_request, job_create_data, mock_background_tasks, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Failed to create job" in exc_info.value.detail

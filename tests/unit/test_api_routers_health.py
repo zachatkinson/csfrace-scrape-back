@@ -16,6 +16,7 @@ from src.api.routers.health import (
     readiness_check,
 )
 from src.api.schemas import HealthCheckResponse, MetricsResponse
+from src.auth.models import StatusResponse
 
 
 class TestHealthRouterEndpoints:
@@ -323,7 +324,8 @@ class TestHealthRouterEndpoints:
         """Test liveness check endpoint."""
         result = await liveness_check()
 
-        assert result == {"status": "alive"}
+        assert result.status == "alive"
+        assert isinstance(result, StatusResponse)
 
     @pytest.mark.asyncio
     async def test_readiness_check_success(self, mock_db_session):
@@ -332,7 +334,8 @@ class TestHealthRouterEndpoints:
 
         result = await readiness_check(mock_db_session)
 
-        assert result == {"status": "ready"}
+        assert result.status == "ready"
+        assert isinstance(result, StatusResponse)
         mock_db_session.execute.assert_called_once()
         # Verify it executed the SELECT 1 query
         call_args = mock_db_session.execute.call_args[0]
