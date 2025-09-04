@@ -65,22 +65,22 @@ app.state.limiter = limiter
 async def add_security_headers(request: Request, call_next):
     """Add comprehensive security headers to all responses."""
     response = await call_next(request)
-    
+
     # X-Frame-Options: Prevent clickjacking attacks
     response.headers["X-Frame-Options"] = "DENY"
-    
+
     # X-Content-Type-Options: Prevent MIME type sniffing
     response.headers["X-Content-Type-Options"] = "nosniff"
-    
+
     # X-XSS-Protection: Enable browser XSS filtering (legacy support)
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    
+
     # Referrer-Policy: Control referrer information sent
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    
+
     # X-Permitted-Cross-Domain-Policies: Control Flash/PDF cross-domain policies
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
-    
+
     # Content-Security-Policy: Comprehensive CSP for API
     csp_directives = [
         "default-src 'none'",  # Deny all by default
@@ -101,22 +101,22 @@ async def add_security_headers(request: Request, call_next):
         "upgrade-insecure-requests",  # Upgrade HTTP to HTTPS
     ]
     response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
-    
+
     # Strict-Transport-Security: Force HTTPS (only add if HTTPS detected)
     if _is_https_request(request):
         # 1 year max-age, include subdomains, allow preloading
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-    
+
     # Permissions-Policy: Control browser features
     permissions_policy = [
         "accelerometer=()", "camera=()", "geolocation=()", "gyroscope=()",
         "magnetometer=()", "microphone=()", "payment=()", "usb=()"
     ]
     response.headers["Permissions-Policy"] = ", ".join(permissions_policy)
-    
+
     # X-Robots-Tag: Prevent search engine indexing of API endpoints
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
-    
+
     return response
 
 
