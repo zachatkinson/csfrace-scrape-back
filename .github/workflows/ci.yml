@@ -298,31 +298,24 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Run Ruff (auto-fix)
-        run: uv run ruff check src/ tests/ --fix
-        continue-on-error: true
-
-      - name: Run Ruff (format)
-        run: uv run ruff format src/ tests/
-
-      - name: Commit auto-fixes (if any)
+      - name: Apply auto-fixes with official lint-action
+        uses: wearerequired/lint-action@v2
         if: github.event_name == 'push'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          if git diff --exit-code; then
-            echo "No auto-fixes applied"
-          else
-            echo "Auto-fixes applied, committing changes"
-            git add -A
-            git commit -m "style: apply ruff auto-fixes
+        with:
+          ruff: true
+          ruff_args: "src/ tests/"
+          ruff_auto_fix: true
+          mypy: true
+          mypy_args: "src/ --show-error-codes"
+          auto_fix: true
+          git_name: "Lint Action"
+          git_email: "lint-action@github.com"
+          commit_message: "style: apply lint auto-fixes
 
-            🤖 Applied by CI auto-fix workflow
-            
-            Co-Authored-By: GitHub Action <action@github.com>"
-            git push
-          fi
-        continue-on-error: true
+          🤖 Applied by official lint-action
+          
+          Co-Authored-By: Lint Action <lint-action@github.com>"
+          continue_on_error: true
 
       - name: Run Ruff (final linting check)
         run: |
@@ -338,8 +331,6 @@ jobs:
             echo "::notice title=Ruff Linting::All linting checks passed!"
           fi
 
-      - name: Run MyPy (type checking)
-        run: uv run mypy src/ --show-error-codes
 
       - name: Run Bandit (security scan)
         run: uv run bandit -r src/ -f sarif -o bandit-report.sarif
