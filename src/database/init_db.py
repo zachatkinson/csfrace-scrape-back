@@ -3,9 +3,11 @@
 import logging
 from pathlib import Path
 
+import sqlalchemy.exc
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
-import sqlalchemy.exc
+
+from .models import Base, JobPriority, JobStatus, get_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +18,6 @@ except ImportError as e:
     logger.warning("Alembic not available: %s", e)
     command = None  # type: ignore[assignment]
     Config = None   # type: ignore[assignment]
-
-from .models import Base, JobPriority, JobStatus, get_database_url
 
 
 async def init_db(engine=None) -> None:
@@ -68,7 +68,7 @@ async def _run_alembic_migrations() -> None:
     """Run Alembic migrations to upgrade database to latest schema."""
     if command is None or Config is None:
         raise ImportError("Alembic is not available - cannot run migrations")
-    
+
     # Get the project root directory (where alembic.ini is located)
     backend_root = Path(__file__).parent.parent.parent
     alembic_ini_path = backend_root / "alembic.ini"
@@ -114,7 +114,7 @@ async def _create_enums_safely(engine) -> None:
                         pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
                         pg_enum.create(conn, checkfirst=True)
                         logger.debug("Created PostgreSQL enum type: %s", enum_name)
-                        
+
                     except (
                         sqlalchemy.exc.ProgrammingError,  # Type already exists
                         sqlalchemy.exc.IntegrityError,    # Duplicate key
