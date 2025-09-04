@@ -322,7 +322,7 @@ async def handle_oauth_callback(
     oauth_callback: OAuthCallback,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
-    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow with PKCE.
+    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
     according to RFC 6749 and FastAPI security best practices.
@@ -507,7 +507,7 @@ def complete_passkey_registration(
     current_user: User = Depends(get_current_active_user),
     db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
-    """Complete WebAuthn/Passkeys registration following FIDO2 standards with comprehensive validation."""
+    """Complete WebAuthn/Passkeys registration following FIDO2 standards."""
     with db_service.get_session() as session:
         webauthn_service = WebAuthnService(session)
 
