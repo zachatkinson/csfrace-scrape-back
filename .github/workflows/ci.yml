@@ -492,6 +492,8 @@ jobs:
           DATABASE_NAME: test_db_shard_${{ matrix.shard }}
           DATABASE_USER: postgres
           DATABASE_PASSWORD: postgres
+          # Authentication configuration for enterprise auth stack
+          SECRET_KEY: b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900
         run: |
           # Run tests using pytest-split for optimal matrix-based sharding (official best practice)
           # pytest-split distributes tests evenly across shards with duration-based balancing
@@ -627,6 +629,9 @@ jobs:
         run: uv sync --frozen --no-editable
         
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
+        env:
+          # Authentication configuration for enterprise auth stack
+          SECRET_KEY: b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900
         run: |
           # SMOKE TESTS ONLY - comprehensive testing handled by Ubuntu shards
           # Focus on platform-specific compatibility and core functionality validation
@@ -737,6 +742,8 @@ jobs:
           DATABASE_NAME: ${{ matrix.test-type == 'database' && 'test_db' || '' }}
           DATABASE_USER: ${{ matrix.test-type == 'database' && 'test_user' || '' }}
           DATABASE_PASSWORD: ${{ matrix.test-type == 'database' && 'test_password' || '' }}
+          # Authentication configuration for enterprise auth stack
+          SECRET_KEY: b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v4
