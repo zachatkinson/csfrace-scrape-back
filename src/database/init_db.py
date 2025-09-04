@@ -106,7 +106,7 @@ async def _create_enums_safely(engine) -> None:
                         pg_enum.create(conn, checkfirst=True)
                         logger.debug("Created PostgreSQL enum type: %s", enum_name)
                         
-                    except Exception as create_error:
+                    except Exception as create_error:  # pylint: disable=broad-exception-caught
                         error_msg = str(create_error).lower()
                         # Handle concurrent enum creation race conditions gracefully
                         if any(phrase in error_msg for phrase in ["already exists", "duplicate key", "relation already exists"]):
