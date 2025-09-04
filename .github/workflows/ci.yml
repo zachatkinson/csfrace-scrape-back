@@ -298,40 +298,38 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable
 
-      - name: Run Ruff (Official Action)
-        uses: astral-sh/ruff-action@v3
-        with:
-          src: "./src ./tests"
-          version: "0.8.14"
+      - name: Run Super-Linter (Official GitHub Action)
+        uses: github/super-linter@v7
+        env:
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Python linters
+          VALIDATE_PYTHON_RUFF: true
+          VALIDATE_PYTHON_BLACK: true  
+          VALIDATE_PYTHON_ISORT: true
+          VALIDATE_PYTHON_MYPY: true
+          VALIDATE_PYTHON_PYLINT: true
+          VALIDATE_PYTHON_FLAKE8: true
+          # Security scanning
+          VALIDATE_PYTHON_BANDIT: true
+          # Only scan Python files
+          VALIDATE_ALL_CODEBASE: false
+          FILTER_REGEX_INCLUDE: ".*\\.(py)$"
+          # Auto-fix capable linters
+          FIX_PYTHON_BLACK: true
+          FIX_PYTHON_ISORT: true  
+          FIX_PYTHON_RUFF: true
+          # Performance optimization
+          SUPPRESS_POSSUM: true
+          # Continue on errors for non-critical issues
+          VALIDATE_PYTHON_PYLINT: false  # Too strict for FastAPI patterns
 
-
-      - name: Run Bandit Security Analysis (Official Action)
-        uses: PyCQA/bandit-action@v1
-        with:
-          targets: "src/"
-          severity: "medium"
-          confidence: "medium"
-          exit_zero: true
-
-      - name: Run pip-audit (Official Dependency Vulnerability Scanning)
-        uses: homoluctus/pip-audit-action@v1
-        with:
-          type: pip
-
-      - name: Run Safety CLI (Official Action)
+      - name: Run Safety CLI (Dependency Vulnerability Scanning)
         uses: pyupio/safety-action@v1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
         continue-on-error: true
 
-      - name: Upload security reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: security-reports
-          path: pip-audit-report.json
-          retention-days: 30
-          if-no-files-found: warn
 
       - name: Calculate job duration and set outputs
         id: quality-check
