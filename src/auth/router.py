@@ -256,11 +256,10 @@ def list_users(
     current_user: User = Depends(get_current_superuser),
     db_service: DatabaseService = Depends(get_database_service),
 ) -> list[User]:
-    """List all users (admin only)."""
-    # TODO: Implement user listing with pagination
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="User listing not yet implemented"
-    )
+    """List all users with pagination (admin only)."""
+    with db_service.get_session() as session:
+        auth_service = AuthService(session)
+        return auth_service.list_users(skip=skip, limit=limit)
 
 
 @router.get("/users/{user_id}", response_model=User)

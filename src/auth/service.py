@@ -141,6 +141,17 @@ class AuthService:
         # return True
         return False
 
+    def list_users(self, skip: int = 0, limit: int = 100) -> list[User]:
+        """List users with pagination."""
+        # TODO: Replace with actual SQLAlchemy model query
+        # stmt = select(UserTable).offset(skip).limit(limit)
+        # result = self.db.execute(stmt)
+        # user_rows = result.scalars().all()
+        # return [User.from_orm(user_row) for user_row in user_rows]
+
+        # Placeholder return - empty list for now
+        return []
+
     def deactivate_user(self, user_id: str) -> bool:
         """Deactivate user account."""
         # TODO: Replace with actual SQLAlchemy model update
