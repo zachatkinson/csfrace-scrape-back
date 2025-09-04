@@ -100,30 +100,20 @@ async def _create_enums_safely(engine) -> None:
 
                 if not result:
                     try:
-                        # Build enum values string safely
-                        enum_values = ', '.join([f"'{value.value}'" for value in enum_class])
-                        
-                        # Use raw SQL with IF NOT EXISTS for maximum concurrency safety
-                        create_sql = f"CREATE TYPE {enum_name} AS ENUM ({enum_values})"
-                        conn.execute(text(create_sql))
+                        # Use SQLAlchemy's PostgreSQL dialect with proper concurrency handling
+                        # This is the official recommended approach for SQLAlchemy + PostgreSQL
+                        pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
+                        pg_enum.create(conn, checkfirst=True)
                         logger.debug("Created PostgreSQL enum type: %s", enum_name)
                         
                     except Exception as create_error:
                         error_msg = str(create_error).lower()
-                        if any(phrase in error_msg for phrase in ["already exists", "duplicate key"]):
+                        # Handle concurrent enum creation race conditions gracefully
+                        if any(phrase in error_msg for phrase in ["already exists", "duplicate key", "relation already exists"]):
                             logger.debug("Enum %s already exists (concurrent execution): %s", enum_name, create_error)
                         else:
-                            # Try the SQLAlchemy approach as fallback
-                            try:
-                                pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
-                                pg_enum.create(conn, checkfirst=True)
-                                logger.debug("Created PostgreSQL enum type using SQLAlchemy fallback: %s", enum_name)
-                            except Exception as fallback_error:
-                                fallback_msg = str(fallback_error).lower()
-                                if any(phrase in fallback_msg for phrase in ["already exists", "duplicate key"]):
-                                    logger.debug("Enum %s already exists (SQLAlchemy fallback): %s", enum_name, fallback_error)
-                                else:
-                                    logger.warning("Could not create enum %s: %s", enum_name, fallback_error)
+                            logger.warning("Could not create enum %s: %s", enum_name, create_error)
+                            # Don't raise - let table creation proceed
                 else:
                     logger.debug("PostgreSQL enum type already exists: %s", enum_name)
 
