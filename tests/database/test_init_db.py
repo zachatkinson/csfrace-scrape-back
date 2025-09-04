@@ -467,7 +467,7 @@ class TestInitDbIntegration:
             file_handler.flush()
 
             # Read log file content
-            with open(log_file) as f:
+            with open(log_file, encoding="utf-8") as f:
                 log_content = f.read()
 
             # Verify log message was written
