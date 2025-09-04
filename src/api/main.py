@@ -1,7 +1,6 @@
 """Main FastAPI application for the CSFrace scraper API."""
 
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from .. import __version__
+from ..auth.models import MessageResponse
 from ..auth.router import router as auth_router
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
@@ -91,15 +91,12 @@ app.include_router(jobs.router)
 app.include_router(batches.router)
 
 
-@app.get("/", tags=["Root"])
-async def root() -> dict[str, Any]:
+@app.get("/", response_model=MessageResponse, tags=["Root"])
+async def root() -> MessageResponse:
     """Root endpoint with API information."""
-    return {
-        "message": "CSFrace Scraper API",
-        "version": __version__,
-        "docs": "/docs",
-        "health": "/health",
-    }
+    return MessageResponse(
+        message=f"CSFrace Scraper API v{__version__} - Docs: /docs, Health: /health"
+    )
 
 
 if __name__ == "__main__":

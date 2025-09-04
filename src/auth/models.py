@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -298,3 +299,26 @@ class WebAuthnChallenge(BaseModel):
         if v not in valid_types:
             raise ValueError(f"Challenge type must be one of {valid_types}")
         return v
+
+
+# FastAPI Response Models - Following Official Best Practices
+class MessageResponse(BaseModel):
+    """Standard message response model for simple operations."""
+
+    message: str
+    status: str = "success"
+
+
+class StatusResponse(BaseModel):
+    """Standard status response model for health checks."""
+
+    status: str
+
+
+# Type Aliases for Path Parameters - FastAPI Best Practices
+UserIdPath = Annotated[str, Field(min_length=1, max_length=50, description="User ID")]
+JobIdPath = Annotated[str, Field(min_length=1, max_length=50, description="Job ID")]
+BatchIdPath = Annotated[str, Field(min_length=1, max_length=50, description="Batch ID")]
+CredentialIdPath = Annotated[
+    str, Field(min_length=1, max_length=100, description="WebAuthn Credential ID")
+]

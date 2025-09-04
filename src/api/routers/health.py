@@ -4,8 +4,10 @@ import importlib.metadata
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
 
+from ...auth.models import StatusResponse
 from ...monitoring.health import health_checker
 from ...monitoring.metrics import metrics_collector
 from ...monitoring.observability import observability_manager
@@ -140,18 +142,18 @@ async def get_metrics() -> MetricsResponse:
         )
 
 
-@router.get("/live")
-async def liveness_check() -> dict[str, str]:
+@router.get("/live", response_model=StatusResponse)
+async def liveness_check() -> StatusResponse:
     """Simple liveness check for container orchestration.
 
     Returns:
         Basic status indicating the service is running
     """
-    return {"status": "alive"}
+    return StatusResponse(status="alive")
 
 
-@router.get("/ready")
-async def readiness_check(db: DBSession) -> dict[str, str]:
+@router.get("/ready", response_model=StatusResponse)
+async def readiness_check(db: DBSession) -> StatusResponse:
     """Readiness check for container orchestration.
 
     Args:
@@ -167,7 +169,7 @@ async def readiness_check(db: DBSession) -> dict[str, str]:
         # Check critical dependencies
         await db.execute(text("SELECT 1"))
 
-        return {"status": "ready"}
+        return StatusResponse(status="ready")
 
     except Exception as e:
         raise HTTPException(
@@ -175,12 +177,12 @@ async def readiness_check(db: DBSession) -> dict[str, str]:
         )
 
 
-@router.get("/prometheus")
+@router.get("/prometheus", response_class=PlainTextResponse)
 async def prometheus_metrics() -> str:
     """Prometheus metrics endpoint.
 
     Returns:
-        Prometheus-formatted metrics data
+        Prometheus-formatted metrics data in plain text format
     """
     try:
         # Export Prometheus metrics
