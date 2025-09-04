@@ -1,5 +1,5 @@
 """Unit tests for batch processor."""
-# pylint: disable=protected-access,import-outside-toplevel,unused-argument,invalid-name
+# pylint: disable=protected-access
 
 import asyncio
 import json
@@ -687,7 +687,7 @@ class TestBatchProcessorSummaryReporting:
         assert summary_file.exists()
 
         # Verify summary file contents
-        with open(summary_file) as f:
+        with open(summary_file, encoding="utf-8") as f:
             saved_summary = json.load(f)
             assert saved_summary["total"] == 3
             assert saved_summary["successful"] == 2
