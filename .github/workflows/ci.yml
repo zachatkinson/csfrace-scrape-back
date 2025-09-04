@@ -237,10 +237,11 @@ jobs:
             echo "cross-platform=false" >> $GITHUB_OUTPUT
           fi
           
-          # Performance tests: run if performance code changed, core changed, or forced
+          # Performance tests: run if performance code changed, core changed, or forced, or on master branch
           if [[ "$force_full" == "true" || \
                 "${{ steps.changes.outputs.performance-tests }}" == "true" || \
-                "${{ steps.changes.outputs.core }}" == "true" ]]; then
+                "${{ steps.changes.outputs.core }}" == "true" || \
+                "${{ github.ref }}" == "refs/heads/master" ]]; then
             echo "performance=true" >> $GITHUB_OUTPUT
           else
             echo "performance=false" >> $GITHUB_OUTPUT
@@ -694,9 +695,9 @@ jobs:
       - name: Run integration tests
         run: |
           if [ "${{ matrix.test-type }}" = "database" ]; then
-            uv run pytest ${{ matrix.test-path }} -m "integration" --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
+            uv run pytest ${{ matrix.test-path }} -m "integration" --cov=src --cov-branch --cov-report=xml:coverage-${{ matrix.test-type }}-integration.xml --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
           else
-            uv run pytest ${{ matrix.test-path }} --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
+            uv run pytest ${{ matrix.test-path }} --cov=src --cov-branch --cov-report=xml:coverage-${{ matrix.test-type }}-integration.xml --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
           fi
         env:
           REDIS_URL: ${{ matrix.test-type == 'redis' && 'redis://localhost:6379' || '' }}
@@ -713,8 +714,20 @@ jobs:
         if: always()
         with:
           name: test-results-${{ matrix.test-type }}-integration
-          path: junit-${{ matrix.test-type }}-integration.xml
+          path: |
+            junit-${{ matrix.test-type }}-integration.xml
+            coverage-${{ matrix.test-type }}-integration.xml
           retention-days: 30
+
+      - name: Upload integration coverage to Codecov
+        uses: codecov/codecov-action@v5
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-${{ matrix.test-type }}-integration.xml
+          flags: integration-tests
+          name: integration-${{ matrix.test-type }}-coverage
+          fail_ci_if_error: false
 
       - name: Upload integration test results to Codecov (Test Analytics)
         uses: codecov/test-results-action@v1
