@@ -206,6 +206,8 @@ warn_return_any = false
 # Still catch serious issues
 warn_no_return = true
 warn_unreachable = false  # BeautifulSoup causes many false positives
+# Allow variable redefinition for optional import patterns
+allow_redefinition = true
 
 [[tool.mypy.overrides]]
 module = [
