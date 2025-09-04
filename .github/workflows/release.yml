@@ -32,6 +32,7 @@ jobs:
         uses: python-semantic-release/python-semantic-release@v9.21.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          root_options: "-vv"  # Very verbose mode for detailed traceback
           # UV will be installed via build_command in pyproject.toml
 
   # Notify when release is skipped due to CI failure
