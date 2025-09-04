@@ -188,6 +188,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S", "ARG", "SIM117", "B017", "F841"]  # Allow security issues, unused args, nested with, Exception assertions, unused vars in tests
 "src/monitoring/grafana.py" = ["S105"]  # Allow placeholder password constant that forces production password change
+# SlowAPI rate limiting requires unused request parameters for middleware integration
+"src/auth/router.py" = ["ARG001"]  # SlowAPI request parameters required but not used in function body
+"src/api/routers/jobs.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting job creation
+"src/api/routers/batches.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting batch creation
 
 # MyPy configuration
 [tool.mypy]
