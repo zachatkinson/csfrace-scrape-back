@@ -333,11 +333,12 @@ class TestBatchRouterEndpoints:
             assert result.total_pages == 1
 
     @pytest.mark.asyncio
-    async def test_batch_response_model_validation(self, mock_db_session, sample_batch):
+    async def test_batch_response_model_validation(self, mock_request, mock_db_session, sample_batch):
         """Test BatchResponse model validation."""
         mock_background_tasks = MagicMock()
         with patch("src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch):
             result = await create_batch(
+                mock_request,
                 BatchCreate(name="Test", urls=["https://test.com"]),
                 mock_background_tasks,
                 mock_db_session,
@@ -400,7 +401,7 @@ class TestBatchRouterEndpoints:
             assert isinstance(result.total_pages, int)
 
     @pytest.mark.asyncio
-    async def test_create_batch_model_validation_passthrough(self, mock_db_session, sample_batch):
+    async def test_create_batch_model_validation_passthrough(self, mock_request, mock_db_session, sample_batch):
         """Test that BatchCreate data is properly passed to CRUD layer."""
         batch_data = BatchCreate(
             name="Validation Test",
@@ -418,7 +419,7 @@ class TestBatchRouterEndpoints:
             "src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch
         ) as mock_create:
             mock_background_tasks = MagicMock()
-            await create_batch(batch_data, mock_background_tasks, mock_db_session)
+            await create_batch(mock_request, batch_data, mock_background_tasks, mock_db_session)
 
             # Verify the exact data was passed through
             call_args = mock_create.call_args
@@ -427,7 +428,7 @@ class TestBatchRouterEndpoints:
             assert passed_batch_data == batch_data
 
     @pytest.mark.asyncio
-    async def test_batch_router_error_message_formatting(self, mock_db_session, batch_create_data):
+    async def test_batch_router_error_message_formatting(self, mock_request, mock_db_session, batch_create_data):
         """Test that error messages are properly formatted."""
         error_scenarios = [
             ("Connection timeout", "Failed to create batch: Connection timeout"),
@@ -441,7 +442,7 @@ class TestBatchRouterEndpoints:
 
                 mock_background_tasks = MagicMock()
                 with pytest.raises(HTTPException) as exc_info:
-                    await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
+                    await create_batch(mock_request, batch_create_data, mock_background_tasks, mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
                 assert expected_message in exc_info.value.detail
@@ -482,11 +483,12 @@ class TestBatchRouterEndpoints:
             assert len(result.jobs) == 0
 
     @pytest.mark.asyncio
-    async def test_batch_response_includes_all_batch_fields(self, mock_db_session, sample_batch):
+    async def test_batch_response_includes_all_batch_fields(self, mock_request, mock_db_session, sample_batch):
         """Test that BatchResponse includes all expected batch fields."""
         with patch("src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch):
             mock_background_tasks = MagicMock()
             result = await create_batch(
+                mock_request,
                 BatchCreate(name="Field Test", urls=["https://test.com"]),
                 mock_background_tasks,
                 mock_db_session,
@@ -567,7 +569,7 @@ class TestBatchRouterEndpoints:
             assert result.total_pages == 50  # 1000/20 = 50
 
     @pytest.mark.asyncio
-    async def test_batch_model_validation_error_handling(self, mock_db_session, sample_batch):
+    async def test_batch_model_validation_error_handling(self, mock_request, mock_db_session, sample_batch):
         """Test handling of model validation during response creation."""
         # Create batch with potentially problematic data
         from datetime import datetime
@@ -596,6 +598,7 @@ class TestBatchRouterEndpoints:
         ):
             mock_background_tasks = MagicMock()
             result = await create_batch(
+                mock_request,
                 BatchCreate(name="Test", urls=["https://test.com"]),
                 mock_background_tasks,
                 mock_db_session,
@@ -606,7 +609,7 @@ class TestBatchRouterEndpoints:
             assert result.description is None
 
     @pytest.mark.asyncio
-    async def test_sqlalchemy_error_types_handling(self, mock_db_session, batch_create_data):
+    async def test_sqlalchemy_error_types_handling(self, mock_request, mock_db_session, batch_create_data):
         """Test handling of different SQLAlchemy error types."""
         from sqlalchemy.exc import (
             DatabaseError,
@@ -630,13 +633,13 @@ class TestBatchRouterEndpoints:
 
                 mock_background_tasks = MagicMock()
                 with pytest.raises(HTTPException) as exc_info:
-                    await create_batch(batch_create_data, mock_background_tasks, mock_db_session)
+                    await create_batch(mock_request, batch_create_data, mock_background_tasks, mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
                 assert "Failed to create batch" in exc_info.value.detail
 
     @pytest.mark.asyncio
-    async def test_batch_crud_method_calls_exact_parameters(self, mock_db_session, sample_batch):
+    async def test_batch_crud_method_calls_exact_parameters(self, mock_request, mock_db_session, sample_batch):
         """Test that router calls CRUD methods with exact expected parameters."""
         batch_data = BatchCreate(name="Parameter Test", urls=["https://example.com/test"])
 
@@ -644,7 +647,7 @@ class TestBatchRouterEndpoints:
             "src.api.routers.batches.BatchCRUD.create_batch", return_value=sample_batch
         ) as mock_create:
             mock_background_tasks = MagicMock()
-            await create_batch(batch_data, mock_background_tasks, mock_db_session)
+            await create_batch(mock_request, batch_data, mock_background_tasks, mock_db_session)
 
             # Verify exact call
             mock_create.assert_called_once()

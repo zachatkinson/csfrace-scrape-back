@@ -373,6 +373,7 @@ dev = [
     "testcontainers>=4.12.0",
     "types-psutil>=7.0.0.20250822",
     "pytest-mock>=3.14.1",
+    "pytest-split>=0.10.0",
 ]
 
 # Python Semantic Release configuration - Best Practices 2025

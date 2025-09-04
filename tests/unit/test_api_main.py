@@ -61,10 +61,7 @@ class TestFastAPIApp:
             assert response.status_code == 200
             data = response.json()
 
-            assert data["message"] == "CSFrace Scraper API"
-            assert data["version"] == __version__
-            assert data["docs"] == "/docs"
-            assert data["health"] == "/health"
+            assert data["message"] == f"CSFrace Scraper API v{__version__} - Docs: /docs, Health: /health"
 
     def test_exception_handlers_registered(self):
         """Test that exception handlers are registered."""
