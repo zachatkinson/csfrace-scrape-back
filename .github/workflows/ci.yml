@@ -517,7 +517,6 @@ jobs:
         uses: codecov/codecov-action@v5
         if: matrix.python-version == env.PYTHON_VERSION
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage-shard-${{ matrix.shard }}.xml
           flags: unit-tests
           name: unit-tests-coverage
@@ -528,7 +527,6 @@ jobs:
         uses: codecov/test-results-action@v1
         if: ${{ !cancelled() && matrix.python-version == env.PYTHON_VERSION }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./junit-unit-${{ matrix.python-version }}-shard-${{ matrix.shard }}.xml
           flags: unit-tests
           name: unit-tests-results
@@ -710,7 +708,6 @@ jobs:
         uses: codecov/test-results-action@v1
         if: ${{ !cancelled() }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./junit-${{ matrix.test-type }}-integration.xml
           flags: integration-tests
           name: integration-tests-${{ matrix.test-type }}
@@ -812,9 +809,10 @@ jobs:
         uses: codecov/test-results-action@v1
         if: ${{ !cancelled() }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./junit-performance.xml
           flags: performance-tests
+          name: performance-tests-results
+          fail_ci_if_error: false
 
       # Store benchmark results as artifacts for historical comparison
       - name: Store benchmark baseline (master branch)
