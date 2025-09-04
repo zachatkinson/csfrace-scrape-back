@@ -6,8 +6,12 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from .. import __version__
+from ..auth.router import router as auth_router
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
 from .routers import batches, health, jobs
@@ -29,6 +33,9 @@ async def lifespan(_app: FastAPI):
     # Add cleanup logic here if needed
 
 
+# Rate limiter for global application endpoints
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="CSFrace Scraper API",
     description="API for managing WordPress to Shopify content conversion jobs",
@@ -49,8 +56,21 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
 )
 
+# Attach rate limiter to app
+app.state.limiter = limiter
+
 
 # Exception handlers
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """Handle rate limit exceeded exceptions."""
+    response = JSONResponse(
+        status_code=429, content={"detail": f"Rate limit exceeded: {exc.detail}"}
+    )
+    response = request.app.state.limiter._inject_headers(response, request.state.view_rate_limit)
+    return response
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
     """Global exception handler for unhandled errors."""
@@ -66,6 +86,7 @@ async def global_exception_handler(request: Request, _exc: Exception) -> JSONRes
 
 # Include routers
 app.include_router(health.router)
+app.include_router(auth_router)  # Authentication endpoints
 app.include_router(jobs.router)
 app.include_router(batches.router)
 

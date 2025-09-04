@@ -238,3 +238,148 @@ class CLIConstants:
 
 # Global CLI constants instance
 CLI_CONSTANTS = CLIConstants()
+
+
+@dataclass(frozen=True)
+class OAuthConstants:
+    """OAuth2 SSO configuration constants - DRY principle for all OAuth providers."""
+
+    # OAuth2 Client Credentials - Environment Variable Based Configuration
+    OAUTH_GOOGLE_CLIENT_ID: str = environ.get("OAUTH_GOOGLE_CLIENT_ID", "")
+    OAUTH_GOOGLE_CLIENT_SECRET: str = environ.get("OAUTH_GOOGLE_CLIENT_SECRET", "")
+
+    OAUTH_GITHUB_CLIENT_ID: str = environ.get("OAUTH_GITHUB_CLIENT_ID", "")
+    OAUTH_GITHUB_CLIENT_SECRET: str = environ.get("OAUTH_GITHUB_CLIENT_SECRET", "")
+
+    OAUTH_MICROSOFT_CLIENT_ID: str = environ.get("OAUTH_MICROSOFT_CLIENT_ID", "")
+    OAUTH_MICROSOFT_CLIENT_SECRET: str = environ.get("OAUTH_MICROSOFT_CLIENT_SECRET", "")
+
+    # OAuth2 Redirect URIs - Centralized Configuration
+    OAUTH_REDIRECT_URI_BASE: str = environ.get("OAUTH_REDIRECT_URI_BASE", "http://localhost:8000")
+
+    # Google OAuth2 Configuration
+    GOOGLE_AUTHORIZATION_URL: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    GOOGLE_TOKEN_URL: str = "https://oauth2.googleapis.com/token"  # noqa: S105
+    GOOGLE_USER_INFO_URL: str = "https://www.googleapis.com/oauth2/v2/userinfo"
+    GOOGLE_SCOPES: list[str] = field(default_factory=lambda: ["openid", "email", "profile"])
+
+    # GitHub OAuth2 Configuration
+    GITHUB_AUTHORIZATION_URL: str = "https://github.com/login/oauth/authorize"
+    GITHUB_TOKEN_URL: str = "https://github.com/login/oauth/access_token"  # noqa: S105
+    GITHUB_USER_INFO_URL: str = "https://api.github.com/user"
+    GITHUB_USER_EMAILS_URL: str = "https://api.github.com/user/emails"
+    GITHUB_SCOPES: list[str] = field(default_factory=lambda: ["user:email"])
+
+    # Microsoft OAuth2 Configuration
+    MICROSOFT_AUTHORIZATION_URL: str = (
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+    )
+    MICROSOFT_TOKEN_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/token"  # noqa: S105
+    MICROSOFT_USER_INFO_URL: str = "https://graph.microsoft.com/v1.0/me"
+    MICROSOFT_SCOPES: list[str] = field(
+        default_factory=lambda: ["openid", "profile", "email", "User.Read"]
+    )
+
+    # OAuth2 Security Settings
+    STATE_TOKEN_LENGTH: int = 32  # Length for OAuth2 state parameter
+    OAUTH_TIMEOUT: int = int(environ.get("OAUTH_TIMEOUT", "30"))  # OAuth request timeout
+    OAUTH_MAX_RETRIES: int = int(environ.get("OAUTH_MAX_RETRIES", "3"))  # OAuth retry attempts
+
+
+# Global OAuth constants instance
+OAUTH_CONSTANTS = OAuthConstants()
+
+
+@dataclass(frozen=True)
+class AuthConstants:
+    """Authentication constants following DRY principles."""
+
+    # Token types
+    BEARER_TOKEN_TYPE: str = "bearer"  # noqa: S105
+
+    # Rate limiting configuration
+    PASSWORD_CONTEXT_DEPRECATED: str = "auto"  # noqa: S105
+
+
+# Global auth constants instance
+AUTH_CONSTANTS = AuthConstants()
+
+# Export individual constants for backward compatibility and easy access
+OAUTH_GOOGLE_CLIENT_ID = OAUTH_CONSTANTS.OAUTH_GOOGLE_CLIENT_ID
+OAUTH_GOOGLE_CLIENT_SECRET = OAUTH_CONSTANTS.OAUTH_GOOGLE_CLIENT_SECRET
+OAUTH_GITHUB_CLIENT_ID = OAUTH_CONSTANTS.OAUTH_GITHUB_CLIENT_ID
+OAUTH_GITHUB_CLIENT_SECRET = OAUTH_CONSTANTS.OAUTH_GITHUB_CLIENT_SECRET
+OAUTH_MICROSOFT_CLIENT_ID = OAUTH_CONSTANTS.OAUTH_MICROSOFT_CLIENT_ID
+OAUTH_MICROSOFT_CLIENT_SECRET = OAUTH_CONSTANTS.OAUTH_MICROSOFT_CLIENT_SECRET
+OAUTH_REDIRECT_URI_BASE = OAUTH_CONSTANTS.OAUTH_REDIRECT_URI_BASE
+
+
+@dataclass(frozen=True)
+class WebAuthnConstants:
+    """WebAuthn/Passkeys configuration constants - DRY principle for passwordless auth."""
+
+    # Relying Party Configuration - Environment Variable Based
+    WEBAUTHN_RP_ID: str = environ.get("WEBAUTHN_RP_ID", "localhost")
+    WEBAUTHN_RP_NAME: str = environ.get("WEBAUTHN_RP_NAME", "CSFrace Backend")
+    WEBAUTHN_ORIGIN: str = environ.get("WEBAUTHN_ORIGIN", "http://localhost:8000")
+
+    # Challenge Configuration - Security Settings
+    CHALLENGE_LENGTH_BYTES: int = 32  # 256-bit challenge (FIDO2 standard)
+    CHALLENGE_TIMEOUT_MS: int = int(
+        environ.get("WEBAUTHN_CHALLENGE_TIMEOUT_MS", "60000")
+    )  # 1 minute
+    CHALLENGE_MAX_AGE_MINUTES: int = int(
+        environ.get("WEBAUTHN_CHALLENGE_MAX_AGE", "10")
+    )  # 10 minutes
+
+    # Credential Configuration
+    MAX_CREDENTIALS_PER_USER: int = int(environ.get("WEBAUTHN_MAX_CREDENTIALS", "10"))
+    DEVICE_NAME_MAX_LENGTH: int = 100
+    CREDENTIAL_ID_LENGTH: int = 64  # Base64URL encoded length
+
+    # Authenticator Selection Preferences - FIDO2 Standards
+    USER_VERIFICATION_REQUIREMENT: str = "preferred"  # preferred, required, discouraged
+    AUTHENTICATOR_ATTACHMENT: str = "platform"  # platform, cross-platform, or None
+    REQUIRE_RESIDENT_KEY: bool = False  # For discoverable credentials
+
+    # Attestation Configuration
+    ATTESTATION_CONVEYANCE: str = "none"  # none, indirect, direct, enterprise
+
+    # Timeout Configuration
+    REGISTRATION_TIMEOUT_MS: int = int(environ.get("WEBAUTHN_REG_TIMEOUT_MS", "60000"))
+    AUTHENTICATION_TIMEOUT_MS: int = int(environ.get("WEBAUTHN_AUTH_TIMEOUT_MS", "60000"))
+
+    # Security Settings
+    ALLOWED_ORIGINS: list[str] = field(
+        default_factory=lambda: [
+            environ.get("WEBAUTHN_ORIGIN", "http://localhost:8000"),
+            environ.get("WEBAUTHN_PRODUCTION_ORIGIN", "https://api.csfrace.com"),
+        ]
+    )
+
+    # Database Configuration
+    PASSKEY_TABLE_NAME: str = "webauthn_credentials"
+    CHALLENGE_CACHE_PREFIX: str = "webauthn_challenge:"
+
+    # Error Messages - DRY Principle
+    ERROR_INVALID_CHALLENGE: str = "Invalid or expired challenge"
+    ERROR_VERIFICATION_FAILED: str = "WebAuthn verification failed"
+    ERROR_CREDENTIAL_NOT_FOUND: str = "Credential not found or inactive"
+    ERROR_USER_NOT_FOUND: str = "User not found or inactive"
+    ERROR_CHALLENGE_TYPE_MISMATCH: str = "Challenge type mismatch"
+    ERROR_MAX_CREDENTIALS_EXCEEDED: str = "Maximum number of credentials exceeded"
+
+    # Success Messages
+    SUCCESS_CREDENTIAL_REGISTERED: str = "Passkey registered successfully"
+    SUCCESS_AUTHENTICATION: str = "Authentication successful"
+    SUCCESS_CREDENTIAL_REVOKED: str = "Passkey revoked successfully"
+
+
+# Global WebAuthn constants instance
+WEBAUTHN_CONSTANTS = WebAuthnConstants()
+
+# Export individual constants for easy access
+WEBAUTHN_RP_ID = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_ID
+WEBAUTHN_RP_NAME = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_NAME
+WEBAUTHN_ORIGIN = WEBAUTHN_CONSTANTS.WEBAUTHN_ORIGIN
+WEBAUTHN_CHALLENGE_TIMEOUT_MS = WEBAUTHN_CONSTANTS.CHALLENGE_TIMEOUT_MS
