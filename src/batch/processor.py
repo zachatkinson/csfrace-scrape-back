@@ -21,6 +21,26 @@ from ..utils.path_utils import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+class JobSummaryData(TypedDict):
+    """Type definition for individual job summary data."""
+    url: str
+    status: str
+    output_dir: str
+    duration: float | None
+    error: str | None
+
+
+class BatchSummary(TypedDict):
+    """Type definition for batch processing summary."""
+    total: int
+    successful: int
+    failed: int
+    skipped: int
+    jobs: list[JobSummaryData]
+    total_duration: float
+    average_duration: float
 console = Console()
 
 
@@ -575,7 +595,7 @@ class BatchProcessor:
 
             return job
 
-    def _compile_results(self, results: list[Any]) -> dict[str, Any]:
+    def _compile_results(self, results: list[Any]) -> BatchSummary:
         """Compile processing results into a summary.
 
         Args:
@@ -584,7 +604,7 @@ class BatchProcessor:
         Returns:
             Summary dictionary with statistics
         """
-        summary: dict[str, Any] = {
+        summary: BatchSummary = {
             "total": len(self.jobs),
             "successful": 0,
             "failed": 0,
@@ -595,7 +615,7 @@ class BatchProcessor:
         }
 
         for job in self.jobs:
-            job_data = {
+            job_data: JobSummaryData = {
                 "url": job.url,
                 "status": job.status.value,
                 "output_dir": str(job.output_dir),
@@ -618,7 +638,7 @@ class BatchProcessor:
 
         return summary
 
-    async def _create_summary_report(self, summary: dict[str, Any]) -> None:
+    async def _create_summary_report(self, summary: BatchSummary) -> None:
         """Create a summary report of the batch processing.
 
         Args:
