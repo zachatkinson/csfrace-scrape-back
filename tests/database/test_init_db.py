@@ -18,12 +18,15 @@ class TestInitDb:
         """Test that init_db executes without error."""
         with (
             patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._run_alembic_migrations") as mock_alembic,
             patch("src.database.init_db._create_enums_safely") as mock_create_enums,
             patch("src.database.init_db.Base") as mock_base,
         ):
             # Mock successful database operations
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
+            # Mock Alembic failure to test fallback path
+            mock_alembic.side_effect = FileNotFoundError("alembic.ini not found")
             mock_create_enums.return_value = None
             mock_base.metadata.create_all.return_value = None
 
@@ -36,12 +39,15 @@ class TestInitDb:
         """Test that init_db returns None."""
         with (
             patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._run_alembic_migrations") as mock_alembic,
             patch("src.database.init_db._create_enums_safely") as mock_create_enums,
             patch("src.database.init_db.Base") as mock_base,
         ):
             # Mock successful database operations
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
+            # Mock Alembic failure to test fallback path
+            mock_alembic.side_effect = FileNotFoundError("alembic.ini not found")
             mock_create_enums.return_value = None
             mock_base.metadata.create_all.return_value = None
 
@@ -54,12 +60,15 @@ class TestInitDb:
         """Test that init_db is properly defined as an async function."""
         with (
             patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._run_alembic_migrations") as mock_alembic,
             patch("src.database.init_db._create_enums_safely") as mock_create_enums,
             patch("src.database.init_db.Base") as mock_base,
         ):
             # Mock successful database operations
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
+            # Mock Alembic failure to test fallback path
+            mock_alembic.side_effect = FileNotFoundError("alembic.ini not found")
             mock_create_enums.return_value = None
             mock_base.metadata.create_all.return_value = None
 
@@ -76,12 +85,15 @@ class TestInitDb:
         """Test that init_db logs the expected message."""
         with (
             patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._run_alembic_migrations") as mock_alembic,
             patch("src.database.init_db._create_enums_safely") as mock_create_enums,
             patch("src.database.init_db.Base") as mock_base,
         ):
             # Mock successful database operations
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
+            # Mock Alembic failure to test fallback path
+            mock_alembic.side_effect = FileNotFoundError("alembic.ini not found")
             mock_create_enums.return_value = None
             mock_base.metadata.create_all.return_value = None
 
@@ -97,12 +109,15 @@ class TestInitDb:
         """Test that init_db logs at INFO level."""
         with (
             patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._run_alembic_migrations") as mock_alembic,
             patch("src.database.init_db._create_enums_safely") as mock_create_enums,
             patch("src.database.init_db.Base") as mock_base,
         ):
             # Mock successful database operations
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
+            # Mock Alembic failure to test fallback path
+            mock_alembic.side_effect = FileNotFoundError("alembic.ini not found")
             mock_create_enums.return_value = None
             mock_base.metadata.create_all.return_value = None
 
@@ -112,7 +127,9 @@ class TestInitDb:
             # Check that we have at least one log record at INFO level
             info_records = [record for record in caplog.records if record.levelno == logging.INFO]
             assert len(info_records) >= 1
-            assert info_records[0].message == "Database initialization completed successfully"
+            # Check the final success message
+            success_records = [r for r in info_records if "Database initialization completed successfully" in r.message]
+            assert len(success_records) >= 1
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -120,12 +137,15 @@ class TestInitDb:
         """Test that init_db uses the correct logger name."""
         with (
             patch("src.database.init_db.create_engine") as mock_create_engine,
+            patch("src.database.init_db._run_alembic_migrations") as mock_alembic,
             patch("src.database.init_db._create_enums_safely") as mock_create_enums,
             patch("src.database.init_db.Base") as mock_base,
         ):
             # Mock successful database operations
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
+            # Mock Alembic failure to test fallback path
+            mock_alembic.side_effect = FileNotFoundError("alembic.ini not found")
             mock_create_enums.return_value = None
             mock_base.metadata.create_all.return_value = None
 
