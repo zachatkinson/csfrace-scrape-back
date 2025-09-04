@@ -4,6 +4,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+import structlog
 from sqlalchemy.orm import Session
 from webauthn import (
     generate_authentication_options,
@@ -25,6 +26,8 @@ from webauthn.helpers.structs import (
 from ..constants import WEBAUTHN_CONSTANTS
 from .models import User
 from .service import AuthService
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -332,24 +335,97 @@ class WebAuthnService:
 
     def _get_user_credentials(self, user_id: str) -> list[WebAuthnCredential]:
         """Get user credentials from database - Private implementation."""
-        # TODO: Replace with actual database query
-        # This is a placeholder implementation
-        return []
+        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
+
+        db_credentials = (
+            self.db_session.query(WebAuthnCredentialModel)
+            .filter(WebAuthnCredentialModel.user_id == user_id)
+            .filter(WebAuthnCredentialModel.is_active == True)  # noqa: E712
+            .order_by(WebAuthnCredentialModel.created_at.desc())
+            .all()
+        )
+
+        # Convert database models to service models
+        return [
+            WebAuthnCredential(
+                credential_id=db_cred.credential_id,
+                public_key=db_cred.public_key,
+                sign_count=db_cred.sign_count,
+                user_id=db_cred.user_id,
+                created_at=db_cred.created_at,
+                last_used_at=db_cred.last_used_at,
+                device_name=db_cred.device_name,
+                is_active=db_cred.is_active,
+            )
+            for db_cred in db_credentials
+        ]
 
     def _get_credential_by_id(self, credential_id: str) -> WebAuthnCredential | None:
         """Get credential by ID from database - Private implementation."""
-        # TODO: Replace with actual database query
-        return None
+        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
+
+        db_credential = (
+            self.db_session.query(WebAuthnCredentialModel)
+            .filter(WebAuthnCredentialModel.credential_id == credential_id)
+            .filter(WebAuthnCredentialModel.is_active == True)  # noqa: E712
+            .first()
+        )
+
+        if not db_credential:
+            return None
+
+        # Convert database model to service model
+        return WebAuthnCredential(
+            credential_id=db_credential.credential_id,
+            public_key=db_credential.public_key,
+            sign_count=db_credential.sign_count,
+            user_id=db_credential.user_id,
+            created_at=db_credential.created_at,
+            last_used_at=db_credential.last_used_at,
+            device_name=db_credential.device_name,
+            is_active=db_credential.is_active,
+        )
 
     def _store_credential(self, credential: WebAuthnCredential) -> None:
         """Store credential in database - Private implementation."""
-        # TODO: Replace with actual database storage
-        pass
+        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
+
+        # Create database model
+        db_credential = WebAuthnCredentialModel(
+            credential_id=credential.credential_id,
+            user_id=credential.user_id,
+            public_key=credential.public_key,
+            sign_count=credential.sign_count,
+            device_name=credential.device_name,
+            is_active=credential.is_active,
+            created_at=credential.created_at,
+            last_used_at=credential.last_used_at,
+        )
+
+        # Store in database
+        self.db_session.add(db_credential)
+        self.db_session.commit()
 
     def _update_credential(self, credential: WebAuthnCredential) -> None:
         """Update credential in database - Private implementation."""
-        # TODO: Replace with actual database update
-        pass
+        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
+
+        # Find existing credential
+        db_credential = (
+            self.db_session.query(WebAuthnCredentialModel)
+            .filter(WebAuthnCredentialModel.credential_id == credential.credential_id)
+            .first()
+        )
+
+        if db_credential:
+            # Update fields
+            db_credential.sign_count = credential.sign_count
+            db_credential.last_used_at = credential.last_used_at
+            db_credential.is_active = credential.is_active
+            db_credential.usage_count = db_credential.usage_count + 1
+
+            # Commit changes
+            self.db_session.commit()
 
 
 class PasskeyManager:

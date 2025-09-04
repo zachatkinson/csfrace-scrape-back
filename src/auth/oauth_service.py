@@ -9,8 +9,6 @@ import httpx
 import structlog
 from sqlalchemy.orm import Session
 
-logger = structlog.get_logger(__name__)
-
 from ..constants import (
     OAUTH_CONSTANTS,
     OAUTH_GITHUB_CLIENT_ID,
@@ -23,6 +21,8 @@ from ..constants import (
 )
 from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, SSOLoginResponse, User
 from .service import AuthService
+
+logger = structlog.get_logger(__name__)
 
 
 class OAuthProviderInterface(ABC):
@@ -276,7 +276,7 @@ class OAuthService:
         self, provider: OAuthProvider, code: str, state: str, redirect_uri: str
     ) -> tuple[str, bool]:
         """Handle OAuth callback and return access token and whether user is new.
-        
+
         Implements OAuth2 Authorization Code Flow with proper validation and security checks.
         """
         # Step 1: Validate state parameter (CSRF protection)
@@ -361,23 +361,23 @@ class OAuthService:
 
     async def _validate_oauth_state(self, state: str, provider: OAuthProvider) -> None:
         """Validate OAuth state parameter for CSRF protection.
-        
+
         Args:
             state: State parameter from OAuth callback
             provider: OAuth provider
-            
+
         Raises:
             ValueError: If state is invalid or expired
         """
         if not state:
             raise ValueError("Missing state parameter")
-        
+
         # Check if state exists in cache
         cached_state = self._oauth_state_cache.get(state)
         if not cached_state:
             logger.warning("Invalid OAuth state parameter", state=state, provider=provider.value)
             raise ValueError("Invalid or expired state parameter")
-        
+
         # Validate provider matches
         if cached_state.get("provider") != provider:
             logger.warning(
@@ -386,7 +386,7 @@ class OAuthService:
                 callback_provider=provider.value,
             )
             raise ValueError("State parameter provider mismatch")
-        
+
         # Check expiration (states should expire after 10 minutes)
         import time
         state_created = cached_state.get("created_at", 0)
@@ -395,28 +395,28 @@ class OAuthService:
             # Clean up expired state
             self._oauth_state_cache.pop(state, None)
             raise ValueError("Expired state parameter")
-        
+
         # Clean up used state (one-time use)
         self._oauth_state_cache.pop(state, None)
-        
+
         logger.debug("OAuth state validation successful", state=state, provider=provider.value)
 
     def _store_oauth_state(self, state: str, provider: OAuthProvider, redirect_uri: str) -> None:
         """Store OAuth state for validation.
-        
+
         Args:
             state: Generated state parameter
             provider: OAuth provider
             redirect_uri: Redirect URI used
         """
         import time
-        
+
         self._oauth_state_cache[state] = {
             "provider": provider,
             "redirect_uri": redirect_uri,
             "created_at": time.time(),
         }
-        
+
         # Clean up old states (simple cleanup - in production, use Redis with TTL)
         current_time = time.time()
         expired_states = [
@@ -425,25 +425,25 @@ class OAuthService:
         ]
         for expired_state in expired_states:
             self._oauth_state_cache.pop(expired_state, None)
-        
+
         logger.debug("OAuth state stored", state=state, provider=provider.value)
 
     async def _get_cached_user_info(self, access_token: str) -> OAuthUserInfo:
         """Get cached OAuth user information.
-        
+
         This is a temporary solution. In production, this should be replaced
         with proper token-to-user mapping in the database.
-        
+
         Args:
             access_token: OAuth access token
-            
+
         Returns:
             Cached OAuthUserInfo
-            
+
         Raises:
             ValueError: If no cached user info is available
         """
         if not self._cached_oauth_user_info:
             raise ValueError("No cached OAuth user information available")
-        
+
         return self._cached_oauth_user_info

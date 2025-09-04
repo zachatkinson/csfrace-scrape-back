@@ -7,6 +7,7 @@ from ..database.service import DatabaseService
 from .models import TokenData, User
 from .security import security_manager
 from .service import AuthService
+from .webauthn_service import PasskeyManager, WebAuthnService
 
 # OAuth2 scheme for token extraction
 oauth2_scheme = OAuth2PasswordBearer(
@@ -88,3 +89,16 @@ def require_scopes(*required_scopes: str):
         return token_data
 
     return check_scopes
+
+
+def get_webauthn_service(db_service: DatabaseService = Depends(get_database_service)) -> WebAuthnService:
+    """Get WebAuthn service instance with database dependency."""
+    with db_service.get_session() as session:
+        return WebAuthnService(db_session=session)
+
+
+def get_passkey_manager(
+    webauthn_service: WebAuthnService = Depends(get_webauthn_service),
+) -> PasskeyManager:
+    """Get PasskeyManager instance with WebAuthn service dependency."""
+    return PasskeyManager(webauthn_service)

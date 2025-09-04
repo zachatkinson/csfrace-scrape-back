@@ -368,6 +368,146 @@ class SystemMetrics(Base):
         )
 
 
+class WebAuthnCredential(Base):
+    """Model for storing WebAuthn/FIDO2 credentials for passwordless authentication.
+    
+    Stores public key credentials for WebAuthn authentication following FIDO2 standards
+    with proper security, performance indexing, and audit trails.
+    """
+
+    __tablename__ = "webauthn_credentials"
+
+    # Primary identification
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    credential_id: Mapped[str] = mapped_column(
+        String(1024), nullable=False, unique=True, index=True
+    )  # Base64url-encoded credential ID
+
+    # User association
+    user_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )  # References User.id from auth system
+    
+    # Credential data
+    public_key: Mapped[str] = mapped_column(Text, nullable=False)  # Base64url-encoded public key
+    sign_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    
+    # Device information
+    device_name: Mapped[str | None] = mapped_column(String(255))
+    device_type: Mapped[str | None] = mapped_column(String(100))  # platform, cross-platform, etc.
+    
+    # Attestation data (optional, for security auditing)
+    attestation_object: Mapped[str | None] = mapped_column(Text)  # Base64url-encoded
+    attestation_format: Mapped[str | None] = mapped_column(String(50))  # packed, tpm, android-key, etc.
+    
+    # Security and audit information
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    backup_eligible: Mapped[bool | None] = mapped_column(Boolean)  # From authenticator flags
+    backup_state: Mapped[bool | None] = mapped_column(Boolean)  # From authenticator flags
+    user_verified: Mapped[bool | None] = mapped_column(Boolean)  # Last authentication verification
+    
+    # Usage tracking
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    
+    # Geographic and network information (for security monitoring)
+    registration_ip: Mapped[str | None] = mapped_column(String(45))  # IPv4 or IPv6
+    registration_user_agent: Mapped[str | None] = mapped_column(Text)
+    last_used_ip: Mapped[str | None] = mapped_column(String(45))
+    last_used_user_agent: Mapped[str | None] = mapped_column(Text)
+    
+    # Additional security metadata
+    security_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime)  # When credential was revoked
+
+    def __repr__(self) -> str:
+        """String representation of the WebAuthn credential."""
+        return (f"<WebAuthnCredential(id={self.id}, user_id='{self.user_id}', "
+                f"device_name='{self.device_name}', is_active={self.is_active})>")
+
+    @property
+    def is_revoked(self) -> bool:
+        """Check if credential has been revoked."""
+        return self.revoked_at is not None
+
+    def revoke(self) -> None:
+        """Mark credential as revoked."""
+        self.is_active = False
+        self.revoked_at = datetime.now(UTC)
+
+
+class WebAuthnChallenge(Base):
+    """Model for storing WebAuthn challenges during authentication flows.
+    
+    Temporary storage for challenges during registration and authentication
+    with automatic cleanup and security validation.
+    """
+
+    __tablename__ = "webauthn_challenges"
+
+    # Primary identification
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    challenge_key: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )  # Unique challenge identifier
+    
+    # Challenge data
+    challenge: Mapped[str] = mapped_column(String(1024), nullable=False)  # Base64url-encoded challenge
+    user_id: Mapped[str | None] = mapped_column(String(255), index=True)  # For user-specific challenges
+    challenge_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, index=True
+    )  # 'registration' or 'authentication'
+    
+    # Security context
+    origin: Mapped[str | None] = mapped_column(String(255))  # Expected origin
+    rp_id: Mapped[str | None] = mapped_column(String(255))   # Relying party ID
+    user_verification: Mapped[str | None] = mapped_column(String(50))  # required, preferred, discouraged
+    
+    # Network information for security validation
+    client_ip: Mapped[str | None] = mapped_column(String(45))
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    
+    # Challenge lifecycle
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime)  # When challenge was consumed
+    
+    # Additional context data
+    context_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+    def __repr__(self) -> str:
+        """String representation of the WebAuthn challenge."""
+        return (f"<WebAuthnChallenge(id={self.id}, type='{self.challenge_type}', "
+                f"user_id='{self.user_id}', expires_at='{self.expires_at}')>")
+
+    @property
+    def is_expired(self) -> bool:
+        """Check if challenge has expired."""
+        return datetime.now(UTC) > self.expires_at
+
+    @property
+    def is_used(self) -> bool:
+        """Check if challenge has been used."""
+        return self.used_at is not None
+
+    def mark_used(self) -> None:
+        """Mark challenge as used."""
+        self.used_at = datetime.now(UTC)
+
+
 # PostgreSQL enum metadata event listener (SQLAlchemy best practice)
 @event.listens_for(Base.metadata, "before_create")
 def _create_enums_before_tables(target, connection, **kw):  # noqa: ARG001

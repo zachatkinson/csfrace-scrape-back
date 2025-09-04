@@ -282,6 +282,61 @@ class PasskeyDevice(BaseModel):
     is_active: bool = True
 
 
+class WebAuthnRegistrationStart(BaseModel):
+    """WebAuthn registration start request model - Single Responsibility."""
+
+    device_name: str | None = Field(default="Default Device", max_length=255)
+
+    @field_validator("device_name")
+    @classmethod
+    def validate_device_name(cls, v: str | None) -> str:
+        """DRY: Validate and sanitize device name."""
+        if not v or not v.strip():
+            return "Default Device"
+        return v.strip()
+
+
+class WebAuthnRegistrationComplete(BaseModel):
+    """WebAuthn registration completion request model - Interface Segregation."""
+
+    challengeKey: str = Field(min_length=1, max_length=200)
+    credential: dict
+    deviceName: str | None = Field(default="Default Device", max_length=255)
+
+
+class WebAuthnAuthenticationStart(BaseModel):
+    """WebAuthn authentication start request model - Single Responsibility."""
+
+    username: str | None = None
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str | None) -> str | None:
+        """DRY: Validate and sanitize username."""
+        if not v or not v.strip():
+            return None
+        return v.strip()
+
+
+class WebAuthnAuthenticationComplete(BaseModel):
+    """WebAuthn authentication completion request model - Interface Segregation."""
+
+    challengeKey: str = Field(min_length=1, max_length=200)
+    credential: dict
+
+
+class WebAuthnCredentialResponse(BaseModel):
+    """WebAuthn credential response model for API responses - Single Responsibility."""
+
+    credential_id: str
+    user_id: str
+    device_name: str | None = None
+    created_at: datetime
+    last_used_at: datetime | None = None
+    is_active: bool = True
+    usage_count: int = Field(ge=0)
+
+
 class WebAuthnChallenge(BaseModel):
     """WebAuthn challenge model for secure operations - Security focused."""
 

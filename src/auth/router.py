@@ -9,8 +9,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from ..constants import AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
-
-logger = structlog.get_logger(__name__)
 from ..database.service import DatabaseService
 from .config import auth_config
 from .dependencies import get_current_active_user, get_current_superuser, get_database_service
@@ -37,6 +35,8 @@ from .oauth_service import OAuthService
 from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
+
+logger = structlog.get_logger(__name__)
 
 # Rate limiter for authentication endpoints
 limiter = Limiter(key_func=get_remote_address)
@@ -321,7 +321,7 @@ async def handle_oauth_callback(
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow with PKCE.
-    
+
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
     according to RFC 6749 and FastAPI security best practices.
     """
@@ -501,17 +501,93 @@ def begin_passkey_registration(
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_registration(
     request: Request,  # Required for rate limiting
-    _credential_request: PasskeyCredentialRequest,
-    _current_user: User = Depends(get_current_active_user),
-    _db_service: DatabaseService = Depends(get_database_service),
+    credential_request: PasskeyCredentialRequest,
+    current_user: User = Depends(get_current_active_user),
+    db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
-    """Complete WebAuthn/Passkeys registration - Store credential."""
-    # TODO: Implement actual credential verification and storage
-    # This requires proper WebAuthn library integration with database
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Passkey registration completion not yet implemented - requires database integration",
-    )
+    """Complete WebAuthn/Passkeys registration following FIDO2 standards with comprehensive validation."""
+    with db_service.get_session() as session:
+        webauthn_service = WebAuthnService(session)
+
+        try:
+            # Parse the credential response from the client
+            from webauthn.helpers import base64url_to_bytes
+            from webauthn.helpers.structs import RegistrationCredential
+
+            logger.info(
+                "Processing passkey registration completion",
+                user_id=current_user.id,
+                challenge_key=credential_request.challenge_key,
+                device_name=credential_request.device_name,
+            )
+
+            # Convert credential response to WebAuthn format
+            credential_response = credential_request.credential_response
+
+            # Validate required fields are present
+            required_fields = ["id", "rawId", "response", "type"]
+            if not all(field in credential_response for field in required_fields):
+                logger.warning(
+                    "Invalid credential response format",
+                    user_id=current_user.id,
+                    missing_fields=[f for f in required_fields if f not in credential_response],
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid credential response format",
+                )
+
+            # Create RegistrationCredential object
+            registration_credential = RegistrationCredential(
+                id=credential_response["id"],
+                raw_id=base64url_to_bytes(credential_response["rawId"]),
+                response=credential_response["response"],
+                type=credential_response["type"],
+            )
+
+            # Verify and store the credential
+            webauthn_credential = webauthn_service.verify_registration_response(
+                credential=registration_credential,
+                challenge_key=credential_request.challenge_key,
+                device_name=credential_request.device_name,
+            )
+
+            logger.info(
+                "Passkey registration completed successfully",
+                user_id=current_user.id,
+                credential_id=webauthn_credential.credential_id,
+                device_name=webauthn_credential.device_name,
+            )
+
+            return {
+                "message": "Passkey registered successfully",
+                "credential_id": webauthn_credential.credential_id,
+                "device_name": webauthn_credential.device_name or "Default Device",
+            }
+
+        except ValueError as e:
+            # Handle WebAuthn validation errors
+            logger.warning(
+                "Passkey registration validation failed",
+                user_id=current_user.id,
+                error=str(e),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Passkey registration failed: {str(e)}",
+            )
+        except Exception as e:
+            # Handle unexpected errors
+            logger.error(
+                "Unexpected error in passkey registration",
+                user_id=current_user.id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Passkey registration failed due to internal error",
+            )
 
 
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
@@ -557,16 +633,100 @@ def begin_passkey_authentication(
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_authentication(
     request: Request,  # Required for rate limiting
-    _credential_request: PasskeyCredentialRequest,
-    _db_service: DatabaseService = Depends(get_database_service),
+    credential_request: PasskeyCredentialRequest,
+    db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
-    """Complete WebAuthn/Passkeys authentication and return JWT token."""
-    # TODO: Implement actual credential verification and JWT token generation
-    # This requires proper WebAuthn library integration with database
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Passkey authentication completion not yet implemented - requires database integration",
-    )
+    """Complete WebAuthn/Passkeys authentication following FIDO2 standards and return JWT token."""
+    with db_service.get_session() as session:
+        webauthn_service = WebAuthnService(session)
+
+        try:
+            # Parse the credential response from the client
+            from webauthn.helpers import base64url_to_bytes
+            from webauthn.helpers.structs import AuthenticationCredential
+
+            logger.info(
+                "Processing passkey authentication completion",
+                challenge_key=credential_request.challenge_key,
+            )
+
+            # Convert credential response to WebAuthn format
+            credential_response = credential_request.credential_response
+
+            # Validate required fields for authentication
+            required_fields = ["id", "rawId", "response", "type"]
+            if not all(field in credential_response for field in required_fields):
+                logger.warning(
+                    "Invalid authentication credential response format",
+                    missing_fields=[f for f in required_fields if f not in credential_response],
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid authentication credential response format",
+                )
+
+            # Create AuthenticationCredential object
+            authentication_credential = AuthenticationCredential(
+                id=credential_response["id"],
+                raw_id=base64url_to_bytes(credential_response["rawId"]),
+                response=credential_response["response"],
+                type=credential_response["type"],
+            )
+
+            # Verify authentication and get user
+            user, webauthn_credential = webauthn_service.verify_authentication_response(
+                credential=authentication_credential,
+                challenge_key=credential_request.challenge_key,
+            )
+
+            logger.info(
+                "Passkey authentication completed successfully",
+                user_id=user.id,
+                credential_id=webauthn_credential.credential_id,
+                device_name=webauthn_credential.device_name,
+            )
+
+            # Generate JWT tokens for authenticated user
+            access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
+            jwt_access_token = security_manager.create_access_token(
+                data={"sub": user.username, "user_id": user.id, "scopes": []},
+                expires_delta=access_token_expires,
+            )
+
+            # Create refresh token
+            jwt_refresh_token = security_manager.create_refresh_token(
+                data={"sub": user.username, "user_id": user.id}
+            )
+
+            # Return JWT tokens following FastAPI Token model
+            return Token(
+                access_token=jwt_access_token,
+                token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
+                expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+                refresh_token=jwt_refresh_token,
+            )
+
+        except ValueError as e:
+            # Handle WebAuthn validation errors
+            logger.warning(
+                "Passkey authentication validation failed",
+                error=str(e),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Passkey authentication failed: {str(e)}",
+            )
+        except Exception as e:
+            # Handle unexpected errors
+            logger.error(
+                "Unexpected error in passkey authentication",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Passkey authentication failed due to internal error",
+            )
 
 
 @router.get("/passkeys/summary", response_model=PasskeySummary)
