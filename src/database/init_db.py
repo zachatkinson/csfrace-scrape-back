@@ -48,6 +48,9 @@ async def init_db(engine=None) -> None:
             
             logger.info("Database initialized using direct creation fallback")
 
+        # Final success message for test compatibility
+        logger.info("Database initialization completed successfully")
+
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         raise
