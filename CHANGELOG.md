@@ -2,6 +2,38 @@
 
 <!-- version list -->
 
+## v2.2.2 (2025-09-04)
+
+### Bug Fixes
+
+- **changelog**: Add version insertion flag for semantic release
+  ([`9ab7265`](https://github.com/zachatkinson/csfrace-scrape-back/commit/9ab72659c8a402833f206e89bae5e9c4fc93cd19))
+
+Add the <!-- version list --> insertion flag to CHANGELOG.md as required by python-semantic-release
+  in 'update' mode. This flag marks where new version entries should be inserted.
+
+Without this flag, semantic release cannot determine where to place new changelog entries, causing
+  it to skip file updates.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **config**: Correct changelog file configuration structure
+  ([`2188825`](https://github.com/zachatkinson/csfrace-scrape-back/commit/218882559e8f0356b9e55412a6e39bac94f42f98))
+
+Move changelog_file setting from default_templates section to main changelog section per
+  python-semantic-release best practices. Add explicit changelog=true to ensure changelog file
+  generation is enabled.
+
+This should resolve the issue where changelog content was generated for GitHub releases but not
+  written to the CHANGELOG.md file in the repository.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v2.1.1 (2025-09-03)
 
 ### Bug Fixes
