@@ -50,7 +50,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
             # Add all jobs to the processor
             for job in batch.jobs:
-                processor.add_job(job.url, custom_output_dir=job.output_directory)
+                processor.add_job(job.url, output_dir=Path(job.output_directory))
                 # Update individual job status
                 await JobCRUD.update_job_status(db, job.id, JobStatus.RUNNING)
 
@@ -80,7 +80,6 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
             # Update batch statistics
             batch.completed_jobs = completed_jobs
             batch.failed_jobs = failed_jobs
-            batch.success_rate = completed_jobs / len(batch.jobs) if batch.jobs else 0.0
             batch.status = JobStatus.COMPLETED
 
             await db.commit()

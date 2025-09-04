@@ -1,7 +1,7 @@
 """Redis-based cache backend implementation."""
 
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import structlog
 
@@ -10,15 +10,19 @@ from .base import BaseCacheBackend, CacheConfig, CacheEntry
 
 logger = structlog.get_logger(__name__)
 
-try:
+if TYPE_CHECKING:
     import redis.asyncio as redis
+    from redis.asyncio import Redis as RedisType
+else:
+    try:
+        import redis.asyncio as redis
+        from redis.asyncio import Redis as RedisType
 
-    REDIS_AVAILABLE = True
-    RedisType = redis.Redis
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis = None
-    RedisType = None
+        REDIS_AVAILABLE = True
+    except ImportError:
+        REDIS_AVAILABLE = False
+        redis = None  # type: ignore[assignment]
+        RedisType = None  # type: ignore[misc,assignment]
 
 
 class RedisCache(BaseCacheBackend):

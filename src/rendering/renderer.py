@@ -258,9 +258,9 @@ class AdaptiveRenderer:
                     reasons=[f"Rendering failed: {task_result}"],
                 )
                 results[url] = (error_result, error_analysis)
-            else:
+            elif isinstance(task_result, tuple) and len(task_result) == 2:
                 # Task succeeded, result is guaranteed to be tuple
-                results[url] = task_result  # type: ignore[assignment]
+                results[url] = task_result
 
         success_count = sum(1 for r, a in results.values() if r.status_code < 400)
         logger.info(

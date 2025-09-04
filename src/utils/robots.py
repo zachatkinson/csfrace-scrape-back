@@ -20,7 +20,7 @@ class RobotsChecker:
 
     def __init__(self):
         """Initialize robots checker with cache."""
-        self._cache: dict[str, RobotFileParser] = {}
+        self._cache: dict[str, RobotFileParser | None] = {}
         self._last_request: dict[str, float] = {}
 
     async def get_robots_parser(
@@ -99,6 +99,9 @@ class RobotsChecker:
             # Cache the failure to avoid repeated requests
             self._cache[domain] = None
             return None
+        
+        # Fallback return (should not be reached)
+        return None
 
     async def can_fetch(
         self, url: str, user_agent: str = "*", session: aiohttp.ClientSession = None

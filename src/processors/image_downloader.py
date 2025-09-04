@@ -75,8 +75,10 @@ class AsyncImageDownloader:
             if isinstance(result, Exception):
                 logger.warning("Image download failed", url=image_urls[i], error=str(result))
                 failed_count += 1
-            elif result:
+            elif result and isinstance(result, str):
                 successful_downloads.append(result)
+            elif result is None:
+                failed_count += 1
 
         logger.info(
             "Image downloads completed",

@@ -1,7 +1,7 @@
 """Cache manager for coordinating cache operations and strategies."""
 
 import hashlib
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import structlog
 
@@ -9,13 +9,19 @@ from .base import BaseCacheBackend, CacheBackend, CacheConfig
 from .file_cache import FileCache
 
 # Import Redis cache only if available
-try:
+if TYPE_CHECKING:
     from .redis_cache import RedisCache
 
+try:
+    from .redis_cache import RedisCache
     REDIS_AVAILABLE = True
 except ImportError:
-    RedisCache = None
     REDIS_AVAILABLE = False
+    
+    # Create a dummy RedisCache class for runtime
+    class RedisCache(BaseCacheBackend):  # type: ignore[misc]
+        def __init__(self, *args, **kwargs):
+            raise ImportError("Redis package not available")
 
 logger = structlog.get_logger(__name__)
 
@@ -32,6 +38,12 @@ class CacheManager:
         self.config = config or CacheConfig()
         self.backend: BaseCacheBackend | None = None
         self._initialized = False
+
+    def _ensure_backend(self) -> BaseCacheBackend:
+        """Ensure backend is initialized and return it."""
+        if self.backend is None:
+            raise RuntimeError("Cache manager not initialized. Call initialize() first.")
+        return self.backend
 
     async def initialize(self) -> None:
         """Initialize the cache backend."""
@@ -55,7 +67,8 @@ class CacheManager:
 
             # Cleanup expired entries on startup if configured
             if self.config.cleanup_on_startup:
-                cleaned = await self.backend.cleanup_expired()
+                backend = self._ensure_backend()
+                cleaned = await backend.cleanup_expired()
                 if cleaned > 0:
                     logger.info("Startup cache cleanup completed", cleaned_entries=cleaned)
 
@@ -79,7 +92,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_html_key(url)
-        entry = await self.backend.get(key)
+        backend = self._ensure_backend()
+        entry = await backend.get(key)
 
         if entry:
             logger.debug("Cache hit for HTML", url=url)
@@ -102,7 +116,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_html_key(url)
-        return await self.backend.set(key, html_content, ttl, "html")
+        backend = self._ensure_backend()
+        return await backend.set(key, html_content, ttl, "html")
 
     async def get_image(self, image_url: str) -> bytes | None:
         """Get cached image data.
@@ -117,7 +132,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_image_key(image_url)
-        entry = await self.backend.get(key)
+        backend = self._ensure_backend()
+        entry = await backend.get(key)
 
         if entry:
             logger.debug("Cache hit for image", url=image_url)
@@ -140,7 +156,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_image_key(image_url)
-        return await self.backend.set(key, image_data, ttl, "image")
+        backend = self._ensure_backend()
+        return await backend.set(key, image_data, ttl, "image")
 
     async def get_metadata(self, url: str) -> dict[str, Any] | None:
         """Get cached metadata for a URL.
@@ -155,7 +172,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_metadata_key(url)
-        entry = await self.backend.get(key)
+        backend = self._ensure_backend()
+        entry = await backend.get(key)
 
         if entry:
             logger.debug("Cache hit for metadata", url=url)
@@ -180,7 +198,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_metadata_key(url)
-        return await self.backend.set(key, metadata, ttl, "metadata")
+        backend = self._ensure_backend()
+        return await backend.set(key, metadata, ttl, "metadata")
 
     async def get_robots_txt(self, domain: str) -> str | None:
         """Get cached robots.txt content for a domain.
@@ -195,7 +214,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_robots_key(domain)
-        entry = await self.backend.get(key)
+        backend = self._ensure_backend()
+        entry = await backend.get(key)
 
         if entry:
             logger.debug("Cache hit for robots.txt", domain=domain)
@@ -220,7 +240,8 @@ class CacheManager:
             await self.initialize()
 
         key = self._make_robots_key(domain)
-        return await self.backend.set(key, robots_content, ttl, "robots")
+        backend = self._ensure_backend()
+        return await backend.set(key, robots_content, ttl, "robots")
 
     async def invalidate_url(self, url: str) -> bool:
         """Invalidate all cached data for a URL.
@@ -238,12 +259,13 @@ class CacheManager:
 
         # Delete HTML cache
         html_key = self._make_html_key(url)
-        if await self.backend.delete(html_key):
+        backend = self._ensure_backend()
+        if await backend.delete(html_key):
             deleted_any = True
 
         # Delete metadata cache
         metadata_key = self._make_metadata_key(url)
-        if await self.backend.delete(metadata_key):
+        if await backend.delete(metadata_key):
             deleted_any = True
 
         logger.debug("Invalidated cache for URL", url=url, deleted=deleted_any)
@@ -258,7 +280,8 @@ class CacheManager:
         if not self._initialized:
             await self.initialize()
 
-        stats = await self.backend.stats()
+        backend = self._ensure_backend()
+        stats = await backend.stats()
         stats["backend"] = self.config.backend.value
         stats["config"] = {
             "ttl_html": self.config.ttl_html,
@@ -279,7 +302,8 @@ class CacheManager:
         if not self._initialized:
             await self.initialize()
 
-        return await self.backend.cleanup_expired()
+        backend = self._ensure_backend()
+        return await backend.cleanup_expired()
 
     async def clear_cache(self) -> bool:
         """Clear all cache entries.
@@ -290,7 +314,8 @@ class CacheManager:
         if not self._initialized:
             await self.initialize()
 
-        return await self.backend.clear()
+        backend = self._ensure_backend()
+        return await backend.clear()
 
     def _make_html_key(self, url: str) -> str:
         """Create cache key for HTML content."""

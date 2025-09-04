@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import structlog
 from rich.console import Console
@@ -584,7 +584,16 @@ class BatchProcessor:
         Returns:
             Summary dictionary with statistics
         """
-        summary = {
+        class BatchSummary(TypedDict):
+            total: int
+            successful: int
+            failed: int
+            skipped: int
+            jobs: list[dict[str, Any]]
+            total_duration: float
+            average_duration: float
+
+        summary: BatchSummary = {
             "total": len(self.jobs),
             "successful": 0,
             "failed": 0,

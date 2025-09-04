@@ -18,12 +18,12 @@ if TYPE_CHECKING:
     from alembic.config import Config
 else:
     try:
-        from alembic import command
-        from alembic.config import Config
+        from alembic import command  # type: ignore[import-untyped]
+        from alembic.config import Config  # type: ignore[import-untyped]
     except ImportError as e:
         logger.warning("Alembic not available: %s", e)
-        command = None
-        Config = None
+        command = None  # type: ignore[assignment]
+        Config = None  # type: ignore[assignment]
 
 
 async def init_db(engine=None) -> None:
