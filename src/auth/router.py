@@ -253,7 +253,7 @@ def confirm_password_reset(
 def list_users(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_superuser),
+    current_user: User = Depends(get_current_superuser),  # noqa: ARG001
     db_service: DatabaseService = Depends(get_database_service),
 ) -> list[User]:
     """List all users with pagination (admin only)."""
@@ -265,7 +265,7 @@ def list_users(
 @router.get("/users/{user_id}", response_model=User)
 def get_user(
     user_id: str,
-    current_user: User = Depends(get_current_superuser),
+    current_user: User = Depends(get_current_superuser),  # noqa: ARG001
     db_service: DatabaseService = Depends(get_database_service),
 ) -> User:
     """Get user by ID (admin only)."""
@@ -282,7 +282,7 @@ def get_user(
 @router.delete("/users/{user_id}")
 def deactivate_user(
     user_id: str,
-    current_user: User = Depends(get_current_superuser),
+    current_user: User = Depends(get_current_superuser),  # noqa: ARG001
     db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
     """Deactivate user account (admin only)."""
