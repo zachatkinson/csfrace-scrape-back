@@ -18,8 +18,8 @@ try:
     ALEMBIC_AVAILABLE = True
 except ImportError:
     ALEMBIC_AVAILABLE = False
-    command = None  # type: ignore[assignment]
-    AlembicConfig = None  # type: ignore[assignment,misc]
+    command = None  # type: ignore[assignment,attr-defined]
+    AlembicConfig = None  # type: ignore[assignment,misc,attr-defined]
     logger.warning("Alembic not available - migrations will use fallback method")
 
 
