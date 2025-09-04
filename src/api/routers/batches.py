@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
 from ...batch.processor import BatchConfig, BatchProcessor
@@ -12,6 +14,7 @@ from ..dependencies import DBSession
 from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 async def execute_batch_processing(batch_id: int, output_base_dir: str, max_concurrent: int = 5):
@@ -92,8 +95,12 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
 
 @router.post("/", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/hour")  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
 async def create_batch(
-    batch_data: BatchCreate, background_tasks: BackgroundTasks, db: DBSession
+    request: Request,  # Required for rate limiting
+    batch_data: BatchCreate, 
+    background_tasks: BackgroundTasks, 
+    db: DBSession
 ) -> BatchResponse:
     """Create a new batch with multiple jobs and start background processing.
 

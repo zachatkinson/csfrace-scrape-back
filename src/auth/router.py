@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -44,7 +44,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.post("/token", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def login_for_access_token(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     form_data: OAuth2PasswordRequestForm = Depends(),
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
@@ -89,7 +89,7 @@ def login_for_access_token(
 @router.post("/register", response_model=User)
 @limiter.limit(auth_config.REGISTER_RATE_LIMIT)
 def register_user(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     user_create: UserCreate,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> User:
@@ -217,7 +217,7 @@ def change_password(
 @router.post("/password-reset")
 @limiter.limit(auth_config.PASSWORD_RESET_RATE_LIMIT)
 def request_password_reset(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     password_reset: PasswordReset,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
@@ -297,7 +297,7 @@ def deactivate_user(
 @router.post("/oauth/login", response_model=SSOLoginResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def initiate_oauth_login(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     sso_request: SSOLoginRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> SSOLoginResponse:
@@ -312,7 +312,7 @@ def initiate_oauth_login(
 @router.post("/oauth/{provider}/callback", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def handle_oauth_callback(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     provider: OAuthProvider,
     oauth_callback: OAuthCallback,
     db_service: DatabaseService = Depends(get_database_service),
@@ -366,7 +366,7 @@ def list_oauth_providers() -> list[str]:
 @router.post("/passkeys/register/begin", response_model=PasskeyRegistrationResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def begin_passkey_registration(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     passkey_request: PasskeyRegistrationRequest,
     current_user: User = Depends(get_current_active_user),
     db_service: DatabaseService = Depends(get_database_service),
@@ -397,7 +397,7 @@ def begin_passkey_registration(
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_registration(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     _credential_request: PasskeyCredentialRequest,
     _current_user: User = Depends(get_current_active_user),
     _db_service: DatabaseService = Depends(get_database_service),
@@ -414,7 +414,7 @@ def complete_passkey_registration(
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def begin_passkey_authentication(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     auth_request: PasskeyAuthenticationRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> PasskeyAuthenticationResponse:
@@ -453,7 +453,7 @@ def begin_passkey_authentication(
 @router.post("/passkeys/authenticate/complete", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_authentication(
-    _request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting
     _credential_request: PasskeyCredentialRequest,
     _db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:

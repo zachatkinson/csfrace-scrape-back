@@ -2,9 +2,12 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
+from ...auth.config import auth_config
 from ...core.config import config as default_config
 from ...core.converter import AsyncWordPressConverter
 from ...database.models import JobStatus
@@ -13,6 +16,9 @@ from ..dependencies import DBSession
 from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+# Use shared limiter instance from main app (best practice)
+limiter = Limiter(key_func=get_remote_address)
 
 
 async def execute_conversion_job(job_id: int, url: str, output_dir: str):
@@ -78,8 +84,12 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 
 
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/hour")  # Allow 20 job creations per hour per IP
 async def create_job(
-    job_data: JobCreate, background_tasks: BackgroundTasks, db: DBSession
+    request: Request,  # Required for rate limiting
+    job_data: JobCreate, 
+    background_tasks: BackgroundTasks, 
+    db: DBSession
 ) -> JobResponse:
     """Create a new scraping job and start background conversion.
 
