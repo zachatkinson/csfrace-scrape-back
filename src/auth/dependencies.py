@@ -15,16 +15,11 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={"read": "Read access", "write": "Write access", "admin": "Admin access"},
 )
 
-# Global database service instance
-_db_service = None
-
-
 def get_database_service() -> DatabaseService:
-    """Get or create database service instance."""
-    global _db_service
-    if _db_service is None:
-        _db_service = DatabaseService()
-    return _db_service
+    """Get database service instance - FastAPI dependency."""
+    # Each request gets a fresh database service instance
+    # This is better than global state for testing and thread safety
+    return DatabaseService()
 
 
 def get_current_user(

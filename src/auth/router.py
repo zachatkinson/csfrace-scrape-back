@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from webauthn.helpers import base64url_to_bytes
+from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
 
 from ..constants import AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
 from ..database.service import DatabaseService
@@ -228,8 +230,8 @@ def request_password_reset(
     with db_service.get_session() as session:
         auth_service = AuthService(session)
 
-        # Check if user exists
-        _user = auth_service.get_user_by_email(password_reset.email)
+        # Check if user exists (we don't use result to avoid user enumeration)
+        auth_service.get_user_by_email(password_reset.email)
 
         # Always return success to prevent email enumeration
         # In production, this would send an email with reset token
@@ -494,7 +496,7 @@ def begin_passkey_registration(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to initiate passkey registration: {str(e)}",
-            )
+            ) from e
 
 
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
@@ -511,8 +513,6 @@ def complete_passkey_registration(
 
         try:
             # Parse the credential response from the client
-            from webauthn.helpers import base64url_to_bytes
-            from webauthn.helpers.structs import RegistrationCredential
 
             logger.info(
                 "Processing passkey registration completion",
@@ -626,7 +626,7 @@ def begin_passkey_authentication(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to initiate passkey authentication: {str(e)}",
-            )
+            ) from e
 
 
 @router.post("/passkeys/authenticate/complete", response_model=Token)
@@ -642,8 +642,6 @@ def complete_passkey_authentication(
 
         try:
             # Parse the credential response from the client
-            from webauthn.helpers import base64url_to_bytes
-            from webauthn.helpers.structs import AuthenticationCredential
 
             logger.info(
                 "Processing passkey authentication completion",
@@ -753,7 +751,7 @@ def get_passkey_summary(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to get passkey summary: {str(e)}",
-            )
+            ) from e
 
 
 @router.delete("/passkeys/{credential_id}")
@@ -783,7 +781,7 @@ def revoke_passkey(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to revoke passkey: {str(e)}",
-            )
+            ) from e
 
 
 # TODO: Add rate limit exception handler when implementing rate limiting middleware
