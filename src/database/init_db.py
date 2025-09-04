@@ -1,13 +1,13 @@
 """Database initialization utilities with PostgreSQL enum safety."""
 
 import logging
-import os
 from pathlib import Path
 
-from alembic import command  # type: ignore[attr-defined]
-from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+
+from alembic import command  # type: ignore[attr-defined] # pylint: disable=no-name-in-module
+from alembic.config import Config  # pylint: disable=no-name-in-module
 
 from .models import Base, JobPriority, JobStatus, get_database_url
 
@@ -37,22 +37,24 @@ async def init_db(engine=None) -> None:
         try:
             await _run_alembic_migrations()
             logger.info("Database initialized using Alembic migrations")
-        except Exception as alembic_error:
-            logger.warning(f"Alembic migration failed, falling back to direct creation: {alembic_error}")
-            
+        except Exception as alembic_error:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "Alembic migration failed, falling back to direct creation: %s", alembic_error
+            )
+
             # Fallback to direct enum creation (testing/development)
             await _create_enums_safely(engine)
-            
+
             # Create all tables using SQLAlchemy best practices
             Base.metadata.create_all(engine, checkfirst=True)
-            
+
             logger.info("Database initialized using direct creation fallback")
 
         # Final success message for test compatibility
         logger.info("Database initialization completed successfully")
 
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Database initialization failed: %s", e)
         raise
 
 
@@ -61,16 +63,16 @@ async def _run_alembic_migrations() -> None:
     # Get the project root directory (where alembic.ini is located)
     backend_root = Path(__file__).parent.parent.parent
     alembic_ini_path = backend_root / "alembic.ini"
-    
+
     if not alembic_ini_path.exists():
         raise FileNotFoundError(f"alembic.ini not found at {alembic_ini_path}")
-    
+
     # Create Alembic config
     alembic_cfg = Config(str(alembic_ini_path))
-    
+
     # Set the script location relative to the config file
     alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))
-    
+
     # Run the upgrade command
     command.upgrade(alembic_cfg, "head")
 
@@ -99,17 +101,17 @@ async def _create_enums_safely(engine) -> None:
                     # Create enum type using SQLAlchemy PostgreSQL dialect
                     pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
                     pg_enum.create(conn, checkfirst=True)
-                    logger.debug(f"Created PostgreSQL enum type: {enum_name}")
+                    logger.debug("Created PostgreSQL enum type: %s", enum_name)
                 else:
-                    logger.debug(f"PostgreSQL enum type already exists: {enum_name}")
+                    logger.debug("PostgreSQL enum type already exists: %s", enum_name)
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 error_msg = str(e).lower()
                 # Handle concurrent enum creation conflicts gracefully
                 if any(phrase in error_msg for phrase in ["already exists", "duplicate key"]):
-                    logger.debug(f"Enum {enum_name} already exists (concurrent execution): {e}")
+                    logger.debug("Enum %s already exists (concurrent execution): %s", enum_name, e)
                 else:
-                    logger.warning(f"Unexpected error creating enum {enum_name}: {e}")
+                    logger.warning("Unexpected error creating enum %s: %s", enum_name, e)
                     # Don't raise - let table creation proceed
 
         # Commit the transaction
