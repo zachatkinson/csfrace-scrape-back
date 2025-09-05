@@ -90,7 +90,7 @@ class TestWebAuthnRouterEndpoints:
                 "excludeCredentials": [],
                 "authenticatorSelection": {"userVerification": "preferred"},
             },
-            "challengeKey": "reg_test_user_challenge",
+            "challenge_key": "reg_test_user_challenge",
             "deviceName": "Test Device",
         }
         mock_passkey_manager.start_passkey_registration.return_value = mock_registration_data
@@ -135,7 +135,7 @@ class TestWebAuthnRouterEndpoints:
                 "excludeCredentials": [],
                 "authenticatorSelection": {"userVerification": "preferred"},
             },
-            "challengeKey": "reg_test_user_challenge",
+            "challenge_key": "reg_test_user_challenge",
             "deviceName": "Default Device",
         }
         mock_passkey_manager.start_passkey_registration.return_value = mock_registration_data
@@ -175,7 +175,7 @@ class TestWebAuthnRouterEndpoints:
         assert "Failed to initiate passkey registration" in response_data["detail"]
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_complete_webauthn_registration_success(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -183,16 +183,16 @@ class TestWebAuthnRouterEndpoints:
         # Mock authenticated user
         mock_get_current_active_user.return_value = sample_user
 
-        # Mock WebAuthn service
+        # Mock WebAuthn service - return mock instance directly
         mock_webauthn_service = Mock()
         mock_get_webauthn_service.return_value = mock_webauthn_service
 
-        # Mock successful verification
+        # Mock successful verification  
         from src.auth.webauthn_service import WebAuthnCredential, CredentialMetadata
         now = datetime.now(UTC)
         mock_credential = WebAuthnCredential(
             credential_id="test_credential_id",
-            public_key="test_public_key",
+            public_key="test_public_key", 
             sign_count=0,
             user_id=sample_user.id,
             metadata=CredentialMetadata(
@@ -233,7 +233,7 @@ class TestWebAuthnRouterEndpoints:
         assert response_data["device_name"] == "Test Device"
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_complete_webauthn_registration_verification_error(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -277,7 +277,7 @@ class TestWebAuthnRouterEndpoints:
         assert "detail" in response_data
         assert "Invalid challenge" in response_data["detail"]
 
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_start_webauthn_authentication_success(
         self, mock_get_webauthn_service, client
     ):
@@ -305,7 +305,7 @@ class TestWebAuthnRouterEndpoints:
                     "allowCredentials": [],  # Usernameless
                     "userVerification": "preferred",
                 },
-                "challengeKey": "auth_any_challenge",
+                "challenge_key": "auth_any_challenge",
             }
             mock_passkey_manager.start_passkey_authentication.return_value = mock_authentication_data
 
@@ -324,7 +324,7 @@ class TestWebAuthnRouterEndpoints:
             # Verify service was called for usernameless auth
             mock_passkey_manager.start_passkey_authentication.assert_called_once_with(None)
 
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_start_webauthn_authentication_service_error(
         self, mock_get_webauthn_service, client
     ):
@@ -347,27 +347,31 @@ class TestWebAuthnRouterEndpoints:
         assert "error" in response_data
         assert "Failed to start WebAuthn authentication" in response_data["error"]
 
-    @patch("src.auth.router.get_webauthn_service")
-    @patch("src.auth.router.create_access_token")
+    @patch("src.auth.router.WebAuthnService")
+    @patch("src.auth.router.security_manager.create_access_token")
     def test_complete_webauthn_authentication_success(
-        self, mock_create_token, mock_get_webauthn_service, client, sample_user
+        self, mock_create_token, mock_webauthn_service_class, client, sample_user
     ):
         """Test successful WebAuthn authentication completion."""
         # Mock WebAuthn service
         mock_webauthn_service = Mock()
-        mock_get_webauthn_service.return_value = mock_webauthn_service
+        mock_webauthn_service_class.return_value = mock_webauthn_service
 
         # Mock successful verification
         now = datetime.now(UTC)
+        from src.auth.webauthn_service import CredentialMetadata
+        metadata = CredentialMetadata(
+            created_at=now,
+            last_used_at=now,
+            device_name="Test Device",
+            is_active=True,
+        )
         mock_credential = WebAuthnCredential(
             credential_id="test_credential_id",
             public_key="test_public_key",
             sign_count=1,
             user_id=sample_user.id,
-            created_at=now,
-            last_used_at=now,
-            device_name="Test Device",
-            is_active=True,
+            metadata=metadata,
         )
         mock_webauthn_service.verify_authentication_response.return_value = (
             sample_user,
@@ -377,16 +381,20 @@ class TestWebAuthnRouterEndpoints:
         # Mock token creation
         mock_create_token.return_value = "test_access_token"
 
-        # Make request with mock credential data
+        # Make request with mock credential data  
+        import base64
+        raw_id_bytes = b"test_credential_raw_id_12345"
+        raw_id_b64 = base64.urlsafe_b64encode(raw_id_bytes).decode('ascii').rstrip('=')
+        
         credential_data = {
-            "challengeKey": "auth_test_user_challenge",
-            "credential": {
-                "id": "credential_id",
-                "rawId": "credential_raw_id",
+            "challenge_key": "auth_test_user_challenge",
+            "credential_response": {
+                "id": raw_id_b64,
+                "rawId": raw_id_b64,
                 "response": {
-                    "authenticatorData": "authenticator_data",
-                    "clientDataJSON": "client_data_json",
-                    "signature": "signature",
+                    "authenticatorData": base64.urlsafe_b64encode(b"authenticator_data").decode('ascii').rstrip('='),
+                    "clientDataJSON": base64.urlsafe_b64encode(b"client_data_json").decode('ascii').rstrip('='),
+                    "signature": base64.urlsafe_b64encode(b"signature").decode('ascii').rstrip('='),
                 },
                 "type": "public-key",
             },
@@ -400,13 +408,17 @@ class TestWebAuthnRouterEndpoints:
 
         assert response_data["access_token"] == "test_access_token"
         assert response_data["token_type"] == "bearer"
-        assert response_data["user"]["id"] == sample_user.id
-        assert response_data["user"]["username"] == sample_user.username
+        assert "expires_in" in response_data
 
-        # Verify token was created with correct user
-        mock_create_token.assert_called_once_with(data={"sub": sample_user.id})
+        # Verify service was called correctly
+        mock_webauthn_service.verify_authentication_response.assert_called_once()
+        
+        # Verify token was created with correct user data
+        call_args = mock_create_token.call_args
+        assert call_args[1]["data"]["sub"] == sample_user.username  # JWT subject is username
+        assert call_args[1]["data"]["user_id"] == sample_user.id
 
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_complete_webauthn_authentication_verification_error(
         self, mock_get_webauthn_service, client
     ):
@@ -422,8 +434,8 @@ class TestWebAuthnRouterEndpoints:
 
         # Make request
         credential_data = {
-            "challengeKey": "invalid_challenge",
-            "credential": {
+            "challenge_key": "invalid_challenge",
+            "credential_response": {
                 "id": "credential_id",
                 "rawId": "credential_raw_id",
                 "response": {
@@ -443,7 +455,7 @@ class TestWebAuthnRouterEndpoints:
         assert "Invalid challenge" in response_data["detail"]
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_get_user_passkeys_success(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -500,7 +512,7 @@ class TestWebAuthnRouterEndpoints:
         mock_passkey_manager.get_passkey_summary.assert_called_once_with(sample_user)
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_get_user_passkeys_service_error(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -527,7 +539,7 @@ class TestWebAuthnRouterEndpoints:
         assert "Failed to retrieve passkeys" in response_data["error"]
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_revoke_passkey_success(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -558,7 +570,7 @@ class TestWebAuthnRouterEndpoints:
         )
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_revoke_passkey_not_found(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -582,7 +594,7 @@ class TestWebAuthnRouterEndpoints:
         assert "Passkey not found" in response_data["detail"]
 
     @patch("src.auth.dependencies.get_current_active_user")
-    @patch("src.auth.router.get_webauthn_service")
+    @patch("src.auth.dependencies.get_webauthn_service")
     def test_revoke_passkey_service_error(
         self, mock_get_webauthn_service, mock_get_current_active_user, client, sample_user
     ):
@@ -628,8 +640,8 @@ class TestWebAuthnRouterAuthentication:
     def test_webauthn_register_complete_requires_authentication(self, client):
         """Test that WebAuthn registration completion requires authentication."""
         credential_data = {
-            "challengeKey": "test_challenge",
-            "credential": {
+            "challenge_key": "test_challenge",
+            "credential_response": {
                 "id": "test_id",
                 "rawId": "test_raw_id",
                 "response": {
@@ -724,7 +736,7 @@ class TestWebAuthnRouterValidation:
         # Make request with missing fields
         response = client.post(
             "/auth/passkeys/register/complete",
-            json={"challengeKey": "test_challenge"},  # Missing credential
+            json={"challenge_key": "test_challenge"},  # Missing credential
         )
 
         # Should validate required fields
@@ -734,8 +746,8 @@ class TestWebAuthnRouterValidation:
         """Test WebAuthn authentication completion with invalid credential format."""
         # Make request with invalid credential structure
         credential_data = {
-            "challengeKey": "test_challenge",
-            "credential": {
+            "challenge_key": "test_challenge",
+            "credential_response": {
                 "id": "test_id",
                 # Missing required fields like rawId, response, type
             },
