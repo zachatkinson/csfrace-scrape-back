@@ -70,7 +70,9 @@ def get_current_user(
     # Get user from database using existing session pattern
     with db_service.get_session() as session:
         auth_service = AuthService(session)
-        user = auth_service.get_user_by_username(token_data.username)  # pylint: disable=assignment-from-none
+        # Use maybe_none wrapper (DRY principle) to handle assignment-from-none
+        from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
+        user = maybe_none(auth_service.get_user_by_username, token_data.username)
         if user is None:
             raise credentials_exception
 
