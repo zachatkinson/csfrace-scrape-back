@@ -6,7 +6,6 @@ import pytest
 
 from src.monitoring.tracing import DistributedTracer, TracingConfig
 from src.utils.tracing_utils import (
-    TraceContextManager,
     add_trace_event,
     get_current_trace_context,
     set_trace_attribute,
@@ -214,39 +213,6 @@ class TestTracingUtils:
         decorator = trace_http_request("GET", "https://api.example.com")
         assert callable(decorator)
 
-
-class TestTraceContextManager:
-    """Test trace context manager."""
-
-    @patch("src.utils.tracing_utils.distributed_tracer")
-    @pytest.mark.asyncio
-    async def test_context_manager_success(self, mock_tracer):
-        """Test successful context manager usage."""
-        mock_context = AsyncMock()
-        mock_span = MagicMock()
-        mock_context.__aenter__.return_value = mock_span
-        mock_tracer.trace_operation.return_value = mock_context
-
-        async with TraceContextManager("test_operation", {"attr": "value"}) as span:
-            assert span == mock_span
-
-        mock_tracer.trace_operation.assert_called_once_with("test_operation", {"attr": "value"})
-        mock_context.__aenter__.assert_called_once()
-        mock_context.__aexit__.assert_called_once()
-
-    @patch("src.utils.tracing_utils.distributed_tracer")
-    @pytest.mark.asyncio
-    async def test_context_manager_exception(self, mock_tracer):
-        """Test context manager with exception."""
-        mock_context = AsyncMock()
-        mock_context.__aenter__.return_value = MagicMock()
-        mock_tracer.trace_operation.return_value = mock_context
-
-        with pytest.raises(ValueError):
-            async with TraceContextManager("test_operation") as span:
-                raise ValueError("Test error")
-
-        mock_context.__aexit__.assert_called_once()
 
 
 class TestTracingIntegration:

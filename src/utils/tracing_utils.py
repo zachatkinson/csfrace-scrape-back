@@ -102,38 +102,14 @@ def get_current_trace_context() -> dict[str, str | None]:
     }
 
 
-class TraceContextManager:
-    """Context manager for manual span management.
-
-    Usage:
-        async with TraceContextManager("database_operation", {"table": "users"}) as span:
-            result = await db.query("SELECT * FROM users")
-            span.set_attribute("result_count", len(result))
-    """
-
-    def __init__(self, operation_name: str, attributes: dict[str, Any] | None = None):
-        """Initialize trace context manager.
-
-        Args:
-            operation_name: Name of the operation
-            attributes: Initial span attributes
-        """
-        self.operation_name = operation_name
-        self.attributes = attributes or {}
-        self._span_context = None
-
-    async def __aenter__(self):
-        """Enter async context and start span."""
-        self._span_context = distributed_tracer.trace_operation(
-            self.operation_name, self.attributes
-        )
-        return await self._span_context.__aenter__()  # pylint: disable=no-member
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Exit async context and end span."""
-        if self._span_context:
-            return await self._span_context.__aexit__(exc_type, exc_val, exc_tb)  # pylint: disable=no-member
-        return None
+# Note: For manual span management, use distributed_tracer.trace_operation() directly:
+#
+# Usage:
+#     async with distributed_tracer.trace_operation(
+#         "database_operation", {"table": "users"}
+#     ) as span:
+#         result = await db.query("SELECT * FROM users")
+#         span.set_attribute("result_count", len(result))
 
 
 # Convenience functions for common tracing scenarios
