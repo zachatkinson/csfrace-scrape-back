@@ -7,7 +7,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
-from ...auth.config import auth_config
 from ...core.config import config as default_config
 from ...core.converter import AsyncWordPressConverter
 from ...database.models import JobStatus
@@ -87,9 +86,9 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 @limiter.limit("20/hour")  # Allow 20 job creations per hour per IP
 async def create_job(
     request: Request,  # Required for rate limiting
-    job_data: JobCreate, 
-    background_tasks: BackgroundTasks, 
-    db: DBSession
+    job_data: JobCreate,
+    background_tasks: BackgroundTasks,
+    db: DBSession,
 ) -> JobResponse:
     """Create a new scraping job and start background conversion.
 

@@ -1,7 +1,7 @@
 """Redis-based cache backend implementation."""
 
 import time
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 try:
     import redis.asyncio as redis
     from redis.asyncio import Redis as RedisType
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False

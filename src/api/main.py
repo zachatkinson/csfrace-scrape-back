@@ -84,7 +84,7 @@ async def add_security_headers(request: Request, call_next):
     # Content-Security-Policy: Comprehensive CSP for API
     csp_directives = [
         "default-src 'none'",  # Deny all by default
-        "script-src 'none'",   # No scripts allowed
+        "script-src 'none'",  # No scripts allowed
         "style-src 'unsafe-inline'",  # Allow inline styles for docs
         "img-src 'self' data: https:",  # Allow images from same origin, data URLs, HTTPS
         "font-src 'self' https:",  # Allow fonts from same origin and HTTPS
@@ -111,8 +111,14 @@ async def add_security_headers(request: Request, call_next):
 
     # Permissions-Policy: Control browser features
     permissions_policy = [
-        "accelerometer=()", "camera=()", "geolocation=()", "gyroscope=()",
-        "magnetometer=()", "microphone=()", "payment=()", "usb=()"
+        "accelerometer=()",
+        "camera=()",
+        "geolocation=()",
+        "gyroscope=()",
+        "magnetometer=()",
+        "microphone=()",
+        "payment=()",
+        "usb=()",
     ]
     response.headers["Permissions-Policy"] = ", ".join(permissions_policy)
 
@@ -125,9 +131,9 @@ async def add_security_headers(request: Request, call_next):
 def _is_https_request(request: Request) -> bool:
     """Check if request is over HTTPS (including reverse proxy detection)."""
     return (
-        request.url.scheme == "https" or
-        request.headers.get("X-Forwarded-Proto", "").lower() == "https" or
-        request.headers.get("X-Forwarded-SSL", "").lower() == "on"
+        request.url.scheme == "https"
+        or request.headers.get("X-Forwarded-Proto", "").lower() == "https"
+        or request.headers.get("X-Forwarded-SSL", "").lower() == "on"
     )
 
 

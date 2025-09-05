@@ -307,7 +307,7 @@ class OAuthService:
                 provider=provider.value,
                 user_id=user.id,
                 is_new_user=is_new_user,
-                linked_account_id=getattr(linked_account, 'id', None),
+                linked_account_id=getattr(linked_account, "id", None),
             )
 
             return access_token, is_new_user
@@ -418,7 +418,8 @@ class OAuthService:
         # Clean up old states (simple cleanup - in production, use Redis with TTL)
         current_time = time.time()
         expired_states = [
-            s for s, data in self._oauth_state_cache.items()
+            s
+            for s, data in self._oauth_state_cache.items()
             if current_time - data.get("created_at", 0) > 600  # 10 minutes
         ]
         for expired_state in expired_states:

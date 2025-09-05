@@ -15,6 +15,7 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={"read": "Read access", "write": "Write access", "admin": "Admin access"},
 )
 
+
 def get_database_service() -> DatabaseService:
     """Get database service instance - FastAPI dependency."""
     # Each request gets a fresh database service instance

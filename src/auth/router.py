@@ -77,7 +77,7 @@ def login_for_access_token(
             data={
                 "sub": authenticated_user.username,
                 "user_id": authenticated_user.id,
-                "scopes": form_data.scopes
+                "scopes": form_data.scopes,
             },
             expires_delta=access_token_expires,
         )
@@ -122,8 +122,7 @@ def register_user(
         user = auth_service.create_user(user_create)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user"
             )
         return user
 
@@ -182,9 +181,11 @@ def update_user_me(
         auth_service = AuthService(session)
 
         # Check if email is being changed and already exists
-        if (user_update.email and
-            user_update.email != current_user.email and
-            auth_service.get_user_by_email(user_update.email)):
+        if (
+            user_update.email
+            and user_update.email != current_user.email
+            and auth_service.get_user_by_email(user_update.email)
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
             )

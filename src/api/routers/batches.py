@@ -94,12 +94,14 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
 
 @router.post("/", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/hour")  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
+@limiter.limit(
+    "10/hour"
+)  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
 async def create_batch(
     request: Request,  # Required for rate limiting
-    batch_data: BatchCreate, 
-    background_tasks: BackgroundTasks, 
-    db: DBSession
+    batch_data: BatchCreate,
+    background_tasks: BackgroundTasks,
+    db: DBSession,
 ) -> BatchResponse:
     """Create a new batch with multiple jobs and start background processing.
 

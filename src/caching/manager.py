@@ -1,7 +1,7 @@
 """Cache manager for coordinating cache operations and strategies."""
 
 import hashlib
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 try:
     from .redis_cache import RedisCache
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False

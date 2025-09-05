@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 try:
     from alembic import command  # type: ignore[import-untyped,attr-defined]
     from alembic.config import Config as AlembicConfig  # type: ignore[import-untyped,attr-defined]
+
     ALEMBIC_AVAILABLE = True
 except ImportError:
     ALEMBIC_AVAILABLE = False
@@ -120,13 +121,24 @@ async def _create_enums_safely(engine) -> None:
 
                     except (
                         sqlalchemy.exc.ProgrammingError,  # Type already exists
-                        sqlalchemy.exc.IntegrityError,    # Duplicate key
-                        sqlalchemy.exc.DatabaseError,     # General DB errors
+                        sqlalchemy.exc.IntegrityError,  # Duplicate key
+                        sqlalchemy.exc.DatabaseError,  # General DB errors
                     ) as create_error:
                         error_msg = str(create_error).lower()
                         # Handle concurrent enum creation race conditions gracefully
-                        if any(phrase in error_msg for phrase in ["already exists", "duplicate key", "relation already exists"]):
-                            logger.debug("Enum %s already exists (concurrent execution): %s", enum_name, create_error)
+                        if any(
+                            phrase in error_msg
+                            for phrase in [
+                                "already exists",
+                                "duplicate key",
+                                "relation already exists",
+                            ]
+                        ):
+                            logger.debug(
+                                "Enum %s already exists (concurrent execution): %s",
+                                enum_name,
+                                create_error,
+                            )
                         else:
                             logger.warning("Could not create enum %s: %s", enum_name, create_error)
                             # Don't raise - let table creation proceed

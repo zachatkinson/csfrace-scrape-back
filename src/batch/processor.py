@@ -25,6 +25,7 @@ logger = structlog.get_logger(__name__)
 
 class JobSummaryData(TypedDict):
     """Type definition for individual job summary data."""
+
     url: str
     status: str
     output_dir: str
@@ -34,6 +35,7 @@ class JobSummaryData(TypedDict):
 
 class BatchSummary(TypedDict):
     """Type definition for batch processing summary."""
+
     total: int
     successful: int
     failed: int
@@ -41,6 +43,8 @@ class BatchSummary(TypedDict):
     jobs: list[JobSummaryData]
     total_duration: float
     average_duration: float
+
+
 console = Console()
 
 
