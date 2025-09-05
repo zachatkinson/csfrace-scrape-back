@@ -127,12 +127,13 @@ class TraceContextManager:
         self._span_context = distributed_tracer.trace_operation(
             self.operation_name, self.attributes
         )
-        return await self._span_context.__aenter__()
+        return await self._span_context.__aenter__()  # pylint: disable=no-member
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Exit async context and end span."""
         if self._span_context:
-            return await self._span_context.__aexit__(exc_type, exc_val, exc_tb)
+            return await self._span_context.__aexit__(exc_type, exc_val, exc_tb)  # pylint: disable=no-member
+        return None
 
 
 # Convenience functions for common tracing scenarios

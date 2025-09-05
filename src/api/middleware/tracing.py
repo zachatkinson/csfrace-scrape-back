@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from ...monitoring import distributed_tracer, performance_monitor
 
 
-class EnhancedTracingMiddleware(BaseHTTPMiddleware):
+class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
     """Enhanced tracing middleware combining custom and OpenTelemetry tracing."""
 
     def __init__(self, app, correlation_header: str = "X-Correlation-ID"):
@@ -107,7 +107,7 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):
                 raise
 
 
-class CorrelationMiddleware(BaseHTTPMiddleware):
+class CorrelationMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
     """Lightweight correlation ID middleware for requests without full tracing."""
 
     def __init__(self, app, correlation_header: str = "X-Correlation-ID"):

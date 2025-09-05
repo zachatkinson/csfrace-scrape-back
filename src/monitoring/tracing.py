@@ -33,7 +33,7 @@ except ImportError:
 
 
 @dataclass
-class TracingConfig:
+class TracingConfig:  # pylint: disable=too-many-instance-attributes
     """Configuration for OpenTelemetry distributed tracing."""
 
     enabled: bool = True
@@ -133,7 +133,7 @@ class DistributedTracer:
             self._initialized = True
             logger.info("OpenTelemetry distributed tracing initialized successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to initialize distributed tracing", error=str(e))
             raise
 
@@ -158,7 +158,7 @@ class DistributedTracer:
                 SQLAlchemyInstrumentor().instrument()
                 logger.debug("SQLAlchemy auto-instrumentation enabled")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to setup auto-instrumentation", error=str(e))
 
     @asynccontextmanager
@@ -208,7 +208,7 @@ class DistributedTracer:
 
                 yield span
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                 span.set_attribute("error.message", str(e))
                 span.set_attribute("error.type", type(e).__name__)
@@ -252,7 +252,7 @@ class DistributedTracer:
                         result = func(*args, **kwargs)
                         span.set_status(trace.Status(trace.StatusCode.OK))
                         return result
-                    except Exception as e:
+                    except Exception as e:  # pylint: disable=broad-exception-caught
                         span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                         span.set_attribute("error.message", str(e))
                         span.set_attribute("error.type", type(e).__name__)
@@ -305,7 +305,7 @@ class DistributedTracer:
             current_span = trace.get_current_span()
             if current_span and current_span.is_recording():
                 return format(current_span.get_span_context().trace_id, "032x")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to get current trace ID", error=str(e))
 
         return None
@@ -323,7 +323,7 @@ class DistributedTracer:
             current_span = trace.get_current_span()
             if current_span and current_span.is_recording():
                 return format(current_span.get_span_context().span_id, "016x")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to get current span ID", error=str(e))
 
         return None
@@ -342,7 +342,7 @@ class DistributedTracer:
             current_span = trace.get_current_span()
             if current_span and current_span.is_recording():
                 current_span.add_event(name, attributes or {})
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to add span event", event=name, error=str(e))
 
     def set_attribute(self, key: str, value: Any) -> None:
@@ -359,7 +359,7 @@ class DistributedTracer:
             current_span = trace.get_current_span()
             if current_span and current_span.is_recording():
                 current_span.set_attribute(key, value)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to set span attribute", key=key, error=str(e))
 
     def record_exception(self, exception: Exception) -> None:
@@ -376,7 +376,7 @@ class DistributedTracer:
             if current_span and current_span.is_recording():
                 current_span.record_exception(exception)
                 current_span.set_status(trace.Status(trace.StatusCode.ERROR, str(exception)))
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to record exception in span", error=str(e))
 
     def shutdown(self) -> None:
@@ -393,7 +393,7 @@ class DistributedTracer:
             self._initialized = False
             logger.info("Distributed tracer shutdown complete")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Error during distributed tracer shutdown", error=str(e))
 
     def get_tracing_status(self) -> dict[str, Any]:
