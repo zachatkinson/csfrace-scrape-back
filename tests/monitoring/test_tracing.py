@@ -70,9 +70,9 @@ class TestDistributedTracer:
         assert tracer._initialized is False
 
     @patch("src.monitoring.tracing.OPENTELEMETRY_AVAILABLE", True)
-    @patch("opentelemetry.trace")
-    @patch("opentelemetry.sdk.trace.TracerProvider")
-    @patch("opentelemetry.sdk.resources.Resource")
+    @patch("src.monitoring.tracing.trace")
+    @patch("src.monitoring.tracing.TracerProvider")
+    @patch("src.monitoring.tracing.Resource")
     def test_tracer_initialization_success(self, mock_resource, mock_tracer_provider, mock_trace):
         """Test successful tracer initialization."""
         # Setup mocks

@@ -69,12 +69,19 @@ class TestMetricsCollector:
         }
         return collector
 
-    def test_initialization_prometheus_disabled(self, collector):
+    def test_initialization_prometheus_disabled(self):
         """Test initialization with Prometheus disabled."""
-        assert collector.config.enabled is True
-        assert collector.metrics == {}
-        assert collector.system_metrics == {}
-        assert collector._collecting is False
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", False):
+            config = MetricsConfig(
+                enabled=True,
+                collection_interval=0.1,
+                prometheus_enabled=False,
+            )
+            collector = MetricsCollector(config)
+            assert collector.config.enabled is True
+            assert collector.metrics == {}
+            assert collector.system_metrics == {}
+            assert collector._collecting is False
 
     def test_initialization_prometheus_enabled(self, prometheus_collector):
         """Test initialization with Prometheus enabled."""
@@ -233,8 +240,9 @@ class TestMetricsCollector:
 
     def test_export_prometheus_metrics_disabled(self, collector):
         """Test Prometheus export when disabled."""
-        metrics_data = collector.export_prometheus_metrics()
-        assert b"Prometheus not available" in metrics_data
+        with patch("src.monitoring.metrics.PROMETHEUS_AVAILABLE", False):
+            metrics_data = collector.export_prometheus_metrics()
+            assert b"Prometheus not available" in metrics_data
 
     def test_export_prometheus_metrics_enabled(self, prometheus_collector):
         """Test Prometheus export when enabled."""
