@@ -299,7 +299,7 @@ jobs:
           cache-suffix: quality-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
+        run: uv sync --frozen --no-editable --extra=monitoring
 
       - name: Run Super-Linter (Official GitHub Action)
         uses: github/super-linter@v7
@@ -417,8 +417,8 @@ jobs:
 
       - name: Install dependencies with UV
         run: |
-          uv sync --frozen --no-editable
-          # Install pytest-split for optimal matrix-based test sharding
+          uv sync --frozen --no-editable --extra=monitoring
+          # Install pytest-split for optimal matrix-based test sharding  
           uv add pytest-split --group=test
 
       - name: Install Playwright browsers (Shard 4 only - dedicated rendering shard)
@@ -592,7 +592,7 @@ jobs:
           cache-suffix: unit-cross-${{ matrix.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
+        run: uv sync --frozen --no-editable --extra=monitoring
         
       - name: Run platform-specific smoke tests (Windows/macOS - compatibility validation)
         env:
@@ -681,7 +681,7 @@ jobs:
           fi
           
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
+        run: uv sync --frozen --no-editable --extra=monitoring
 
       - name: Verify service connections
         run: |
@@ -801,7 +801,7 @@ jobs:
           cache-suffix: performance-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable
+        run: uv sync --frozen --no-editable --extra=monitoring
 
       - name: Install Playwright browsers
         run: |

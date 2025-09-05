@@ -381,6 +381,7 @@ class TestObservabilityManager:
         """Test running diagnostic on healthy system."""
         manager._initialized = True
         manager.metrics_collector._collecting = True
+        manager.metrics_collector.config.enabled = True
 
         mock_health_results = {
             "system": MagicMock(status=MagicMock(value="healthy")),
