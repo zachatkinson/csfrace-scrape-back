@@ -12,7 +12,7 @@ from ...database.models import JobStatus
 from ..crud import BatchCRUD, JobCRUD
 from ..dependencies import DBSession, async_session
 from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
-from ..utils import create_paginated_response
+from ..utils import create_response_dict
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 limiter = Limiter(key_func=get_remote_address)
@@ -97,7 +97,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
     "10/hour"
 )  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
 async def create_batch(
-    request: Request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting  # pylint: disable=unused-argument
     batch_data: BatchCreate,
     background_tasks: BackgroundTasks,
     db: DBSession,
@@ -152,25 +152,21 @@ async def list_batches(
         skip = (page - 1) * page_size
         batches, total = await BatchCRUD.get_batches(db, skip=skip, limit=page_size)
 
-        pagination = create_paginated_response(
+        response_data = create_response_dict(
+            response_class=BatchListResponse,
+            items_key="batches",
             items=[BatchResponse.model_validate(batch) for batch in batches],
             total=total,
             page=page,
             page_size=page_size,
         )
 
-        return BatchListResponse(
-            batches=pagination["items"],
-            total=pagination["total"],
-            page=pagination["page"],
-            page_size=pagination["page_size"],
-            total_pages=pagination["total_pages"],
-        )
+        return BatchListResponse(**response_data)
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve batches: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/{batch_id}", response_model=BatchWithJobsResponse)
@@ -198,4 +194,4 @@ async def get_batch(batch_id: int, db: DBSession) -> BatchWithJobsResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve batch: {str(e)}",
-        )
+        ) from e

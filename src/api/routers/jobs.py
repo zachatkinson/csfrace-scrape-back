@@ -13,7 +13,7 @@ from ...database.models import JobStatus
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
 from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
-from ..utils import create_paginated_response
+from ..utils import create_response_dict
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -45,7 +45,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
             )
 
             # Execute conversion with progress callback
-            def progress_callback(progress: int):
+            def progress_callback(progress: int):  # pylint: disable=unused-argument
                 # In a real implementation, you could update job progress in database
                 # For now, we'll just log progress
                 pass
@@ -84,7 +84,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/hour")  # Allow 20 job creations per hour per IP
 async def create_job(
-    request: Request,  # Required for rate limiting
+    request: Request,  # Required for rate limiting  # pylint: disable=unused-argument
     job_data: JobCreate,
     background_tasks: BackgroundTasks,
     db: DBSession,
@@ -145,20 +145,16 @@ async def list_jobs(
             db, skip=skip, limit=page_size, status=status_filter, domain=domain
         )
 
-        pagination = create_paginated_response(
+        response_data = create_response_dict(
+            response_class=JobListResponse,
+            items_key="jobs",
             items=[JobResponse.model_validate(job) for job in jobs],
             total=total,
             page=page,
             page_size=page_size,
         )
 
-        return JobListResponse(
-            jobs=pagination["items"],
-            total=pagination["total"],
-            page=pagination["page"],
-            page_size=pagination["page_size"],
-            total_pages=pagination["total_pages"],
-        )
+        return JobListResponse(**response_data)
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
