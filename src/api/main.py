@@ -33,8 +33,8 @@ async def lifespan(_app: FastAPI):
     # Add cleanup logic here if needed
 
 
-# Rate limiter for global application endpoints
-limiter = Limiter(key_func=get_remote_address)
+# Rate limiter for global application endpoints with proper header injection
+limiter = Limiter(key_func=get_remote_address, headers_enabled=True)
 
 app = FastAPI(
     title="CSFrace Scraper API",
@@ -139,14 +139,12 @@ def _is_https_request(request: Request) -> bool:
 
 # Exception handlers
 @app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    """Handle rate limit exceeded exceptions."""
+async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
+    """Handle rate limit exceeded exceptions with proper headers."""
     response = JSONResponse(
         status_code=429, content={"detail": f"Rate limit exceeded: {exc.detail}"}
     )
-    response = request.app.state.limiter._inject_headers(  # pylint: disable=protected-access
-        response, request.state.view_rate_limit
-    )
+    # Headers are automatically injected by SlowAPI when headers_enabled=True
     return response
 
 

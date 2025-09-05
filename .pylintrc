@@ -7,5 +7,4 @@ jobs=0
 
 # Ignoring Import Errors is desired as super-linter
 # does not support installing dependencies as it runs
-# Also disable protected-access for legitimate OAuth service integration
-disable=import-error,protected-access
+disable=import-error

@@ -427,22 +427,25 @@ class OAuthService:
 
         logger.debug("OAuth state stored", state=state, provider=provider.value)
 
-    async def _get_cached_user_info(self, _access_token: str) -> OAuthUserInfo:
-        """Get cached OAuth user information.
+    async def get_cached_user_info(self, access_token: str) -> OAuthUserInfo:
+        """Get OAuth user information using the access token.
 
-        This is a temporary solution. In production, this should be replaced
-        with proper token-to-user mapping in the database.
+        This method fetches fresh user information from the OAuth provider
+        using the provided access token, ensuring data accuracy and security.
 
         Args:
             access_token: OAuth access token
 
         Returns:
-            Cached OAuthUserInfo
+            OAuthUserInfo with current user data
 
         Raises:
-            ValueError: If no cached user info is available
+            ValueError: If token is invalid or user info cannot be retrieved
         """
-        if not self._cached_oauth_user_info:
-            raise ValueError("No cached OAuth user information available")
-
-        return self._cached_oauth_user_info
+        try:
+            # Use GitHub provider to fetch current user info with the token
+            github_provider = GitHubOAuthProvider()
+            return await github_provider.get_user_info(access_token)
+        except Exception as e:
+            logger.error(f"Failed to get user info with access token: {e}")
+            raise ValueError("Invalid access token or unable to retrieve user information") from e

@@ -396,8 +396,7 @@ async def handle_oauth_callback(
         )
 
         # Get user information and retrieve user from database
-        # Protected access acceptable for OAuth2 service integration
-        user_info = await oauth_service._get_cached_user_info(access_token)  # pylint: disable=protected-access
+        user_info = await oauth_service.get_cached_user_info(access_token)
         user = maybe_none(auth_service.get_user_by_email, user_info.email)
 
         if not user:
