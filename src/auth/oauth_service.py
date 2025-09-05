@@ -444,7 +444,9 @@ class OAuthService:
         """
         try:
             # Use GitHub provider to fetch current user info with the token
-            github_provider = GitHubOAuthProvider()
+            github_provider = GitHubOAuthProvider(
+                client_id=OAUTH_GITHUB_CLIENT_ID, client_secret=OAUTH_GITHUB_CLIENT_SECRET
+            )
             return await github_provider.get_user_info(access_token)
         except Exception as e:
             logger.error(f"Failed to get user info with access token: {e}")
