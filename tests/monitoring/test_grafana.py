@@ -1,4 +1,5 @@
 """Tests for Grafana dashboard management functionality."""
+# pylint: disable=protected-access,use-implicit-booleaness-not-comparison,line-too-long
 
 from pathlib import Path
 from unittest.mock import patch

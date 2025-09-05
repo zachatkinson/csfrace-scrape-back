@@ -1,4 +1,5 @@
-"""Tests for performance monitoring system."""
+"""Tests for performance monitoring system."""  
+# pylint: disable=too-many-public-methods,use-implicit-booleaness-not-comparison,unused-variable
 
 import asyncio
 import time

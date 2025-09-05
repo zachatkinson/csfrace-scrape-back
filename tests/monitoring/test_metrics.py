@@ -1,4 +1,5 @@
 """Tests for metrics collection system."""
+# pylint: disable=protected-access,too-many-public-methods,use-implicit-booleaness-not-comparison,import-outside-toplevel
 
 import asyncio
 import time

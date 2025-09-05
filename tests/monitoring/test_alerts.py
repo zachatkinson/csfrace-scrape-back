@@ -1,4 +1,5 @@
 """Tests for alerting system."""
+# pylint: disable=protected-access,too-few-public-methods,too-many-public-methods,broad-exception-raised
 
 import asyncio
 from datetime import UTC, datetime, timedelta

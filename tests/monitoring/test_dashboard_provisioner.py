@@ -1,4 +1,5 @@
 """Tests for Grafana dashboard provisioning system."""
+# pylint: disable=protected-access,too-many-public-methods,unused-argument
 
 import json
 from pathlib import Path
