@@ -298,35 +298,9 @@ def deactivate_user(
         return {"message": "User deactivated successfully"}
 
 
-# OAuth2 SSO Endpoints
-@router.post("/oauth/login", response_model=SSOLoginResponse)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
-def initiate_oauth_login(
-    _request: Request,  # Required for rate limiting
-    sso_request: SSOLoginRequest,
-    db_service: DatabaseService = Depends(get_database_service),
-) -> SSOLoginResponse:
-    """Initiate OAuth2 SSO login flow - Following FastAPI official patterns."""
-    with db_service.get_session() as session:
-        oauth_service = OAuthService(session)
-        return oauth_service.initiate_oauth_login(
-            provider=sso_request.provider, redirect_uri=sso_request.redirect_uri
-        )
-
-
-@router.post("/oauth/{provider}/callback", response_model=Token)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
-async def handle_oauth_callback(
-    _request: Request,  # Required for rate limiting
-    provider: OAuthProvider,
-    oauth_callback: OAuthCallback,
-    db_service: DatabaseService = Depends(get_database_service),
-) -> Token:
-    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
-
-    This endpoint implements the OAuth2 Authorization Code Flow callback handling
-    according to RFC 6749 and FastAPI security best practices.
-    """
+# OAuth2 SSO Helper Functions
+def _validate_oauth_callback_parameters(provider: OAuthProvider, oauth_callback: OAuthCallback) -> None:
+    """Validate OAuth callback parameters and handle errors."""
     # Step 1: Validate OAuth error responses
     if oauth_callback.error:
         error_detail = oauth_callback.error_description or oauth_callback.error
@@ -368,7 +342,76 @@ async def handle_oauth_callback(
             detail="Missing state parameter in OAuth callback",
         )
 
-    # Step 4: Handle OAuth callback with proper error handling and logging
+
+async def _process_oauth_token_exchange(
+    provider: OAuthProvider, oauth_callback: OAuthCallback, oauth_service: OAuthService
+) -> tuple[str, bool]:
+    """Process OAuth token exchange and return access token."""
+    # Build redirect URI for token exchange (must match the one used in authorization)
+    redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider.value}/callback"
+
+    # Handle OAuth callback and get user information
+    return await oauth_service.handle_oauth_callback(
+        provider=provider,
+        code=oauth_callback.code,
+        state=oauth_callback.state,
+        redirect_uri=redirect_uri,
+    )
+
+
+def _create_jwt_tokens_for_user(user: User) -> Token:
+    """Create JWT access and refresh tokens for authenticated user."""
+    access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
+    jwt_access_token = security_manager.create_access_token(
+        data={"sub": user.username, "user_id": user.id, "scopes": []},
+        expires_delta=access_token_expires,
+    )
+
+    jwt_refresh_token = security_manager.create_refresh_token(
+        data={"sub": user.username, "user_id": user.id}
+    )
+
+    return Token(
+        access_token=jwt_access_token,
+        token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
+        expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+        refresh_token=jwt_refresh_token,
+    )
+
+
+# OAuth2 SSO Endpoints
+@router.post("/oauth/login", response_model=SSOLoginResponse)
+@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+def initiate_oauth_login(
+    _request: Request,  # Required for rate limiting
+    sso_request: SSOLoginRequest,
+    db_service: DatabaseService = Depends(get_database_service),
+) -> SSOLoginResponse:
+    """Initiate OAuth2 SSO login flow - Following FastAPI official patterns."""
+    with db_service.get_session() as session:
+        oauth_service = OAuthService(session)
+        return oauth_service.initiate_oauth_login(
+            provider=sso_request.provider, redirect_uri=sso_request.redirect_uri
+        )
+
+
+@router.post("/oauth/{provider}/callback", response_model=Token)
+@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+async def handle_oauth_callback(
+    _request: Request,  # Required for rate limiting
+    provider: OAuthProvider,
+    oauth_callback: OAuthCallback,
+    db_service: DatabaseService = Depends(get_database_service),
+) -> Token:
+    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
+
+    This endpoint implements the OAuth2 Authorization Code Flow callback handling
+    according to RFC 6749 and FastAPI security best practices.
+    """
+    # Validate OAuth callback parameters
+    _validate_oauth_callback_parameters(provider, oauth_callback)
+
+    # Process OAuth callback with database session
     with db_service.get_session() as session:
         oauth_service = OAuthService(session)
         auth_service = AuthService(session)
@@ -381,21 +424,13 @@ async def handle_oauth_callback(
                 state_present=bool(oauth_callback.state),
             )
 
-            # Step 5: Exchange authorization code for access token and get user info
-            # Build redirect URI for token exchange (must match the one used in authorization)
-            redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider.value}/callback"
-
-            # Handle OAuth callback and get user information
-            access_token, is_new_user = await oauth_service.handle_oauth_callback(
-                provider=provider,
-                code=oauth_callback.code,
-                state=oauth_callback.state,
-                redirect_uri=redirect_uri,
+            # Exchange authorization code for access token
+            access_token, is_new_user = await _process_oauth_token_exchange(
+                provider, oauth_callback, oauth_service
             )
 
-            # Step 6: Get user information from OAuth service
-            # At this point, the user should be created or found in the database
-            user_info = await oauth_service.get_user_info(access_token)
+            # Get user information and retrieve user from database
+            user_info = await oauth_service._get_cached_user_info(access_token)  # pylint: disable=protected-access
             user = auth_service.get_user_by_email(user_info.email)
 
             if not user:
@@ -405,19 +440,7 @@ async def handle_oauth_callback(
                     detail="User account creation or retrieval failed",
                 )
 
-            # Step 7: Generate JWT tokens for authenticated user
-            access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
-            jwt_access_token = security_manager.create_access_token(
-                data={"sub": user.username, "user_id": user.id, "scopes": []},
-                expires_delta=access_token_expires,
-            )
-
-            # Create refresh token
-            jwt_refresh_token = security_manager.create_refresh_token(
-                data={"sub": user.username, "user_id": user.id}
-            )
-
-            # Step 8: Log successful OAuth authentication
+            # Log successful OAuth authentication
             logger.info(
                 "OAuth authentication successful",
                 provider=provider.value,
@@ -426,13 +449,8 @@ async def handle_oauth_callback(
                 is_new_user=is_new_user,
             )
 
-            # Step 9: Return JWT tokens following FastAPI Token model
-            return Token(
-                access_token=jwt_access_token,
-                token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
-                expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
-                refresh_token=jwt_refresh_token,
-            )
+            # Generate and return JWT tokens
+            return _create_jwt_tokens_for_user(user)
 
         except HTTPException:
             # Re-raise HTTP exceptions as-is
