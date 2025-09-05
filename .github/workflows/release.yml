@@ -1,7 +1,10 @@
 name: Semantic Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Consolidated CI/CD & Submodule Sync"]
+    types:
+      - completed
     branches:
       - master
 
@@ -16,7 +19,7 @@ jobs:
       group: ${{ github.workflow }}-release-${{ github.ref_name }}
       cancel-in-progress: false  # Don't cancel releases in progress
     # Only run if CI workflow completed successfully
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event.workflow_run.conclusion == 'success'
     permissions:
       id-token: write  # For provenance
       contents: write  # For creating releases
@@ -30,14 +33,6 @@ jobs:
           fetch-depth: 0  # Full history for semantic release
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Wait for CI to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: 'Consolidated CI/CD & Submodule Sync'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          
       - name: Python Semantic Release
         uses: python-semantic-release/python-semantic-release@v9.21.1
         with:
