@@ -15,7 +15,7 @@ on:
   
   # Fallback trigger: Direct workflow_run (less reliable but backup)
   workflow_run:
-    workflows: ["Progressive CI/CD Pipeline"]
+    workflows: ["Consolidated CI/CD & Submodule Sync"]
     types:
       - completed
     branches:
