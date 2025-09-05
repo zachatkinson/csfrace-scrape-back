@@ -12,6 +12,7 @@ from ...database.models import JobStatus
 from ..crud import BatchCRUD, JobCRUD
 from ..dependencies import DBSession, async_session
 from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
+from ..utils import create_paginated_response
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 limiter = Limiter(key_func=get_remote_address)
@@ -151,14 +152,19 @@ async def list_batches(
         skip = (page - 1) * page_size
         batches, total = await BatchCRUD.get_batches(db, skip=skip, limit=page_size)
 
-        total_pages = (total + page_size - 1) // page_size
-
-        return BatchListResponse(
-            batches=[BatchResponse.model_validate(batch) for batch in batches],
+        pagination = create_paginated_response(
+            items=[BatchResponse.model_validate(batch) for batch in batches],
             total=total,
             page=page,
             page_size=page_size,
-            total_pages=total_pages,
+        )
+
+        return BatchListResponse(
+            batches=pagination["items"],
+            total=pagination["total"],
+            page=pagination["page"],
+            page_size=pagination["page_size"],
+            total_pages=pagination["total_pages"],
         )
     except SQLAlchemyError as e:
         raise HTTPException(

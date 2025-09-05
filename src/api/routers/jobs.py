@@ -13,6 +13,7 @@ from ...database.models import JobStatus
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
 from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
+from ..utils import create_paginated_response
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -115,7 +116,7 @@ async def create_job(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create job: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/", response_model=JobListResponse)
@@ -144,20 +145,25 @@ async def list_jobs(
             db, skip=skip, limit=page_size, status=status_filter, domain=domain
         )
 
-        total_pages = (total + page_size - 1) // page_size
-
-        return JobListResponse(
-            jobs=[JobResponse.model_validate(job) for job in jobs],
+        pagination = create_paginated_response(
+            items=[JobResponse.model_validate(job) for job in jobs],
             total=total,
             page=page,
             page_size=page_size,
-            total_pages=total_pages,
+        )
+
+        return JobListResponse(
+            jobs=pagination["items"],
+            total=pagination["total"],
+            page=pagination["page"],
+            page_size=pagination["page_size"],
+            total_pages=pagination["total_pages"],
         )
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve jobs: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -185,7 +191,7 @@ async def get_job(job_id: int, db: DBSession) -> JobResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve job: {str(e)}",
-        )
+        ) from e
 
 
 @router.put("/{job_id}", response_model=JobResponse)
@@ -214,7 +220,7 @@ async def update_job(job_id: int, job_data: JobUpdate, db: DBSession) -> JobResp
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update job: {str(e)}",
-        )
+        ) from e
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -238,7 +244,7 @@ async def delete_job(job_id: int, db: DBSession) -> None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete job: {str(e)}",
-        )
+        ) from e
 
 
 @router.post("/{job_id}/start", response_model=JobResponse)
@@ -274,7 +280,7 @@ async def start_job(job_id: int, db: DBSession) -> JobResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start job: {str(e)}",
-        )
+        ) from e
 
 
 @router.post("/{job_id}/cancel", response_model=JobResponse)
@@ -310,7 +316,7 @@ async def cancel_job(job_id: int, db: DBSession) -> JobResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to cancel job: {str(e)}",
-        )
+        ) from e
 
 
 @router.post("/{job_id}/retry", response_model=JobResponse)
@@ -356,4 +362,4 @@ async def retry_job(job_id: int, db: DBSession) -> JobResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retry job: {str(e)}",
-        )
+        ) from e
