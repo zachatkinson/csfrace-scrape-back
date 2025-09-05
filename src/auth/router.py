@@ -49,7 +49,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.post("/token", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def login_for_access_token(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument  # pylint: disable=unused-argument
     form_data: OAuth2PasswordRequestForm = Depends(),
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
@@ -98,7 +98,7 @@ def login_for_access_token(
 @router.post("/register", response_model=User)
 @limiter.limit(auth_config.REGISTER_RATE_LIMIT)
 def register_user(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     user_create: UserCreate,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> User:
@@ -228,7 +228,7 @@ def change_password(
 @router.post("/password-reset")
 @limiter.limit(auth_config.PASSWORD_RESET_RATE_LIMIT)
 def request_password_reset(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     password_reset: PasswordReset,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
@@ -390,7 +390,7 @@ def _create_jwt_tokens_for_user(user: User) -> Token:
 @router.post("/oauth/login", response_model=SSOLoginResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def initiate_oauth_login(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     sso_request: SSOLoginRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> SSOLoginResponse:
@@ -405,7 +405,7 @@ def initiate_oauth_login(
 @router.post("/oauth/{provider}/callback", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 async def handle_oauth_callback(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     provider: OAuthProvider,
     oauth_callback: OAuthCallback,
     db_service: DatabaseService = Depends(get_database_service),
@@ -493,7 +493,7 @@ def list_oauth_providers() -> list[str]:
 @router.post("/passkeys/register/begin", response_model=PasskeyRegistrationResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def begin_passkey_registration(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     passkey_request: PasskeyRegistrationRequest,
     current_user: User = Depends(get_current_active_user),
     db_service: DatabaseService = Depends(get_database_service),
@@ -524,7 +524,7 @@ def begin_passkey_registration(
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_registration(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     current_user: User = Depends(get_current_active_user),
     db_service: DatabaseService = Depends(get_database_service),
@@ -613,7 +613,7 @@ def complete_passkey_registration(
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def begin_passkey_authentication(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     auth_request: PasskeyAuthenticationRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> PasskeyAuthenticationResponse:
@@ -652,7 +652,7 @@ def begin_passkey_authentication(
 @router.post("/passkeys/authenticate/complete", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_authentication(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:

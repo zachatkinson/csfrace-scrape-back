@@ -84,7 +84,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/hour")  # Allow 20 job creations per hour per IP
 async def create_job(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     job_data: JobCreate,
     background_tasks: BackgroundTasks,
     db: DBSession,
@@ -146,7 +146,6 @@ async def list_jobs(
         )
 
         response_data = create_response_dict(
-            response_class=JobListResponse,
             items_key="jobs",
             items=[JobResponse.model_validate(job) for job in jobs],
             total=total,

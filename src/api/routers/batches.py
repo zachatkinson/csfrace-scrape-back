@@ -97,7 +97,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
     "10/hour"
 )  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
 async def create_batch(
-    _request: Request,  # Required for rate limiting
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     batch_data: BatchCreate,
     background_tasks: BackgroundTasks,
     db: DBSession,
@@ -153,7 +153,6 @@ async def list_batches(
         batches, total = await BatchCRUD.get_batches(db, skip=skip, limit=page_size)
 
         response_data = create_response_dict(
-            response_class=BatchListResponse,
             items_key="batches",
             items=[BatchResponse.model_validate(batch) for batch in batches],
             total=total,
