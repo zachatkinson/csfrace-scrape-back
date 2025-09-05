@@ -45,7 +45,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
             )
 
             # Execute conversion with progress callback
-            def progress_callback(progress: int):  # pylint: disable=unused-argument
+            def progress_callback(_: int):
                 # In a real implementation, you could update job progress in database
                 # For now, we'll just log progress
                 pass
@@ -84,7 +84,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/hour")  # Allow 20 job creations per hour per IP
 async def create_job(
-    request: Request,  # Required for rate limiting  # pylint: disable=unused-argument
+    _request: Request,  # Required for rate limiting
     job_data: JobCreate,
     background_tasks: BackgroundTasks,
     db: DBSession,

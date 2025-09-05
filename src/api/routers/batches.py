@@ -97,7 +97,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
     "10/hour"
 )  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
 async def create_batch(
-    request: Request,  # Required for rate limiting  # pylint: disable=unused-argument
+    _request: Request,  # Required for rate limiting
     batch_data: BatchCreate,
     background_tasks: BackgroundTasks,
     db: DBSession,
