@@ -10,10 +10,14 @@ from slowapi.util import get_remote_address
 from webauthn.helpers import base64url_to_bytes
 from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
 
+from ..api.utils import maybe_none, unauthorized_error, bad_request_error, internal_server_error
+from ..config.rate_limits import rate_limits
 from ..constants import AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
 from ..database.service import DatabaseService
 from .config import auth_config
-from .dependencies import get_current_active_user, get_current_superuser, get_database_service
+from .dependencies import get_current_active_user, get_current_superuser, get_database_service, get_auth_service, get_oauth_service, get_webauthn_service, get_passkey_manager
+from .oauth_service import OAuthService
+from .service import AuthService
 from .models import (
     OAuthCallback,
     OAuthProvider,
@@ -47,29 +51,20 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 @router.post("/token", response_model=Token)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_LOGIN)  # DRY: Centralized rate limits
 def login_for_access_token(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),  # DRY: Service injection
 ) -> Token:
     """Authenticate user and return JWT tokens."""
-    # Use existing database session pattern
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    # DRY: Use maybe_none wrapper for assignment-from-none
+    authenticated_user = maybe_none(auth_service.authenticate_user, form_data.username, form_data.password)
+    if authenticated_user is None:
+        raise unauthorized_error("Incorrect username or password")  # DRY: Standardized error
 
-        # Authenticate user and get user data
-        authenticated_user = auth_service.authenticate_user(form_data.username, form_data.password)  # pylint: disable=assignment-from-none
-        if authenticated_user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        # At this point, authenticated_user is guaranteed not to be None
-
-        if not authenticated_user.is_active:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    if not authenticated_user.is_active:
+        raise bad_request_error("Inactive user")  # DRY: Standardized error
 
         # Create access token
         access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -96,72 +91,56 @@ def login_for_access_token(
 
 
 @router.post("/register", response_model=User)
-@limiter.limit(auth_config.REGISTER_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_REGISTER)  # DRY: Centralized rate limits
 def register_user(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     user_create: UserCreate,
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),  # DRY: Service injection
 ) -> User:
     """Register new user account."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    # Check if username already exists
+    # Check if username already exists
+    if maybe_none(auth_service.get_user_by_username, user_create.username):
+        raise bad_request_error("Username already registered")
 
-        # Check if username already exists
-        if auth_service.get_user_by_username(user_create.username):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered"
-            )
+    # Check if email already exists
+    if maybe_none(auth_service.get_user_by_email, user_create.email):
+        raise bad_request_error("Email already registered")
 
-        # Check if email already exists
-        if auth_service.get_user_by_email(user_create.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
-            )
+    # Create user
+    user = maybe_none(auth_service.create_user, user_create)
+    if not user:
+        raise internal_server_error("Failed to create user")
 
-        # Create user
-        user = auth_service.create_user(user_create)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user"
-            )
-        return user
+    return user
 
 
 @router.post("/refresh", response_model=Token)
 def refresh_access_token(
-    refresh_token: str, db_service: DatabaseService = Depends(get_database_service)
+    refresh_token: str, auth_service: AuthService = Depends(get_auth_service)
 ) -> Token:
     """Refresh access token using refresh token."""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate refresh token",
-        headers={"WWW-Authenticate": "Bearer"},
+    # Verify refresh token
+    token_data = maybe_none(security_manager.verify_token, refresh_token)
+    if token_data is None or token_data.username is None:
+        raise unauthorized_error("Could not validate refresh token")
+
+    # Get user
+    user = maybe_none(auth_service.get_user_by_username, token_data.username)
+    if user is None or not user.is_active:
+        raise unauthorized_error("Could not validate refresh token")
+
+    # Create new access token
+    access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security_manager.create_access_token(
+        data={"sub": user.username, "user_id": user.id}, expires_delta=access_token_expires
     )
 
-    # Verify refresh token
-    token_data = security_manager.verify_token(refresh_token)
-    if token_data is None or token_data.username is None:
-        raise credentials_exception
-
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
-
-        # Get user
-        user = auth_service.get_user_by_username(token_data.username)  # pylint: disable=assignment-from-none
-        if user is None or not user.is_active:
-            raise credentials_exception
-
-        # Create new access token
-        access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = security_manager.create_access_token(
-            data={"sub": user.username, "user_id": user.id}, expires_delta=access_token_expires
-        )
-
-        return Token(
-            access_token=access_token,
-            token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
-            expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        )
+    return Token(
+        access_token=access_token,
+        token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
+        expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.get("/me", response_model=User)
@@ -174,74 +153,61 @@ def read_users_me(current_user: User = Depends(get_current_active_user)) -> User
 def update_user_me(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_active_user),
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
     """Update current user information."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    # Check if email is being changed and already exists
+    if (
+        user_update.email
+        and user_update.email != current_user.email
+        and maybe_none(auth_service.get_user_by_email, user_update.email)
+    ):
+        raise bad_request_error("Email already registered")
 
-        # Check if email is being changed and already exists
-        if (
-            user_update.email
-            and user_update.email != current_user.email
-            and auth_service.get_user_by_email(user_update.email)
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
-            )
+    updated_user = maybe_none(auth_service.update_user, current_user.id, user_update)
+    if not updated_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        updated_user = auth_service.update_user(current_user.id, user_update)  # pylint: disable=assignment-from-none
-        if not updated_user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        return updated_user
+    return updated_user
 
 
 @router.post("/change-password")
 def change_password(
     password_change: PasswordChange,
     current_user: User = Depends(get_current_active_user),
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
     """Change user password."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    # Authenticate current password
+    authenticated_user = maybe_none(
+        auth_service.authenticate_user,
+        current_user.username,
+        password_change.current_password
+    )
+    if not authenticated_user:
+        raise bad_request_error("Incorrect current password")
 
-        # Authenticate current password
-        if not auth_service.authenticate_user(
-            current_user.username, password_change.current_password
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
-            )
+    # Change password
+    if not auth_service.change_password(current_user.id, password_change.new_password):
+        raise internal_server_error("Failed to change password")
 
-        # Change password
-        if not auth_service.change_password(current_user.id, password_change.new_password):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to change password",
-            )
-
-        return {"message": "Password changed successfully"}
+    return {"message": "Password changed successfully"}
 
 
 @router.post("/password-reset")
-@limiter.limit(auth_config.PASSWORD_RESET_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_PASSWORD_RESET)
 def request_password_reset(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     password_reset: PasswordReset,
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
     """Request password reset (sends email with reset token)."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    # Check if user exists (we don't use result to avoid user enumeration)
+    _ = maybe_none(auth_service.get_user_by_email, password_reset.email)
 
-        # Check if user exists (we don't use result to avoid user enumeration)
-        _ = auth_service.get_user_by_email(password_reset.email)  # pylint: disable=assignment-from-none
-
-        # Always return success to prevent email enumeration
-        # In production, this would send an email with reset token
-        return {"message": "If email exists, password reset instructions have been sent"}
+    # Always return success to prevent email enumeration
+    # In production, this would send an email with reset token
+    return {"message": "If email exists, password reset instructions have been sent"}
 
 
 @router.post("/password-reset/confirm")
@@ -264,43 +230,35 @@ def confirm_password_reset(
 def list_users(
     skip: int = 0,
     limit: int = 100,
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> list[User]:
     """List all users with pagination (admin only)."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
-        return auth_service.list_users(_skip=skip, _limit=limit)
+    return auth_service.list_users(_skip=skip, _limit=limit)
 
 
 @router.get("/users/{user_id}", response_model=User, dependencies=[Depends(get_current_superuser)])
 def get_user(
     user_id: str,
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
     """Get user by ID (admin only)."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    user = maybe_none(auth_service.get_user_by_id, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        user = auth_service.get_user_by_id(user_id)  # pylint: disable=assignment-from-none
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        return user
+    return user
 
 
 @router.delete("/users/{user_id}", dependencies=[Depends(get_current_superuser)])
 def deactivate_user(
     user_id: str,
-    db_service: DatabaseService = Depends(get_database_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
     """Deactivate user account (admin only)."""
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
+    if not auth_service.deactivate_user(user_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        if not auth_service.deactivate_user(user_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        return {"message": "User deactivated successfully"}
+    return {"message": "User deactivated successfully"}
 
 
 # OAuth2 SSO Helper Functions
@@ -388,27 +346,26 @@ def _create_jwt_tokens_for_user(user: User) -> Token:
 
 # OAuth2 SSO Endpoints
 @router.post("/oauth/login", response_model=SSOLoginResponse)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_OAUTH)
 def initiate_oauth_login(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     sso_request: SSOLoginRequest,
-    db_service: DatabaseService = Depends(get_database_service),
+    oauth_service: OAuthService = Depends(get_oauth_service),
 ) -> SSOLoginResponse:
     """Initiate OAuth2 SSO login flow - Following FastAPI official patterns."""
-    with db_service.get_session() as session:
-        oauth_service = OAuthService(session)
-        return oauth_service.initiate_oauth_login(
-            provider=sso_request.provider, redirect_uri=sso_request.redirect_uri
-        )
+    return oauth_service.initiate_oauth_login(
+        provider=sso_request.provider, redirect_uri=sso_request.redirect_uri
+    )
 
 
 @router.post("/oauth/{provider}/callback", response_model=Token)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_OAUTH)
 async def handle_oauth_callback(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     provider: OAuthProvider,
     oauth_callback: OAuthCallback,
-    db_service: DatabaseService = Depends(get_database_service),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> Token:
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
@@ -420,8 +377,8 @@ async def handle_oauth_callback(
 
     # Process OAuth callback with database session
     with db_service.get_session() as session:
-        oauth_service = OAuthService(session)
-        auth_service = AuthService(session)
+        oauth_service_local = OAuthService(session)
+        auth_service_local = AuthService(session)
 
         try:
             logger.info(
@@ -433,19 +390,16 @@ async def handle_oauth_callback(
 
             # Exchange authorization code for access token
             access_token, is_new_user = await _process_oauth_token_exchange(
-                provider, oauth_callback, oauth_service
+                provider, oauth_callback, oauth_service_local
             )
 
             # Get user information and retrieve user from database
-            user_info = await oauth_service._get_cached_user_info(access_token)  # pylint: disable=protected-access
-            user = auth_service.get_user_by_email(user_info.email)  # pylint: disable=assignment-from-none
+            user_info = await oauth_service_local._get_cached_user_info(access_token)  # pylint: disable=protected-access
+            user = maybe_none(auth_service_local.get_user_by_email, user_info.email)
 
             if not user:
                 logger.error("User not found after OAuth callback processing")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="User account creation or retrieval failed",
-                )
+                raise internal_server_error("User account creation or retrieval failed")
 
             # Log successful OAuth authentication
             logger.info(
@@ -465,10 +419,7 @@ async def handle_oauth_callback(
         except ValueError as e:
             # Handle validation errors from OAuth service
             logger.warning("OAuth callback validation error", provider=provider.value, error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"OAuth validation failed: {str(e)}",
-            ) from e
+            raise bad_request_error(f"OAuth validation failed: {str(e)}")
         except Exception as e:
             # Handle unexpected errors with structured logging
             logger.error(
@@ -477,10 +428,7 @@ async def handle_oauth_callback(
                 error=str(e),
                 error_type=type(e).__name__,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="OAuth authentication failed due to internal error",
-            ) from e
+            raise internal_server_error("OAuth authentication failed due to internal error")
 
 
 @router.get("/oauth/providers", response_model=list[str])
@@ -491,49 +439,39 @@ def list_oauth_providers() -> list[str]:
 
 # WebAuthn/Passkeys Endpoints - Passwordless Authentication
 @router.post("/passkeys/register/begin", response_model=PasskeyRegistrationResponse)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_PASSKEY)
 def begin_passkey_registration(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     passkey_request: PasskeyRegistrationRequest,
     current_user: User = Depends(get_current_active_user),
-    db_service: DatabaseService = Depends(get_database_service),
+    passkey_manager: PasskeyManager = Depends(get_passkey_manager),
 ) -> PasskeyRegistrationResponse:
     """Begin WebAuthn/Passkeys registration - Following FIDO2 standards."""
-    with db_service.get_session() as session:
-        webauthn_service = WebAuthnService(session)
-        passkey_manager = PasskeyManager(webauthn_service)
+    try:
+        registration_data = passkey_manager.start_passkey_registration(
+            user=current_user, device_name=passkey_request.device_name or "Default Device"
+        )
 
-        try:
-            registration_data = passkey_manager.start_passkey_registration(
-                user=current_user, device_name=passkey_request.device_name or "Default Device"
-            )
+        return PasskeyRegistrationResponse(
+            public_key=registration_data["publicKey"],
+            challenge_key=registration_data["challengeKey"],
+            device_name=registration_data["deviceName"],
+        )
 
-            return PasskeyRegistrationResponse(
-                public_key=registration_data["publicKey"],
-                challenge_key=registration_data["challengeKey"],
-                device_name=registration_data["deviceName"],
-            )
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to initiate passkey registration: {str(e)}",
-            ) from e
+    except Exception as e:
+        raise internal_server_error(f"Failed to initiate passkey registration: {str(e)}")
 
 
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_PASSKEY)
 def complete_passkey_registration(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     current_user: User = Depends(get_current_active_user),
-    db_service: DatabaseService = Depends(get_database_service),
+    webauthn_service: WebAuthnService = Depends(get_webauthn_service),
 ) -> dict[str, str]:
     """Complete WebAuthn/Passkeys registration following FIDO2 standards."""
-    with db_service.get_session() as session:
-        webauthn_service = WebAuthnService(session)
-
-        try:
+    try:
             logger.info(
                 "Processing passkey registration completion",
                 user_id=current_user.id,
@@ -585,52 +523,43 @@ def complete_passkey_registration(
                 "device_name": webauthn_credential.metadata.device_name or "Default Device",
             }
 
-        except ValueError as e:
-            # Handle WebAuthn validation errors
-            logger.warning(
-                "Passkey registration validation failed",
-                user_id=current_user.id,
-                error=str(e),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Passkey registration failed: {str(e)}",
-            ) from e
-        except Exception as e:
-            # Handle unexpected errors
-            logger.error(
-                "Unexpected error in passkey registration",
-                user_id=current_user.id,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Passkey registration failed due to internal error",
-            ) from e
+    except ValueError as e:
+        # Handle WebAuthn validation errors
+        logger.warning(
+            "Passkey registration validation failed",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        raise bad_request_error(f"Passkey registration failed: {str(e)}")
+    except Exception as e:
+        # Handle unexpected errors
+        logger.error(
+            "Unexpected error in passkey registration",
+            user_id=current_user.id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise internal_server_error("Passkey registration failed due to internal error")
 
 
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_PASSKEY)
 def begin_passkey_authentication(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     auth_request: PasskeyAuthenticationRequest,
-    db_service: DatabaseService = Depends(get_database_service),
+    webauthn_service: WebAuthnService = Depends(get_webauthn_service),
+    auth_service: AuthService = Depends(get_auth_service),
+    passkey_manager: PasskeyManager = Depends(get_passkey_manager),
 ) -> PasskeyAuthenticationResponse:
     """Begin WebAuthn/Passkeys authentication - Supports usernameless login."""
-    with db_service.get_session() as session:
-        webauthn_service = WebAuthnService(session)
-        passkey_manager = PasskeyManager(webauthn_service)
-
-        try:
-            # Get user if username provided, otherwise None for usernameless auth
-            user = None
-            if auth_request.username:
-                auth_service = AuthService(session)
-                user = auth_service.get_user_by_username(auth_request.username)  # pylint: disable=assignment-from-none
-                if not user:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+    try:
+        # Get user if username provided, otherwise None for usernameless auth
+        user = None
+        if auth_request.username:
+            user = maybe_none(auth_service.get_user_by_username, auth_request.username)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                     )
 
             authentication_data = passkey_manager.start_passkey_authentication(user)
@@ -640,17 +569,14 @@ def begin_passkey_authentication(
                 challenge_key=authentication_data["challengeKey"],
             )
 
-        except HTTPException:
-            raise  # Re-raise HTTP exceptions
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to initiate passkey authentication: {str(e)}",
-            ) from e
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        raise internal_server_error(f"Failed to initiate passkey authentication: {str(e)}")
 
 
 @router.post("/passkeys/authenticate/complete", response_model=Token)
-@limiter.limit(auth_config.AUTH_RATE_LIMIT)
+@limiter.limit(rate_limits.AUTH_PASSKEY)
 def complete_passkey_authentication(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,

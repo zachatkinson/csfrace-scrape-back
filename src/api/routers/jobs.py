@@ -7,13 +7,14 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
+from ...config.rate_limits import rate_limits
 from ...core.config import config as default_config
 from ...core.converter import AsyncWordPressConverter
 from ...database.models import JobStatus
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
 from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
-from ..utils import create_response_dict
+from ..utils import create_response_dict, internal_server_error
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -82,7 +83,7 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
 
 
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("20/hour")  # Allow 20 job creations per hour per IP
+@limiter.limit(rate_limits.JOB_CREATION)
 async def create_job(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     job_data: JobCreate,
@@ -113,10 +114,7 @@ async def create_job(
 
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to create job: {str(e)}")
 
 
 @router.get("/", response_model=JobListResponse)
@@ -155,10 +153,7 @@ async def list_jobs(
 
         return JobListResponse(**response_data)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve jobs: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to retrieve jobs: {str(e)}")
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -183,10 +178,7 @@ async def get_job(job_id: int, db: DBSession) -> JobResponse:
             )
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to retrieve job: {str(e)}")
 
 
 @router.put("/{job_id}", response_model=JobResponse)
@@ -212,10 +204,7 @@ async def update_job(job_id: int, job_data: JobUpdate, db: DBSession) -> JobResp
             )
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to update job: {str(e)}")
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -236,10 +225,7 @@ async def delete_job(job_id: int, db: DBSession) -> None:
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
             )
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to delete job: {str(e)}")
 
 
 @router.post("/{job_id}/start", response_model=JobResponse)
@@ -272,10 +258,7 @@ async def start_job(job_id: int, db: DBSession) -> JobResponse:
         updated_job = await JobCRUD.update_job_status(db, job_id, JobStatus.RUNNING)
         return JobResponse.model_validate(updated_job)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to start job: {str(e)}")
 
 
 @router.post("/{job_id}/cancel", response_model=JobResponse)
@@ -308,10 +291,7 @@ async def cancel_job(job_id: int, db: DBSession) -> JobResponse:
         updated_job = await JobCRUD.update_job_status(db, job_id, JobStatus.CANCELLED)
         return JobResponse.model_validate(updated_job)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to cancel job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to cancel job: {str(e)}")
 
 
 @router.post("/{job_id}/retry", response_model=JobResponse)
@@ -354,7 +334,4 @@ async def retry_job(job_id: int, db: DBSession) -> JobResponse:
         await db.refresh(job)
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retry job: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to retry job: {str(e)}")

@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from ..database.service import DatabaseService
 from .models import TokenData, User
 from .security import security_manager
+from .oauth_service import OAuthService
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
 
@@ -21,6 +22,30 @@ def get_database_service() -> DatabaseService:
     # Each request gets a fresh database service instance
     # This is better than global state for testing and thread safety
     return DatabaseService()
+
+
+# Service injection patterns (DRY principle)
+def get_auth_service(db_service: DatabaseService = Depends(get_database_service)) -> AuthService:
+    """Get auth service with injected database session - eliminates boilerplate."""
+    with db_service.get_session() as session:
+        return AuthService(session)
+
+
+def get_oauth_service(db_service: DatabaseService = Depends(get_database_service)) -> OAuthService:
+    """Get OAuth service with injected database session - eliminates boilerplate."""
+    with db_service.get_session() as session:
+        return OAuthService(session)
+
+
+def get_webauthn_service(db_service: DatabaseService = Depends(get_database_service)) -> WebAuthnService:
+    """Get WebAuthn service with injected database session - eliminates boilerplate."""
+    with db_service.get_session() as session:
+        return WebAuthnService(session)
+
+
+def get_passkey_manager() -> PasskeyManager:
+    """Get passkey manager instance - eliminates boilerplate."""
+    return PasskeyManager()
 
 
 def get_current_user(

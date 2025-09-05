@@ -8,11 +8,12 @@ from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 
 from ...batch.processor import BatchConfig, BatchProcessor
+from ...config.rate_limits import rate_limits
 from ...database.models import JobStatus
 from ..crud import BatchCRUD, JobCRUD
 from ..dependencies import DBSession, async_session
 from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
-from ..utils import create_response_dict
+from ..utils import create_response_dict, internal_server_error
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 limiter = Limiter(key_func=get_remote_address)
@@ -93,9 +94,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
 
 @router.post("/", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit(
-    "10/hour"
-)  # Allow 10 batch creations per hour per IP (more restrictive than single jobs)
+@limiter.limit(rate_limits.BATCH_CREATION)
 async def create_batch(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     batch_data: BatchCreate,
@@ -126,10 +125,7 @@ async def create_batch(
 
         return BatchResponse.model_validate(batch)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create batch: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to create batch: {str(e)}")
 
 
 @router.get("/", response_model=BatchListResponse)
@@ -162,10 +158,7 @@ async def list_batches(
 
         return BatchListResponse(**response_data)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve batches: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to retrieve batches: {str(e)}")
 
 
 @router.get("/{batch_id}", response_model=BatchWithJobsResponse)
@@ -190,7 +183,4 @@ async def get_batch(batch_id: int, db: DBSession) -> BatchWithJobsResponse:
             )
         return BatchWithJobsResponse.model_validate(batch)
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve batch: {str(e)}",
-        ) from e
+        raise internal_server_error(f"Failed to retrieve batch: {str(e)}")
