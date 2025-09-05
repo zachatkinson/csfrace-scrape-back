@@ -11,7 +11,7 @@ from ...core.config import config as default_config
 from ...core.converter import AsyncWordPressConverter
 from ...database.models import JobStatus
 from ..crud import JobCRUD
-from ..dependencies import DBSession
+from ..dependencies import DBSession, async_session
 from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -28,8 +28,6 @@ async def execute_conversion_job(job_id: int, url: str, output_dir: str):
         url: WordPress URL to convert
         output_dir: Output directory for conversion results
     """
-    # Get database session for background task
-    from ..dependencies import async_session
 
     async with async_session() as db:
         try:

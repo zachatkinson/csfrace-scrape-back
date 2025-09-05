@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ...batch.processor import BatchConfig, BatchProcessor
 from ...database.models import JobStatus
 from ..crud import BatchCRUD, JobCRUD
-from ..dependencies import DBSession
+from ..dependencies import DBSession, async_session
 from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
@@ -25,8 +25,6 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
         output_base_dir: Base output directory for batch
         max_concurrent: Maximum concurrent jobs
     """
-    from ..dependencies import async_session
-
     async with async_session() as db:
         try:
             # Get the batch and its jobs
