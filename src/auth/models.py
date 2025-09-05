@@ -1,4 +1,4 @@
-"""Authentication Pydantic models following FastAPI official patterns with DRY and SOLID principles."""
+"""Authentication Pydantic models following FastAPI patterns with DRY and SOLID principles."""
 
 from datetime import datetime
 from enum import Enum
@@ -24,6 +24,15 @@ class PasswordValidatorMixin:
         if not any(c.isdigit() for c in password):
             raise ValueError("Password must contain number")
         return password
+
+    @staticmethod
+    def validate_username(username: str) -> str:
+        """Validate username format."""
+        if len(username) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if not username.replace("_", "").replace("-", "").isalnum():
+            raise ValueError("Username can only contain letters, numbers, hyphens, and underscores")
+        return username
 
 
 class Token(BaseModel):

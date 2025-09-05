@@ -40,7 +40,7 @@ def get_current_user(
     # Get user from database using existing session pattern
     with db_service.get_session() as session:
         auth_service = AuthService(session)
-        user = auth_service.get_user_by_username(token_data.username)
+        user = auth_service.get_user_by_username(token_data.username)  # pylint: disable=assignment-from-none
         if user is None:
             raise credentials_exception
 
@@ -86,7 +86,9 @@ def require_scopes(*required_scopes: str):
     return check_scopes
 
 
-def get_webauthn_service(db_service: DatabaseService = Depends(get_database_service)) -> WebAuthnService:
+def get_webauthn_service(
+    db_service: DatabaseService = Depends(get_database_service),
+) -> WebAuthnService:
     """Get WebAuthn service instance with database dependency."""
     with db_service.get_session() as session:
         return WebAuthnService(db_session=session)

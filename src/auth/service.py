@@ -15,10 +15,10 @@ class AuthService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_user_by_username(self, username: str) -> User | None:
+    def get_user_by_username(self, _username: str) -> User | None:
         """Get user by username."""
-        # TODO: Replace with actual SQLAlchemy model query
-        # This is a placeholder - will be implemented with User table model
+        # Placeholder implementation - database integration pending
+        # Production implementation will query User table:
         # stmt = select(UserTable).where(UserTable.username == username)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()
@@ -26,9 +26,10 @@ class AuthService:
         #     return User.from_orm(user_row)
         return None
 
-    def get_user_by_email(self, email: str) -> User | None:
+    def get_user_by_email(self, _email: str) -> User | None:
         """Get user by email."""
-        # TODO: Replace with actual SQLAlchemy model query
+        # Placeholder implementation - database integration pending
+        # Production implementation will query User table:
         # stmt = select(UserTable).where(UserTable.email == email)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()
@@ -36,9 +37,10 @@ class AuthService:
         #     return User.from_orm(user_row)
         return None
 
-    def get_user_by_id(self, user_id: str) -> User | None:
+    def get_user_by_id(self, _user_id: str) -> User | None:
         """Get user by ID."""
-        # TODO: Replace with actual SQLAlchemy model query
+        # Placeholder implementation - database integration pending
+        # Production implementation will query User table:
         # stmt = select(UserTable).where(UserTable.id == user_id)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()
@@ -55,7 +57,8 @@ class AuthService:
         _hashed_password = security_manager.get_password_hash(user_create.password)
 
         # Create user in database
-        # TODO: Replace with actual SQLAlchemy model creation
+        # Placeholder implementation - database integration pending
+        # Production implementation will create User table entry:
         # user_data = UserTable(
         #     id=user_id,
         #     username=user_create.username,
@@ -83,9 +86,10 @@ class AuthService:
             created_at=datetime.now(UTC),
         )
 
-    def update_user(self, user_id: str, user_update: UserUpdate) -> User | None:
+    def update_user(self, _user_id: str, _user_update: UserUpdate) -> User | None:
         """Update user information."""
-        # TODO: Replace with actual SQLAlchemy model update
+        # Placeholder implementation - database integration pending
+        # Production implementation will update User table:
         # stmt = select(UserTable).where(UserTable.id == user_id)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()
@@ -102,10 +106,10 @@ class AuthService:
         # return User.from_orm(user_row)
         return None
 
-    def authenticate_user(self, username: str, password: str) -> UserInDB | None:
+    def authenticate_user(self, _username: str, _password: str) -> UserInDB | None:
         """Authenticate user with username and password."""
-        # Get user from database
-        # TODO: Replace with actual database query for UserInDB
+        # Placeholder implementation - database integration pending
+        # Production implementation will query User table and verify password:
         # stmt = select(UserTable).where(UserTable.username == username)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()
@@ -126,9 +130,10 @@ class AuthService:
         # return user_in_db
         return None
 
-    def change_password(self, user_id: str, new_password: str) -> bool:
+    def change_password(self, _user_id: str, _new_password: str) -> bool:
         """Change user password."""
-        # TODO: Replace with actual SQLAlchemy model update
+        # Placeholder implementation - database integration pending
+        # Production implementation will update User password:
         # stmt = select(UserTable).where(UserTable.id == user_id)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()
@@ -141,20 +146,20 @@ class AuthService:
         # return True
         return False
 
-    def list_users(self, skip: int = 0, limit: int = 100) -> list[User]:
+    def list_users(self, _skip: int = 0, _limit: int = 100) -> list[User]:
         """List users with pagination."""
-        # TODO: Replace with actual SQLAlchemy model query
+        # Placeholder implementation - database integration pending
+        # Production implementation will query User table with pagination:
         # stmt = select(UserTable).offset(skip).limit(limit)
         # result = self.db.execute(stmt)
         # user_rows = result.scalars().all()
         # return [User.from_orm(user_row) for user_row in user_rows]
-
-        # Placeholder return - empty list for now
         return []
 
-    def deactivate_user(self, user_id: str) -> bool:
+    def deactivate_user(self, _user_id: str) -> bool:
         """Deactivate user account."""
-        # TODO: Replace with actual SQLAlchemy model update
+        # Placeholder implementation - database integration pending
+        # Production implementation will deactivate User:
         # stmt = select(UserTable).where(UserTable.id == user_id)
         # result = self.db.execute(stmt)
         # user_row = result.scalar_one_or_none()

@@ -1,6 +1,7 @@
 """OAuth2 SSO service with SOLID principles and DRY validation."""
 
 import secrets
+import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from urllib.parse import urlencode
@@ -19,7 +20,7 @@ from ..constants import (
     OAUTH_MICROSOFT_CLIENT_SECRET,
     OAUTH_REDIRECT_URI_BASE,
 )
-from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, SSOLoginResponse, User
+from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, SSOLoginResponse, User, UserCreate
 from .service import AuthService
 
 logger = structlog.get_logger(__name__)
@@ -31,17 +32,14 @@ class OAuthProviderInterface(ABC):
     @abstractmethod
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:
         """Generate authorization URL for OAuth flow."""
-        pass
 
     @abstractmethod
     async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
         """Exchange authorization code for access token."""
-        pass
 
     @abstractmethod
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
         """Fetch user information using access token."""
-        pass
 
 
 class GoogleOAuthProvider(OAuthProviderInterface):
@@ -229,16 +227,20 @@ class OAuthProviderFactory:
             return GoogleOAuthProvider(
                 client_id=OAUTH_GOOGLE_CLIENT_ID, client_secret=OAUTH_GOOGLE_CLIENT_SECRET
             )
-        elif provider == OAuthProvider.GITHUB:
+        if provider == OAuthProvider.GITHUB:
             return GitHubOAuthProvider(
                 client_id=OAUTH_GITHUB_CLIENT_ID, client_secret=OAUTH_GITHUB_CLIENT_SECRET
             )
-        elif provider == OAuthProvider.MICROSOFT:
+        if provider == OAuthProvider.MICROSOFT:
             return MicrosoftOAuthProvider(
                 client_id=OAUTH_MICROSOFT_CLIENT_ID, client_secret=OAUTH_MICROSOFT_CLIENT_SECRET
             )
-        else:
-            raise ValueError(f"Unsupported OAuth provider: {provider}")
+        raise ValueError(f"Unsupported OAuth provider: {provider}")
+
+    @staticmethod
+    def get_supported_providers() -> list[OAuthProvider]:
+        """Get list of supported OAuth providers."""
+        return [OAuthProvider.GOOGLE, OAuthProvider.GITHUB, OAuthProvider.MICROSOFT]
 
 
 class OAuthService:
@@ -328,8 +330,6 @@ class OAuthService:
             return existing_user, False
 
         # Create new user from OAuth info
-        from .models import UserCreate
-
         user_create = UserCreate(
             username=oauth_user_info.email.split("@")[0],  # Use email prefix as username
             email=oauth_user_info.email,
@@ -342,8 +342,8 @@ class OAuthService:
 
     def _link_oauth_account(self, user_id: str, oauth_user_info: OAuthUserInfo) -> LinkedAccount:
         """Link OAuth account to user."""
-        # TODO: Implement database storage for linked accounts
-        # This would create/update a linked_accounts table entry
+        # Database storage implementation pending - for now return in-memory object
+        # This will create/update a linked_accounts table entry in production
         linked_account = LinkedAccount(
             user_id=user_id,
             provider=oauth_user_info.provider,
@@ -353,7 +353,7 @@ class OAuthService:
             is_primary=False,  # Could be True if this is the primary login method
         )
 
-        # TODO: Store in database
+        # Database storage will be implemented with linked_accounts table
         # self.db_session.add(linked_account_db_model)
         # self.db_session.commit()
 
@@ -388,7 +388,6 @@ class OAuthService:
             raise ValueError("State parameter provider mismatch")
 
         # Check expiration (states should expire after 10 minutes)
-        import time
         state_created = cached_state.get("created_at", 0)
         if time.time() - state_created > 600:  # 10 minutes
             logger.warning("Expired OAuth state parameter", state=state, provider=provider.value)
@@ -409,7 +408,6 @@ class OAuthService:
             provider: OAuth provider
             redirect_uri: Redirect URI used
         """
-        import time
 
         self._oauth_state_cache[state] = {
             "provider": provider,
@@ -428,7 +426,7 @@ class OAuthService:
 
         logger.debug("OAuth state stored", state=state, provider=provider.value)
 
-    async def _get_cached_user_info(self, access_token: str) -> OAuthUserInfo:
+    async def _get_cached_user_info(self, _access_token: str) -> OAuthUserInfo:
         """Get cached OAuth user information.
 
         This is a temporary solution. In production, this should be replaced

@@ -24,6 +24,7 @@ from webauthn.helpers.structs import (
 )
 
 from ..constants import WEBAUTHN_CONSTANTS
+from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
 from .models import User
 from .service import AuthService
 
@@ -31,13 +32,18 @@ logger = structlog.get_logger(__name__)
 
 
 @dataclass
-class WebAuthnCredential:
-    """WebAuthn credential model - Single Responsibility Principle."""
+class WebAuthnConfig:
+    """Configuration for WebAuthn service - Best practice for too-many-arguments."""
 
-    credential_id: str
-    public_key: str
-    sign_count: int
-    user_id: str
+    rp_id: str = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_ID
+    rp_name: str = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_NAME
+    origin: str = WEBAUTHN_CONSTANTS.WEBAUTHN_ORIGIN
+
+
+@dataclass
+class CredentialMetadata:
+    """Credential metadata - grouped attributes for better organization."""
+
     created_at: datetime
     last_used_at: datetime | None = None
     device_name: str | None = None
@@ -45,17 +51,43 @@ class WebAuthnCredential:
 
 
 @dataclass
-class WebAuthnRegistrationOptions:
-    """WebAuthn registration options - Interface Segregation."""
+class WebAuthnCredential:
+    """WebAuthn credential model - SOLID principles with composition."""
 
-    challenge: str
+    credential_id: str
+    public_key: str
+    sign_count: int
+    user_id: str
+    metadata: CredentialMetadata
+
+
+@dataclass
+class RelyingPartyInfo:
+    """Relying party information - grouped for better organization."""
+
     rp: dict[str, str | None]
-    user: dict[str, str]
+    rp_id: str
+
+
+@dataclass
+class RegistrationCredentialOptions:
+    """Credential options for registration - grouped related options."""
+
     pub_key_cred_params: list[dict]
-    timeout: int
-    attestation: str
     exclude_credentials: list[dict]
     authenticator_selection: dict[str, str]
+    attestation: str
+
+
+@dataclass
+class WebAuthnRegistrationOptions:
+    """WebAuthn registration options - SOLID principles with composition."""
+
+    challenge: str
+    relying_party: RelyingPartyInfo
+    user: dict[str, str]
+    credential_options: RegistrationCredentialOptions
+    timeout: int
 
 
 @dataclass
@@ -75,16 +107,12 @@ class WebAuthnService:
     def __init__(
         self,
         db_session: Session,
-        rp_id: str = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_ID,
-        rp_name: str = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_NAME,
-        origin: str = WEBAUTHN_CONSTANTS.WEBAUTHN_ORIGIN,
+        config: WebAuthnConfig | None = None,
         auth_service: AuthService | None = None,
     ):
-        """Initialize WebAuthn service with dependency injection."""
+        """Initialize WebAuthn service with dependency injection - Best practice."""
         self.db_session = db_session
-        self.rp_id = rp_id
-        self.rp_name = rp_name
-        self.origin = origin
+        self.config = config or WebAuthnConfig()
         self.auth_service = auth_service or AuthService(db_session)
 
         # Challenge storage for registration/authentication flows
@@ -105,8 +133,8 @@ class WebAuthnService:
 
         # Generate registration options using webauthn library
         registration_options = generate_registration_options(
-            rp_id=self.rp_id,
-            rp_name=self.rp_name,
+            rp_id=self.config.rp_id,
+            rp_name=self.config.rp_name,
             user_id=user.id.encode("utf-8"),
             user_name=user.username,
             user_display_name=user.full_name or user.username,
@@ -132,20 +160,16 @@ class WebAuthnService:
         }
 
         # Convert to our model format
-        options = WebAuthnRegistrationOptions(
-            challenge=bytes_to_base64url(registration_options.challenge),
+        rp_info = RelyingPartyInfo(
             rp={"id": registration_options.rp.id, "name": registration_options.rp.name},
-            user={
-                "id": bytes_to_base64url(registration_options.user.id),
-                "name": registration_options.user.name,
-                "displayName": registration_options.user.display_name,
-            },
+            rp_id=registration_options.rp.id or self.config.rp_id,
+        )
+
+        credential_opts = RegistrationCredentialOptions(
             pub_key_cred_params=[
                 {"type": param.type, "alg": param.alg}
                 for param in registration_options.pub_key_cred_params
             ],
-            timeout=registration_options.timeout or 60000,
-            attestation=registration_options.attestation,
             exclude_credentials=exclude_credentials,
             authenticator_selection={
                 "userVerification": str(
@@ -154,6 +178,19 @@ class WebAuthnService:
                     else "preferred"
                 )
             },
+            attestation=registration_options.attestation,
+        )
+
+        options = WebAuthnRegistrationOptions(
+            challenge=bytes_to_base64url(registration_options.challenge),
+            relying_party=rp_info,
+            user={
+                "id": bytes_to_base64url(registration_options.user.id),
+                "name": registration_options.user.name,
+                "displayName": registration_options.user.display_name,
+            },
+            credential_options=credential_opts,
+            timeout=registration_options.timeout or 60000,
         )
 
         return options, challenge_key
@@ -177,19 +214,23 @@ class WebAuthnService:
         verification = verify_registration_response(
             credential=credential,
             expected_challenge=base64url_to_bytes(challenge_data["challenge"]),
-            expected_origin=self.origin,
-            expected_rp_id=self.rp_id,
+            expected_origin=self.config.origin,
+            expected_rp_id=self.config.rp_id,
         )
 
         # verification is VerifiedRegistration object, no need for boolean check
         # Create and store credential
+        metadata = CredentialMetadata(
+            created_at=datetime.now(UTC),
+            device_name=device_name,
+        )
+
         webauthn_credential = WebAuthnCredential(
             credential_id=bytes_to_base64url(verification.credential_id),
             public_key=bytes_to_base64url(verification.credential_public_key),
             sign_count=verification.sign_count,
             user_id=challenge_data["user_id"],
-            created_at=datetime.now(UTC),
-            device_name=device_name,
+            metadata=metadata,
         )
 
         # Store credential in database
@@ -224,7 +265,7 @@ class WebAuthnService:
 
         # Generate authentication options
         authentication_options = generate_authentication_options(
-            rp_id=self.rp_id,
+            rp_id=self.config.rp_id,
             allow_credentials=[
                 PublicKeyCredentialDescriptor(
                     id=base64url_to_bytes(cred["id"]), type=PublicKeyCredentialType.PUBLIC_KEY
@@ -248,7 +289,7 @@ class WebAuthnService:
         options = WebAuthnAuthenticationOptions(
             challenge=bytes_to_base64url(authentication_options.challenge),
             timeout=authentication_options.timeout or 60000,
-            rp_id=authentication_options.rp_id or self.rp_id,
+            rp_id=authentication_options.rp_id or self.config.rp_id,
             allow_credentials=allow_credentials,
             user_verification=str(authentication_options.user_verification or "preferred"),
         )
@@ -271,15 +312,15 @@ class WebAuthnService:
         credential_id = bytes_to_base64url(credential.raw_id)
         stored_credential = self._get_credential_by_id(credential_id)
 
-        if not stored_credential or not stored_credential.is_active:
+        if not stored_credential or not stored_credential.metadata.is_active:
             raise ValueError("Credential not found or inactive")
 
         # Verify authentication response
         verification = verify_authentication_response(
             credential=credential,
             expected_challenge=base64url_to_bytes(challenge_data["challenge"]),
-            expected_origin=self.origin,
-            expected_rp_id=self.rp_id,
+            expected_origin=self.config.origin,
+            expected_rp_id=self.config.rp_id,
             credential_public_key=base64url_to_bytes(stored_credential.public_key),
             credential_current_sign_count=stored_credential.sign_count,
         )
@@ -288,7 +329,7 @@ class WebAuthnService:
 
         # Update credential usage
         stored_credential.sign_count = verification.new_sign_count
-        stored_credential.last_used_at = datetime.now(UTC)
+        stored_credential.metadata.last_used_at = datetime.now(UTC)
         self._update_credential(stored_credential)
 
         # Get authenticated user
@@ -312,7 +353,7 @@ class WebAuthnService:
         if not credential or credential.user_id != user.id:
             return False
 
-        credential.is_active = False
+        credential.metadata.is_active = False
         self._update_credential(credential)
         return True
 
@@ -335,12 +376,10 @@ class WebAuthnService:
 
     def _get_user_credentials(self, user_id: str) -> list[WebAuthnCredential]:
         """Get user credentials from database - Private implementation."""
-        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
-
         db_credentials = (
             self.db_session.query(WebAuthnCredentialModel)
             .filter(WebAuthnCredentialModel.user_id == user_id)
-            .filter(WebAuthnCredentialModel.is_active == True)  # noqa: E712
+            .filter(WebAuthnCredentialModel.is_active is True)
             .order_by(WebAuthnCredentialModel.created_at.desc())
             .all()
         )
@@ -352,22 +391,22 @@ class WebAuthnService:
                 public_key=db_cred.public_key,
                 sign_count=db_cred.sign_count,
                 user_id=db_cred.user_id,
-                created_at=db_cred.created_at,
-                last_used_at=db_cred.last_used_at,
-                device_name=db_cred.device_name,
-                is_active=db_cred.is_active,
+                metadata=CredentialMetadata(
+                    created_at=db_cred.created_at,
+                    last_used_at=db_cred.last_used_at,
+                    device_name=db_cred.device_name,
+                    is_active=db_cred.is_active,
+                ),
             )
             for db_cred in db_credentials
         ]
 
     def _get_credential_by_id(self, credential_id: str) -> WebAuthnCredential | None:
         """Get credential by ID from database - Private implementation."""
-        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
-
         db_credential = (
             self.db_session.query(WebAuthnCredentialModel)
             .filter(WebAuthnCredentialModel.credential_id == credential_id)
-            .filter(WebAuthnCredentialModel.is_active == True)  # noqa: E712
+            .filter(WebAuthnCredentialModel.is_active is True)
             .first()
         )
 
@@ -380,15 +419,16 @@ class WebAuthnService:
             public_key=db_credential.public_key,
             sign_count=db_credential.sign_count,
             user_id=db_credential.user_id,
-            created_at=db_credential.created_at,
-            last_used_at=db_credential.last_used_at,
-            device_name=db_credential.device_name,
-            is_active=db_credential.is_active,
+            metadata=CredentialMetadata(
+                created_at=db_credential.created_at,
+                last_used_at=db_credential.last_used_at,
+                device_name=db_credential.device_name,
+                is_active=db_credential.is_active,
+            ),
         )
 
     def _store_credential(self, credential: WebAuthnCredential) -> None:
         """Store credential in database - Private implementation."""
-        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
 
         # Create database model
         db_credential = WebAuthnCredentialModel(
@@ -396,10 +436,10 @@ class WebAuthnService:
             user_id=credential.user_id,
             public_key=credential.public_key,
             sign_count=credential.sign_count,
-            device_name=credential.device_name,
-            is_active=credential.is_active,
-            created_at=credential.created_at,
-            last_used_at=credential.last_used_at,
+            device_name=credential.metadata.device_name,
+            is_active=credential.metadata.is_active,
+            created_at=credential.metadata.created_at,
+            last_used_at=credential.metadata.last_used_at,
         )
 
         # Store in database
@@ -408,7 +448,6 @@ class WebAuthnService:
 
     def _update_credential(self, credential: WebAuthnCredential) -> None:
         """Update credential in database - Private implementation."""
-        from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
 
         # Find existing credential
         db_credential = (
@@ -420,8 +459,8 @@ class WebAuthnService:
         if db_credential:
             # Update fields
             db_credential.sign_count = credential.sign_count
-            db_credential.last_used_at = credential.last_used_at
-            db_credential.is_active = credential.is_active
+            db_credential.last_used_at = credential.metadata.last_used_at
+            db_credential.is_active = credential.metadata.is_active
             db_credential.usage_count = db_credential.usage_count + 1
 
             # Commit changes
@@ -442,13 +481,13 @@ class PasskeyManager:
         return {
             "publicKey": {
                 "challenge": options.challenge,
-                "rp": options.rp,
+                "rp": options.relying_party.rp,
                 "user": options.user,
-                "pubKeyCredParams": options.pub_key_cred_params,
+                "pubKeyCredParams": options.credential_options.pub_key_cred_params,
                 "timeout": options.timeout,
-                "attestation": options.attestation,
-                "excludeCredentials": options.exclude_credentials,
-                "authenticatorSelection": options.authenticator_selection,
+                "attestation": options.credential_options.attestation,
+                "excludeCredentials": options.credential_options.exclude_credentials,
+                "authenticatorSelection": options.credential_options.authenticator_selection,
             },
             "challengeKey": challenge_key,
             "deviceName": device_name,
@@ -475,15 +514,18 @@ class PasskeyManager:
 
         return {
             "total_passkeys": len(credentials),
-            "active_passkeys": len([c for c in credentials if c.is_active]),
-            "last_used": max([c.last_used_at for c in credentials if c.last_used_at], default=None),
+            "active_passkeys": len([c for c in credentials if c.metadata.is_active]),
+            "last_used": max(
+                (c.metadata.last_used_at for c in credentials if c.metadata.last_used_at),
+                default=None,
+            ),
             "devices": [
                 {
                     "id": c.credential_id,
-                    "name": c.device_name or "Unknown Device",
-                    "created_at": c.created_at,
-                    "last_used_at": c.last_used_at,
-                    "is_active": c.is_active,
+                    "name": c.metadata.device_name or "Unknown Device",
+                    "created_at": c.metadata.created_at,
+                    "last_used_at": c.metadata.last_used_at,
+                    "is_active": c.metadata.is_active,
                 }
                 for c in credentials
             ],

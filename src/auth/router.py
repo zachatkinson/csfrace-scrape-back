@@ -268,7 +268,7 @@ def list_users(
     """List all users with pagination (admin only)."""
     with db_service.get_session() as session:
         auth_service = AuthService(session)
-        return auth_service.list_users(skip=skip, limit=limit)
+        return auth_service.list_users(_skip=skip, _limit=limit)
 
 
 @router.get("/users/{user_id}", response_model=User, dependencies=[Depends(get_current_superuser)])
@@ -575,13 +575,13 @@ def complete_passkey_registration(
                 "Passkey registration completed successfully",
                 user_id=current_user.id,
                 credential_id=webauthn_credential.credential_id,
-                device_name=webauthn_credential.device_name,
+                device_name=webauthn_credential.metadata.device_name,
             )
 
             return {
                 "message": "Passkey registered successfully",
                 "credential_id": webauthn_credential.credential_id,
-                "device_name": webauthn_credential.device_name or "Default Device",
+                "device_name": webauthn_credential.metadata.device_name or "Default Device",
             }
 
         except ValueError as e:
@@ -698,7 +698,7 @@ def complete_passkey_authentication(
                 "Passkey authentication completed successfully",
                 user_id=user.id,
                 credential_id=webauthn_credential.credential_id,
-                device_name=webauthn_credential.device_name,
+                device_name=webauthn_credential.metadata.device_name,
             )
 
             # Generate JWT tokens for authenticated user
