@@ -469,4 +469,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**WordPress to Shopify Content Converter** - Making content migration effortless.# Test automation trigger - Fri Sep  5 03:34:45 EDT 2025
+**WordPress to Shopify Content Converter** - Making content migration effortless.
