@@ -46,7 +46,7 @@ class TestGrafanaCLI:
         # Verify output messages
         assert "Starting Grafana dashboard provisioning" in result.stdout
         assert "Dashboard provisioning completed successfully" in result.stdout
-        assert "docker-compose up -d" in result.stdout
+        assert "docker compose up -d" in result.stdout
 
     @patch.object(GrafanaDashboardProvisioner, "provision_all_dashboards")
     @patch.object(GrafanaDashboardProvisioner, "create_prometheus_config")

@@ -22,7 +22,7 @@ ALTER SYSTEM SET effective_cache_size = '1GB';
 ALTER SYSTEM SET autovacuum_vacuum_scale_factor = 0.1;
 ALTER SYSTEM SET autovacuum_analyze_scale_factor = 0.05;
 
--- Connection and memory settings will be handled by docker-compose command args
+-- Connection and memory settings will be handled by docker compose command args
 
 -- Grant necessary permissions
 GRANT ALL PRIVILEGES ON DATABASE scraper_db TO scraper_user;

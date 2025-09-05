@@ -1019,8 +1019,8 @@ csfrace-scrape/
 │   └── test.yaml
 ├── docker/
 │   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── docker-compose.prod.yml
+│   ├── docker compose.yml
+│   └── docker compose.prod.yml
 ├── docs/
 │   ├── api/
 │   ├── deployment/
@@ -1169,7 +1169,7 @@ uv run sphinx-build -b html docs/ docs/_build/
 docker build -t csfrace-scraper .
 
 # Run with Docker Compose
-docker-compose up -d
+docker compose up -d
 
 # Performance profiling
 uv run python -m cProfile -o profile.stats src/main.py <url>
@@ -1275,7 +1275,7 @@ CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port
 
 **Docker Compose for Development:**
 ```yaml
-# docker-compose.yml
+# docker compose.yml
 version: '3.8'
 
 services:

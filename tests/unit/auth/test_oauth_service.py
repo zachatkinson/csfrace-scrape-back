@@ -522,7 +522,7 @@ class TestOAuthCallbackHandling:
         oauth_service._cached_oauth_user_info = sample_oauth_user_info
         
         # Retrieve cached info
-        result = await oauth_service._get_cached_user_info("dummy_token")
+        result = await oauth_service.get_cached_user_info("dummy_token")
         
         assert result == sample_oauth_user_info
         assert result.email == "test@example.com"
@@ -532,7 +532,7 @@ class TestOAuthCallbackHandling:
     async def test_get_cached_user_info_no_cache(self, oauth_service):
         """Test cached user info retrieval when no cache exists."""
         with pytest.raises(ValueError, match="No cached OAuth user information available"):
-            await oauth_service._get_cached_user_info("dummy_token")
+            await oauth_service.get_cached_user_info("dummy_token")
 
     @pytest.mark.asyncio
     @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")

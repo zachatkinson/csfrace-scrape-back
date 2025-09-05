@@ -53,7 +53,7 @@ uv sync
 python -m pip install -r requirements.txt
 
 # Set up database
-docker-compose up -d postgres redis
+docker compose up -d postgres redis
 
 # Run database migrations
 uv run alembic upgrade head
@@ -276,22 +276,22 @@ ASTRO_AUTH_SECRET=your-secret-key
 ### Development
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Scale workers
-docker-compose up -d --scale worker=3
+docker compose up -d --scale worker=3
 ```
 
 ### Production
 ```bash
 # Build production images
-docker-compose -f docker-compose.prod.yml build
+docker compose -f docker compose.prod.yml build
 
 # Deploy with monitoring
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker compose.prod.yml up -d
 
 # Access Grafana at http://localhost:3000
 # Access API docs at http://localhost:8000/docs

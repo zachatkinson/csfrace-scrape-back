@@ -135,6 +135,14 @@ def internal_server_error(detail: str) -> HTTPException:
     )
 
 
+def validation_error(detail: str) -> HTTPException:
+    """Create standardized 422 Unprocessable Entity response for validation errors."""
+    return HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=detail,
+    )
+
+
 # Assignment-from-none wrapper (DRY principle)
 def maybe_none(func: Callable[..., T | None], *args, **kwargs) -> T | None:
     """Wrapper for functions that may return None - eliminates pylint warnings.

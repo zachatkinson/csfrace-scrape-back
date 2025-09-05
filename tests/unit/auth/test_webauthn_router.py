@@ -247,7 +247,7 @@ class TestWebAuthnRouterEndpoints:
 
         # Mock verification error
         mock_webauthn_service.verify_registration_response.side_effect = ValueError(
-            "Invalid challenge"
+            "Invalid or expired challenge"
         )
 
         # Make request with proper base64 encoding
@@ -275,7 +275,7 @@ class TestWebAuthnRouterEndpoints:
         assert response.status_code == 422
         response_data = response.json()
         assert "detail" in response_data
-        assert "Invalid challenge" in response_data["detail"]
+        assert "Invalid or expired challenge" in response_data["detail"]
 
     @patch("src.auth.dependencies.get_webauthn_service")
     def test_start_webauthn_authentication_success(
@@ -287,8 +287,8 @@ class TestWebAuthnRouterEndpoints:
         mock_get_webauthn_service.return_value = mock_webauthn_service
 
         # Mock dependencies
-        with patch("src.auth.router.get_auth_service") as mock_get_auth_service, \
-             patch("src.auth.router.get_passkey_manager") as mock_get_passkey_manager:
+        with patch("src.auth.dependencies.get_auth_service") as mock_get_auth_service, \
+             patch("src.auth.dependencies.get_passkey_manager") as mock_get_passkey_manager:
             
             mock_auth_service = Mock()
             mock_get_auth_service.return_value = mock_auth_service
@@ -452,7 +452,7 @@ class TestWebAuthnRouterEndpoints:
         # Verify error response
         assert response.status_code == 400
         response_data = response.json()
-        assert "Invalid challenge" in response_data["detail"]
+        assert "Invalid or expired challenge" in response_data["detail"]
 
     @patch("src.auth.dependencies.get_current_active_user")
     @patch("src.auth.dependencies.get_webauthn_service")

@@ -10,7 +10,7 @@ from slowapi.util import get_remote_address
 from webauthn.helpers import base64url_to_bytes
 from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
 
-from ..api.utils import bad_request_error, internal_server_error, maybe_none, unauthorized_error
+from ..api.utils import bad_request_error, internal_server_error, maybe_none, unauthorized_error, validation_error
 from ..config.rate_limits import rate_limits
 from ..constants import AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
 from ..database.service import DatabaseService
@@ -532,7 +532,11 @@ def complete_passkey_registration(
             user_id=current_user.id,
             error=str(e),
         )
-        raise bad_request_error(f"Passkey registration failed: {str(e)}") from e
+        # Use 422 for validation errors like invalid/expired challenges
+        if "challenge" in str(e).lower() or "expired" in str(e).lower():
+            raise validation_error(f"Passkey registration failed: {str(e)}") from e
+        else:
+            raise bad_request_error(f"Passkey registration failed: {str(e)}") from e
     except Exception as e:
         # Handle unexpected errors
         logger.error(

@@ -86,7 +86,7 @@ def provision(
         typer.echo(f"⚙️  Provisioning: {config.provisioning_dir}")
         typer.echo("🐳 Docker Compose updated")
         typer.echo("\n🎯 Next steps:")
-        typer.echo("   1. Run: docker-compose up -d")
+        typer.echo("   1. Run: docker compose up -d")
         typer.echo(f"   2. Access Grafana: http://localhost:{config.port}")
         typer.echo(
             f"   3. Login: {config.admin_user}/<password from GRAFANA_ADMIN_PASSWORD env var>"
@@ -158,7 +158,7 @@ def status() -> None:
         )
 
         # Check Docker Compose
-        docker_compose_exists = Path("docker-compose.yml").exists()
+        docker_compose_exists = Path("docker compose.yml").exists()
         typer.echo(f"🐳 Docker Compose: {'✅ Present' if docker_compose_exists else '❌ Missing'}")
 
         # Check Prometheus config
@@ -169,7 +169,7 @@ def status() -> None:
 
         # Service connectivity status (if services are running)
         typer.echo("\n🔗 Service Connectivity:")
-        typer.echo("   (Run 'docker-compose ps' to check running services)")
+        typer.echo("   (Run 'docker compose ps' to check running services)")
 
     except Exception as e:
         logger.error("Status check failed", error=str(e))
