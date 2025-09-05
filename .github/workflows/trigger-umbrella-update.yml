@@ -12,6 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Format commit message
+        id: format-commit
+        run: |
+          # Get first line of commit message (title only)
+          COMMIT_TITLE=$(echo '${{ github.event.head_commit.message }}' | head -n1 | tr -d '\n\r')
+          # Limit to 80 characters and remove problematic characters
+          CLEAN_TITLE=$(echo "$COMMIT_TITLE" | cut -c1-80 | sed 's/[[:cntrl:]]//g')
+          echo "title=$CLEAN_TITLE" >> $GITHUB_OUTPUT
+          echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
       - name: Trigger umbrella repo submodule update
         uses: peter-evans/repository-dispatch@v3
         with:
@@ -23,10 +33,11 @@ jobs:
               "repository": "${{ github.repository }}",
               "ref": "${{ github.ref }}",
               "sha": "${{ github.sha }}",
+              "short_sha": "${{ steps.format-commit.outputs.short_sha }}",
               "actor": "${{ github.actor }}",
               "workflow": "${{ github.workflow }}",
               "timestamp": "${{ github.event.head_commit.timestamp }}",
-              "message": "${{ github.event.head_commit.message }}",
+              "message": "${{ steps.format-commit.outputs.title }}",
               "url": "${{ github.event.head_commit.url }}"
             }
 
