@@ -4,6 +4,7 @@ This module provides comprehensive monitoring capabilities including:
 - System and application metrics collection with Prometheus export
 - Health check system with dependency validation
 - Performance monitoring with request tracing
+- OpenTelemetry distributed tracing for enhanced observability
 - Alerting system with configurable thresholds
 - Grafana dashboard provisioning and management
 - Structured logging with correlation tracking
@@ -16,6 +17,7 @@ from .health import HealthChecker, HealthConfig, health_checker
 from .metrics import MetricsCollector, MetricsConfig, metrics_collector
 from .observability import ObservabilityConfig, ObservabilityManager, observability_manager
 from .performance import PerformanceConfig, PerformanceMonitor, performance_monitor
+from .tracing import DistributedTracer, TracingConfig, distributed_tracer
 
 __all__ = [
     "MetricsCollector",
@@ -36,4 +38,7 @@ __all__ = [
     "GrafanaDashboardManager",
     "GrafanaDashboardProvisioner",
     "GrafanaConfig",
+    "DistributedTracer",
+    "TracingConfig",
+    "distributed_tracer",
 ]

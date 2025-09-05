@@ -10,6 +10,7 @@ from .alerts import AlertConfig, alert_manager
 from .health import HealthConfig, health_checker
 from .metrics import MetricsConfig, metrics_collector
 from .performance import PerformanceConfig, performance_monitor
+from .tracing import TracingConfig, distributed_tracer
 
 logger = structlog.get_logger(__name__)
 
@@ -25,6 +26,7 @@ class ObservabilityConfig:
     health_config: HealthConfig | None = None
     alerts_config: AlertConfig | None = None
     performance_config: PerformanceConfig | None = None
+    tracing_config: TracingConfig | None = None
 
     # Global settings
     startup_health_check: bool = True
@@ -63,6 +65,10 @@ class ObservabilityManager:
         if self.config.performance_config:
             self.performance_monitor.config = self.config.performance_config
 
+        self.distributed_tracer = distributed_tracer
+        if self.config.tracing_config:
+            self.distributed_tracer.config = self.config.tracing_config
+
         self._initialized = False
         self._shutdown_event = asyncio.Event()
 
@@ -88,6 +94,11 @@ class ObservabilityManager:
             if self.alert_manager.config.enabled:
                 await self.alert_manager.start_evaluation()
                 logger.debug("Alert manager started")
+
+            # Initialize distributed tracing
+            if self.distributed_tracer.config.enabled:
+                self.distributed_tracer.initialize()
+                logger.debug("Distributed tracer initialized")
 
             # Performance monitor doesn't need explicit initialization
             logger.debug("Performance monitor ready")
@@ -170,6 +181,10 @@ class ObservabilityManager:
             if self.performance_monitor.config.enabled:
                 shutdown_tasks.append(self.performance_monitor.shutdown())
 
+            if self.distributed_tracer.config.enabled:
+                # Distributed tracer shutdown is synchronous
+                self.distributed_tracer.shutdown()
+
             # Wait for all shutdowns to complete with timeout
             if shutdown_tasks:
                 await asyncio.wait_for(
@@ -204,6 +219,7 @@ class ObservabilityManager:
                 "health_enabled": self.health_checker.config.enabled,
                 "alerts_enabled": self.alert_manager.config.enabled,
                 "performance_enabled": self.performance_monitor.config.enabled,
+                "tracing_enabled": self.distributed_tracer.config.enabled,
             },
         }
 
@@ -225,6 +241,10 @@ class ObservabilityManager:
             # Get performance summary
             if self._initialized and self.performance_monitor.config.enabled:
                 overview["performance"] = self.performance_monitor.get_performance_summary()
+
+            # Get tracing summary
+            if self._initialized and self.distributed_tracer.config.enabled:
+                overview["tracing"] = self.distributed_tracer.get_tracing_status()
 
         except Exception as e:
             logger.error("Failed to generate system overview", error=str(e))
@@ -265,6 +285,18 @@ class ObservabilityManager:
                 "active_traces": len(self.performance_monitor.active_traces),
                 "completed_traces": len(self.performance_monitor.completed_traces),
                 "slow_requests": len(self.performance_monitor.slow_requests),
+            },
+            "distributed_tracer": {
+                "enabled": self.distributed_tracer.config.enabled,
+                "initialized": self.distributed_tracer._initialized,
+                "service_name": self.distributed_tracer.config.service_name,
+                "sampling_rate": self.distributed_tracer.config.sampling_rate,
+                "auto_instrumentation": {
+                    "fastapi": self.distributed_tracer.config.instrument_fastapi,
+                    "aiohttp": self.distributed_tracer.config.instrument_aiohttp,
+                    "sqlalchemy": self.distributed_tracer.config.instrument_sqlalchemy,
+                },
+                "current_trace_id": self.distributed_tracer.get_current_trace_id(),
             },
         }
 

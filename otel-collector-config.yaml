@@ -1,0 +1,83 @@
+# OpenTelemetry Collector configuration for CSFrace Scraper
+# Receives telemetry from the application and exports to Jaeger
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    # Batch spans for efficiency
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  resource:
+    attributes:
+      - key: service.namespace
+        value: csfrace
+        action: upsert
+      - key: deployment.environment
+        value: ${env:ENVIRONMENT}
+        action: upsert
+
+  filter:
+    spans:
+      exclude:
+        # Filter out health check spans to reduce noise
+        match_type: strict
+        attributes:
+          - key: http.target
+            value: /health
+        # Filter out very short spans (likely noise)
+        - key: duration
+          value: 1000000 # 1ms in nanoseconds
+          match_type: less_than
+
+exporters:
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  prometheus:
+    endpoint: "0.0.0.0:8888"
+    namespace: otel
+    const_labels:
+      service: csfrace-scraper
+
+  logging:
+    loglevel: info
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, filter, batch]
+      exporters: [jaeger, logging]
+    
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888
