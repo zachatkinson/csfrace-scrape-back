@@ -66,28 +66,28 @@ def login_for_access_token(
     if not authenticated_user.is_active:
         raise bad_request_error("Inactive user")  # DRY: Standardized error
 
-        # Create access token
-        access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = security_manager.create_access_token(
-            data={
-                "sub": authenticated_user.username,
-                "user_id": authenticated_user.id,
-                "scopes": form_data.scopes,
-            },
-            expires_delta=access_token_expires,
-        )
+    # Create access token
+    access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security_manager.create_access_token(
+        data={
+            "sub": authenticated_user.username,
+            "user_id": authenticated_user.id,
+            "scopes": form_data.scopes,
+        },
+        expires_delta=access_token_expires,
+    )
 
-        # Create refresh token
-        refresh_token = security_manager.create_refresh_token(
-            data={"sub": authenticated_user.username, "user_id": authenticated_user.id}
-        )
+    # Create refresh token
+    refresh_token = security_manager.create_refresh_token(
+        data={"sub": authenticated_user.username, "user_id": authenticated_user.id}
+    )
 
-        return Token(
-            access_token=access_token,
-            token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
-            expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            refresh_token=refresh_token,
-        )
+    return Token(
+        access_token=access_token,
+        token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
+        expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=refresh_token,
+    )
 
 
 @router.post("/register", response_model=User)
@@ -375,60 +375,56 @@ async def handle_oauth_callback(
     # Validate OAuth callback parameters
     _validate_oauth_callback_parameters(provider, oauth_callback)
 
-    # Process OAuth callback with database session
-    with db_service.get_session() as session:
-        oauth_service_local = OAuthService(session)
-        auth_service_local = AuthService(session)
+    # Process OAuth callback using injected services
+    try:
+        logger.info(
+            "Processing OAuth callback",
+            provider=provider.value,
+            code_present=bool(oauth_callback.code),
+            state_present=bool(oauth_callback.state),
+        )
 
-        try:
-            logger.info(
-                "Processing OAuth callback",
-                provider=provider.value,
-                code_present=bool(oauth_callback.code),
-                state_present=bool(oauth_callback.state),
-            )
+        # Exchange authorization code for access token
+        access_token, is_new_user = await _process_oauth_token_exchange(
+            provider, oauth_callback, oauth_service
+        )
 
-            # Exchange authorization code for access token
-            access_token, is_new_user = await _process_oauth_token_exchange(
-                provider, oauth_callback, oauth_service_local
-            )
+        # Get user information and retrieve user from database
+        user_info = await oauth_service._get_cached_user_info(access_token)  # pylint: disable=protected-access
+        user = maybe_none(auth_service.get_user_by_email, user_info.email)
 
-            # Get user information and retrieve user from database
-            user_info = await oauth_service_local._get_cached_user_info(access_token)  # pylint: disable=protected-access
-            user = maybe_none(auth_service_local.get_user_by_email, user_info.email)
+        if not user:
+            logger.error("User not found after OAuth callback processing")
+            raise internal_server_error("User account creation or retrieval failed")
 
-            if not user:
-                logger.error("User not found after OAuth callback processing")
-                raise internal_server_error("User account creation or retrieval failed")
+        # Log successful OAuth authentication
+        logger.info(
+            "OAuth authentication successful",
+            provider=provider.value,
+            user_id=user.id,
+            email=user.email,
+            is_new_user=is_new_user,
+        )
 
-            # Log successful OAuth authentication
-            logger.info(
-                "OAuth authentication successful",
-                provider=provider.value,
-                user_id=user.id,
-                email=user.email,
-                is_new_user=is_new_user,
-            )
+        # Generate and return JWT tokens
+        return _create_jwt_tokens_for_user(user)
 
-            # Generate and return JWT tokens
-            return _create_jwt_tokens_for_user(user)
-
-        except HTTPException:
-            # Re-raise HTTP exceptions as-is
-            raise
-        except ValueError as e:
-            # Handle validation errors from OAuth service
-            logger.warning("OAuth callback validation error", provider=provider.value, error=str(e))
-            raise bad_request_error(f"OAuth validation failed: {str(e)}")
-        except Exception as e:
-            # Handle unexpected errors with structured logging
-            logger.error(
-                "Unexpected error in OAuth callback",
-                provider=provider.value,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise internal_server_error("OAuth authentication failed due to internal error")
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValueError as e:
+        # Handle validation errors from OAuth service
+        logger.warning("OAuth callback validation error", provider=provider.value, error=str(e))
+        raise bad_request_error(f"OAuth validation failed: {str(e)}")
+    except Exception as e:
+        # Handle unexpected errors with structured logging
+        logger.error(
+            "Unexpected error in OAuth callback",
+            provider=provider.value,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise internal_server_error("OAuth authentication failed due to internal error")
 
 
 @router.get("/oauth/providers", response_model=list[str])

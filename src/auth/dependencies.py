@@ -43,9 +43,11 @@ def get_webauthn_service(db_service: DatabaseService = Depends(get_database_serv
         return WebAuthnService(session)
 
 
-def get_passkey_manager() -> PasskeyManager:
+def get_passkey_manager(
+    webauthn_service: WebAuthnService = Depends(get_webauthn_service),
+) -> PasskeyManager:
     """Get passkey manager instance - eliminates boilerplate."""
-    return PasskeyManager()
+    return PasskeyManager(webauthn_service)
 
 
 def get_current_user(
@@ -112,16 +114,3 @@ def require_scopes(*required_scopes: str):
     return check_scopes
 
 
-def get_webauthn_service(
-    db_service: DatabaseService = Depends(get_database_service),
-) -> WebAuthnService:
-    """Get WebAuthn service instance with database dependency."""
-    with db_service.get_session() as session:
-        return WebAuthnService(db_session=session)
-
-
-def get_passkey_manager(
-    webauthn_service: WebAuthnService = Depends(get_webauthn_service),
-) -> PasskeyManager:
-    """Get PasskeyManager instance with WebAuthn service dependency."""
-    return PasskeyManager(webauthn_service)

@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 T = TypeVar('T', bound=BaseModel)
 
 
-def handle_database_error(operation: str) -> HTTPException:
+def handle_database_error(operation: str) -> Callable[[SQLAlchemyError], HTTPException]:
     """Create a standardized HTTPException for database errors.
 
     Args:
@@ -135,7 +135,7 @@ def internal_server_error(detail: str) -> HTTPException:
 
 
 # Assignment-from-none wrapper (DRY principle)
-def maybe_none[T](func: Callable[..., T | None], *args, **kwargs) -> T | None:
+def maybe_none(func: Callable[..., T | None], *args, **kwargs) -> T | None:
     """Wrapper for functions that may return None - eliminates pylint warnings.
     
     This utility centralizes the pylint disable logic for functions that legitimately
