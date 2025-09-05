@@ -1008,10 +1008,11 @@ jobs:
       - name: Format commit message
         id: format-commit
         run: |
-          # Get first line of commit message (title only)
-          COMMIT_TITLE=$(echo '${{ github.event.head_commit.message }}' | head -n1 | tr -d '\n\r')
+          # Get first line of commit message (title only) - properly escaped
+          COMMIT_MESSAGE='${{ github.event.head_commit.message }}'
+          COMMIT_TITLE=$(echo "$COMMIT_MESSAGE" | head -n1 | tr -d '\n\r')
           # Limit to 80 characters and remove problematic characters
-          CLEAN_TITLE=$(echo "$COMMIT_TITLE" | cut -c1-80 | sed 's/[[:cntrl:]]//g')
+          CLEAN_TITLE=$(echo "$COMMIT_TITLE" | cut -c1-80 | sed 's/[[:cntrl:]]//g' | sed 's/[(){}[\]<>]//g')
           echo "title=$CLEAN_TITLE" >> $GITHUB_OUTPUT
           echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
 
