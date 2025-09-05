@@ -1,14 +1,17 @@
 """Utility functions and decorators for distributed tracing."""
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar, cast
 
 from ..monitoring import distributed_tracer
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
-def trace(operation_name: str | None = None, attributes: dict[str, Any] | None = None) -> Callable[[F], F]:
+def trace(
+    operation_name: str | None = None, attributes: dict[str, Any] | None = None
+) -> Callable[[F], F]:
     """Decorator to add distributed tracing to any function.
 
     Args:
@@ -27,28 +30,30 @@ def trace(operation_name: str | None = None, attributes: dict[str, Any] | None =
         def validate_token(token: str) -> bool:
             return jwt.decode(token)
     """
+
     def decorator(func: F) -> F:
-        if hasattr(func, '__code__') and func.__code__.co_flags & 0x80:  # Check if coroutine
+        if hasattr(func, "__code__") and func.__code__.co_flags & 0x80:  # Check if coroutine
+
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
                 span_name = operation_name or f"{func.__module__}.{func.__name__}"
                 span_attributes = {
                     "function.name": func.__name__,
                     "function.module": func.__module__,
-                    **(attributes or {})
+                    **(attributes or {}),
                 }
-                
+
                 async with distributed_tracer.trace_operation(span_name, span_attributes):
                     return await func(*args, **kwargs)
-            
-            return async_wrapper
-        else:
-            @wraps(func) 
-            def sync_wrapper(*args, **kwargs):
-                span_name = operation_name or f"{func.__module__}.{func.__name__}"
-                return distributed_tracer.trace_function(span_name, attributes)(func)(*args, **kwargs)
-            
-            return sync_wrapper
+
+            return cast("F", async_wrapper)
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            span_name = operation_name or f"{func.__module__}.{func.__name__}"
+            return distributed_tracer.trace_function(span_name, attributes)(func)(*args, **kwargs)
+
+        return cast("F", sync_wrapper)
 
     return decorator
 
@@ -99,16 +104,16 @@ def get_current_trace_context() -> dict[str, str | None]:
 
 class TraceContextManager:
     """Context manager for manual span management.
-    
+
     Usage:
         async with TraceContextManager("database_operation", {"table": "users"}) as span:
             result = await db.query("SELECT * FROM users")
             span.set_attribute("result_count", len(result))
     """
-    
+
     def __init__(self, operation_name: str, attributes: dict[str, Any] | None = None):
         """Initialize trace context manager.
-        
+
         Args:
             operation_name: Name of the operation
             attributes: Initial span attributes
@@ -120,8 +125,7 @@ class TraceContextManager:
     async def __aenter__(self):
         """Enter async context and start span."""
         self._span_context = distributed_tracer.trace_operation(
-            self.operation_name, 
-            self.attributes
+            self.operation_name, self.attributes
         )
         return await self._span_context.__aenter__()
 
@@ -134,50 +138,38 @@ class TraceContextManager:
 # Convenience functions for common tracing scenarios
 def trace_database_operation(table: str, operation: str):
     """Decorator for database operations.
-    
+
     Args:
         table: Database table name
         operation: Operation type (select, insert, update, delete)
     """
     return trace(
         operation_name=f"db.{operation}",
-        attributes={
-            "db.table": table,
-            "db.operation": operation,
-            "component": "database"
-        }
+        attributes={"db.table": table, "db.operation": operation, "component": "database"},
     )
 
 
 def trace_cache_operation(cache_type: str, operation: str):
     """Decorator for cache operations.
-    
+
     Args:
         cache_type: Cache type (redis, memory, file)
         operation: Operation type (get, set, delete)
     """
     return trace(
         operation_name=f"cache.{operation}",
-        attributes={
-            "cache.type": cache_type,
-            "cache.operation": operation,
-            "component": "cache"
-        }
+        attributes={"cache.type": cache_type, "cache.operation": operation, "component": "cache"},
     )
 
 
 def trace_http_request(method: str, url: str):
     """Decorator for HTTP requests.
-    
+
     Args:
         method: HTTP method
         url: Target URL
     """
     return trace(
         operation_name=f"http.{method.lower()}",
-        attributes={
-            "http.method": method,
-            "http.url": url,
-            "component": "http_client"
-        }
+        attributes={"http.method": method, "http.url": url, "component": "http_client"},
     )

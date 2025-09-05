@@ -4,9 +4,10 @@ This module provides OpenTelemetry-compliant distributed tracing that integrates
 with the existing monitoring infrastructure while following industry standards.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import structlog
 
@@ -28,7 +29,7 @@ try:
 except ImportError:
     OPENTELEMETRY_AVAILABLE = False
     logger.warning("OpenTelemetry not available - distributed tracing disabled")
-    trace = None
+    trace = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -48,7 +49,7 @@ class TracingConfig:
 
     # Sampling configuration
     sampling_rate: float = 1.0  # 1.0 = trace all requests
-    
+
     # Auto-instrumentation
     instrument_fastapi: bool = True
     instrument_aiohttp: bool = True
@@ -70,7 +71,7 @@ class DistributedTracer:
         """
         self.config = config or TracingConfig()
         self.tracer_provider: TracerProvider | None = None
-        self.tracer = None
+        self.tracer: Any = None
         self._initialized = False
 
         if not OPENTELEMETRY_AVAILABLE:
@@ -92,13 +93,15 @@ class DistributedTracer:
 
         try:
             # Create resource with service information
-            resource = Resource.create({
-                "service.name": self.config.service_name,
-                "service.version": self.config.service_version,
-                "deployment.environment": self.config.environment,
-                "telemetry.sdk.language": "python",
-                "telemetry.sdk.name": "opentelemetry",
-            })
+            resource = Resource.create(
+                {
+                    "service.name": self.config.service_name,
+                    "service.version": self.config.service_version,
+                    "deployment.environment": self.config.environment,
+                    "telemetry.sdk.language": "python",
+                    "telemetry.sdk.name": "opentelemetry",
+                }
+            )
 
             # Create tracer provider
             self.tracer_provider = TracerProvider(resource=resource)
@@ -164,7 +167,7 @@ class DistributedTracer:
         operation_name: str,
         attributes: dict[str, Any] | None = None,
         parent_context: Any | None = None,
-    ) -> AsyncGenerator[Any, None]:
+    ) -> AsyncGenerator[Any]:
         """Create a distributed trace span for an async operation.
 
         Args:
@@ -182,15 +185,15 @@ class DistributedTracer:
 
         attributes = attributes or {}
 
-        try:
-            with self.tracer.start_as_current_span(
-                operation_name,
-                attributes=attributes,
-                context=parent_context,
-            ) as span:
+        with self.tracer.start_as_current_span(
+            operation_name,
+            attributes=attributes,
+            context=parent_context,
+        ) as span:
+            try:
                 # Add custom attributes
                 span.set_attribute("operation.type", "async")
-                
+
                 # Add correlation ID if available
                 correlation_id = attributes.get("correlation_id")
                 if correlation_id:
@@ -205,18 +208,17 @@ class DistributedTracer:
 
                 yield span
 
-        except Exception as e:
-            if span:
+            except Exception as e:
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                 span.set_attribute("error.message", str(e))
                 span.set_attribute("error.type", type(e).__name__)
-            
-            logger.error(
-                "Distributed trace span failed",
-                operation=operation_name,
-                error=str(e),
-            )
-            raise
+
+                logger.error(
+                    "Distributed trace span failed",
+                    operation=operation_name,
+                    error=str(e),
+                )
+                raise
 
     def trace_function(self, operation_name: str, attributes: dict[str, Any] | None = None):
         """Decorator for tracing synchronous functions.
@@ -228,16 +230,19 @@ class DistributedTracer:
         Returns:
             Decorated function
         """
+
         def decorator(func):
             def wrapper(*args, **kwargs):
                 if not self._initialized or not self.tracer:
                     return func(*args, **kwargs)
 
                 span_attributes = attributes or {}
-                span_attributes.update({
-                    "function.name": func.__name__,
-                    "function.module": func.__module__,
-                })
+                span_attributes.update(
+                    {
+                        "function.name": func.__name__,
+                        "function.module": func.__module__,
+                    }
+                )
 
                 with self.tracer.start_as_current_span(
                     operation_name or func.__name__,
@@ -254,6 +259,7 @@ class DistributedTracer:
                         raise
 
             return wrapper
+
         return decorator
 
     def trace_async_function(self, operation_name: str, attributes: dict[str, Any] | None = None):
@@ -266,6 +272,7 @@ class DistributedTracer:
         Returns:
             Decorated async function
         """
+
         def decorator(func):
             async def wrapper(*args, **kwargs):
                 if not self._initialized:
@@ -277,11 +284,12 @@ class DistributedTracer:
                         **(attributes or {}),
                         "function.name": func.__name__,
                         "function.module": func.__module__,
-                    }
+                    },
                 ):
                     return await func(*args, **kwargs)
 
             return wrapper
+
         return decorator
 
     def get_current_trace_id(self) -> str | None:
@@ -296,7 +304,7 @@ class DistributedTracer:
         try:
             current_span = trace.get_current_span()
             if current_span and current_span.is_recording():
-                return format(current_span.get_span_context().trace_id, '032x')
+                return format(current_span.get_span_context().trace_id, "032x")
         except Exception as e:
             logger.debug("Failed to get current trace ID", error=str(e))
 
@@ -314,7 +322,7 @@ class DistributedTracer:
         try:
             current_span = trace.get_current_span()
             if current_span and current_span.is_recording():
-                return format(current_span.get_span_context().span_id, '016x')
+                return format(current_span.get_span_context().span_id, "016x")
         except Exception as e:
             logger.debug("Failed to get current span ID", error=str(e))
 
@@ -381,10 +389,10 @@ class DistributedTracer:
         try:
             if self.tracer_provider:
                 self.tracer_provider.shutdown()
-            
+
             self._initialized = False
             logger.info("Distributed tracer shutdown complete")
-        
+
         except Exception as e:
             logger.error("Error during distributed tracer shutdown", error=str(e))
 

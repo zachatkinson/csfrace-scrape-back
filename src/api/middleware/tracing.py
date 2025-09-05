@@ -1,7 +1,7 @@
 """Tracing middleware that integrates custom performance monitoring with OpenTelemetry."""
 
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -34,7 +34,7 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):
         """
         # Generate or extract correlation ID
         correlation_id = request.headers.get(self.correlation_header) or str(uuid.uuid4())
-        
+
         # Extract request information
         method = request.method
         path = request.url.path
@@ -46,12 +46,13 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):
             "method": method,
             "path": path,
             "user_agent": request.headers.get("User-Agent"),
-            "client_ip": getattr(request.client, "host", "unknown") if request.client else "unknown",
+            "client_ip": getattr(request.client, "host", "unknown")
+            if request.client
+            else "unknown",
         }
-        
+
         custom_trace_id = performance_monitor.start_trace(
-            operation=endpoint,
-            metadata=trace_metadata
+            operation=endpoint, metadata=trace_metadata
         )
 
         # Create OpenTelemetry span attributes
@@ -66,14 +67,13 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):
 
         # Start OpenTelemetry distributed trace
         async with distributed_tracer.trace_operation(
-            operation_name=endpoint,
-            attributes=otel_attributes
+            operation_name=endpoint, attributes=otel_attributes
         ) as span:
             try:
                 # Add correlation ID to response headers
                 response = await call_next(request)
                 response.headers[self.correlation_header] = correlation_id
-                
+
                 # Add trace ID to response headers if available
                 trace_id = distributed_tracer.get_current_trace_id()
                 if trace_id:
@@ -85,18 +85,16 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):
 
                 if span:
                     span.set_attribute("http.status_code", response.status_code)
-                    span.set_attribute("response.size", len(response.body) if hasattr(response, 'body') else 0)
+                    span.set_attribute(
+                        "response.size", len(response.body) if hasattr(response, "body") else 0
+                    )
 
                 return response
 
             except Exception as e:
                 # Record error in custom trace
                 if custom_trace_id:
-                    performance_monitor.finish_trace(
-                        custom_trace_id, 
-                        status="error", 
-                        error=str(e)
-                    )
+                    performance_monitor.finish_trace(custom_trace_id, status="error", error=str(e))
 
                 # Record error in OpenTelemetry span
                 if span:
@@ -116,7 +114,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
         """Initialize correlation middleware.
 
         Args:
-            app: FastAPI application 
+            app: FastAPI application
             correlation_header: Header name for correlation IDs
         """
         super().__init__(app)
@@ -140,7 +138,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
 
         # Process request
         response = await call_next(request)
-        
+
         # Add correlation ID to response
         response.headers[self.correlation_header] = correlation_id
 
