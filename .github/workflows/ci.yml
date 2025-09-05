@@ -1042,3 +1042,20 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "Message: ${{ github.event.head_commit.message }}"
+
+  # 3. Status checks: Make semantic-release a required status check
+  semantic-release:
+    name: Semantic Release
+    needs: [detect-changes, quality, unit-tests-linux, unit-tests-cross-platform, integration-tests, performance, docker-security]
+    # Only run on master branch pushes when CI passes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/release.yml
+    permissions:
+      id-token: write
+      contents: write
+      issues: write
+      pull-requests: write
+    with:
+      ci-success: true
+      commit-sha: ${{ github.sha }}
+    secrets: inherit

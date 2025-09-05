@@ -1,6 +1,19 @@
 name: Semantic Release
 
 on:
+  # Primary trigger: Called from main CI workflow
+  workflow_call:
+    inputs:
+      ci-success:
+        description: 'Whether CI pipeline was successful'
+        required: true
+        type: boolean
+      commit-sha:
+        description: 'Commit SHA to release'
+        required: true
+        type: string
+  
+  # Fallback trigger: Direct workflow_run (less reliable but backup)
   workflow_run:
     workflows: ["Progressive CI/CD Pipeline"]
     types:
@@ -13,8 +26,8 @@ jobs:
     name: Semantic Release
     runs-on: ubuntu-latest
     concurrency: release  # Prevent concurrent releases
-    # Only run if CI was successful
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Run if called directly with success=true OR if workflow_run was successful
+    if: ${{ (github.event_name == 'workflow_call' && inputs.ci-success) || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     permissions:
       id-token: write  # For provenance
       contents: write  # For creating releases
@@ -34,16 +47,114 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           root_options: "-vv"  # Very verbose mode for detailed traceback
           # UV will be installed via build_command in pyproject.toml
+          
+      - name: Create release success summary
+        if: success()
+        run: |
+          echo "## ✅ Semantic Release Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Release created successfully" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ inputs.commit-sha || github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Release Details" >> $GITHUB_STEP_SUMMARY
+          echo "Check the [Releases page](https://github.com/${{ github.repository }}/releases) for the new release." >> $GITHUB_STEP_SUMMARY
+          
+      - name: Close release-blocked issues on success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['ci-failure', 'release-blocked']
+            });
+            
+            for (const issue of issues.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ CI is now passing and semantic release has completed successfully. Closing this issue.'
+              });
+            }
 
-  # Notify when release is skipped due to CI failure
+  # Enhanced failure reporting and notifications
   notify-skip:
-    name: Notify Release Skip
+    name: Release Status Notification
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    # Run for workflow_call failures OR workflow_run failures
+    if: ${{ (github.event_name == 'workflow_call' && !inputs.ci-success) || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') }}
     
     steps:
-      - name: Report CI failure
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Create enhanced failure report
+        id: failure-report
         run: |
+          echo "## 🚫 Semantic Release Blocked" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** CI Pipeline failed - releases are blocked until issues are resolved" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo "**Failed Workflow:** [${{ github.event.workflow_run.name }}](${{ github.event.workflow_run.html_url }})" >> $GITHUB_STEP_SUMMARY
+            echo "**Commit:** ${{ github.event.workflow_run.head_sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Branch:** ${{ github.event.workflow_run.head_branch }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Commit:** ${{ inputs.commit-sha || github.sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review and fix CI failures" >> $GITHUB_STEP_SUMMARY
+          echo "2. Push fixes to trigger new CI run" >> $GITHUB_STEP_SUMMARY
+          echo "3. Semantic release will run automatically when CI passes" >> $GITHUB_STEP_SUMMARY
+          
           echo "⚠️ Semantic Release skipped - CI Pipeline failed!"
-          echo "Fix CI issues before releases can proceed."
-          echo "Failed workflow: ${{ github.event.workflow_run.html_url }}"
+          
+      - name: Create issue on repeated failures (optional)
+        if: ${{ vars.CREATE_FAILURE_ISSUES == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚫 Semantic Release Blocked - CI Failures';
+            const body = `## Problem
+            Semantic release has been blocked due to CI pipeline failures.
+            
+            **Failed Workflow:** ${{ github.event.workflow_run.html_url || 'N/A' }}
+            **Commit:** ${{ github.event.workflow_run.head_sha || github.sha }}
+            **Branch:** ${{ github.event.workflow_run.head_branch || github.ref_name }}
+            
+            ## Action Required
+            Please review and fix the CI failures before releases can proceed.
+            
+            This issue will be auto-closed when CI passes and release succeeds.`;
+            
+            // Check if similar issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['ci-failure', 'release-blocked']
+            });
+            
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['ci-failure', 'release-blocked', 'automated']
+              });
+            }
