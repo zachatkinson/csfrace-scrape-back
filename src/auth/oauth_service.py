@@ -445,6 +445,6 @@ class OAuthService:
         # Check if we have cached user info
         if self._cached_oauth_user_info is not None:
             return self._cached_oauth_user_info
-        
+
         # No cache available, raise error
         raise ValueError("No cached OAuth user information available")

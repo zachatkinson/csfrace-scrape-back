@@ -440,7 +440,9 @@ class WebAuthnCredential(Base):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # When credential was revoked
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )  # When credential was revoked
 
     def __repr__(self) -> str:
         """String representation of the WebAuthn credential."""
@@ -501,8 +503,12 @@ class WebAuthnChallenge(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, index=True
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # When challenge was consumed
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )  # When challenge was consumed
 
     # Additional context data
     context_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)

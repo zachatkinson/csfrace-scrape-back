@@ -523,7 +523,7 @@ request_duration_seconds_bucket{le="1.0"} 800
         """Test Prometheus metrics handles encoding correctly."""
         # Test with non-ASCII characters in metrics
         mock_metrics_with_unicode = (
-            '# HELP requests Total requests\n'
+            "# HELP requests Total requests\n"
             'total_requests{method="GET",endpoint="/api/v1/测试"} 42\n'
         ).encode()
 

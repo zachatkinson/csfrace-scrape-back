@@ -72,7 +72,9 @@ class TestJobRouterEndpoints:
             mock_background_tasks = MagicMock()
             mock_request = MagicMock(spec=Request)
             mock_request.client.host = "127.0.0.1"
-            result = await create_job(mock_request, job_create_data, mock_background_tasks, mock_db_session)
+            result = await create_job(
+                mock_request, job_create_data, mock_background_tasks, mock_db_session
+            )
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
@@ -91,7 +93,9 @@ class TestJobRouterEndpoints:
             mock_request = MagicMock(spec=Request)
             mock_request.client.host = "127.0.0.1"
             with pytest.raises(HTTPException) as exc_info:
-                await create_job(mock_request, job_create_data, mock_background_tasks, mock_db_session)
+                await create_job(
+                    mock_request, job_create_data, mock_background_tasks, mock_db_session
+                )
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Failed to create job" in exc_info.value.detail

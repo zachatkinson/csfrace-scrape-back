@@ -15,27 +15,33 @@ class TestBatchEndpoints:
     """Test batch API endpoints."""
 
     def _assert_pagination_response(
-        self, data: dict, expected_total: int, expected_page: int = 1, 
-        expected_page_size: int = 50, expected_batches_count: int = None
+        self,
+        data: dict,
+        expected_total: int,
+        expected_page: int = 1,
+        expected_page_size: int = 50,
+        expected_batches_count: int = None,
     ) -> None:
         """DRY utility: Assert pagination response structure."""
         assert data["total"] == expected_total
         assert data["page"] == expected_page
         assert data["page_size"] == expected_page_size
-        assert data["total_pages"] == (expected_total + expected_page_size - 1) // expected_page_size
-        
+        assert (
+            data["total_pages"] == (expected_total + expected_page_size - 1) // expected_page_size
+        )
+
         if expected_batches_count is not None:
             assert len(data["batches"]) == expected_batches_count
-        
+
         assert "batches" in data
 
     def _assert_batch_response(self, data: dict, expected_batch: Batch = None) -> None:
         """DRY utility: Assert batch response structure."""
         required_fields = ["id", "name", "description", "total_jobs", "status", "created_at"]
-        
+
         for field in required_fields:
             assert field in data, f"Missing required field: {field}"
-        
+
         if expected_batch:
             assert data["id"] == expected_batch.id
             assert data["name"] == expected_batch.name
@@ -43,8 +49,9 @@ class TestBatchEndpoints:
             assert data["total_jobs"] == expected_batch.total_jobs
             assert data["status"] == expected_batch.status.value
 
-    async def _assert_validation_errors(self, async_client: AsyncClient, endpoint: str, 
-                                       invalid_params: list[str]) -> None:
+    async def _assert_validation_errors(
+        self, async_client: AsyncClient, endpoint: str, invalid_params: list[str]
+    ) -> None:
         """DRY utility: Assert validation errors for invalid parameters."""
         for param in invalid_params:
             response = await async_client.get(f"{endpoint}?{param}")
@@ -62,19 +69,21 @@ class TestBatchEndpoints:
             "max_concurrent": 5,
             "continue_on_error": True,
             "create_archives": False,
-            "cleanup_after_archive": False
+            "cleanup_after_archive": False,
         }
-        
+
         for field, expected_value in defaults.items():
-            assert data[field] == expected_value, f"Expected {field}={expected_value}, got {data[field]}"
+            assert data[field] == expected_value, (
+                f"Expected {field}={expected_value}, got {data[field]}"
+            )
 
     @pytest.mark.asyncio
     async def test_create_batch_success(self, async_client: AsyncClient, batch_create_data: dict):
         """Test successful batch creation."""
         response = await async_client.post("/batches/", json=batch_create_data)
-        
+
         # Removed debug output - timezone issue should be fixed
-        
+
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
 
@@ -194,8 +203,7 @@ class TestBatchEndpoints:
         data = response.json()
 
         self._assert_pagination_response(
-            data, expected_total=5, expected_page=1, 
-            expected_page_size=2, expected_batches_count=2
+            data, expected_total=5, expected_page=1, expected_page_size=2, expected_batches_count=2
         )
 
     @pytest.mark.asyncio
@@ -203,8 +211,8 @@ class TestBatchEndpoints:
         """Test batch listing pagination edge cases."""
         invalid_params = [
             "page_size=500",  # Exceeding maximum
-            "page=0",        # Invalid page number
-            "page_size=-1"   # Negative page_size
+            "page=0",  # Invalid page number
+            "page_size=-1",  # Negative page_size
         ]
         await self._assert_validation_errors(async_client, "/batches/", invalid_params)
 
@@ -261,11 +269,11 @@ class TestBatchEndpoints:
         }
 
         response = await async_client.post("/batches/", json=batch_data)
-        
+
         # Skip if rate limited - this test is about job directory logic, not creation
         if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
             pytest.skip("Rate limited - logic test moved to dedicated shard")
-            
+
         assert response.status_code == status.HTTP_201_CREATED
         batch_id = response.json()["id"]
 
@@ -288,7 +296,7 @@ class TestBatchEndpoints:
         }
 
         response = await async_client.post("/batches/", json=minimal_data)
-        
+
         # Skip if rate limited - this test is about default values, not creation
         if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
             pytest.skip("Rate limited - logic test moved to dedicated shard")
@@ -327,7 +335,7 @@ class TestBatchEndpoints:
         }
 
         response = await async_client.post("/batches/", json=batch_data)
-        
+
         # Skip if rate limited - this test is about config preservation, not creation
         if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
             pytest.skip("Rate limited - logic test moved to dedicated shard")
@@ -351,7 +359,7 @@ class TestBatchEndpoints:
         }
 
         response = await async_client.post("/batches/", json=batch_data)
-        
+
         # Skip if rate limited - this test is about large batch logic, not creation
         if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
             pytest.skip("Rate limited - logic test moved to dedicated shard")

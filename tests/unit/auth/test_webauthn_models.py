@@ -458,7 +458,7 @@ class TestWebAuthnModelFieldValidation:
         special_names = [
             "User's iPhone",
             "Test Device (2024)",
-            "MacBook Pro 16\"",
+            'MacBook Pro 16"',
             "Device #1",
             "🔐 Secure Key",
         ]

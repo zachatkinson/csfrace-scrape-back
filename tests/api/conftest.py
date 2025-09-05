@@ -8,7 +8,6 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -60,18 +59,18 @@ async def override_get_db(test_db_session):
     """Override the database dependency and disable background tasks."""
     # Set testing environment variable to disable background tasks
     os.environ["TESTING"] = "true"
-    
+
     # Reset rate limiter storage for clean tests
     try:
-        from slowapi import Limiter
         from src.api.routers.batches import limiter
+
         # Clear the rate limiter storage between tests
-        if hasattr(limiter, 'storage'):
+        if hasattr(limiter, "storage"):
             limiter.storage.clear()
     except Exception:
         # If clearing fails, continue - tests will still run
         pass
-    
+
     # Proper async dependency override
     async def _get_test_db():
         yield test_db_session
@@ -79,7 +78,7 @@ async def override_get_db(test_db_session):
     app.dependency_overrides[get_db_session] = _get_test_db
     yield
     app.dependency_overrides.clear()
-    
+
     # Clean up environment variable
     os.environ.pop("TESTING", None)
 

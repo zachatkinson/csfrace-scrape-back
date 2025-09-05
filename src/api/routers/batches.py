@@ -120,9 +120,13 @@ async def create_batch(
 
         # Add background task to execute the batch processing (skip in test environment)
         import os
+
         if os.getenv("TESTING") != "true":
             background_tasks.add_task(
-                execute_batch_processing, batch.id, batch.output_base_directory, batch.max_concurrent
+                execute_batch_processing,
+                batch.id,
+                batch.output_base_directory,
+                batch.max_concurrent,
             )
 
         return BatchResponse.model_validate(batch)
