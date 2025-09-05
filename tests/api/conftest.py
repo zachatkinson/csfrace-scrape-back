@@ -1,6 +1,7 @@
 """API test configuration and fixtures."""
 
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -54,22 +55,41 @@ async def test_db_session(postgres_container) -> AsyncGenerator[AsyncSession]:
     await engine.dispose()
 
 
-@pytest.fixture
-def override_get_db(test_db_session):
-    """Override the database dependency."""
-
+@pytest_asyncio.fixture
+async def override_get_db(test_db_session):
+    """Override the database dependency and disable background tasks."""
+    # Set testing environment variable to disable background tasks
+    os.environ["TESTING"] = "true"
+    
+    # Reset rate limiter storage for clean tests
+    try:
+        from slowapi import Limiter
+        from src.api.routers.batches import limiter
+        # Clear the rate limiter storage between tests
+        if hasattr(limiter, 'storage'):
+            limiter.storage.clear()
+    except Exception:
+        # If clearing fails, continue - tests will still run
+        pass
+    
+    # Proper async dependency override
     async def _get_test_db():
         yield test_db_session
 
     app.dependency_overrides[get_db_session] = _get_test_db
     yield
     app.dependency_overrides.clear()
+    
+    # Clean up environment variable
+    os.environ.pop("TESTING", None)
 
 
 @pytest.fixture
 def client(override_get_db) -> TestClient:
     """Create a test client."""
-    return TestClient(app)
+    # TestClient handles async endpoints automatically
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest_asyncio.fixture

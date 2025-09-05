@@ -89,11 +89,11 @@ class ScrapingJob(Base):
 
     # Timing information
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
-    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -184,10 +184,10 @@ class Batch(Base):
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Configuration
     max_concurrent: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
@@ -253,7 +253,7 @@ class ContentResult(Base):
     # Metadata
     title: Mapped[str | None] = mapped_column(String(500))
     meta_description: Mapped[str | None] = mapped_column(Text)
-    published_date: Mapped[datetime | None] = mapped_column(DateTime)
+    published_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     author: Mapped[str | None] = mapped_column(String(255))
     tags: Mapped[list[str] | None] = mapped_column(JSON)
     categories: Mapped[list[str] | None] = mapped_column(JSON)
@@ -276,7 +276,7 @@ class ContentResult(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -314,7 +314,7 @@ class JobLog(Base):
     )  # INFO, WARN, ERROR, DEBUG
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     # Contextual information
@@ -353,7 +353,7 @@ class SystemMetrics(Base):
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, index=True
     )
     metric_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
@@ -418,7 +418,7 @@ class WebAuthnCredential(Base):
     user_verified: Mapped[bool | None] = mapped_column(Boolean)  # Last authentication verification
 
     # Usage tracking
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Geographic and network information (for security monitoring)
@@ -432,7 +432,7 @@ class WebAuthnCredential(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -440,7 +440,7 @@ class WebAuthnCredential(Base):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime)  # When credential was revoked
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # When credential was revoked
 
     def __repr__(self) -> str:
         """String representation of the WebAuthn credential."""
@@ -499,10 +499,10 @@ class WebAuthnChallenge(Base):
 
     # Challenge lifecycle
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, index=True
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    used_at: Mapped[datetime | None] = mapped_column(DateTime)  # When challenge was consumed
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # When challenge was consumed
 
     # Additional context data
     context_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)

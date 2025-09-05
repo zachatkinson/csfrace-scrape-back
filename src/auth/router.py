@@ -562,12 +562,13 @@ def begin_passkey_authentication(
                     status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                     )
 
-            authentication_data = passkey_manager.start_passkey_authentication(user)
+        # Start authentication (works for both username and usernameless flows)
+        authentication_data = passkey_manager.start_passkey_authentication(user)
 
-            return PasskeyAuthenticationResponse(
-                public_key=authentication_data["publicKey"],
-                challenge_key=authentication_data["challengeKey"],
-            )
+        return PasskeyAuthenticationResponse(
+            public_key=authentication_data["publicKey"],
+            challenge_key=authentication_data["challengeKey"],
+        )
 
     except HTTPException:
         raise  # Re-raise HTTP exceptions

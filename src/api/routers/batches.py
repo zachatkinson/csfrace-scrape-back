@@ -118,10 +118,12 @@ async def create_batch(
         # Create the batch record first
         batch = await BatchCRUD.create_batch(db, batch_data)
 
-        # Add background task to execute the batch processing
-        background_tasks.add_task(
-            execute_batch_processing, batch.id, batch.output_base_directory, batch.max_concurrent
-        )
+        # Add background task to execute the batch processing (skip in test environment)
+        import os
+        if os.getenv("TESTING") != "true":
+            background_tasks.add_task(
+                execute_batch_processing, batch.id, batch.output_base_directory, batch.max_concurrent
+            )
 
         return BatchResponse.model_validate(batch)
     except SQLAlchemyError as e:

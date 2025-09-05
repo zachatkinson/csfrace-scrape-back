@@ -148,7 +148,7 @@ class TestWebAuthnRouterEndpoints:
 
         # Verify service was called with default device name
         mock_passkey_manager.start_passkey_registration.assert_called_once_with(
-            sample_user, "Default Device"
+            user=sample_user, device_name="Default Device"
         )
 
     @patch("src.auth.dependencies.get_current_active_user")
@@ -171,8 +171,8 @@ class TestWebAuthnRouterEndpoints:
         # Verify error response
         assert response.status_code == 500
         response_data = response.json()
-        assert "error" in response_data
-        assert "Failed to start WebAuthn registration" in response_data["error"]
+        assert "detail" in response_data
+        assert "Failed to initiate passkey registration" in response_data["detail"]
 
     @patch("src.auth.dependencies.get_current_active_user")
     @patch("src.auth.router.get_webauthn_service")
@@ -188,31 +188,38 @@ class TestWebAuthnRouterEndpoints:
         mock_get_webauthn_service.return_value = mock_webauthn_service
 
         # Mock successful verification
+        from src.auth.webauthn_service import WebAuthnCredential, CredentialMetadata
         now = datetime.now(UTC)
         mock_credential = WebAuthnCredential(
             credential_id="test_credential_id",
             public_key="test_public_key",
             sign_count=0,
             user_id=sample_user.id,
-            created_at=now,
-            device_name="Test Device",
-            is_active=True,
+            metadata=CredentialMetadata(
+                created_at=now,
+                device_name="Test Device",
+                is_active=True,
+            ),
         )
         mock_webauthn_service.verify_registration_response.return_value = mock_credential
 
-        # Make request with mock credential data
+        # Make request with mock credential data (proper base64 encoding)
+        import base64
+        raw_id_bytes = b"test_credential_raw_id_12345"
+        raw_id_b64 = base64.urlsafe_b64encode(raw_id_bytes).decode('ascii').rstrip('=')
+        
         credential_data = {
-            "challengeKey": "reg_test_user_challenge",
-            "credential": {
-                "id": "credential_id",
-                "rawId": "credential_raw_id",
+            "challenge_key": "reg_test_user_challenge",
+            "credential_response": {
+                "id": "test_credential_id_12345",
+                "rawId": raw_id_b64,
                 "response": {
-                    "attestationObject": "attestation_object",
-                    "clientDataJSON": "client_data_json",
+                    "attestationObject": base64.urlsafe_b64encode(b"mock_attestation_object").decode('ascii').rstrip('='),
+                    "clientDataJSON": base64.urlsafe_b64encode(b"mock_client_data_json").decode('ascii').rstrip('='),
                 },
                 "type": "public-key",
             },
-            "deviceName": "Test Device",
+            "device_name": "Test Device",
         }
 
         response = client.post("/auth/passkeys/register/complete", json=credential_data)
@@ -221,10 +228,9 @@ class TestWebAuthnRouterEndpoints:
         assert response.status_code == 200
         response_data = response.json()
 
-        assert response_data["success"] is True
-        assert response_data["message"] == "WebAuthn credential registered successfully"
-        assert "credential" in response_data
-        assert response_data["credential"]["credential_id"] == "test_credential_id"
+        assert response_data["message"] == "Passkey registered successfully"
+        assert response_data["credential_id"] == "test_credential_id"
+        assert response_data["device_name"] == "Test Device"
 
     @patch("src.auth.dependencies.get_current_active_user")
     @patch("src.auth.router.get_webauthn_service")
@@ -244,28 +250,32 @@ class TestWebAuthnRouterEndpoints:
             "Invalid challenge"
         )
 
-        # Make request
+        # Make request with proper base64 encoding
+        import base64
+        raw_id_bytes = b"test_credential_raw_id_12345"
+        raw_id_b64 = base64.urlsafe_b64encode(raw_id_bytes).decode('ascii').rstrip('=')
+        
         credential_data = {
-            "challengeKey": "invalid_challenge",
-            "credential": {
-                "id": "credential_id",
-                "rawId": "credential_raw_id",
+            "challenge_key": "invalid_challenge",
+            "credential_response": {
+                "id": "test_credential_id_12345",
+                "rawId": raw_id_b64,
                 "response": {
-                    "attestationObject": "attestation_object",
-                    "clientDataJSON": "client_data_json",
+                    "attestationObject": base64.urlsafe_b64encode(b"mock_attestation_object").decode('ascii').rstrip('='),
+                    "clientDataJSON": base64.urlsafe_b64encode(b"mock_client_data_json").decode('ascii').rstrip('='),
                 },
                 "type": "public-key",
             },
-            "deviceName": "Test Device",
+            "device_name": "Test Device",
         }
 
         response = client.post("/auth/passkeys/register/complete", json=credential_data)
 
         # Verify error response
-        assert response.status_code == 400
+        assert response.status_code == 422
         response_data = response.json()
-        assert response_data["success"] is False
-        assert "Invalid challenge" in response_data["error"]
+        assert "detail" in response_data
+        assert "Invalid challenge" in response_data["detail"]
 
     @patch("src.auth.router.get_webauthn_service")
     def test_start_webauthn_authentication_success(
@@ -276,37 +286,43 @@ class TestWebAuthnRouterEndpoints:
         mock_webauthn_service = Mock()
         mock_get_webauthn_service.return_value = mock_webauthn_service
 
-        # Mock passkey manager
-        mock_passkey_manager = Mock()
-        mock_webauthn_service.passkey_manager = mock_passkey_manager
+        # Mock dependencies
+        with patch("src.auth.router.get_auth_service") as mock_get_auth_service, \
+             patch("src.auth.router.get_passkey_manager") as mock_get_passkey_manager:
+            
+            mock_auth_service = Mock()
+            mock_get_auth_service.return_value = mock_auth_service
+            
+            mock_passkey_manager = Mock()
+            mock_get_passkey_manager.return_value = mock_passkey_manager
+            
+            # Mock authentication data for usernameless auth
+            mock_authentication_data = {
+                "publicKey": {
+                    "challenge": "test_challenge",
+                    "timeout": 60000,
+                    "rpId": "example.com",
+                    "allowCredentials": [],  # Usernameless
+                    "userVerification": "preferred",
+                },
+                "challengeKey": "auth_any_challenge",
+            }
+            mock_passkey_manager.start_passkey_authentication.return_value = mock_authentication_data
 
-        # Mock authentication data
-        mock_authentication_data = {
-            "publicKey": {
-                "challenge": "test_challenge",
-                "timeout": 60000,
-                "rpId": "example.com",
-                "allowCredentials": [],  # Usernameless
-                "userVerification": "preferred",
-            },
-            "challengeKey": "auth_any_challenge",
-        }
-        mock_passkey_manager.start_passkey_authentication.return_value = mock_authentication_data
+            # Make request for usernameless authentication (no username = usernameless)
+            response = client.post("/auth/passkeys/authenticate/begin", json={})
 
-        # Make request for usernameless authentication
-        response = client.post("/auth/passkeys/authenticate/begin")
+            # Verify response
+            assert response.status_code == 200
+            response_data = response.json()
 
-        # Verify response
-        assert response.status_code == 200
-        response_data = response.json()
+            assert "public_key" in response_data
+            assert "challenge_key" in response_data
+            assert response_data["challenge_key"] == "auth_any_challenge"
+            assert response_data["public_key"]["challenge"] == "test_challenge"
 
-        assert "publicKey" in response_data
-        assert "challengeKey" in response_data
-        assert response_data["challengeKey"] == "auth_any_challenge"
-        assert response_data["publicKey"]["challenge"] == "test_challenge"
-
-        # Verify service was called for usernameless auth
-        mock_passkey_manager.start_passkey_authentication.assert_called_once_with(user=None)
+            # Verify service was called for usernameless auth
+            mock_passkey_manager.start_passkey_authentication.assert_called_once_with(None)
 
     @patch("src.auth.router.get_webauthn_service")
     def test_start_webauthn_authentication_service_error(

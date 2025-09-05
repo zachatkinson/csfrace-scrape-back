@@ -28,40 +28,48 @@ class TestWebAuthnCredential:
 
     def test_webauthn_credential_creation(self):
         """Test WebAuthn credential model instantiation."""
+        from src.auth.webauthn_service import CredentialMetadata
         now = datetime.now(UTC)
+        metadata = CredentialMetadata(
+            created_at=now,
+            device_name="Test Device",
+            is_active=True,
+        )
         credential = WebAuthnCredential(
             credential_id="test_credential_id",
             public_key="test_public_key",
             sign_count=0,
             user_id="test_user_id",
-            created_at=now,
-            device_name="Test Device",
-            is_active=True,
+            metadata=metadata,
         )
 
         assert credential.credential_id == "test_credential_id"
         assert credential.public_key == "test_public_key"
         assert credential.sign_count == 0
         assert credential.user_id == "test_user_id"
-        assert credential.created_at == now
-        assert credential.device_name == "Test Device"
-        assert credential.is_active is True
-        assert credential.last_used_at is None
+        assert credential.metadata.created_at == now
+        assert credential.metadata.device_name == "Test Device"
+        assert credential.metadata.is_active is True
+        assert credential.metadata.last_used_at is None
 
     def test_webauthn_credential_defaults(self):
         """Test WebAuthn credential default values."""
+        from src.auth.webauthn_service import CredentialMetadata
         now = datetime.now(UTC)
+        metadata = CredentialMetadata(
+            created_at=now,
+        )
         credential = WebAuthnCredential(
             credential_id="test_credential_id",
             public_key="test_public_key",
             sign_count=0,
             user_id="test_user_id",
-            created_at=now,
+            metadata=metadata,
         )
 
-        assert credential.last_used_at is None
-        assert credential.device_name is None
-        assert credential.is_active is True
+        assert credential.metadata.last_used_at is None
+        assert credential.metadata.device_name is None
+        assert credential.metadata.is_active is True
 
 
 class TestWebAuthnRegistrationOptions:
@@ -69,21 +77,32 @@ class TestWebAuthnRegistrationOptions:
 
     def test_registration_options_creation(self):
         """Test WebAuthn registration options model instantiation."""
-        options = WebAuthnRegistrationOptions(
-            challenge="test_challenge",
+        from src.auth.webauthn_service import WebAuthnRegistrationOptions, RelyingPartyInfo, RegistrationCredentialOptions
+        
+        rp_info = RelyingPartyInfo(
             rp={"id": "example.com", "name": "Example"},
-            user={"id": "user123", "name": "testuser", "displayName": "Test User"},
+            rp_id="example.com"
+        )
+        
+        cred_options = RegistrationCredentialOptions(
             pub_key_cred_params=[{"type": "public-key", "alg": -7}],
-            timeout=60000,
-            attestation="none",
             exclude_credentials=[],
             authenticator_selection={"userVerification": "preferred"},
+            attestation="none"
+        )
+        
+        options = WebAuthnRegistrationOptions(
+            challenge="test_challenge",
+            relying_party=rp_info,
+            user={"id": "user123", "name": "testuser", "displayName": "Test User"},
+            credential_options=cred_options,
+            timeout=60000,
         )
 
         assert options.challenge == "test_challenge"
-        assert options.rp == {"id": "example.com", "name": "Example"}
+        assert options.relying_party.rp == {"id": "example.com", "name": "Example"}
         assert options.user["name"] == "testuser"
-        assert len(options.pub_key_cred_params) == 1
+        assert len(options.credential_options.pub_key_cred_params) == 1
         assert options.timeout == 60000
 
 
@@ -135,40 +154,51 @@ class TestWebAuthnService:
     @pytest.fixture
     def webauthn_service(self, mock_db_session, mock_auth_service):
         """Create WebAuthn service instance for testing."""
-        return WebAuthnService(
-            db_session=mock_db_session,
+        from src.auth.webauthn_service import WebAuthnConfig
+        config = WebAuthnConfig(
             rp_id="example.com",
             rp_name="Example App",
             origin="https://example.com",
+        )
+        return WebAuthnService(
+            db_session=mock_db_session,
+            config=config,
             auth_service=mock_auth_service,
         )
 
     @pytest.fixture
     def sample_webauthn_credential(self):
         """Sample WebAuthn credential for testing."""
+        from src.auth.webauthn_service import WebAuthnCredential, CredentialMetadata
         return WebAuthnCredential(
             credential_id="test_credential_id",
             public_key="test_public_key",
             sign_count=0,
             user_id="test_user_id",
-            created_at=datetime.now(UTC),
-            device_name="Test Device",
-            is_active=True,
+            metadata=CredentialMetadata(
+                created_at=datetime.now(UTC),
+                device_name="Test Device",
+                is_active=True,
+            ),
         )
 
     def test_webauthn_service_initialization(self, mock_db_session):
         """Test WebAuthn service initialization with dependency injection."""
-        service = WebAuthnService(
-            db_session=mock_db_session,
+        from src.auth.webauthn_service import WebAuthnConfig
+        config = WebAuthnConfig(
             rp_id="test.com",
             rp_name="Test App",
             origin="https://test.com",
         )
+        service = WebAuthnService(
+            db_session=mock_db_session,
+            config=config,
+        )
 
         assert service.db_session == mock_db_session
-        assert service.rp_id == "test.com"
-        assert service.rp_name == "Test App"
-        assert service.origin == "https://test.com"
+        assert service.config.rp_id == "test.com"
+        assert service.config.rp_name == "Test App"
+        assert service.config.origin == "https://test.com"
         assert service.auth_service is not None
         assert isinstance(service._pending_challenges, dict)
 
@@ -176,9 +206,9 @@ class TestWebAuthnService:
         """Test WebAuthn service uses default constants."""
         service = WebAuthnService(db_session=mock_db_session)
 
-        assert service.rp_id == WEBAUTHN_CONSTANTS.WEBAUTHN_RP_ID
-        assert service.rp_name == WEBAUTHN_CONSTANTS.WEBAUTHN_RP_NAME
-        assert service.origin == WEBAUTHN_CONSTANTS.WEBAUTHN_ORIGIN
+        assert service.config.rp_id == WEBAUTHN_CONSTANTS.WEBAUTHN_RP_ID
+        assert service.config.rp_name == WEBAUTHN_CONSTANTS.WEBAUTHN_RP_NAME
+        assert service.config.origin == WEBAUTHN_CONSTANTS.WEBAUTHN_ORIGIN
 
     @patch("src.auth.webauthn_service.generate_registration_options")
     def test_generate_registration_options_success(
@@ -206,10 +236,10 @@ class TestWebAuthnService:
 
         # Verify options structure
         assert isinstance(options, WebAuthnRegistrationOptions)
-        assert options.rp["id"] == "example.com"
-        assert options.rp["name"] == "Example App"
+        assert options.relying_party.rp["id"] == "example.com"
+        assert options.relying_party.rp["name"] == "Example App"
         assert options.user["name"] == "testuser"
-        assert len(options.pub_key_cred_params) == 1
+        assert len(options.credential_options.pub_key_cred_params) == 1
         assert options.timeout == 60000
 
         # Verify challenge is stored
@@ -243,9 +273,9 @@ class TestWebAuthnService:
         options, challenge_key = webauthn_service.generate_registration_options(sample_user)
 
         # Verify exclude credentials includes existing credential
-        assert len(options.exclude_credentials) == 1
-        assert options.exclude_credentials[0]["id"] == sample_webauthn_credential.credential_id
-        assert options.exclude_credentials[0]["type"] == "public-key"
+        assert len(options.credential_options.exclude_credentials) == 1
+        assert options.credential_options.exclude_credentials[0]["id"] == sample_webauthn_credential.credential_id
+        assert options.credential_options.exclude_credentials[0]["type"] == "public-key"
 
     @patch("src.auth.webauthn_service.verify_registration_response")
     def test_verify_registration_response_success(self, mock_verify, webauthn_service):
@@ -279,8 +309,8 @@ class TestWebAuthnService:
         # Verify result
         assert isinstance(result, WebAuthnCredential)
         assert result.user_id == "test_user_id"
-        assert result.device_name == "Test Device"
-        assert result.is_active is True
+        assert result.metadata.device_name == "Test Device"
+        assert result.metadata.is_active is True
 
         # Verify challenge was cleaned up
         assert challenge_key not in webauthn_service._pending_challenges
@@ -451,11 +481,12 @@ class TestWebAuthnService:
         }
 
         # Make credential inactive
-        sample_webauthn_credential.is_active = False
+        sample_webauthn_credential.metadata.is_active = False
         webauthn_service._get_credential_by_id = Mock(return_value=sample_webauthn_credential)
 
         mock_credential = Mock(spec=AuthenticationCredential)
         mock_credential.raw_id = b"test_credential_id"
+        mock_credential.id = "test_credential_id"  # Add missing id attribute
 
         with pytest.raises(ValueError, match="Credential not found or inactive"):
             webauthn_service.verify_authentication_response(mock_credential, challenge_key)
@@ -480,7 +511,7 @@ class TestWebAuthnService:
         result = webauthn_service.revoke_credential(sample_user, "test_credential_id")
 
         assert result is True
-        assert sample_webauthn_credential.is_active is False
+        assert sample_webauthn_credential.metadata.is_active is False
         webauthn_service._update_credential.assert_called_once_with(sample_webauthn_credential)
 
     def test_revoke_credential_not_found(self, webauthn_service, sample_user):
@@ -538,11 +569,12 @@ class TestWebAuthnServiceDatabaseIntegration:
         """Create WebAuthn service instance for testing."""
         return WebAuthnService(db_session=mock_db_session)
 
-    @patch("src.auth.webauthn_service.WebAuthnCredential")
     def test_get_user_credentials_database_query(
-        self, mock_webauthn_credential_model, webauthn_service, mock_db_session
+        self, webauthn_service, mock_db_session
     ):
         """Test database query for getting user credentials."""
+        from src.auth.webauthn_service import CredentialMetadata
+        
         # Mock database model
         mock_db_cred = Mock()
         mock_db_cred.credential_id = "test_cred_id"
@@ -569,14 +601,15 @@ class TestWebAuthnServiceDatabaseIntegration:
         mock_query.order_by.assert_called_once()
         mock_query.all.assert_called_once()
 
-        # Verify returned credentials
+        # Verify returned credentials are real WebAuthnCredential objects
         assert len(credentials) == 1
         assert credentials[0].credential_id == "test_cred_id"
         assert credentials[0].user_id == "test_user_id"
+        assert credentials[0].metadata.device_name == "Test Device"
+        assert credentials[0].metadata.is_active is True
 
-    @patch("src.auth.webauthn_service.WebAuthnCredential")
     def test_get_credential_by_id_database_query(
-        self, mock_webauthn_credential_model, webauthn_service, mock_db_session
+        self, webauthn_service, mock_db_session
     ):
         """Test database query for getting credential by ID."""
         # Mock database model
@@ -603,9 +636,13 @@ class TestWebAuthnServiceDatabaseIntegration:
         assert mock_query.filter.call_count == 2  # credential_id and is_active filters
         mock_query.first.assert_called_once()
 
-        # Verify returned credential
+        # Verify returned credential is real WebAuthnCredential object
         assert credential is not None
         assert credential.credential_id == "test_cred_id"
+        assert credential.user_id == "test_user_id"
+        assert credential.metadata.device_name == "Test Device"
+        assert credential.metadata.is_active is True
+        assert credential.metadata.last_used_at is None
 
     @patch("src.auth.webauthn_service.WebAuthnCredential")
     def test_get_credential_by_id_not_found(
@@ -628,14 +665,18 @@ class TestWebAuthnServiceDatabaseIntegration:
     ):
         """Test storing credential in database."""
         now = datetime.now(UTC)
+        from src.auth.webauthn_service import CredentialMetadata
+        metadata = CredentialMetadata(
+            created_at=now,
+            device_name="Test Device",
+            is_active=True,
+        )
         credential = WebAuthnCredential(
             credential_id="test_cred_id",
             public_key="test_public_key",
             sign_count=0,
             user_id="test_user_id",
-            created_at=now,
-            device_name="Test Device",
-            is_active=True,
+            metadata=metadata,
         )
 
         webauthn_service._store_credential(credential)
@@ -660,15 +701,19 @@ class TestWebAuthnServiceDatabaseIntegration:
         mock_db_session.query.return_value = mock_query
 
         now = datetime.now(UTC)
+        from src.auth.webauthn_service import CredentialMetadata
+        metadata = CredentialMetadata(
+            created_at=now,
+            last_used_at=now,
+            device_name="Test Device",
+            is_active=False,
+        )
         credential = WebAuthnCredential(
             credential_id="test_cred_id",
             public_key="test_public_key",
             sign_count=10,
             user_id="test_user_id",
-            created_at=now,
-            last_used_at=now,
-            device_name="Test Device",
-            is_active=False,
+            metadata=metadata,
         )
 
         webauthn_service._update_credential(credential)
@@ -715,15 +760,26 @@ class TestPasskeyManager:
     def test_start_passkey_registration(self, passkey_manager, sample_user):
         """Test starting passkey registration flow."""
         # Mock WebAuthn service response
-        mock_options = WebAuthnRegistrationOptions(
-            challenge="test_challenge",
+        from src.auth.webauthn_service import RelyingPartyInfo, RegistrationCredentialOptions
+        
+        rp_info = RelyingPartyInfo(
             rp={"id": "example.com", "name": "Example"},
-            user={"id": "user123", "name": "testuser", "displayName": "Test User"},
+            rp_id="example.com"
+        )
+        
+        cred_options = RegistrationCredentialOptions(
             pub_key_cred_params=[{"type": "public-key", "alg": -7}],
-            timeout=60000,
-            attestation="none",
             exclude_credentials=[],
             authenticator_selection={"userVerification": "preferred"},
+            attestation="none"
+        )
+        
+        mock_options = WebAuthnRegistrationOptions(
+            challenge="test_challenge",
+            relying_party=rp_info,
+            user={"id": "user123", "name": "testuser", "displayName": "Test User"},
+            credential_options=cred_options,
+            timeout=60000,
         )
         mock_challenge_key = "reg_test_user_challenge"
 
@@ -749,15 +805,26 @@ class TestPasskeyManager:
     def test_start_passkey_registration_default_device(self, passkey_manager, sample_user):
         """Test starting passkey registration with default device name."""
         # Mock WebAuthn service response
-        mock_options = WebAuthnRegistrationOptions(
-            challenge="test_challenge",
+        from src.auth.webauthn_service import RelyingPartyInfo, RegistrationCredentialOptions
+        
+        rp_info = RelyingPartyInfo(
             rp={"id": "example.com", "name": "Example"},
-            user={"id": "user123", "name": "testuser", "displayName": "Test User"},
+            rp_id="example.com"
+        )
+        
+        cred_options = RegistrationCredentialOptions(
             pub_key_cred_params=[{"type": "public-key", "alg": -7}],
-            timeout=60000,
-            attestation="none",
             exclude_credentials=[],
             authenticator_selection={"userVerification": "preferred"},
+            attestation="none"
+        )
+        
+        mock_options = WebAuthnRegistrationOptions(
+            challenge="test_challenge",
+            relying_party=rp_info,
+            user={"id": "user123", "name": "testuser", "displayName": "Test User"},
+            credential_options=cred_options,
+            timeout=60000,
         )
         mock_challenge_key = "reg_test_user_challenge"
 
@@ -826,25 +893,30 @@ class TestPasskeyManager:
         """Test getting user's passkey summary."""
         # Mock credentials
         now = datetime.now(UTC)
+        from src.auth.webauthn_service import CredentialMetadata
         mock_credentials = [
             WebAuthnCredential(
                 credential_id="cred1",
                 public_key="key1",
                 sign_count=5,
                 user_id="test_user_id",
-                created_at=now,
-                last_used_at=now,
-                device_name="Device 1",
-                is_active=True,
+                metadata=CredentialMetadata(
+                    created_at=now,
+                    last_used_at=now,
+                    device_name="Device 1",
+                    is_active=True,
+                ),
             ),
             WebAuthnCredential(
                 credential_id="cred2",
                 public_key="key2",
                 sign_count=0,
                 user_id="test_user_id",
-                created_at=now,
-                device_name="Device 2",
-                is_active=False,
+                metadata=CredentialMetadata(
+                    created_at=now,
+                    device_name="Device 2",
+                    is_active=False,
+                ),
             ),
         ]
 
@@ -879,16 +951,19 @@ class TestPasskeyManager:
         """Test passkey summary when no credentials have been used."""
         # Mock credentials without last_used_at
         now = datetime.now(UTC)
+        from src.auth.webauthn_service import CredentialMetadata
         mock_credentials = [
             WebAuthnCredential(
                 credential_id="cred1",
                 public_key="key1",
                 sign_count=0,
                 user_id="test_user_id",
-                created_at=now,
-                last_used_at=None,  # Never used
-                device_name="Device 1",
-                is_active=True,
+                metadata=CredentialMetadata(
+                    created_at=now,
+                    last_used_at=None,  # Never used
+                    device_name="Device 1",
+                    is_active=True,
+                ),
             ),
         ]
 
