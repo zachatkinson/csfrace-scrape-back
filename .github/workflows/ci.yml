@@ -1,4 +1,4 @@
-name: Progressive CI/CD Pipeline
+name: Consolidated CI/CD & Submodule Sync
 
 on:
   push:
@@ -19,6 +19,8 @@ on:
       - '.gitignore'
       - '.pre-commit-config.yaml'
       - 'README.rst'
+  release:
+    types: [published]
   schedule:
     # Run weekly security scans on Sundays at 6 AM UTC
     - cron: '0 6 * * 0'
@@ -992,3 +994,50 @@ jobs:
         with:
           fail-on-severity: moderate
           allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT
+
+  # Consolidated umbrella repo update (only runs after all tests pass)
+  umbrella-update:
+    name: Update Umbrella Repository
+    runs-on: ubuntu-latest
+    # Only run after all critical tests pass on master/main branch pushes or releases
+    needs: [quality, unit-tests-linux, unit-tests-cross-platform, integration-tests]
+    timeout-minutes: 5
+    if: ${{ always() && (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') || github.event_name == 'release') && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && needs.unit-tests-linux.result == 'success' && (needs.unit-tests-cross-platform.result == 'success' || needs.unit-tests-cross-platform.result == 'skipped') && (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'skipped') }}
+    
+    steps:
+      - name: Format commit message
+        id: format-commit
+        run: |
+          # Get first line of commit message (title only)
+          COMMIT_TITLE=$(echo '${{ github.event.head_commit.message }}' | head -n1 | tr -d '\n\r')
+          # Limit to 80 characters and remove problematic characters
+          CLEAN_TITLE=$(echo "$COMMIT_TITLE" | cut -c1-80 | sed 's/[[:cntrl:]]//g')
+          echo "title=$CLEAN_TITLE" >> $GITHUB_OUTPUT
+          echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Trigger umbrella repo submodule update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
+          repository: zachatkinson/csfrace-scrape
+          event-type: backend-updated
+          client-payload: |
+            {
+              "repository": "${{ github.repository }}",
+              "ref": "${{ github.ref }}",
+              "sha": "${{ github.sha }}",
+              "short_sha": "${{ steps.format-commit.outputs.short_sha }}",
+              "actor": "${{ github.actor }}",
+              "workflow": "${{ github.workflow }}",
+              "timestamp": "${{ github.event.head_commit.timestamp }}",
+              "message": "${{ steps.format-commit.outputs.title }}",
+              "url": "${{ github.event.head_commit.url }}"
+            }
+
+      - name: Log trigger event
+        run: |
+          echo "🚀 Triggered umbrella repo update for backend"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Message: ${{ github.event.head_commit.message }}"
