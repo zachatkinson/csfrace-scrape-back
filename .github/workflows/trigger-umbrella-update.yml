@@ -1,0 +1,39 @@
+name: Trigger Umbrella Repo Update
+
+on:
+  push:
+    branches: [master, main]
+  release:
+    types: [published]
+
+jobs:
+  trigger-umbrella-update:
+    name: Trigger Umbrella Repo Update
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger umbrella repo submodule update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
+          repository: zachatkinson/csfrace-scrape
+          event-type: backend-updated
+          client-payload: |
+            {
+              "repository": "${{ github.repository }}",
+              "ref": "${{ github.ref }}",
+              "sha": "${{ github.sha }}",
+              "actor": "${{ github.actor }}",
+              "workflow": "${{ github.workflow }}",
+              "timestamp": "${{ github.event.head_commit.timestamp }}",
+              "message": "${{ github.event.head_commit.message }}",
+              "url": "${{ github.event.head_commit.url }}"
+            }
+
+      - name: Log trigger event
+        run: |
+          echo "🚀 Triggered umbrella repo update for backend"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Message: ${{ github.event.head_commit.message }}"
