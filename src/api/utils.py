@@ -105,3 +105,29 @@ def rate_limited_endpoint(rate_limit: str):  # pylint: disable=unused-argument  
         # SlowAPI handles the actual rate limiting via @limiter.limit() decorator
         return func
     return decorator
+
+
+# Authentication error utilities (DRY principle)
+def unauthorized_error(detail: str) -> HTTPException:
+    """Create standardized 401 Unauthorized response."""
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def bad_request_error(detail: str) -> HTTPException:
+    """Create standardized 400 Bad Request response."""
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=detail,
+    )
+
+
+def internal_server_error(detail: str) -> HTTPException:
+    """Create standardized 500 Internal Server Error response."""
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=detail,
+    )
