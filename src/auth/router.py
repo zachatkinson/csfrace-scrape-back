@@ -59,7 +59,7 @@ def login_for_access_token(
         auth_service = AuthService(session)
 
         # Authenticate user and get user data
-        authenticated_user = auth_service.authenticate_user(form_data.username, form_data.password)
+        authenticated_user = auth_service.authenticate_user(form_data.username, form_data.password)  # pylint: disable=assignment-from-none
         if authenticated_user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,7 +74,11 @@ def login_for_access_token(
         # Create access token
         access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = security_manager.create_access_token(
-            data={"sub": authenticated_user.username, "user_id": authenticated_user.id, "scopes": form_data.scopes},
+            data={
+                "sub": authenticated_user.username,
+                "user_id": authenticated_user.id,
+                "scopes": form_data.scopes
+            },
             expires_delta=access_token_expires,
         )
 
@@ -144,7 +148,7 @@ def refresh_access_token(
         auth_service = AuthService(session)
 
         # Get user
-        user = auth_service.get_user_by_username(token_data.username)
+        user = auth_service.get_user_by_username(token_data.username)  # pylint: disable=assignment-from-none
         if user is None or not user.is_active:
             raise credentials_exception
 
@@ -178,14 +182,14 @@ def update_user_me(
         auth_service = AuthService(session)
 
         # Check if email is being changed and already exists
-        if (user_update.email and 
-            user_update.email != current_user.email and 
+        if (user_update.email and
+            user_update.email != current_user.email and
             auth_service.get_user_by_email(user_update.email)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
             )
 
-        updated_user = auth_service.update_user(current_user.id, user_update)
+        updated_user = auth_service.update_user(current_user.id, user_update)  # pylint: disable=assignment-from-none
         if not updated_user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -232,7 +236,7 @@ def request_password_reset(
         auth_service = AuthService(session)
 
         # Check if user exists (we don't use result to avoid user enumeration)
-        _ = auth_service.get_user_by_email(password_reset.email)
+        _ = auth_service.get_user_by_email(password_reset.email)  # pylint: disable=assignment-from-none
 
         # Always return success to prevent email enumeration
         # In production, this would send an email with reset token
@@ -276,7 +280,7 @@ def get_user(
     with db_service.get_session() as session:
         auth_service = AuthService(session)
 
-        user = auth_service.get_user_by_id(user_id)
+        user = auth_service.get_user_by_id(user_id)  # pylint: disable=assignment-from-none
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -299,7 +303,9 @@ def deactivate_user(
 
 
 # OAuth2 SSO Helper Functions
-def _validate_oauth_callback_parameters(provider: OAuthProvider, oauth_callback: OAuthCallback) -> None:
+def _validate_oauth_callback_parameters(
+    provider: OAuthProvider, oauth_callback: OAuthCallback
+) -> None:
     """Validate OAuth callback parameters and handle errors."""
     # Step 1: Validate OAuth error responses
     if oauth_callback.error:
@@ -431,7 +437,7 @@ async def handle_oauth_callback(
 
             # Get user information and retrieve user from database
             user_info = await oauth_service._get_cached_user_info(access_token)  # pylint: disable=protected-access
-            user = auth_service.get_user_by_email(user_info.email)
+            user = auth_service.get_user_by_email(user_info.email)  # pylint: disable=assignment-from-none
 
             if not user:
                 logger.error("User not found after OAuth callback processing")
@@ -620,7 +626,7 @@ def begin_passkey_authentication(
             user = None
             if auth_request.username:
                 auth_service = AuthService(session)
-                user = auth_service.get_user_by_username(auth_request.username)
+                user = auth_service.get_user_by_username(auth_request.username)  # pylint: disable=assignment-from-none
                 if not user:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
