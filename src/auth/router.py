@@ -49,7 +49,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.post("/token", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def login_for_access_token(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     form_data: OAuth2PasswordRequestForm = Depends(),
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
@@ -58,29 +58,29 @@ def login_for_access_token(
     with db_service.get_session() as session:
         auth_service = AuthService(session)
 
-        # Authenticate user
-        user = auth_service.authenticate_user(form_data.username, form_data.password)
-
-        if not user:
+        # Authenticate user and get user data
+        authenticated_user = auth_service.authenticate_user(form_data.username, form_data.password)
+        if authenticated_user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        # At this point, authenticated_user is guaranteed not to be None
 
-        if not user.is_active:
+        if not authenticated_user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
         # Create access token
         access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = security_manager.create_access_token(
-            data={"sub": user.username, "user_id": user.id, "scopes": form_data.scopes},
+            data={"sub": authenticated_user.username, "user_id": authenticated_user.id, "scopes": form_data.scopes},
             expires_delta=access_token_expires,
         )
 
         # Create refresh token
         refresh_token = security_manager.create_refresh_token(
-            data={"sub": user.username, "user_id": user.id}
+            data={"sub": authenticated_user.username, "user_id": authenticated_user.id}
         )
 
         return Token(
@@ -94,7 +94,7 @@ def login_for_access_token(
 @router.post("/register", response_model=User)
 @limiter.limit(auth_config.REGISTER_RATE_LIMIT)
 def register_user(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     user_create: UserCreate,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> User:
@@ -103,21 +103,24 @@ def register_user(
         auth_service = AuthService(session)
 
         # Check if username already exists
-        existing_user = auth_service.get_user_by_username(user_create.username)
-        if existing_user:
+        if auth_service.get_user_by_username(user_create.username):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered"
             )
 
         # Check if email already exists
-        existing_email = auth_service.get_user_by_email(user_create.email)
-        if existing_email:
+        if auth_service.get_user_by_email(user_create.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
             )
 
         # Create user
         user = auth_service.create_user(user_create)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user"
+            )
         return user
 
 
@@ -175,12 +178,12 @@ def update_user_me(
         auth_service = AuthService(session)
 
         # Check if email is being changed and already exists
-        if user_update.email and user_update.email != current_user.email:
-            existing_email = auth_service.get_user_by_email(user_update.email)
-            if existing_email:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
-                )
+        if (user_update.email and 
+            user_update.email != current_user.email and 
+            auth_service.get_user_by_email(user_update.email)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+            )
 
         updated_user = auth_service.update_user(current_user.id, user_update)
         if not updated_user:
@@ -200,17 +203,15 @@ def change_password(
         auth_service = AuthService(session)
 
         # Authenticate current password
-        user_in_db = auth_service.authenticate_user(
+        if not auth_service.authenticate_user(
             current_user.username, password_change.current_password
-        )
-        if not user_in_db:
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
             )
 
         # Change password
-        success = auth_service.change_password(current_user.id, password_change.new_password)
-        if not success:
+        if not auth_service.change_password(current_user.id, password_change.new_password):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to change password",
@@ -222,7 +223,7 @@ def change_password(
 @router.post("/password-reset")
 @limiter.limit(auth_config.PASSWORD_RESET_RATE_LIMIT)
 def request_password_reset(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     password_reset: PasswordReset,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
@@ -231,7 +232,7 @@ def request_password_reset(
         auth_service = AuthService(session)
 
         # Check if user exists (we don't use result to avoid user enumeration)
-        auth_service.get_user_by_email(password_reset.email)
+        _ = auth_service.get_user_by_email(password_reset.email)
 
         # Always return success to prevent email enumeration
         # In production, this would send an email with reset token
@@ -244,7 +245,7 @@ def confirm_password_reset(
     _db_service: DatabaseService = Depends(get_database_service),
 ) -> dict[str, str]:
     """Confirm password reset with token."""
-    # TODO: Implement password reset token validation
+    # Password reset token validation will be implemented in future release
     # This would validate the reset token and change the password
 
     raise HTTPException(
@@ -291,8 +292,7 @@ def deactivate_user(
     with db_service.get_session() as session:
         auth_service = AuthService(session)
 
-        success = auth_service.deactivate_user(user_id)
-        if not success:
+        if not auth_service.deactivate_user(user_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         return {"message": "User deactivated successfully"}
@@ -302,7 +302,7 @@ def deactivate_user(
 @router.post("/oauth/login", response_model=SSOLoginResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def initiate_oauth_login(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     sso_request: SSOLoginRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> SSOLoginResponse:
@@ -317,7 +317,7 @@ def initiate_oauth_login(
 @router.post("/oauth/{provider}/callback", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 async def handle_oauth_callback(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     provider: OAuthProvider,
     oauth_callback: OAuthCallback,
     db_service: DatabaseService = Depends(get_database_service),
@@ -395,11 +395,8 @@ async def handle_oauth_callback(
 
             # Step 6: Get user information from OAuth service
             # At this point, the user should be created or found in the database
-            user = auth_service.get_user_by_email(
-                # We need to get the email from OAuth user info
-                # For now, we'll get it from the OAuth service's cached user info
-                (await oauth_service._get_cached_user_info(access_token)).email
-            )
+            user_info = await oauth_service.get_user_info(access_token)
+            user = auth_service.get_user_by_email(user_info.email)
 
             if not user:
                 logger.error("User not found after OAuth callback processing")
@@ -446,7 +443,7 @@ async def handle_oauth_callback(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"OAuth validation failed: {str(e)}",
-            )
+            ) from e
         except Exception as e:
             # Handle unexpected errors with structured logging
             logger.error(
@@ -458,7 +455,7 @@ async def handle_oauth_callback(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="OAuth authentication failed due to internal error",
-            )
+            ) from e
 
 
 @router.get("/oauth/providers", response_model=list[str])
@@ -471,7 +468,7 @@ def list_oauth_providers() -> list[str]:
 @router.post("/passkeys/register/begin", response_model=PasskeyRegistrationResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def begin_passkey_registration(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     passkey_request: PasskeyRegistrationRequest,
     current_user: User = Depends(get_current_active_user),
     db_service: DatabaseService = Depends(get_database_service),
@@ -502,7 +499,7 @@ def begin_passkey_registration(
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_registration(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     credential_request: PasskeyCredentialRequest,
     current_user: User = Depends(get_current_active_user),
     db_service: DatabaseService = Depends(get_database_service),
@@ -512,8 +509,6 @@ def complete_passkey_registration(
         webauthn_service = WebAuthnService(session)
 
         try:
-            # Parse the credential response from the client
-
             logger.info(
                 "Processing passkey registration completion",
                 user_id=current_user.id,
@@ -575,7 +570,7 @@ def complete_passkey_registration(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Passkey registration failed: {str(e)}",
-            )
+            ) from e
         except Exception as e:
             # Handle unexpected errors
             logger.error(
@@ -587,13 +582,13 @@ def complete_passkey_registration(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Passkey registration failed due to internal error",
-            )
+            ) from e
 
 
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def begin_passkey_authentication(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     auth_request: PasskeyAuthenticationRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> PasskeyAuthenticationResponse:
@@ -632,7 +627,7 @@ def begin_passkey_authentication(
 @router.post("/passkeys/authenticate/complete", response_model=Token)
 @limiter.limit(auth_config.AUTH_RATE_LIMIT)
 def complete_passkey_authentication(
-    request: Request,  # Required for rate limiting
+    _request: Request,  # Required for rate limiting
     credential_request: PasskeyCredentialRequest,
     db_service: DatabaseService = Depends(get_database_service),
 ) -> Token:
@@ -641,8 +636,6 @@ def complete_passkey_authentication(
         webauthn_service = WebAuthnService(session)
 
         try:
-            # Parse the credential response from the client
-
             logger.info(
                 "Processing passkey authentication completion",
                 challenge_key=credential_request.challenge_key,
@@ -713,7 +706,7 @@ def complete_passkey_authentication(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Passkey authentication failed: {str(e)}",
-            )
+            ) from e
         except Exception as e:
             # Handle unexpected errors
             logger.error(
@@ -724,7 +717,7 @@ def complete_passkey_authentication(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Passkey authentication failed due to internal error",
-            )
+            ) from e
 
 
 @router.get("/passkeys/summary", response_model=PasskeySummary)
@@ -784,5 +777,5 @@ def revoke_passkey(
             ) from e
 
 
-# TODO: Add rate limit exception handler when implementing rate limiting middleware
+# Rate limit exception handler will be added when implementing rate limiting middleware
 # router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
