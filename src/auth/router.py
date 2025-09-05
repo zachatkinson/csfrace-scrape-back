@@ -10,14 +10,20 @@ from slowapi.util import get_remote_address
 from webauthn.helpers import base64url_to_bytes
 from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
 
-from ..api.utils import maybe_none, unauthorized_error, bad_request_error, internal_server_error
+from ..api.utils import bad_request_error, internal_server_error, maybe_none, unauthorized_error
 from ..config.rate_limits import rate_limits
 from ..constants import AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
 from ..database.service import DatabaseService
 from .config import auth_config
-from .dependencies import get_current_active_user, get_current_superuser, get_database_service, get_auth_service, get_oauth_service, get_webauthn_service, get_passkey_manager
-from .oauth_service import OAuthService
-from .service import AuthService
+from .dependencies import (
+    get_auth_service,
+    get_current_active_user,
+    get_current_superuser,
+    get_database_service,
+    get_oauth_service,
+    get_passkey_manager,
+    get_webauthn_service,
+)
 from .models import (
     OAuthCallback,
     OAuthProvider,
@@ -59,7 +65,9 @@ def login_for_access_token(
 ) -> Token:
     """Authenticate user and return JWT tokens."""
     # DRY: Use maybe_none wrapper for assignment-from-none
-    authenticated_user = maybe_none(auth_service.authenticate_user, form_data.username, form_data.password)
+    authenticated_user = maybe_none(
+        auth_service.authenticate_user, form_data.username, form_data.password
+    )
     if authenticated_user is None:
         raise unauthorized_error("Incorrect username or password")  # DRY: Standardized error
 
@@ -180,9 +188,7 @@ def change_password(
     """Change user password."""
     # Authenticate current password
     authenticated_user = maybe_none(
-        auth_service.authenticate_user,
-        current_user.username,
-        password_change.current_password
+        auth_service.authenticate_user, current_user.username, password_change.current_password
     )
     if not authenticated_user:
         raise bad_request_error("Incorrect current password")
@@ -415,7 +421,7 @@ async def handle_oauth_callback(
     except ValueError as e:
         # Handle validation errors from OAuth service
         logger.warning("OAuth callback validation error", provider=provider.value, error=str(e))
-        raise bad_request_error(f"OAuth validation failed: {str(e)}")
+        raise bad_request_error(f"OAuth validation failed: {str(e)}") from e
     except Exception as e:
         # Handle unexpected errors with structured logging
         logger.error(
@@ -424,7 +430,7 @@ async def handle_oauth_callback(
             error=str(e),
             error_type=type(e).__name__,
         )
-        raise internal_server_error("OAuth authentication failed due to internal error")
+        raise internal_server_error("OAuth authentication failed due to internal error") from e
 
 
 @router.get("/oauth/providers", response_model=list[str])
@@ -455,7 +461,7 @@ def begin_passkey_registration(
         )
 
     except Exception as e:
-        raise internal_server_error(f"Failed to initiate passkey registration: {str(e)}")
+        raise internal_server_error(f"Failed to initiate passkey registration: {str(e)}") from e
 
 
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
@@ -468,56 +474,56 @@ def complete_passkey_registration(
 ) -> dict[str, str]:
     """Complete WebAuthn/Passkeys registration following FIDO2 standards."""
     try:
-            logger.info(
-                "Processing passkey registration completion",
+        logger.info(
+            "Processing passkey registration completion",
+            user_id=current_user.id,
+            challenge_key=credential_request.challenge_key,
+            device_name=credential_request.device_name,
+        )
+
+        # Convert credential response to WebAuthn format
+        credential_response = credential_request.credential_response
+
+        # Validate required fields are present
+        required_fields = ["id", "rawId", "response", "type"]
+        if not all(field in credential_response for field in required_fields):
+            logger.warning(
+                "Invalid credential response format",
                 user_id=current_user.id,
-                challenge_key=credential_request.challenge_key,
-                device_name=credential_request.device_name,
+                missing_fields=[f for f in required_fields if f not in credential_response],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid credential response format",
             )
 
-            # Convert credential response to WebAuthn format
-            credential_response = credential_request.credential_response
+        # Create RegistrationCredential object
+        registration_credential = RegistrationCredential(
+            id=credential_response["id"],
+            raw_id=base64url_to_bytes(credential_response["rawId"]),
+            response=credential_response["response"],
+            type=credential_response["type"],
+        )
 
-            # Validate required fields are present
-            required_fields = ["id", "rawId", "response", "type"]
-            if not all(field in credential_response for field in required_fields):
-                logger.warning(
-                    "Invalid credential response format",
-                    user_id=current_user.id,
-                    missing_fields=[f for f in required_fields if f not in credential_response],
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid credential response format",
-                )
+        # Verify and store the credential
+        webauthn_credential = webauthn_service.verify_registration_response(
+            credential=registration_credential,
+            challenge_key=credential_request.challenge_key,
+            device_name=credential_request.device_name,
+        )
 
-            # Create RegistrationCredential object
-            registration_credential = RegistrationCredential(
-                id=credential_response["id"],
-                raw_id=base64url_to_bytes(credential_response["rawId"]),
-                response=credential_response["response"],
-                type=credential_response["type"],
-            )
+        logger.info(
+            "Passkey registration completed successfully",
+            user_id=current_user.id,
+            credential_id=webauthn_credential.credential_id,
+            device_name=webauthn_credential.metadata.device_name,
+        )
 
-            # Verify and store the credential
-            webauthn_credential = webauthn_service.verify_registration_response(
-                credential=registration_credential,
-                challenge_key=credential_request.challenge_key,
-                device_name=credential_request.device_name,
-            )
-
-            logger.info(
-                "Passkey registration completed successfully",
-                user_id=current_user.id,
-                credential_id=webauthn_credential.credential_id,
-                device_name=webauthn_credential.metadata.device_name,
-            )
-
-            return {
-                "message": "Passkey registered successfully",
-                "credential_id": webauthn_credential.credential_id,
-                "device_name": webauthn_credential.metadata.device_name or "Default Device",
-            }
+        return {
+            "message": "Passkey registered successfully",
+            "credential_id": webauthn_credential.credential_id,
+            "device_name": webauthn_credential.metadata.device_name or "Default Device",
+        }
 
     except ValueError as e:
         # Handle WebAuthn validation errors
@@ -526,7 +532,7 @@ def complete_passkey_registration(
             user_id=current_user.id,
             error=str(e),
         )
-        raise bad_request_error(f"Passkey registration failed: {str(e)}")
+        raise bad_request_error(f"Passkey registration failed: {str(e)}") from e
     except Exception as e:
         # Handle unexpected errors
         logger.error(
@@ -535,7 +541,7 @@ def complete_passkey_registration(
             error=str(e),
             error_type=type(e).__name__,
         )
-        raise internal_server_error("Passkey registration failed due to internal error")
+        raise internal_server_error("Passkey registration failed due to internal error") from e
 
 
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
@@ -543,7 +549,6 @@ def complete_passkey_registration(
 def begin_passkey_authentication(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
     auth_request: PasskeyAuthenticationRequest,
-    webauthn_service: WebAuthnService = Depends(get_webauthn_service),
     auth_service: AuthService = Depends(get_auth_service),
     passkey_manager: PasskeyManager = Depends(get_passkey_manager),
 ) -> PasskeyAuthenticationResponse:
@@ -554,9 +559,7 @@ def begin_passkey_authentication(
         if auth_request.username:
             user = maybe_none(auth_service.get_user_by_username, auth_request.username)
             if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-                    )
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         # Start authentication (works for both username and usernameless flows)
         authentication_data = passkey_manager.start_passkey_authentication(user)
@@ -569,7 +572,7 @@ def begin_passkey_authentication(
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
-        raise internal_server_error(f"Failed to initiate passkey authentication: {str(e)}")
+        raise internal_server_error(f"Failed to initiate passkey authentication: {str(e)}") from e
 
 
 @router.post("/passkeys/authenticate/complete", response_model=Token)

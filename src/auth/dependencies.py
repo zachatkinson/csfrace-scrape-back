@@ -5,8 +5,8 @@ from fastapi.security import OAuth2PasswordBearer
 
 from ..database.service import DatabaseService
 from .models import TokenData, User
-from .security import security_manager
 from .oauth_service import OAuthService
+from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
 
@@ -37,7 +37,9 @@ def get_oauth_service(db_service: DatabaseService = Depends(get_database_service
         return OAuthService(session)
 
 
-def get_webauthn_service(db_service: DatabaseService = Depends(get_database_service)) -> WebAuthnService:
+def get_webauthn_service(
+    db_service: DatabaseService = Depends(get_database_service),
+) -> WebAuthnService:
     """Get WebAuthn service with injected database session - eliminates boilerplate."""
     with db_service.get_session() as session:
         return WebAuthnService(session)
@@ -112,5 +114,3 @@ def require_scopes(*required_scopes: str):
         return token_data
 
     return check_scopes
-
-

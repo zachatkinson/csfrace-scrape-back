@@ -1,14 +1,15 @@
 """Common utilities for API endpoints."""
 
-from functools import wraps
+import asyncio
 from collections.abc import Callable
+from functools import wraps
 from typing import Any, TypeVar
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-T = TypeVar('T', bound=BaseModel)
+T = TypeVar("T", bound=BaseModel)
 
 
 def handle_database_error(operation: str) -> Callable[[SQLAlchemyError], HTTPException]:
@@ -20,11 +21,13 @@ def handle_database_error(operation: str) -> Callable[[SQLAlchemyError], HTTPExc
     Returns:
         Standardized HTTPException for database errors
     """
+
     def error_handler(e: SQLAlchemyError) -> HTTPException:
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to {operation}: {str(e)}",
         )
+
     return error_handler
 
 
@@ -52,11 +55,7 @@ def create_paginated_response(items: list, total: int, page: int, page_size: int
 
 
 def create_response_dict(
-    items_key: str,
-    items: list[Any],
-    total: int,
-    page: int,
-    page_size: int
+    items_key: str, items: list[Any], total: int, page: int, page_size: int
 ) -> dict[str, Any]:
     """Create a complete response dictionary for paginated endpoints.
 
@@ -101,10 +100,12 @@ def rate_limited_endpoint(rate_limit: str):  # pylint: disable=unused-argument  
         The 'request' parameter MUST be named 'request' (not '_request') for SlowAPI.
         This decorator is purely for documentation and convention enforcement.
     """
+
     def decorator(func: Callable) -> Callable:
         # This decorator is primarily for documentation and doesn't modify behavior
         # SlowAPI handles the actual rate limiting via @limiter.limit() decorator
         return func
+
     return decorator
 
 
@@ -137,10 +138,10 @@ def internal_server_error(detail: str) -> HTTPException:
 # Assignment-from-none wrapper (DRY principle)
 def maybe_none(func: Callable[..., T | None], *args, **kwargs) -> T | None:
     """Wrapper for functions that may return None - eliminates pylint warnings.
-    
+
     This utility centralizes the pylint disable logic for functions that legitimately
     return None, making the intent explicit and reducing comment repetition.
-    
+
     Usage:
         user = maybe_none(auth_service.authenticate_user, username, password)
         provider = maybe_none(service.get_provider, name)
@@ -151,18 +152,19 @@ def maybe_none(func: Callable[..., T | None], *args, **kwargs) -> T | None:
 # Service error handling decorator (DRY principle)
 def handle_service_errors(operation: str):
     """Decorator to handle common service errors with standardized HTTP responses.
-    
+
     This eliminates repetitive try/catch blocks across API endpoints and provides
     consistent error messaging following REST API best practices.
-    
+
     Args:
         operation: Description of the operation for error messages (e.g., "create batch")
-        
+
     Usage:
         @handle_service_errors("create batch")
         async def create_batch_endpoint(batch_data: BatchCreate, service: BatchService):
             return await service.create_batch(batch_data)
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
@@ -171,19 +173,19 @@ def handle_service_errors(operation: str):
             except ValidationError as e:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Validation error in {operation}: {str(e)}"
+                    detail=f"Validation error in {operation}: {str(e)}",
                 ) from e
             except SQLAlchemyError as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to {operation}: {str(e)}"
+                    detail=f"Failed to {operation}: {str(e)}",
                 ) from e
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid data for {operation}: {str(e)}"
+                    detail=f"Invalid data for {operation}: {str(e)}",
                 ) from e
-        
+
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             try:
@@ -191,23 +193,22 @@ def handle_service_errors(operation: str):
             except ValidationError as e:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Validation error in {operation}: {str(e)}"
+                    detail=f"Validation error in {operation}: {str(e)}",
                 ) from e
             except SQLAlchemyError as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to {operation}: {str(e)}"
+                    detail=f"Failed to {operation}: {str(e)}",
                 ) from e
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid data for {operation}: {str(e)}"
+                    detail=f"Invalid data for {operation}: {str(e)}",
                 ) from e
-        
+
         # Return appropriate wrapper based on function type
-        import asyncio
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
-    
+
     return decorator
