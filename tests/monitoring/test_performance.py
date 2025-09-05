@@ -1,4 +1,4 @@
-"""Tests for performance monitoring system."""  
+"""Tests for performance monitoring system."""
 # pylint: disable=too-many-public-methods,use-implicit-booleaness-not-comparison,unused-variable
 
 import asyncio
@@ -294,7 +294,7 @@ class TestPerformanceMonitor:
 
     def test_finish_span_nonexistent(self, monitor):
         """Test finishing non-existent span."""
-        trace_id = monitor.start_trace("test_request")
+        monitor.start_trace("test_request")
 
         # Should not raise exception
         monitor.finish_span("nonexistent")
