@@ -1,4 +1,5 @@
 """Tests for central observability manager."""
+# pylint: disable=protected-access,too-many-public-methods
 
 import asyncio
 from unittest.mock import MagicMock, patch
