@@ -1,11 +1,13 @@
 """Batch processing for multiple URLs with concurrent execution."""
 
 import asyncio
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, TypedDict
+from urllib.parse import urlparse
 
 import structlog
 from rich.console import Console
@@ -59,7 +61,7 @@ class BatchJobStatus(Enum):
 
 
 @dataclass
-class BatchJob:
+class BatchJob:  # pylint: disable=too-many-instance-attributes
     """Individual job in a batch processing operation."""
 
     url: str
@@ -80,7 +82,7 @@ class BatchJob:
 
 
 @dataclass
-class BatchConfig:
+class BatchConfig:  # pylint: disable=too-many-instance-attributes
     """Configuration for batch processing operations."""
 
     max_concurrent: int = 3
@@ -173,9 +175,6 @@ class BatchProcessor:
         Returns:
             Generated output directory path
         """
-        import re
-        from urllib.parse import urlparse
-
         try:
             parsed = urlparse(url)
             if not parsed.netloc:

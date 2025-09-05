@@ -10,10 +10,6 @@ from .base import BaseCacheBackend, CacheConfig, CacheEntry
 
 logger = structlog.get_logger(__name__)
 
-if TYPE_CHECKING:
-    import redis.asyncio as redis
-    from redis.asyncio import Redis as RedisType
-
 # Runtime imports with proper error handling
 try:
     import redis.asyncio as redis
@@ -22,8 +18,12 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis = None  # type: ignore[assignment]
-    RedisType = None  # type: ignore[misc,assignment]
+    if TYPE_CHECKING:
+        import redis.asyncio as redis
+        from redis.asyncio import Redis as RedisType
+    else:
+        redis = None  # type: ignore[assignment]
+        RedisType = None  # type: ignore[misc,assignment]
 
 
 class RedisCache(BaseCacheBackend):

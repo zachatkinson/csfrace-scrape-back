@@ -130,7 +130,7 @@ async def create_batch(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create batch: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/", response_model=BatchListResponse)

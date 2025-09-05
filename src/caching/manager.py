@@ -9,16 +9,16 @@ from .base import BaseCacheBackend, CacheBackend, CacheConfig
 from .file_cache import FileCache
 
 # Import Redis cache only if available
-if TYPE_CHECKING:
-    from .redis_cache import RedisCache
-
 try:
     from .redis_cache import RedisCache
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    RedisCache = None  # type: ignore[assignment,misc]
+    if TYPE_CHECKING:
+        from .redis_cache import RedisCache
+    else:
+        RedisCache = None  # type: ignore[assignment,misc]
 
 logger = structlog.get_logger(__name__)
 

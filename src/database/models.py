@@ -25,11 +25,17 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ..constants import CONSTANTS
 
+# pylint: disable=too-few-public-methods  # SQLAlchemy models often have minimal methods
+# pylint: disable=too-many-instance-attributes  # Database models need many fields
+# pylint: disable=broad-exception-caught  # Acceptable for database event handlers
+# pylint: disable=unused-argument  # SQLAlchemy event handlers have required signatures
+# pylint: disable=import-outside-toplevel  # Conditional imports for database setup
+# pylint: disable=redefined-outer-name  # SQLAlchemy events pattern
+# pylint: disable=reimported  # Event module reimport for database functions
+
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
-
-    pass
 
 
 class JobStatus(Enum):
@@ -329,7 +335,10 @@ class JobLog(Base):
 
     def __repr__(self) -> str:
         """String representation of the log entry."""
-        return f"<JobLog(id={self.id}, job_id={self.job_id}, level='{self.level}', timestamp='{self.timestamp}')>"
+        return (
+            f"<JobLog(id={self.id}, job_id={self.job_id}, "
+            f"level='{self.level}', timestamp='{self.timestamp}')>"
+        )
 
 
 class SystemMetrics(Base):
