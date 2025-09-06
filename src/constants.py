@@ -371,10 +371,29 @@ class AppConstants:  # pylint: disable=too-few-public-methods
         return getattr(sys.modules[__name__], name)
 
 
+class TestConstants:  # pylint: disable=too-few-public-methods
+    """Test constants container."""
+
+    BASE_TEST_URL = BASE_TEST_URL
+    SAMPLE_POST_URL = SAMPLE_POST_URL
+    LARGE_CONTENT_URL = LARGE_CONTENT_URL
+    NONEXISTENT_URL = NONEXISTENT_URL
+    SLOW_URL = SLOW_URL
+    TEST_REDIS_HOST = TEST_REDIS_HOST
+    TEST_REDIS_PORT = TEST_REDIS_PORT
+    TEST_REDIS_DB = TEST_REDIS_DB
+    TEST_REDIS_KEY_PREFIX = TEST_REDIS_KEY_PREFIX
+    SAMPLE_IMAGE_URL = SAMPLE_IMAGE_URL
+    TEST_IMAGE_CONTENT = TEST_IMAGE_CONTENT
+    SAMPLE_HTML_TITLE = SAMPLE_HTML_TITLE
+    SAMPLE_HTML_DESCRIPTION = SAMPLE_HTML_DESCRIPTION
+
+
 # Global instances for backward compatibility
 AUTH_CONSTANTS = AuthConstants()
 PROGRESS_CONSTANTS = ProgressConstants()
 OAUTH_CONSTANTS = OAuthConstants()
 WEBAUTHN_CONSTANTS = WebAuthnConstants()
 CLI_CONSTANTS = CLIConstants()
+TEST_CONSTANTS = TestConstants()
 CONSTANTS = AppConstants()
