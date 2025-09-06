@@ -62,7 +62,7 @@ class PluginRegistry:
             plugin_info = temp_instance.plugin_info
         except Exception as e:
             logger.error("Failed to get plugin info", plugin=plugin_class.__name__, error=str(e))
-            raise ValueError(f"Invalid plugin {plugin_class.__name__}: {e}")
+            raise ValueError(f"Invalid plugin {plugin_class.__name__}: {e}") from e
 
         plugin_name = plugin_info["name"]
 
@@ -178,14 +178,14 @@ class PluginRegistry:
 
             try:
                 discovered += self._load_plugin_from_file(py_file)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning("Failed to load plugin file", file=str(py_file), error=str(e))
 
         # Look for plugin.json manifest files
         for manifest_file in path.rglob("plugin.json"):
             try:
                 discovered += self._load_plugin_from_manifest(manifest_file)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning(
                     "Failed to load plugin manifest", file=str(manifest_file), error=str(e)
                 )
@@ -230,14 +230,14 @@ class PluginRegistry:
                     try:
                         self.register_plugin(obj)
                         loaded += 1
-                    except Exception as e:
+                    except Exception as e:  # pylint: disable=broad-exception-caught
                         logger.warning(
                             "Failed to register plugin class", class_name=name, error=str(e)
                         )
 
             return loaded
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to load plugin module", file=str(py_file), error=str(e))
             return 0
 
@@ -285,7 +285,7 @@ class PluginRegistry:
 
             return loaded
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to load plugin manifest", file=str(manifest_file), error=str(e))
             return 0
 
@@ -336,7 +336,7 @@ class PluginRegistry:
 
             logger.info("Loaded plugin configuration", file=str(config_file))
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to load plugin config", file=str(config_file), error=str(e))
 
 
