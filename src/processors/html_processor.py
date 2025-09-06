@@ -535,7 +535,7 @@ class HTMLProcessor:
             if elem.get("class"):
                 original_classes = elem.get("class", [])
                 preserved_classes = [
-                    cls for cls in original_classes if cls in config.preserve_classes
+                    cls for cls in original_classes if cls in config.shopify.preserve_classes
                 ]
 
                 if preserved_classes:

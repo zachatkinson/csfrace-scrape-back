@@ -39,7 +39,7 @@ class JobCreateRequest:
     priority: str = "normal"
 
 
-@dataclass 
+@dataclass
 class JobLogRequest:
     """Request object for adding job logs."""
     job_id: int
@@ -140,7 +140,9 @@ class DatabaseService:
         in the official documentation.
         """
         from sqlalchemy import text  # pylint: disable=import-outside-toplevel
-        from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.dialects.postgresql import (
+            ENUM as PostgreSQLEnum,  # pylint: disable=import-outside-toplevel
+        )
 
         from .models import JobPriority  # pylint: disable=import-outside-toplevel
         from .models import JobStatus as JobStatusEnum  # pylint: disable=import-outside-toplevel
@@ -199,6 +201,32 @@ class DatabaseService:
 
     # Job Management Operations
 
+    def _extract_domain_from_url(self, url: str) -> str:
+        """Extract domain from URL."""
+        from urllib.parse import urlparse  # pylint: disable=import-outside-toplevel
+
+        parsed = urlparse(url)
+        return parsed.netloc
+
+    def _extract_slug_from_url(self, url: str) -> str:
+        """Extract slug from URL path."""
+        from urllib.parse import urlparse  # pylint: disable=import-outside-toplevel
+
+        parsed = urlparse(url)
+        path_parts = parsed.path.strip("/").split("/")
+        return path_parts[-1] if path_parts and path_parts[-1] else "homepage"
+
+    def _normalize_priority(self, priority: str | object) -> object:
+        """Convert string priority to enum."""
+        from .models import JobPriority  # pylint: disable=import-outside-toplevel
+
+        if isinstance(priority, str):
+            try:
+                return JobPriority(priority.lower())
+            except ValueError:
+                return JobPriority.NORMAL
+        return priority
+
     def create_job(self, request: JobCreateRequest, **kwargs) -> ScrapingJob:
         """Create a new scraping job.
 
@@ -214,45 +242,18 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                # Extract request parameters for cleaner code
-                url = request.url
-                output_directory = request.output_directory
-                domain = request.domain
-                slug = request.slug
-                batch_id = request.batch_id
-                priority = request.priority
-
-                # Auto-extract domain and slug if not provided
-                if not domain:
-                    from urllib.parse import urlparse  # pylint: disable=import-outside-toplevel
-
-                    parsed = urlparse(url)
-                    domain = parsed.netloc
-
-                if not slug and not kwargs.get("custom_slug"):
-                    from urllib.parse import urlparse  # pylint: disable=import-outside-toplevel
-
-                    parsed = urlparse(url)
-                    path_parts = parsed.path.strip("/").split("/")
-                    slug = path_parts[-1] if path_parts and path_parts[-1] else "homepage"
-
-                # Convert string priority to enum if needed
-                from .models import JobPriority  # pylint: disable=import-outside-toplevel
-
-                if isinstance(priority, str):
-                    try:
-                        priority_enum = JobPriority(priority.lower())
-                    except ValueError:
-                        priority_enum = JobPriority.NORMAL
-                else:
-                    priority_enum = priority
+                # Extract and process request parameters
+                domain = request.domain or self._extract_domain_from_url(request.url)
+                slug = (request.slug or
+                       (self._extract_slug_from_url(request.url) if not kwargs.get("custom_slug") else None))
+                priority_enum = self._normalize_priority(request.priority)
 
                 job = ScrapingJob(
-                    url=url,
+                    url=request.url,
                     domain=domain,
                     slug=slug,
-                    output_directory=output_directory,
-                    batch_id=batch_id,
+                    output_directory=request.output_directory,
+                    batch_id=request.batch_id,
                     priority=priority_enum,
                     **kwargs,
                 )
@@ -263,7 +264,7 @@ class DatabaseService:
                 logger.info(
                     "Created scraping job",
                     job_id=job.id,
-                    url=url,
+                    url=request.url,
                     domain=domain,
                     slug=slug,
                 )
@@ -271,10 +272,10 @@ class DatabaseService:
                 return job
 
         except IntegrityError as e:
-            logger.error("Job creation failed - integrity constraint", url=url, error=str(e))
+            logger.error("Job creation failed - integrity constraint", url=request.url, error=str(e))
             raise DatabaseError(f"Job creation failed: {e}") from e
         except SQLAlchemyError as e:
-            logger.error("Job creation failed - database error", url=url, error=str(e))
+            logger.error("Job creation failed - database error", url=request.url, error=str(e))
             raise DatabaseError(f"Job creation failed: {e}") from e
 
     def get_job(self, job_id: int) -> ScrapingJob | None:

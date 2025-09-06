@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 class AsyncImageDownloader:
     """Async image downloader with concurrency control."""
 
-    def __init__(self, output_dir: Path, max_concurrent: int = config.max_concurrent_downloads):
+    def __init__(self, output_dir: Path, max_concurrent: int = config.http.max_concurrent):
         """Initialize image downloader.
 
         Args:
@@ -119,7 +119,7 @@ class AsyncImageDownloader:
                     progress_callback(progress)
 
                 # Rate limiting
-                await asyncio.sleep(config.rate_limit_delay)
+                await asyncio.sleep(config.http.rate_limit_delay)
 
                 return filename
 
@@ -145,7 +145,7 @@ class AsyncImageDownloader:
             logger.debug("Downloading image", url=url)
 
             # Check robots.txt and enforce crawl delay for images
-            await robots_checker.check_and_delay(url, config.user_agent, session)
+            await robots_checker.check_and_delay(url, config.http.user_agent, session)
 
             from ..constants import CONSTANTS
 
@@ -216,7 +216,7 @@ class AsyncImageDownloader:
         Returns:
             File extension including dot
         """
-        for mime_type, ext in config.content_type_extensions.items():
+        for mime_type, ext in config.shopify.content_type_extensions.items():
             if mime_type in content_type:
                 return ext
 

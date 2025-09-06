@@ -90,7 +90,7 @@ class AsyncWordPressConverter:
             self.images_dir.mkdir(exist_ok=True)
             logger.debug("Created output directories", output_dir=str(self.output_dir))
         except OSError as e:
-            raise ConversionError(f"Failed to create directories: {e}")
+            raise ConversionError(f"Failed to create directories: {e}") from e
 
     @with_retry()
     async def _fetch_content(self, session: aiohttp.ClientSession) -> str:
@@ -109,7 +109,9 @@ class AsyncWordPressConverter:
             logger.info("Fetching content", url=self.base_url)
 
             # Check robots.txt and enforce crawl delay
-            await robots_checker.check_and_delay(self.base_url, self.config.http.user_agent, session)
+            await robots_checker.check_and_delay(
+                self.base_url, self.config.http.user_agent, session
+            )
 
             from ..utils.http import safe_http_get_with_raise
 
@@ -122,9 +124,9 @@ class AsyncWordPressConverter:
             return content
 
         except aiohttp.ClientError as e:
-            raise FetchError(f"Failed to fetch content: {e}", url=self.base_url, cause=e)
+            raise FetchError(f"Failed to fetch content: {e}", url=self.base_url, cause=e) from e
         except TimeoutError as e:
-            raise FetchError(f"Request timed out: {e}", url=self.base_url, cause=e)
+            raise FetchError(f"Request timed out: {e}", url=self.base_url, cause=e) from e
 
     async def _process_content(self, html_content: str) -> tuple[dict[str, str], str, list[str]]:
         """Process HTML content and extract components.
@@ -163,7 +165,9 @@ class AsyncWordPressConverter:
             return metadata, processed_html, image_urls
 
         except Exception as e:
-            raise ProcessingError(f"Failed to process content: {e}", url=self.base_url, cause=e)
+            raise ProcessingError(
+                f"Failed to process content: {e}", url=self.base_url, cause=e
+            ) from e
 
     def _extract_image_urls(self, html_content: str) -> list[str]:
         """Extract image URLs from HTML content.
@@ -228,7 +232,7 @@ class AsyncWordPressConverter:
             )
 
         except OSError as e:
-            raise SaveError(f"Failed to save content: {e}", cause=e)
+            raise SaveError(f"Failed to save content: {e}", cause=e) from e
 
     async def _write_metadata_file(self, path: Path, metadata: dict[str, str]) -> None:
         """Write metadata to text file."""
@@ -285,7 +289,9 @@ class AsyncWordPressConverter:
             timeout = aiohttp.ClientTimeout(total=self.config.http.timeout)
 
             async with aiohttp.ClientSession(
-                connector=connector, timeout=timeout, headers={"User-Agent": self.config.http.user_agent}
+                connector=connector,
+                timeout=timeout,
+                headers={"User-Agent": self.config.http.user_agent},
             ) as session:
                 if progress_callback:
                     progress_callback(PROGRESS_CONSTANTS.FETCH)
@@ -331,4 +337,4 @@ class AsyncWordPressConverter:
             raise
         except Exception as e:
             logger.exception("Unexpected error during conversion", error=str(e))
-            raise ConversionError(f"Conversion failed: {e}", url=self.base_url, cause=e)
+            raise ConversionError(f"Conversion failed: {e}", url=self.base_url, cause=e) from e

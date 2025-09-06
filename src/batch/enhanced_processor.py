@@ -12,7 +12,7 @@ import structlog
 
 from src.core.exceptions import BatchProcessingError
 from src.database.models import JobStatus
-from src.database.service import DatabaseService
+from src.database.service import DatabaseService, JobCreateRequest
 
 logger = structlog.get_logger(__name__)
 
@@ -262,12 +262,13 @@ class BatchProcessor:
             ProcessingResult
         """
         # Create job in database
-        job = self.database_service.create_job(
+        request = JobCreateRequest(
             url=url,
             output_directory=str(self.config.output_directory),
             batch_id=batch_id,
             priority=priority.name.lower(),
         )
+        job = self.database_service.create_job(request)
 
         # Update job status to running
         self.database_service.update_job_status(job.id, JobStatus.RUNNING)

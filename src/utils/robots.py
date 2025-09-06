@@ -114,7 +114,7 @@ class RobotsChecker:
         Returns:
             True if allowed to fetch, False otherwise
         """
-        if not config.respect_robots_txt:
+        if not config.robots.respect_robots_txt:
             return True
 
         try:
@@ -145,13 +145,13 @@ class RobotsChecker:
         Returns:
             Crawl delay in seconds (returns config default if not specified)
         """
-        if not config.respect_robots_txt:
-            return config.rate_limit_delay
+        if not config.robots.respect_robots_txt:
+            return config.http.rate_limit_delay
 
         try:
             rp = await self.get_robots_parser(url, session)
             if rp is None:
-                return config.rate_limit_delay
+                return config.http.rate_limit_delay
 
             # Get crawl delay for specific user agent
             crawl_delay = rp.crawl_delay(user_agent)
@@ -160,11 +160,11 @@ class RobotsChecker:
                 return float(crawl_delay)
 
             # Fallback to default
-            return config.rate_limit_delay
+            return config.http.rate_limit_delay
 
         except (TimeoutError, aiohttp.ClientError, OSError, ValueError) as e:
             logger.warning("Error getting crawl delay", url=url, error=str(e))
-            return config.rate_limit_delay
+            return config.http.rate_limit_delay
 
     async def enforce_crawl_delay(
         self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None

@@ -44,10 +44,10 @@ class RetryConfig:
     configuration management with environment variable support.
     """
 
-    max_attempts: int = config.max_retries
+    max_attempts: int = config.http.max_retries
     base_delay: float = 1.0
     max_delay: float = 60.0
-    backoff_factor: float = config.backoff_factor
+    backoff_factor: float = config.http.backoff_factor
     jitter: bool = True
     jitter_factor: float = 0.1  # Add up to 10% random variation
 

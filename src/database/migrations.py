@@ -132,8 +132,8 @@ class MigrationManager:
             script_dir = ScriptDirectory.from_config(self.config)
             revisions = []
 
-            for revision in script_dir.walk_revisions():
-                revisions.append(f"{revision.revision}: {revision.doc}")
+            for rev in script_dir.walk_revisions():
+                revisions.append(f"{rev.revision}: {rev.doc}")
 
             return revisions
 

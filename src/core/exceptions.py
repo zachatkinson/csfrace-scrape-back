@@ -21,31 +21,21 @@ class ConversionError(Exception):
 class FetchError(ConversionError):
     """Exception raised when fetching webpage fails."""
 
-    pass
-
 
 class ProcessingError(ConversionError):
     """Exception raised during content processing."""
-
-    pass
 
 
 class SaveError(ConversionError):
     """Exception raised when saving files fails."""
 
-    pass
-
 
 class RateLimitError(ConversionError):
     """Exception raised when rate limits are exceeded."""
 
-    pass
-
 
 class ConfigurationError(ConversionError):
     """Exception raised for configuration-related errors."""
-
-    pass
 
 
 class DatabaseError(Exception):
