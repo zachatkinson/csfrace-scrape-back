@@ -950,13 +950,13 @@ class TestHTMLProcessorAdvanced:
 
     @pytest.mark.asyncio
     async def test_find_main_content_fallback_to_root(self, processor):
-        """Test main content detection falls back to entire document."""
+        """Test main content detection falls back to div wrapper."""
         html_content = """<html><head><title>Test</title></head><p>Root content</p></html>"""
 
         soup = BeautifulSoup(html_content, "html.parser")
         result = processor._find_main_content(soup)
 
-        assert result.name == "[document]"
+        assert result.name == "div"
         assert "Root content" in result.get_text()
 
     @pytest.mark.asyncio
