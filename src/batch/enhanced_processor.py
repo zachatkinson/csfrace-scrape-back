@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from sqlalchemy import select
 
 from src.core.exceptions import BatchProcessingError
-from src.database.models import JobStatus
+from src.database.models import JobStatus, ScrapingJob
 from src.database.service import DatabaseService, JobCreateRequest
 
 logger = structlog.get_logger(__name__)
@@ -40,6 +41,22 @@ class ProcessingResult:
 
 
 @dataclass
+class ProcessingState:
+    """Tracks current processing state."""
+
+    active_tasks: set[asyncio.Task] = field(default_factory=set)
+    completed_count: int = 0
+    failed_count: int = 0
+    cancelled: bool = False
+
+    def reset(self) -> None:
+        """Reset processing counters."""
+        self.completed_count = 0
+        self.failed_count = 0
+        self.cancelled = False
+
+
+@dataclass
 class BatchResults:
     """Results of batch processing."""
 
@@ -51,33 +68,77 @@ class BatchResults:
 
 
 @dataclass
-class BatchConfig:
-    """Enhanced configuration for batch processing."""
+class ConcurrencyConfig:
+    """Configuration for concurrency and rate limiting."""
 
     max_concurrent: int = 5
     timeout_seconds: int = 30
+    rate_limit_per_second: int | None = None
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry behavior."""
+
     retry_attempts: int = 2
     retry_delay: float = 1.0
     continue_on_error: bool = True
-    output_directory: Path = Path("batch_output")
-    create_archives: bool = False
-    cleanup_after_archive: bool = False
-    rate_limit_per_second: int | None = None
+
+
+@dataclass
+class ProcessingConfig:
+    """Configuration for processing behavior."""
+
     priority_queue: bool = True
     save_checkpoints: bool = True
     checkpoint_interval: int = 10  # Save progress every N jobs
 
+
+@dataclass
+class OutputConfig:
+    """Configuration for output handling."""
+
+    output_directory: Path = Path("batch_output")
+    create_archives: bool = False
+    cleanup_after_archive: bool = False
+
+
+@dataclass
+class BatchConfig:
+    """Enhanced configuration for batch processing."""
+
+    concurrency: ConcurrencyConfig = field(default_factory=ConcurrencyConfig)
+    retry: RetryConfig = field(default_factory=RetryConfig)
+    processing: ProcessingConfig = field(default_factory=ProcessingConfig)
+    output: OutputConfig = field(default_factory=OutputConfig)
+
     def validate(self) -> bool:
         """Validate configuration settings."""
-        if self.max_concurrent <= 0:
+        if self.concurrency.max_concurrent <= 0:
             raise ValueError("max_concurrent must be positive")
-        if self.timeout_seconds <= 0:
+        if self.concurrency.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
-        if self.retry_attempts < 0:
+        if self.retry.retry_attempts < 0:
             raise ValueError("retry_attempts cannot be negative")
-        if self.retry_delay < 0:
+        if self.retry.retry_delay < 0:
             raise ValueError("retry_delay cannot be negative")
         return True
+
+
+class ConcurrencyManager:
+    """Manages concurrency controls for batch processing."""
+
+    def __init__(self, config: ConcurrencyConfig):
+        """Initialize concurrency manager."""
+        self.config = config
+        self.semaphore = asyncio.Semaphore(config.max_concurrent)
+        self.rate_limiter = self._create_rate_limiter()
+
+    def _create_rate_limiter(self) -> asyncio.Semaphore | None:
+        """Create rate limiter if configured."""
+        if self.config.rate_limit_per_second:
+            return asyncio.Semaphore(self.config.rate_limit_per_second)
+        return None
 
 
 class BatchProcessor:
@@ -99,31 +160,24 @@ class BatchProcessor:
         self.config = config
         self.database_service = database_service
         self.converter = converter
-        self.active_tasks: set[asyncio.Task] = set()
-        self.completed_count = 0
-        self.failed_count = 0
-        self.semaphore = asyncio.Semaphore(config.max_concurrent)
-        self.rate_limiter: asyncio.Semaphore | None = None
-        self.cancelled = False
-
-        if config.rate_limit_per_second:
-            self.rate_limiter = asyncio.Semaphore(config.rate_limit_per_second)
+        self.state = ProcessingState()
+        self.concurrency = ConcurrencyManager(config.concurrency)
 
         logger.info(
             "Initialized enhanced batch processor",
-            max_concurrent=config.max_concurrent,
-            timeout=config.timeout_seconds,
-            retry_attempts=config.retry_attempts,
+            max_concurrent=config.concurrency.max_concurrent,
+            timeout=config.concurrency.timeout_seconds,
+            retry_attempts=config.retry.retry_attempts,
         )
 
     async def process_single_url(
-        self, url: str, priority: Priority = Priority.NORMAL
+        self, url: str, _priority: Priority = Priority.NORMAL
     ) -> ProcessingResult:
         """Process a single URL with retry logic.
 
         Args:
             url: URL to process
-            priority: Processing priority
+            _priority: Processing priority (unused but kept for API compatibility)
 
         Returns:
             ProcessingResult with success status and data
@@ -131,32 +185,37 @@ class BatchProcessor:
         retries = 0
         last_error = None
 
-        while retries <= self.config.retry_attempts:
+        while retries <= self.config.retry.retry_attempts:
             try:
                 # Apply rate limiting if configured
-                if self.rate_limiter and self.config.rate_limit_per_second:
-                    async with self.rate_limiter:
-                        await asyncio.sleep(1.0 / self.config.rate_limit_per_second)
+                if self.concurrency.rate_limiter and self.config.concurrency.rate_limit_per_second:
+                    async with self.concurrency.rate_limiter:
+                        await asyncio.sleep(1.0 / self.config.concurrency.rate_limit_per_second)
 
                 # Process the URL with timeout
-                async with self.semaphore:
+                async with self.concurrency.semaphore:
                     result = await asyncio.wait_for(
-                        self.converter.process_url(url), timeout=self.config.timeout_seconds
+                        self.converter.process_url(url),
+                        timeout=self.config.concurrency.timeout_seconds,
                     )
 
                 return ProcessingResult(success=True, url=url, data=result, retries=retries)
 
-            except TimeoutError:
-                last_error = f"Timeout after {self.config.timeout_seconds} seconds"
-                logger.warning("URL processing timeout", url=url, attempt=retries + 1)
+            except TimeoutError as e:
+                last_error = f"Timeout after {self.config.concurrency.timeout_seconds} seconds"
+                logger.warning("URL processing timeout", url=url, attempt=retries + 1, error=str(e))
 
-            except Exception as e:
-                last_error = str(e)
+            except (ConnectionError, OSError) as e:
+                last_error = f"Connection error: {e}"
+                logger.warning("URL connection error", url=url, error=str(e), attempt=retries + 1)
+
+            except Exception as e:  # pylint: disable=broad-exception-caught  # Need to catch all processing errors
+                last_error = f"Processing error: {e}"
                 logger.warning("URL processing error", url=url, error=str(e), attempt=retries + 1)
 
             retries += 1
-            if retries <= self.config.retry_attempts:
-                await asyncio.sleep(self.config.retry_delay * retries)
+            if retries <= self.config.retry.retry_attempts:
+                await asyncio.sleep(self.config.retry.retry_delay * retries)
 
         return ProcessingResult(success=False, url=url, error=last_error, retries=retries - 1)
 
@@ -180,62 +239,23 @@ class BatchProcessor:
         batch = self.database_service.create_batch(
             name=batch_name,
             total_jobs=len(urls),
-            max_concurrent=self.config.max_concurrent,
-            output_base_directory=str(self.config.output_directory),
+            max_concurrent=self.config.concurrency.max_concurrent,
+            output_base_directory=str(self.config.output.output_directory),
         )
 
-        # Reset counters
-        self.completed_count = 0
-        self.failed_count = 0
-        self.cancelled = False
-
+        # Execute batch processing workflow
+        self._reset_state()
         results = BatchResults(total=len(urls))
         start_time = datetime.now(UTC)
 
-        # Sort URLs by priority if provided
-        if priorities:
-            sorted_urls = sorted(urls, key=lambda u: priorities.get(u, Priority.NORMAL).value)
-        else:
-            sorted_urls = urls
-
-        # Process URLs concurrently
-        tasks = []
-        for url in sorted_urls:
-            if self.cancelled:
-                break
-
-            priority = priorities.get(url, Priority.NORMAL) if priorities else Priority.NORMAL
-            task = asyncio.create_task(self._process_with_tracking(url, batch.id, priority))
-            tasks.append(task)
-            self.active_tasks.add(task)
-            task.add_done_callback(self.active_tasks.discard)
-
-        # Wait for all tasks to complete
+        # Process URLs and compile results
+        sorted_urls = self._sort_urls_by_priority(urls, priorities)
+        tasks = self._create_processing_tasks(sorted_urls, batch.id, priorities)
         processed = await asyncio.gather(*tasks, return_exceptions=True)
+        self._compile_results(processed, sorted_urls, results)
 
-        # Compile results
-        for i, result in enumerate(processed):
-            if isinstance(result, Exception):
-                results.failed.append(sorted_urls[i])
-                if not self.config.continue_on_error:
-                    raise BatchProcessingError(f"Batch processing failed: {result}")
-            elif isinstance(result, ProcessingResult):
-                if result.success:
-                    results.successful.append(result.url)
-                else:
-                    results.failed.append(result.url)
-                    if not self.config.continue_on_error:
-                        raise BatchProcessingError(f"Batch processing failed: {result.error}")
-
-        # Calculate duration
-        end_time = datetime.now(UTC)
-        results.duration = (end_time - start_time).total_seconds()
-
-        # Update batch progress (the database service doesn't have update_batch_status method)
-        self.database_service.update_batch_progress(batch.id)
-
-        # Generate statistics
-        results.statistics = self.get_statistics()
+        # Finalize results
+        results = self._finalize_batch_results(results, start_time, batch)
 
         logger.info(
             "Batch processing complete",
@@ -245,6 +265,65 @@ class BatchProcessor:
             failed=len(results.failed),
             duration=results.duration,
         )
+
+        return results
+
+    def _reset_state(self) -> None:
+        """Reset processing counters."""
+        self.state.reset()
+
+    def _sort_urls_by_priority(
+        self, urls: list[str], priorities: dict[str, Priority] | None
+    ) -> list[str]:
+        """Sort URLs by priority if provided."""
+        if priorities:
+            return sorted(urls, key=lambda u: priorities.get(u, Priority.NORMAL).value)
+        return urls
+
+    def _create_processing_tasks(
+        self, urls: list[str], batch_id: int, priorities: dict[str, Priority] | None
+    ) -> list[asyncio.Task]:
+        """Create processing tasks for URLs."""
+        tasks = []
+        for url in urls:
+            if self.state.cancelled:
+                break
+            priority = priorities.get(url, Priority.NORMAL) if priorities else Priority.NORMAL
+            task = asyncio.create_task(self._process_with_tracking(url, batch_id, priority))
+            tasks.append(task)
+            self.state.active_tasks.add(task)
+            task.add_done_callback(self.state.active_tasks.discard)
+        return tasks
+
+    def _compile_results(
+        self, processed: list, sorted_urls: list[str], results: BatchResults
+    ) -> None:
+        """Compile processing results."""
+        for i, result in enumerate(processed):
+            if isinstance(result, Exception):
+                results.failed.append(sorted_urls[i])
+                if not self.config.retry.continue_on_error:
+                    raise BatchProcessingError(f"Batch processing failed: {result}") from result
+            elif isinstance(result, ProcessingResult):
+                if result.success:
+                    results.successful.append(result.url)
+                else:
+                    results.failed.append(result.url)
+                    if not self.config.retry.continue_on_error:
+                        raise BatchProcessingError(f"Batch processing failed: {result.error}")
+
+    def _finalize_batch_results(
+        self, results: BatchResults, start_time: datetime, batch
+    ) -> BatchResults:
+        """Finalize batch results with timing and statistics."""
+        end_time = datetime.now(UTC)
+        results.duration = (end_time - start_time).total_seconds()
+
+        # Update batch progress
+        self.database_service.update_batch_progress(batch.id)
+
+        # Generate statistics
+        results.statistics = self.get_statistics()
 
         return results
 
@@ -264,7 +343,7 @@ class BatchProcessor:
         # Create job in database
         request = JobCreateRequest(
             url=url,
-            output_directory=str(self.config.output_directory),
+            output_directory=str(self.config.output.output_directory),
             batch_id=batch_id,
             priority=priority.name.lower(),
         )
@@ -278,12 +357,12 @@ class BatchProcessor:
 
         # Update job status based on result
         if result.success:
-            self.completed_count += 1
+            self.state.completed_count += 1
             self.database_service.update_job_status(
                 job.id, JobStatus.COMPLETED, duration=result.duration
             )
         else:
-            self.failed_count += 1
+            self.state.failed_count += 1
             self.database_service.update_job_status(
                 job.id, JobStatus.FAILED, error_message=result.error
             )
@@ -293,8 +372,10 @@ class BatchProcessor:
 
         # Save checkpoint if configured
         if (
-            self.config.save_checkpoints
-            and (self.completed_count + self.failed_count) % self.config.checkpoint_interval == 0
+            self.config.processing.save_checkpoints
+            and (self.state.completed_count + self.state.failed_count)
+            % self.config.processing.checkpoint_interval
+            == 0
         ):
             await self._save_checkpoint(batch_id)
 
@@ -315,10 +396,6 @@ class BatchProcessor:
 
         # Get pending and failed jobs for this batch
         with self.database_service.get_session() as session:
-            from sqlalchemy import select
-
-            from src.database.models import ScrapingJob
-
             stmt = select(ScrapingJob).where(
                 ScrapingJob.batch_id == batch_id,
                 ScrapingJob.status.in_([JobStatus.PENDING, JobStatus.FAILED]),
@@ -349,25 +426,25 @@ class BatchProcessor:
         """
         checkpoint_data = {
             "batch_id": batch_id,
-            "completed": self.completed_count,
-            "failed": self.failed_count,
+            "completed": self.state.completed_count,
+            "failed": self.state.failed_count,
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        checkpoint_file = self.config.output_directory / f"checkpoint_{batch_id}.json"
+        checkpoint_file = self.config.output.output_directory / f"checkpoint_{batch_id}.json"
         checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(checkpoint_file, "w") as f:
+        with open(checkpoint_file, "w", encoding="utf-8") as f:
             json.dump(checkpoint_data, f, indent=2)
 
         logger.debug("Saved checkpoint", batch_id=batch_id, file=str(checkpoint_file))
 
     def cancel(self):
         """Cancel ongoing batch processing."""
-        self.cancelled = True
+        self.state.cancelled = True
 
         # Cancel all active tasks
-        for task in self.active_tasks:
+        for task in self.state.active_tasks:
             task.cancel()
 
         logger.info("Batch processing cancelled")
@@ -378,13 +455,15 @@ class BatchProcessor:
         Returns:
             Dictionary with processing statistics
         """
-        total_processed = self.completed_count + self.failed_count
-        success_rate = (self.completed_count / total_processed * 100) if total_processed > 0 else 0
+        total_processed = self.state.completed_count + self.state.failed_count
+        success_rate = (
+            (self.state.completed_count / total_processed * 100) if total_processed > 0 else 0
+        )
 
         stats = {
             "total_processed": total_processed,
-            "successful": self.completed_count,
-            "failed": self.failed_count,
+            "successful": self.state.completed_count,
+            "failed": self.state.failed_count,
             "success_rate": success_rate,
             "average_time_per_url": 0,  # Would need timing tracking
             "total_time_seconds": 0,  # Would need timing tracking
