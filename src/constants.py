@@ -370,6 +370,10 @@ class AppConstants:  # pylint: disable=too-few-public-methods
 
         return getattr(sys.modules[__name__], name)
 
+    def __setattr__(self, name: str, value) -> None:
+        """Prevent modification to maintain immutability like frozen dataclass."""
+        raise AttributeError(f"Cannot set attribute '{name}' on frozen constants")
+
 
 class TestConstants:  # pylint: disable=too-few-public-methods
     """Test constants container."""
