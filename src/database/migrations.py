@@ -45,35 +45,35 @@ class MigrationManager:
             and (alembic_dir / "env.py").exists()
         )
 
-    def create_migration(self, message: str, autogenerate: bool = True) -> str:  # pylint: disable=redefined-outer-name
+    def create_migration(self, description: str, autogenerate: bool = True) -> str:
         """Create a new migration.
 
         Args:
-            message: Migration description
+            description: Migration description
             autogenerate: Whether to auto-generate migration from model changes
 
         Returns:
             Migration revision ID
         """
         try:
-            logger.info("Creating migration: %s", message)
+            logger.info("Creating migration: %s", description)
 
             if autogenerate:
                 # Create auto-generated migration
                 command.revision(
                     self.config,
-                    message=message,
+                    message=description,
                     autogenerate=True,
                 )
             else:
                 # Create empty migration
                 command.revision(
                     self.config,
-                    message=message,
+                    message=description,
                 )
 
-            logger.info("Created migration: %s", message)
-            return message
+            logger.info("Created migration: %s", description)
+            return description
 
         except Exception as e:
             logger.error("Failed to create migration: %s", e)
@@ -204,8 +204,8 @@ if __name__ == "__main__":
             if len(sys.argv) < 3:
                 print("Error: Migration message required")
                 sys.exit(1)
-            message = " ".join(sys.argv[2:])  # pylint: disable=invalid-name
-            manager.create_migration(message)
+            migration_description = " ".join(sys.argv[2:])  # pylint: disable=invalid-name
+            manager.create_migration(migration_description)
         elif cmd == "upgrade":
             revision = sys.argv[2] if len(sys.argv) > 2 else "head"
             manager.upgrade_database(revision)

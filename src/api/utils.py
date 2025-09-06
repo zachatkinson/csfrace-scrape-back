@@ -157,6 +157,58 @@ def maybe_none(func: Callable[..., Any], *args, **kwargs) -> Any:
     return func(*args, **kwargs)  # pylint: disable=assignment-from-none
 
 
+# HTTPException re-raise pattern (DRY principle)
+def handle_api_exceptions(error_message: str):
+    """Decorator to handle HTTPException re-raising pattern consistently.
+    
+    This eliminates the common DRY violation of:
+        except HTTPException:
+            raise  # Re-raise HTTP exceptions
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error: {e}") from e
+    
+    Args:
+        error_message: Custom error message for unexpected exceptions
+        
+    Usage:
+        @handle_api_exceptions("Failed to process request")
+        def my_endpoint():
+            # Your endpoint logic here
+            pass
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except HTTPException:
+                raise  # Re-raise HTTP exceptions as-is
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"{error_message}: {str(e)}"
+                ) from e
+                
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except HTTPException:
+                raise  # Re-raise HTTP exceptions as-is  
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"{error_message}: {str(e)}"
+                ) from e
+                
+        # Return appropriate wrapper based on function type
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
+        
+    return decorator
+
+
 # Service error handling decorator (DRY principle)
 def handle_service_errors(operation: str):
     """Decorator to handle common service errors with standardized HTTP responses.
