@@ -183,7 +183,7 @@ async def prometheus_metrics() -> str:
 
     Returns:
         Prometheus-formatted metrics data in plain text format
-        
+
     Raises:
         HTTPException: If metrics collection fails
     """
@@ -192,6 +192,7 @@ async def prometheus_metrics() -> str:
         return metrics_data.decode("utf-8")
     except Exception as e:
         from fastapi import HTTPException, status
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export Prometheus metrics: {str(e)}",
