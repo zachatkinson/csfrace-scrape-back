@@ -28,7 +28,7 @@ class PluginIntegration:
             await self.manager.initialize()
             self.enabled = True
             logger.info("Plugin system initialized")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to initialize plugin system", error=str(e))
             self.enabled = False
 
@@ -65,7 +65,7 @@ class PluginIntegration:
             result["plugin_processed"] = True
             return result
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Plugin processing failed, falling back", error=str(e))
             return {
                 "content": html_content,

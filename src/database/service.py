@@ -5,6 +5,7 @@ with proper error handling, transaction management, and connection pooling.
 """
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -27,6 +28,28 @@ from .models import (
 logger = structlog.get_logger(__name__)
 
 
+@dataclass
+class JobCreateRequest:
+    """Request object for creating scraping jobs."""
+    url: str
+    output_directory: str
+    domain: str | None = None
+    slug: str | None = None
+    batch_id: int | None = None
+    priority: str = "normal"
+
+
+@dataclass 
+class JobLogRequest:
+    """Request object for adding job logs."""
+    job_id: int
+    level: str
+    message: str
+    component: str | None = None
+    operation: str | None = None
+    context_data: dict[str, Any] | None = None
+
+
 class DatabaseService:
     """High-level database service for scraping operations.
 
@@ -41,7 +64,7 @@ class DatabaseService:
             echo: Whether to echo SQL statements for debugging
         """
         self.engine = create_database_engine(echo=echo)
-        self.SessionLocal = sessionmaker(
+        self.SessionLocal = sessionmaker(  # pylint: disable=invalid-name
             bind=self.engine,
             autocommit=False,
             autoflush=False,
@@ -116,13 +139,14 @@ class DatabaseService:
         Uses PostgreSQL's transaction-safe enum creation pattern recommended
         in the official documentation.
         """
-        from sqlalchemy import text
-        from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+        from sqlalchemy import text  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum  # pylint: disable=import-outside-toplevel
 
-        from .models import JobPriority, JobStatus
+        from .models import JobPriority  # pylint: disable=import-outside-toplevel
+        from .models import JobStatus as JobStatusEnum  # pylint: disable=import-outside-toplevel
 
         enum_definitions = [
-            ("jobstatus", JobStatus),
+            ("jobstatus", JobStatusEnum),
             ("jobpriority", JobPriority),
         ]
 
@@ -143,7 +167,7 @@ class DatabaseService:
                     else:
                         logger.debug(f"PostgreSQL enum type already exists: {enum_name}")
 
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     error_msg = str(e).lower()
                     # Handle concurrent enum creation conflicts gracefully
                     if any(phrase in error_msg for phrase in ["already exists", "duplicate key"]):
@@ -175,25 +199,11 @@ class DatabaseService:
 
     # Job Management Operations
 
-    def create_job(
-        self,
-        url: str,
-        output_directory: str,
-        domain: str | None = None,
-        slug: str | None = None,
-        batch_id: int | None = None,
-        priority: str = "normal",
-        **kwargs,
-    ) -> ScrapingJob:
+    def create_job(self, request: JobCreateRequest, **kwargs) -> ScrapingJob:
         """Create a new scraping job.
 
         Args:
-            url: URL to scrape
-            output_directory: Directory for output files
-            domain: Domain name (auto-extracted if not provided)
-            slug: URL slug (auto-extracted if not provided)
-            batch_id: Optional batch ID for grouping
-            priority: Job priority level
+            request: Job creation request containing all parameters
             **kwargs: Additional job configuration
 
         Returns:
@@ -204,22 +214,30 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
+                # Extract request parameters for cleaner code
+                url = request.url
+                output_directory = request.output_directory
+                domain = request.domain
+                slug = request.slug
+                batch_id = request.batch_id
+                priority = request.priority
+
                 # Auto-extract domain and slug if not provided
                 if not domain:
-                    from urllib.parse import urlparse
+                    from urllib.parse import urlparse  # pylint: disable=import-outside-toplevel
 
                     parsed = urlparse(url)
                     domain = parsed.netloc
 
                 if not slug and not kwargs.get("custom_slug"):
-                    from urllib.parse import urlparse
+                    from urllib.parse import urlparse  # pylint: disable=import-outside-toplevel
 
                     parsed = urlparse(url)
                     path_parts = parsed.path.strip("/").split("/")
                     slug = path_parts[-1] if path_parts and path_parts[-1] else "homepage"
 
                 # Convert string priority to enum if needed
-                from .models import JobPriority
+                from .models import JobPriority  # pylint: disable=import-outside-toplevel
 
                 if isinstance(priority, str):
                     try:
@@ -336,7 +354,7 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 # Order by priority (URGENT -> HIGH -> NORMAL -> LOW) then by creation time
-                from .models import JobPriority
+                from .models import JobPriority  # pylint: disable=import-outside-toplevel
 
                 priority_order = {
                     JobPriority.URGENT: 4,
@@ -633,24 +651,11 @@ class DatabaseService:
             logger.error("Failed to save content result", job_id=job_id, error=str(e))
             raise DatabaseError(f"Content result save failed: {e}") from e
 
-    def add_job_log(
-        self,
-        job_id: int,
-        level: str,
-        message: str,
-        component: str | None = None,
-        operation: str | None = None,
-        context_data: dict[str, Any] | None = None,
-    ) -> JobLog | None:
+    def add_job_log(self, request: JobLogRequest) -> JobLog | None:
         """Add a log entry for a job.
 
         Args:
-            job_id: Associated job ID
-            level: Log level (INFO, WARN, ERROR, DEBUG)
-            message: Log message
-            component: Component that generated the log
-            operation: Operation being performed
-            context_data: Additional structured context
+            request: Job log request containing all parameters
 
         Returns:
             Created JobLog instance
@@ -658,12 +663,12 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 log_entry = JobLog(
-                    job_id=job_id,
-                    level=level.upper(),
-                    message=message,
-                    component=component,
-                    operation=operation,
-                    context_data=context_data,
+                    job_id=request.job_id,
+                    level=request.level.upper(),
+                    message=request.message,
+                    component=request.component,
+                    operation=request.operation,
+                    context_data=request.context_data,
                 )
 
                 session.add(log_entry)
@@ -671,8 +676,8 @@ class DatabaseService:
 
                 return log_entry
 
-        except Exception as e:
-            logger.error("Failed to add job log", job_id=job_id, error=str(e))
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to add job log", job_id=request.job_id, error=str(e))
             # Don't raise here - logging failures shouldn't break the main process
             return None
 

@@ -28,7 +28,7 @@ console = Console()
 logger = structlog.get_logger()
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 async def main_async(
     url: str | None = None,
     urls_file: str | None = None,

@@ -1,6 +1,7 @@
 """Base cache interfaces and types."""
 
 import abc
+import base64
 import hashlib
 import json
 import time
@@ -301,10 +302,8 @@ class BaseCacheBackend(abc.ABC):
             Serializable representation
         """
         if isinstance(obj, bytes):
-            import base64
-
             return {"__type__": "bytes", "__value__": base64.b64encode(obj).decode("ascii")}
-        elif isinstance(obj, Path):
+        if isinstance(obj, Path):
             return {"__type__": "Path", "__value__": str(obj)}
 
         raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")

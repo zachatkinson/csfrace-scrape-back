@@ -45,7 +45,7 @@ class MigrationManager:
             and (alembic_dir / "env.py").exists()
         )
 
-    def create_migration(self, message: str, autogenerate: bool = True) -> str:
+    def create_migration(self, message: str, autogenerate: bool = True) -> str:  # pylint: disable=redefined-outer-name
         """Create a new migration.
 
         Args:
@@ -56,7 +56,7 @@ class MigrationManager:
             Migration revision ID
         """
         try:
-            logger.info(f"Creating migration: {message}")
+            logger.info("Creating migration: %s", message)
 
             if autogenerate:
                 # Create auto-generated migration
@@ -72,41 +72,41 @@ class MigrationManager:
                     message=message,
                 )
 
-            logger.info(f"Created migration: {message}")
+            logger.info("Created migration: %s", message)
             return message
 
         except Exception as e:
-            logger.error(f"Failed to create migration: {e}")
+            logger.error("Failed to create migration: %s", e)
             raise
 
-    def upgrade_database(self, revision: str = "head") -> None:
+    def upgrade_database(self, revision: str = "head") -> None:  # pylint: disable=redefined-outer-name
         """Upgrade database to specified revision.
 
         Args:
             revision: Target revision (default: head)
         """
         try:
-            logger.info(f"Upgrading database to {revision}")
+            logger.info("Upgrading database to %s", revision)
             command.upgrade(self.config, revision)
             logger.info("Database upgrade completed successfully")
 
         except Exception as e:
-            logger.error(f"Failed to upgrade database: {e}")
+            logger.error("Failed to upgrade database: %s", e)
             raise
 
-    def downgrade_database(self, revision: str) -> None:
+    def downgrade_database(self, revision: str) -> None:  # pylint: disable=redefined-outer-name
         """Downgrade database to specified revision.
 
         Args:
             revision: Target revision
         """
         try:
-            logger.info(f"Downgrading database to {revision}")
+            logger.info("Downgrading database to %s", revision)
             command.downgrade(self.config, revision)
             logger.info("Database downgrade completed successfully")
 
         except Exception as e:
-            logger.error(f"Failed to downgrade database: {e}")
+            logger.error("Failed to downgrade database: %s", e)
             raise
 
     def get_current_revision(self) -> str | None:
@@ -122,11 +122,11 @@ class MigrationManager:
                 current_rev = migration_ctx.get_current_revision()
                 return current_rev
 
-        except Exception as e:
-            logger.error(f"Failed to get current revision: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to get current revision: %s", e)
             return None
 
-    def get_migration_history(self) -> list[str]:
+    def get_migration_history(self) -> list[str]:  # pylint: disable=redefined-outer-name
         """Get migration history."""
         try:
             script_dir = ScriptDirectory.from_config(self.config)
@@ -137,8 +137,8 @@ class MigrationManager:
 
             return revisions
 
-        except Exception as e:
-            logger.error(f"Failed to get migration history: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to get migration history: %s", e)
             return []
 
     def show_current_head(self) -> str | None:
@@ -147,8 +147,8 @@ class MigrationManager:
             script_dir = ScriptDirectory.from_config(self.config)
             return script_dir.get_current_head()
 
-        except Exception as e:
-            logger.error(f"Failed to get current head: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to get current head: %s", e)
             return None
 
     def ensure_database_current(self) -> None:
@@ -161,13 +161,13 @@ class MigrationManager:
                 logger.info("Database not initialized, running initial migration")
                 self.upgrade_database()
             elif current_rev != head_rev:
-                logger.info(f"Database at {current_rev}, upgrading to {head_rev}")
+                logger.info("Database at %s, upgrading to %s", current_rev, head_rev)
                 self.upgrade_database()
             else:
                 logger.info("Database is current")
 
         except Exception as e:
-            logger.error(f"Failed to ensure database currency: {e}")
+            logger.error("Failed to ensure database currency: %s", e)
             raise
 
 
@@ -204,7 +204,7 @@ if __name__ == "__main__":
             if len(sys.argv) < 3:
                 print("Error: Migration message required")
                 sys.exit(1)
-            message = " ".join(sys.argv[2:])
+            message = " ".join(sys.argv[2:])  # pylint: disable=invalid-name
             manager.create_migration(message)
         elif cmd == "upgrade":
             revision = sys.argv[2] if len(sys.argv) > 2 else "head"
@@ -229,6 +229,6 @@ if __name__ == "__main__":
             print(f"Unknown command: {cmd}")
             sys.exit(1)
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}")
         sys.exit(1)
