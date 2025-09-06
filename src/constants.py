@@ -223,7 +223,9 @@ GITHUB_SCOPES: list[str] = ["user:email"]
 
 # Microsoft OAuth2 Configuration
 MICROSOFT_AUTHORIZATION_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-MICROSOFT_TOKEN_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/token"  # noqa: S105
+MICROSOFT_TOKEN_URL: str = (
+    "https://login.microsoftonline.com/common/oauth2/v2.0/token"  # noqa: S105
+)
 MICROSOFT_USER_INFO_URL: str = "https://graph.microsoft.com/v1.0/me"
 MICROSOFT_SCOPES: list[str] = ["openid", "profile", "email", "User.Read"]
 
@@ -288,14 +290,14 @@ SUCCESS_CREDENTIAL_REVOKED: str = "Passkey revoked successfully"
 
 
 # Create constant class instances for backward compatibility
-class AuthConstants:
+class AuthConstants:  # pylint: disable=too-few-public-methods
     """Authentication constants container."""
 
     BEARER_TOKEN_TYPE = BEARER_TOKEN_TYPE
     PASSWORD_CONTEXT_DEPRECATED = PASSWORD_CONTEXT_DEPRECATED
 
 
-class ProgressConstants:
+class ProgressConstants:  # pylint: disable=too-few-public-methods
     """Progress constants container."""
 
     START = PROGRESS_START
@@ -305,7 +307,7 @@ class ProgressConstants:
     COMPLETE = PROGRESS_COMPLETE
 
 
-class OAuthConstants:
+class OAuthConstants:  # pylint: disable=too-few-public-methods
     """OAuth constants container."""
 
     OAUTH_GOOGLE_CLIENT_ID = OAUTH_GOOGLE_CLIENT_ID
@@ -339,7 +341,7 @@ class OAuthConstants:
     STATE_TOKEN_LENGTH = STATE_TOKEN_LENGTH
 
 
-class WebAuthnConstants:
+class WebAuthnConstants:  # pylint: disable=too-few-public-methods
     """WebAuthn constants container."""
 
     WEBAUTHN_RP_ID = WEBAUTHN_RP_ID
@@ -349,7 +351,7 @@ class WebAuthnConstants:
     CHALLENGE_LENGTH_BYTES = CHALLENGE_LENGTH_BYTES
 
 
-class CLIConstants:
+class CLIConstants:  # pylint: disable=too-few-public-methods
     """CLI constants container."""
 
     DEFAULT_PROMETHEUS_URL = DEFAULT_PROMETHEUS_URL
@@ -361,12 +363,12 @@ class CLIConstants:
 
 
 # Legacy constants class for backward compatibility (deprecated - use module level constants)
-class AppConstants:
+class AppConstants:  # pylint: disable=too-few-public-methods
     """Deprecated - use module level constants instead."""
 
     def __getattr__(self, name: str):
         """Redirect to module level constants."""
-        import sys
+        import sys  # pylint: disable=import-outside-toplevel
 
         return getattr(sys.modules[__name__], name)
 

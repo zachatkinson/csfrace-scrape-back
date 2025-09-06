@@ -61,7 +61,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
             metadata["title"] = title_tag.get_text().strip()
             metadata["title_length"] = len(metadata["title"])
 
-        from ...utils.html import find_meta_content
+        from ...utils.html import find_meta_content  # pylint: disable=import-outside-toplevel
 
         # Meta description
         description = find_meta_content(soup, name="description")
@@ -89,7 +89,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         return metadata
 
-    def _extract_open_graph(self, soup: BeautifulSoup, url: str) -> dict[str, Any]:
+    def _extract_open_graph(self, soup: BeautifulSoup, url: str) -> dict[str, Any]:  # pylint: disable=unused-argument
         """Extract Open Graph metadata."""
         og_metadata = {}
 
@@ -123,7 +123,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
     def _extract_schema_org(self, soup: BeautifulSoup) -> dict[str, Any]:
         """Extract Schema.org structured data."""
-        import json
+        import json  # pylint: disable=import-outside-toplevel
 
         schema_data = []
 
@@ -158,7 +158,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         return {"schema_org": schema_data} if schema_data else {}
 
-    def _extract_seo_signals(self, soup: BeautifulSoup) -> dict[str, Any]:
+    def _extract_seo_signals(self, soup: BeautifulSoup) -> dict[str, Any]:  # pylint: disable=too-many-locals
         """Extract additional SEO signals."""
         signals: dict[str, Any] = {}
 

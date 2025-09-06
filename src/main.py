@@ -28,6 +28,7 @@ console = Console()
 logger = structlog.get_logger()
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 async def main_async(
     url: str | None = None,
     urls_file: str | None = None,
@@ -60,7 +61,7 @@ async def main_async(
     except ConversionError as e:
         console.print(f"❌ [red]Conversion failed: {e}[/red]")
         raise
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.exception("Unexpected error during conversion", error=str(e))
         console.print(f"💥 [red]Unexpected error: {e}[/red]")
         raise
@@ -216,7 +217,7 @@ Examples:
         try:
             converter_config, batch_config = load_config_from_file(args.config)
             console.print(f"📝 Loaded configuration from: [bold]{args.config}[/bold]")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             console.print(f"❌ [red]Failed to load config: {e}[/red]")
             sys.exit(1)
 
@@ -226,7 +227,11 @@ Examples:
         console.print(CLI_CONSTANTS.PROGRESS_SEPARATOR)
 
         mode = console.input(
-            "Choose mode:\n  1. Single URL\n  2. Multiple URLs (comma-separated)\n  3. Batch from file\nEnter choice (1-3): "
+            "Choose mode:\n"
+            "  1. Single URL\n"
+            "  2. Multiple URLs (comma-separated)\n"
+            "  3. Batch from file\n"
+            "Enter choice (1-3): "
         ).strip()
 
         if mode == "1":
