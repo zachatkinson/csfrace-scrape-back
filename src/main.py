@@ -28,7 +28,7 @@ console = Console()
 logger = structlog.get_logger()
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
+# pylint: disable=too-many-arguments
 async def main_async(
     url: str | None = None,
     urls_file: str | None = None,
@@ -265,7 +265,7 @@ Examples:
     except KeyboardInterrupt:
         console.print("\n[yellow]Conversion interrupted by user[/yellow]")
         sys.exit(CLI_CONSTANTS.EXIT_CODE_KEYBOARD_INTERRUPT)
-    except (ConversionError, Exception):
+    except (ConversionError, Exception):  # pylint: disable=broad-exception-caught
         sys.exit(1)
 
 

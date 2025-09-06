@@ -67,7 +67,7 @@ class BasePlugin(abc.ABC):
             - author: Plugin author
             - plugin_type: Type of plugin
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     @abc.abstractmethod
     async def initialize(self) -> None:
@@ -79,7 +79,7 @@ class BasePlugin(abc.ABC):
         Raises:
             Exception: If initialization fails
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     @abc.abstractmethod
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
@@ -95,7 +95,7 @@ class BasePlugin(abc.ABC):
         Raises:
             Exception: If processing fails
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def cleanup(self) -> None:
         """Clean up plugin resources.
@@ -103,7 +103,7 @@ class BasePlugin(abc.ABC):
         Called when the plugin is unloaded or the system shuts down.
         Override this method if your plugin needs to clean up resources.
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def validate_config(self) -> bool:
         """Validate plugin configuration.
@@ -170,7 +170,7 @@ class HTMLProcessorPlugin(BasePlugin):
         Returns:
             Processed HTML content
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
         """Process method implementation for HTML processors."""
@@ -200,7 +200,7 @@ class ContentFilterPlugin(BasePlugin):
         Returns:
             Filtered content
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
         """Process method implementation for content filters."""
@@ -237,7 +237,7 @@ class ImageProcessorPlugin(BasePlugin):
             - format: Image format
             - size: (width, height) tuple
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
         """Process method implementation for image processors."""
@@ -270,7 +270,7 @@ class MetadataExtractorPlugin(BasePlugin):
         Returns:
             Dictionary with extracted metadata
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
         """Process method implementation for metadata extractors."""
@@ -306,7 +306,7 @@ class OutputFormatterPlugin(BasePlugin):
         Returns:
             Formatted content
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
         """Process method implementation for output formatters."""
@@ -340,7 +340,7 @@ class PostProcessorPlugin(BasePlugin):
         Returns:
             Dictionary with post-processing results
         """
-        ...  # pragma: no cover
+        pass  # pylint: disable=unnecessary-pass
 
     async def process(self, data: Any, context: dict[str, Any]) -> Any:
         """Process method implementation for post processors."""
