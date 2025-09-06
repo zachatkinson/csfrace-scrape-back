@@ -5,10 +5,10 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 
-from alembic import command  # type: ignore[attr-defined]
-from alembic.config import Config
-from alembic.runtime.migration import MigrationContext
-from alembic.script import ScriptDirectory
+from alembic import command  # type: ignore[attr-defined]  # pylint: disable=no-name-in-module
+from alembic.config import Config  # pylint: disable=no-name-in-module
+from alembic.runtime.migration import MigrationContext  # pylint: disable=no-name-in-module
+from alembic.script import ScriptDirectory  # pylint: disable=no-name-in-module
 
 from .models import get_database_url
 

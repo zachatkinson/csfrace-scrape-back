@@ -134,6 +134,14 @@ class ConcurrencyManager:
         self.semaphore = asyncio.Semaphore(config.max_concurrent)
         self.rate_limiter = self._create_rate_limiter()
 
+    def get_semaphore(self) -> asyncio.Semaphore:
+        """Get the concurrency semaphore for controlling concurrent operations."""
+        return self.semaphore
+
+    def get_rate_limiter(self) -> asyncio.Semaphore | None:
+        """Get the rate limiter semaphore if configured."""
+        return self.rate_limiter
+
     def _create_rate_limiter(self) -> asyncio.Semaphore | None:
         """Create rate limiter if configured."""
         if self.config.rate_limit_per_second:
@@ -193,7 +201,7 @@ class BatchProcessor:
                         await asyncio.sleep(1.0 / self.config.concurrency.rate_limit_per_second)
 
                 # Process the URL with timeout
-                async with self.concurrency.semaphore:
+                async with self.concurrency.get_semaphore():
                     result = await asyncio.wait_for(
                         self.converter.process_url(url),
                         timeout=self.config.concurrency.timeout_seconds,
@@ -209,7 +217,7 @@ class BatchProcessor:
                 last_error = f"Connection error: {e}"
                 logger.warning("URL connection error", url=url, error=str(e), attempt=retries + 1)
 
-            except Exception as e:  # pylint: disable=broad-exception-caught  # Need to catch all processing errors
+            except (ValueError, TypeError, AttributeError) as e:
                 last_error = f"Processing error: {e}"
                 logger.warning("URL processing error", url=url, error=str(e), attempt=retries + 1)
 
