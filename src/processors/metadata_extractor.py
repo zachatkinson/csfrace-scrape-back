@@ -102,9 +102,11 @@ class MetadataExtractor:
             elem = soup.select_one(selector)
             if elem:
                 if attr_type == "content":
-                    date_value = elem.get("content", "").strip()
+                    content_value = elem.get("content", "")
+                    date_value = content_value.strip() if isinstance(content_value, str) else ""
                 elif attr_type == "datetime":
-                    date_value = elem.get("datetime", elem.get_text()).strip()
+                    datetime_value = elem.get("datetime", elem.get_text())
+                    date_value = datetime_value.strip() if isinstance(datetime_value, str) else ""
                 else:  # text
                     date_value = elem.get_text().strip()
 

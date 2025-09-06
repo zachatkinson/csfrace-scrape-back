@@ -85,7 +85,7 @@ class HTMLProcessor:
         """
         # Try to find entry-content div (common WordPress pattern)
         entry_content = soup.find("div", class_="entry-content")
-        if entry_content:
+        if entry_content and isinstance(entry_content, Tag):
             logger.debug("Found entry-content div")
             return entry_content
 
@@ -101,18 +101,22 @@ class HTMLProcessor:
 
         for selector in selectors:
             element = soup.select_one(selector)
-            if element:
+            if element and isinstance(element, Tag):
                 logger.debug("Found main content", selector=selector)
                 return element
 
         # Fall back to body or entire document
         body = soup.find("body")
-        if body:
+        if body and isinstance(body, Tag):
             logger.warning("Using entire body as content")
             return body
 
+        # Final fallback - create a container from the entire document
         logger.warning("Using entire document as content")
-        return soup
+        # Create a new div to wrap all content if no proper container found
+        wrapper = soup.new_tag("div")
+        wrapper.extend(list(soup.children))
+        return wrapper
 
     async def _convert_font_formatting(self, content: Tag) -> Tag:
         """Convert font formatting tags to semantic HTML.
@@ -198,15 +202,16 @@ class HTMLProcessor:
 
         # Find the inner content container
         inner_col = column.find("div", class_="kt-inside-inner-col")
-        source = inner_col if inner_col else column
+        source = inner_col if inner_col and isinstance(inner_col, Tag) else column
 
-        # Move all meaningful content
-        for child in list(source.children):
-            if isinstance(child, NavigableString):
-                if child.strip():  # Only move non-empty text
+        # Move all meaningful content (only if source is a Tag)
+        if isinstance(source, Tag):
+            for child in list(source.children):
+                if isinstance(child, NavigableString):
+                    if child.strip():  # Only move non-empty text
+                        text_box.append(child.extract())
+                elif isinstance(child, Tag):
                     text_box.append(child.extract())
-            elif isinstance(child, Tag):
-                text_box.append(child.extract())
 
         return text_box
 
@@ -324,7 +329,8 @@ class HTMLProcessor:
         ]
 
         # Handle external links
-        href = original_btn.get("href", "")
+        href_value = original_btn.get("href", "")
+        href = href_value if isinstance(href_value, str) else str(href_value)
         if self._is_external_link(href):
             new_btn["target"] = "_blank"
             new_btn["rel"] = "noreferrer noopener"
@@ -429,7 +435,7 @@ class HTMLProcessor:
             iframe, new_iframe, {"src": "src", "title": ("title", "YouTube Video")}
         )
         new_iframe["frameborder"] = "0"
-        new_iframe["allowfullscreen"] = True
+        new_iframe["allowfullscreen"] = "true"
 
         container_div.append(new_iframe)
 
@@ -568,7 +574,20 @@ class HTMLProcessor:
 
     def _get_root_soup(self, element: Tag) -> BeautifulSoup:
         """Get the root BeautifulSoup object for creating new tags."""
-        root = element
-        while root.parent:
-            root = root.parent
-        return root
+        current = element
+        while current.parent and not isinstance(current, BeautifulSoup):
+            current = current.parent
+
+        # If we found a BeautifulSoup object, return it
+        if isinstance(current, BeautifulSoup):
+            return current
+
+        # Otherwise, we need to find the document root
+        # Navigate to the document root using the parent chain
+        while hasattr(current, "parent") and current.parent:
+            if isinstance(current.parent, BeautifulSoup):
+                return current.parent
+            current = current.parent
+
+        # Fallback: create a new BeautifulSoup if we can't find one
+        return BeautifulSoup("", "html.parser")

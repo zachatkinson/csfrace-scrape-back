@@ -29,8 +29,8 @@ logger = structlog.get_logger()
 
 
 async def main_async(
-    url: str = None,
-    urls_file: str = None,
+    url: str | None = None,
+    urls_file: str | None = None,
     output_dir: str = "converted_content",
     batch_size: int = 3,
     verbose: bool = False,
@@ -89,8 +89,8 @@ async def run_single_conversion(url: str, output_dir: str, converter_config=None
 
 
 async def run_batch_processing(
-    url: str = None,
-    urls_file: str = None,
+    url: str | None = None,
+    urls_file: str | None = None,
     output_dir: str = "converted_content",
     batch_size: int = 3,
     batch_config=None,

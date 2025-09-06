@@ -4,7 +4,7 @@ import re
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from src.plugins.base import MetadataExtractorPlugin
 
@@ -53,7 +53,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
     def _extract_basic_seo(self, soup: BeautifulSoup, url: str) -> dict[str, Any]:
         """Extract basic SEO elements."""
-        metadata = {}
+        metadata: dict[str, Any] = {}
 
         # Title tag
         title_tag = soup.find("title")
@@ -76,13 +76,16 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         # Canonical URL
         canonical_tag = soup.find("link", attrs={"rel": "canonical"})
-        if canonical_tag:
-            metadata["canonical_url"] = urljoin(url, canonical_tag.get("href", ""))
+        if canonical_tag and isinstance(canonical_tag, Tag):
+            href = canonical_tag.get("href", "")
+            href_str = href if isinstance(href, str) else ""
+            metadata["canonical_url"] = urljoin(url, href_str)
 
         # Meta robots
         robots_tag = soup.find("meta", attrs={"name": "robots"})
-        if robots_tag:
-            metadata["robots"] = robots_tag.get("content", "").strip()
+        if robots_tag and isinstance(robots_tag, Tag):
+            content = robots_tag.get("content", "")
+            metadata["robots"] = content.strip() if isinstance(content, str) else ""
 
         return metadata
 
@@ -157,10 +160,10 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
     def _extract_seo_signals(self, soup: BeautifulSoup) -> dict[str, Any]:
         """Extract additional SEO signals."""
-        signals = {}
+        signals: dict[str, Any] = {}
 
         # Heading structure
-        headings = {}
+        headings: dict[str, Any] = {}
         for i in range(1, 7):  # h1-h6
             h_tags = soup.find_all(f"h{i}")
             if h_tags:

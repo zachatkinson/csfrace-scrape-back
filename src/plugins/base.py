@@ -31,7 +31,7 @@ class PluginConfig:
     plugin_type: PluginType
     enabled: bool = True
     priority: int = 100  # Lower number = higher priority
-    settings: dict[str, Any] = None
+    settings: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.settings is None:
@@ -123,7 +123,7 @@ class BasePlugin(abc.ABC):
         Returns:
             Setting value or default
         """
-        return self.config.settings.get(key, default)
+        return self.config.settings.get(key, default) if self.config.settings else default
 
     def set_setting(self, key: str, value: Any) -> None:
         """Set a plugin setting value.
@@ -132,6 +132,8 @@ class BasePlugin(abc.ABC):
             key: Setting key
             value: Setting value
         """
+        if self.config.settings is None:
+            self.config.settings = {}
         self.config.settings[key] = value
 
     def is_enabled(self) -> bool:

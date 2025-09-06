@@ -213,7 +213,6 @@ class TestTracingUtils:
         assert callable(decorator)
 
 
-
 class TestTracingIntegration:
     """Integration tests for tracing components."""
 

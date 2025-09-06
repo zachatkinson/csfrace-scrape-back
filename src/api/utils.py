@@ -144,7 +144,7 @@ def validation_error(detail: str) -> HTTPException:
 
 
 # Assignment-from-none wrapper (DRY principle)
-def maybe_none[T](func: Callable[..., T | None], *args, **kwargs) -> T | None:
+def maybe_none(func: Callable[..., Any], *args, **kwargs) -> Any:
     """Wrapper for functions that may return None - eliminates pylint warnings.
 
     This utility centralizes the pylint disable logic for functions that legitimately

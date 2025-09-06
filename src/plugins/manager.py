@@ -28,8 +28,8 @@ class PluginExecutionContext:
         self.output_dir = output_dir
         self.shared_state: dict[str, Any] = {}
         self.execution_stats: dict[str, dict[str, Any]] = {}
-        self.start_time = None
-        self.end_time = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
 
     def get_shared_data(self, key: str, default: Any = None) -> Any:
         """Get shared data from context.
@@ -397,7 +397,7 @@ class PluginManager:
         Returns:
             Dictionary with plugin information
         """
-        info = {
+        info: dict[str, Any] = {
             "total_plugins": len(self._plugins),
             "enabled_plugins": len([p for p in self._plugins.values() if p.is_enabled()]),
             "plugin_types": {},

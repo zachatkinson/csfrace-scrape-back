@@ -379,7 +379,7 @@ class WebAuthnService:
         db_credentials = (
             self.db_session.query(WebAuthnCredentialModel)
             .filter(WebAuthnCredentialModel.user_id == user_id)
-            .filter(WebAuthnCredentialModel.is_active is True)
+            .filter(WebAuthnCredentialModel.is_active)
             .order_by(WebAuthnCredentialModel.created_at.desc())
             .all()
         )
@@ -406,7 +406,7 @@ class WebAuthnService:
         db_credential = (
             self.db_session.query(WebAuthnCredentialModel)
             .filter(WebAuthnCredentialModel.credential_id == credential_id)
-            .filter(WebAuthnCredentialModel.is_active is True)
+            .filter(WebAuthnCredentialModel.is_active)
             .first()
         )
 

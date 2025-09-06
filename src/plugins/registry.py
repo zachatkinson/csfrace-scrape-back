@@ -329,6 +329,8 @@ class PluginRegistry:
                     config = self._plugin_configs[name]
                     config.enabled = data.get("enabled", config.enabled)
                     config.priority = data.get("priority", config.priority)
+                    if config.settings is None:
+                        config.settings = {}
                     config.settings.update(data.get("settings", {}))
 
             logger.info("Loaded plugin configuration", file=str(config_file))
