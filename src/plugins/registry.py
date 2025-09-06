@@ -1,6 +1,7 @@
 """Plugin registry for managing plugin discovery and registration."""
 
 import importlib
+import importlib.util
 import inspect
 import json
 import sys
