@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -14,6 +14,7 @@ from ..auth.models import MessageResponse
 from ..auth.router import router as auth_router
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
+from ..monitoring.metrics import metrics_collector
 from .routers import batches, health, jobs
 
 
@@ -174,6 +175,27 @@ async def root() -> MessageResponse:
     return MessageResponse(
         message=f"CSFrace Scraper API v{__version__} - Docs: /docs, Health: /health"
     )
+
+
+@app.get("/metrics", response_class=PlainTextResponse, tags=["Monitoring"])
+async def prometheus_metrics() -> str:
+    """Prometheus metrics endpoint.
+
+    Returns:
+        Prometheus-formatted metrics data in plain text format
+        
+    Raises:
+        HTTPException: If metrics collection fails
+    """
+    try:
+        metrics_data = metrics_collector.export_prometheus_metrics()
+        return metrics_data.decode("utf-8")
+    except Exception as e:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export Prometheus metrics: {str(e)}",
+        )
 
 
 if __name__ == "__main__":

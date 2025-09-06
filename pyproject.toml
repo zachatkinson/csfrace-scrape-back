@@ -52,6 +52,10 @@ dependencies = [
     "authlib>=1.6.3", # OAuth2 SSO (Google, GitHub, Microsoft)
     "webauthn>=2.6.0", # Passkeys/WebAuthn passwordless authentication
     "types-passlib>=1.7.7.20250602",
+    "prometheus-client>=0.22.1",
+    "sentry-sdk>=2.36.0",
+    "opentelemetry-api>=1.36.0",
+    "opentelemetry-sdk>=1.36.0",
 ]
 
 [project.optional-dependencies]
