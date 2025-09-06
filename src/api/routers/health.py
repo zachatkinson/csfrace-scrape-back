@@ -13,6 +13,7 @@ from ...monitoring.metrics import metrics_collector
 from ...monitoring.observability import observability_manager
 from ..dependencies import DBSession
 from ..schemas import HealthCheckResponse, MetricsResponse
+from ..utils import handle_api_exceptions
 
 # Get version from package metadata
 try:
@@ -24,6 +25,7 @@ router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 
 
 @router.get("/", response_model=HealthCheckResponse)
+@handle_api_exceptions("Health check failed")
 async def health_check(db: DBSession) -> HealthCheckResponse:
     """Comprehensive health check endpoint.
 
@@ -36,13 +38,12 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
     Raises:
         HTTPException: If critical components are unhealthy
     """
+    # Check database connectivity
     try:
-        # Check database connectivity
-        try:
-            await db.execute(text("SELECT 1"))
-            database_status = {"status": "healthy", "connected": True}
-        except Exception as e:
-            database_status = {"status": "unhealthy", "connected": False, "error": str(e)}
+        await db.execute(text("SELECT 1"))
+        database_status = {"status": "healthy", "connected": True}
+    except Exception as e:
+        database_status = {"status": "unhealthy", "connected": False, "error": str(e)}
 
         # Get health checker status
         health_summary = health_checker.get_health_summary()
@@ -92,16 +93,9 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
 
         return response
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Health check failed: {str(e)}",
-        )
-
 
 @router.get("/metrics", response_model=MetricsResponse)
+@handle_api_exceptions("Failed to collect metrics")
 async def get_metrics() -> MetricsResponse:
     """Get system metrics.
 
@@ -111,35 +105,28 @@ async def get_metrics() -> MetricsResponse:
     Raises:
         HTTPException: If metrics collection fails
     """
+    # Get metrics snapshot
+    metrics_snapshot = metrics_collector.get_metrics_snapshot()
+
+    # Get performance summary if available
+    performance_summary = {}
     try:
-        # Get metrics snapshot
-        metrics_snapshot = metrics_collector.get_metrics_snapshot()
+        from ...monitoring.performance import performance_monitor
 
-        # Get performance summary if available
-        performance_summary = {}
-        try:
-            from ...monitoring.performance import performance_monitor
+        performance_summary = performance_monitor.get_performance_summary()
+    except (ImportError, AttributeError):
+        # Performance monitoring may not be initialized - this is expected
+        pass
 
-            performance_summary = performance_monitor.get_performance_summary()
-        except (ImportError, AttributeError):
-            # Performance monitoring may not be initialized - this is expected
-            pass
-
-        return MetricsResponse(
-            timestamp=datetime.now(UTC),
-            system_metrics=metrics_snapshot.get("system_metrics", {}),
-            application_metrics={
-                **metrics_snapshot.get("application_metrics", {}),
-                **performance_summary,
-            },
-            database_metrics=metrics_snapshot.get("database_metrics", {}),
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to collect metrics: {str(e)}",
-        )
+    return MetricsResponse(
+        timestamp=datetime.now(UTC),
+        system_metrics=metrics_snapshot.get("system_metrics", {}),
+        application_metrics={
+            **metrics_snapshot.get("application_metrics", {}),
+            **performance_summary,
+        },
+        database_metrics=metrics_snapshot.get("database_metrics", {}),
+    )
 
 
 @router.get("/live", response_model=StatusResponse)
@@ -178,19 +165,13 @@ async def readiness_check(db: DBSession) -> StatusResponse:
 
 
 @router.get("/prometheus", response_class=PlainTextResponse)
+@handle_api_exceptions("Failed to export Prometheus metrics")
 async def prometheus_metrics() -> str:
     """Prometheus metrics endpoint.
 
     Returns:
         Prometheus-formatted metrics data in plain text format
     """
-    try:
-        # Export Prometheus metrics
-        metrics_data = metrics_collector.export_prometheus_metrics()
-        return metrics_data.decode("utf-8")
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to export Prometheus metrics: {str(e)}",
-        )
+    # Export Prometheus metrics
+    metrics_data = metrics_collector.export_prometheus_metrics()
+    return metrics_data.decode("utf-8")
