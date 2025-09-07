@@ -84,8 +84,8 @@ class TestHTMLUtilities:
 
     def test_find_meta_content_by_property(self, soup):
         """Test finding meta content by property attribute."""
-        og_title = find_meta_content(soup, property="og:title")
-        missing = find_meta_content(soup, property="og:missing")
+        og_title = find_meta_content(soup, property_attr="og:title")
+        missing = find_meta_content(soup, property_attr="og:missing")
 
         assert og_title == "OG Title"
         assert missing is None

@@ -241,11 +241,11 @@ class TestBatchProcessor:
         assert processor.config == batch_config
         assert processor.database_service == mock_database_service
         assert processor.converter == mock_converter
-        assert processor.completed_count == 0
-        assert processor.failed_count == 0
-        assert processor.cancelled is False
-        assert processor.semaphore._value == batch_config.max_concurrent
-        assert processor.rate_limiter is not None  # Rate limiter configured
+        assert processor.state.completed_count == 0
+        assert processor.state.failed_count == 0
+        assert processor.state.cancelled is False
+        assert processor.concurrency.semaphore._value == batch_config.concurrency.max_concurrent
+        assert processor.concurrency.rate_limiter is not None  # Rate limiter configured
 
     def test_batch_processor_initialization_no_rate_limit(
         self, mock_database_service, mock_converter
@@ -256,7 +256,7 @@ class TestBatchProcessor:
             config=config, database_service=mock_database_service, converter=mock_converter
         )
 
-        assert processor.rate_limiter is None
+        assert processor.concurrency.rate_limiter is None
 
     @pytest.mark.asyncio
     async def test_process_single_url_success(self, batch_processor, mock_converter):

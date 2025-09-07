@@ -58,6 +58,46 @@ class ConverterConfig:
     robots: RobotsConfig = field(default_factory=RobotsConfig)
     shopify: ShopifyConfig = field(default_factory=ShopifyConfig)
 
+    def __init__(self, **kwargs):
+        """Initialize converter configuration with backward compatibility.
+        
+        Args:
+            **kwargs: Configuration parameters including:
+                - default_timeout: Default timeout for HTTP requests
+                - max_concurrent_downloads: Maximum concurrent downloads
+                - max_concurrent: Alias for max_concurrent_downloads
+                - rate_limit_delay: Rate limiting delay between requests
+                - images_subdir: Images subdirectory name
+                - preserve_classes: Classes to preserve in HTML
+        """
+        # Handle backward compatibility for max_concurrent vs max_concurrent_downloads
+        max_concurrent_downloads = kwargs.get('max_concurrent_downloads')
+        max_concurrent = kwargs.get('max_concurrent')
+        max_concurrent_final = (
+            max_concurrent_downloads or max_concurrent or CONSTANTS.MAX_CONCURRENT
+        )
+
+        # Initialize nested configurations with provided values or defaults
+        object.__setattr__(self, 'http', HttpConfig(
+            timeout=kwargs.get('default_timeout', CONSTANTS.DEFAULT_TIMEOUT),
+            max_concurrent=max_concurrent_final,
+            rate_limit_delay=kwargs.get('rate_limit_delay', CONSTANTS.RATE_LIMIT_DELAY),
+        ))
+
+        object.__setattr__(self, 'output', OutputConfig(
+            images_subdir=kwargs.get('images_subdir', CONSTANTS.DEFAULT_IMAGES_DIR),
+        ))
+
+        object.__setattr__(self, 'robots', RobotsConfig())
+
+        preserve_classes = kwargs.get('preserve_classes')
+        if preserve_classes:
+            object.__setattr__(self, 'shopify', ShopifyConfig(
+                preserve_classes=frozenset(preserve_classes)
+            ))
+        else:
+            object.__setattr__(self, 'shopify', ShopifyConfig())
+
     # Backward compatibility properties
     @property
     def images_subdir(self) -> str:

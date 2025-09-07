@@ -199,7 +199,7 @@ class TestHTMLUtilities:
         html = '<meta property="og:title" content="OG Title">'
         soup = BeautifulSoup(html, "html.parser")
 
-        result = find_meta_content(soup, property="og:title")
+        result = find_meta_content(soup, property_attr="og:title")
         assert result == "OG Title"
 
     def test_find_meta_content_not_found(self):
