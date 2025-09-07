@@ -11,7 +11,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 
-from alembic import op
+from alembic import op  # pylint: disable=no-name-in-module
 
 # revision identifiers, used by Alembic.
 revision: str = "6a017959a425"

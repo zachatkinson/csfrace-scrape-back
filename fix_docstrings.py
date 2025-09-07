@@ -36,8 +36,9 @@ MAGIC_METHOD_TEMPLATES = {
 
 def get_ruff_issues() -> list[str]:
     """Get all remaining docstring issues from ruff."""
+    import os
+
     try:
-        import os
 
         env = os.environ.copy()
         env["SECRET_KEY"] = (  # nosec S105 - test key
@@ -56,13 +57,14 @@ def get_ruff_issues() -> list[str]:
             capture_output=True,
             text=True,
             env=env,
+            check=False,
         )
         return (
             result.stdout.strip().split("\n")
             if result.stdout.strip()
             else []
         )
-    except Exception as e:
+    except subprocess.SubprocessError as e:
         print(f"Error running ruff: {e}")
         return []
 
@@ -122,7 +124,7 @@ def fix_imperative_mood(file_path: str, line_num: int, issue: str):
                 print(f"Fixed imperative mood in {file_path}:{line_num}")
                 return True
 
-    except Exception as e:
+    except (OSError, ValueError) as e:
         print(f"Error fixing imperative mood in {file_path}: {e}")
     return False
 
@@ -192,7 +194,7 @@ def add_missing_docstring(file_path: str, line_num: int, _issue: str):
                         print(f"Added {method} docstring in {file_path}:{line_num}")
                         return True
 
-    except Exception as e:
+    except (OSError, ValueError) as e:
         print(f"Error adding docstring in {file_path}: {e}")
     return False
 
@@ -232,7 +234,7 @@ def remove_overload_docstring(file_path: str, line_num: int):
                     print(f"Removed @overload docstring in {file_path}:{line_num}")
                     return True
 
-    except Exception as e:
+    except (OSError, ValueError) as e:
         print(f"Error removing overload docstring in {file_path}: {e}")
     return False
 

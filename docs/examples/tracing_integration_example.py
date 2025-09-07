@@ -211,7 +211,7 @@ async def get_tracing_status():
 @app.get("/observability/metrics")
 async def get_metrics():
     """Export Prometheus metrics."""
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,reimported
     from src.monitoring import observability_manager as obs_mgr
 
     metrics_data = obs_mgr.export_metrics()
