@@ -10,7 +10,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import and_, case, desc, func, or_, select, update
+from sqlalchemy import and_, case, desc, func, or_, select, text, update
+from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
@@ -20,6 +21,7 @@ from .models import (
     Batch,
     ContentResult,
     JobLog,
+    JobPriority,
     JobStatus,
     ScrapingJob,
     create_database_engine,
@@ -141,16 +143,9 @@ class DatabaseService:
         Uses PostgreSQL's transaction-safe enum creation pattern recommended
         in the official documentation.
         """
-        from sqlalchemy import text  # pylint: disable=import-outside-toplevel
-        from sqlalchemy.dialects.postgresql import (
-            ENUM as PostgreSQLEnum,  # pylint: disable=import-outside-toplevel
-        )
-
-        from .models import JobPriority  # pylint: disable=import-outside-toplevel
-        from .models import JobStatus as JobStatusEnum  # pylint: disable=import-outside-toplevel
 
         enum_definitions = [
-            ("jobstatus", JobStatusEnum),
+            ("jobstatus", JobStatus),
             ("jobpriority", JobPriority),
         ]
 
@@ -220,7 +215,6 @@ class DatabaseService:
 
     def _normalize_priority(self, priority: str | object) -> object:
         """Convert string priority to enum."""
-        from .models import JobPriority  # pylint: disable=import-outside-toplevel
 
         if isinstance(priority, str):
             try:
@@ -362,7 +356,6 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 # Order by priority (URGENT -> HIGH -> NORMAL -> LOW) then by creation time
-                from .models import JobPriority  # pylint: disable=import-outside-toplevel
 
                 priority_order = {
                     JobPriority.URGENT: 4,
