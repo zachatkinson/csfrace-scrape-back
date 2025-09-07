@@ -7,6 +7,7 @@ system with distributed tracing in a FastAPI application.
 import asyncio
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import FastAPI, HTTPException
 
 # Import monitoring components
@@ -27,7 +28,7 @@ from src.utils.tracing_utils import (
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """FastAPI lifespan for observability system initialization."""
     # Configure enhanced observability with distributed tracing
     observability_config = ObservabilityConfig(
@@ -50,14 +51,14 @@ async def lifespan(app: FastAPI):
     )
 
     # Initialize observability system
-    global_observability = ObservabilityManager(observability_config)
+    global_observability_manager = ObservabilityManager(observability_config)
 
     try:
-        await global_observability.initialize()
+        await global_observability_manager.initialize()
         print("✅ Observability system initialized successfully")
         yield
     finally:
-        await global_observability.shutdown()
+        await global_observability_manager.shutdown()
         print("📊 Observability system shutdown complete")
 
 
@@ -65,7 +66,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="CSFrace Scraper API", version="2.2.2", lifespan=lifespan)
 
 # Add enhanced tracing middleware
-app.add_middleware(EnhancedTracingMiddleware, correlation_header="X-Correlation-ID")
+app.add_middleware(
+    EnhancedTracingMiddleware,
+    correlation_header="X-Correlation-ID"
+)
 
 
 # Example endpoints demonstrating tracing usage
@@ -102,7 +106,11 @@ async def scrape_content(request: dict):
 
     # Add completion event
     add_trace_event(
-        "scraping_completed", {"pages_scraped": result.get("page_count", 0), "success": True}
+        "scraping_completed",
+        {
+            "pages_scraped": result.get("page_count", 0),
+            "success": True
+        }
     )
 
     return result
@@ -126,7 +134,10 @@ async def save_scraped_content(content: dict) -> bool:
 
     if not content.get("title"):
         set_trace_attribute("validation.error", "missing_title")
-        add_trace_event("validation_failed", {"reason": "missing_title"})
+        add_trace_event(
+            "validation_failed",
+            {"reason": "missing_title"}
+        )
         return False
 
     # Simulate database insertion
@@ -168,7 +179,10 @@ async def perform_scraping(url: str) -> dict:
 
     if not save_success:
         set_trace_attribute("error", True)
-        add_trace_event("scraping_failed", {"reason": "save_failed"})
+        add_trace_event(
+            "scraping_failed",
+            {"reason": "save_failed"}
+        )
         raise HTTPException(status_code=500, detail="Failed to save content")
 
     return {
@@ -188,6 +202,7 @@ async def get_observability_status():
 @app.get("/observability/tracing")
 async def get_tracing_status():
     """Get current distributed tracing status."""
+    # pylint: disable=import-outside-toplevel
     from src.monitoring import distributed_tracer
 
     return distributed_tracer.get_tracing_status()
@@ -196,19 +211,18 @@ async def get_tracing_status():
 @app.get("/observability/metrics")
 async def get_metrics():
     """Export Prometheus metrics."""
-    from src.monitoring import observability_manager
+    # pylint: disable=import-outside-toplevel
+    from src.monitoring import observability_manager as obs_mgr
 
-    metrics_data = observability_manager.export_metrics()
+    metrics_data = obs_mgr.export_metrics()
     return {"metrics": metrics_data.decode("utf-8")}
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     # Run with proper configuration for tracing
     uvicorn.run(
         "tracing_integration_example:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec S104 - example only
         port=8000,
         reload=True,
         log_level="info",

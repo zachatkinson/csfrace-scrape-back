@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
-import psycopg2
+import psycopg
 import pytest
 import pytest_asyncio
 import structlog
@@ -99,6 +99,7 @@ def postgres_container():
         # Use CI service container
         class CIPostgresContainer:
             """Mock container class for CI environment using service containers."""
+
             def __init__(self):
                 """Initialize container with CI environment variables."""
                 self.host = os.environ["DATABASE_HOST"]
@@ -202,7 +203,6 @@ def testcontainers_db_service(postgres_container):  # pylint: disable=too-many-l
 
     # Create PostgreSQL enum types first (required for tables)
 
-
     with init_engine.connect() as conn:
         # Create enum types that the tables need
         try:
@@ -248,7 +248,6 @@ def testcontainers_db_service(postgres_container):  # pylint: disable=too-many-l
         transaction.rollback()
         connection.close()
     except Exception as cleanup_error:  # pylint: disable=broad-exception-caught
-
         logging.getLogger(__name__).debug("Test cleanup: %s", cleanup_error)
     finally:
         test_engine.dispose()
@@ -492,7 +491,6 @@ def plugin_config():
 async def mock_redis_cache():
     """Mock Redis cache for testing."""
     try:
-
         cache = MagicMock(spec=RedisCache)
         cache.get = AsyncMock(return_value=None)
         cache.set = AsyncMock(return_value=True)
@@ -534,7 +532,7 @@ def assert_enum_values(enum_class, expected_values):
 
 
 # Skip tests if dependencies not available
-def pytest_collection_modifyitems(_config, items):
+def pytest_collection_modifyitems(config, items):
     """Modify test collection to handle missing dependencies."""
 
     redis_available = importlib.util.find_spec("redis") is not None

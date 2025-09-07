@@ -223,7 +223,9 @@ GITHUB_SCOPES: list[str] = ["user:email"]
 
 # Microsoft OAuth2 Configuration
 MICROSOFT_AUTHORIZATION_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-MICROSOFT_TOKEN_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/token"  # noqa: S105
+MICROSOFT_TOKEN_URL: str = (  # noqa: S105
+    "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+)
 MICROSOFT_USER_INFO_URL: str = "https://graph.microsoft.com/v1.0/me"
 MICROSOFT_SCOPES: list[str] = ["openid", "profile", "email", "User.Read"]
 

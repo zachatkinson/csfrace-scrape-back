@@ -5,6 +5,7 @@ Revises:
 Create Date: 2025-09-03 23:24:06.834735
 
 """
+# pylint: disable=invalid-name,no-member
 
 from collections.abc import Sequence
 

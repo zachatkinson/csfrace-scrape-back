@@ -40,7 +40,9 @@ def get_ruff_issues() -> list[str]:
         import os
 
         env = os.environ.copy()
-        env["SECRET_KEY"] = "b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900"
+        env["SECRET_KEY"] = (  # nosec S105 - test key
+            "b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900"
+        )
 
         result = subprocess.run(
             [
@@ -55,7 +57,11 @@ def get_ruff_issues() -> list[str]:
             text=True,
             env=env,
         )
-        return result.stdout.strip().split("\n") if result.stdout.strip() else []
+        return (
+            result.stdout.strip().split("\n")
+            if result.stdout.strip()
+            else []
+        )
     except Exception as e:
         print(f"Error running ruff: {e}")
         return []
@@ -89,32 +95,23 @@ def fix_imperative_mood(file_path: str, line_num: int, issue: str):
                 if original_text.startswith("Decorator factory"):
                     new_text = "Create " + original_text.lower()
                 elif original_text.startswith("Wrapper for"):
-                    new_text = "Wrap " + original_text[11:]  # Remove "Wrapper for"
+                    # Remove "Wrapper for"
+                    new_text = "Wrap " + original_text[11:]
                 elif original_text.startswith("Custom "):
                     new_text = "Handle " + original_text.lower()
                 elif "representation of" in original_text:
                     new_text = "Return " + original_text.lower()
                 else:
                     # Try to add a verb at the beginning
+                    verbs = [
+                        "get", "set", "create", "update", "delete",
+                        "handle", "process", "perform", "return",
+                        "load", "save", "check", "validate",
+                        "convert", "transform",
+                    ]
                     if not any(
                         original_text.lower().startswith(verb)
-                        for verb in [
-                            "get",
-                            "set",
-                            "create",
-                            "update",
-                            "delete",
-                            "handle",
-                            "process",
-                            "perform",
-                            "return",
-                            "load",
-                            "save",
-                            "check",
-                            "validate",
-                            "convert",
-                            "transform",
-                        ]
+                        for verb in verbs
                     ):
                         new_text = "Handle " + original_text.lower()
                     else:
@@ -130,7 +127,7 @@ def fix_imperative_mood(file_path: str, line_num: int, issue: str):
     return False
 
 
-def add_missing_docstring(file_path: str, line_num: int, issue: str):
+def add_missing_docstring(file_path: str, line_num: int, _issue: str):
     """Add missing docstrings for __init__ and magic methods."""
     try:
         path = Path(file_path)
@@ -154,7 +151,8 @@ def add_missing_docstring(file_path: str, line_num: int, issue: str):
                 # Extract argument names
                 args_match = re.search(r"__init__\([^)]+\)", method_line)
                 if args_match:
-                    args_str = args_match.group(0)[9:-1]  # Remove "__init__(" and ")"
+                    # Remove "__init__(" and ")"
+                    args_str = args_match.group(0)[9:-1]
                     args = [
                         arg.strip().split(":")[0].split("=")[0].strip()
                         for arg in args_str.split(",")
@@ -162,13 +160,17 @@ def add_missing_docstring(file_path: str, line_num: int, issue: str):
                     ]
 
                     if args:
-                        args_doc = "\n            ".join(
-                            [f"{arg}: {arg.replace('_', ' ').title()} parameter" for arg in args]
-                        )
+                        args_doc = "\n            ".join([
+                            f"{arg}: {arg.replace('_', ' ').title()} parameter"
+                            for arg in args
+                        ])
                     else:
                         args_doc = "No parameters"
 
-                    docstring = f'        """Initialize {class_name}.\n\n        Args:\n            {args_doc}\n\n        """'
+                    docstring = (
+                        f'        """Initialize {class_name}.\n\n        '
+                        f'Args:\n            {args_doc}\n\n        """'
+                    )
                 else:
                     docstring = f'        """Initialize {class_name}."""'
 
@@ -178,7 +180,10 @@ def add_missing_docstring(file_path: str, line_num: int, issue: str):
                 print(f"Added __init__ docstring in {file_path}:{line_num}")
                 return True
 
-            elif any(method in method_line for method in MAGIC_METHOD_TEMPLATES):
+            elif any(
+                method in method_line
+                for method in MAGIC_METHOD_TEMPLATES
+            ):
                 # Find which magic method it is
                 for method, template in MAGIC_METHOD_TEMPLATES.items():
                     if method in method_line:
@@ -206,7 +211,9 @@ def remove_overload_docstring(file_path: str, line_num: int):
                 line = lines[i].strip()
                 if line.startswith('"""') or line.startswith("'''"):
                     # Found start of docstring
-                    if line.count('"""') == 2 or line.count("'''") == 2:
+                    if (
+                        line.count('"""') == 2 or line.count("'''") == 2
+                    ):
                         # Single line docstring
                         del lines[i]
                     else:
@@ -219,7 +226,7 @@ def remove_overload_docstring(file_path: str, line_num: int):
                                 end = j
                                 break
                         # Remove the docstring lines
-                        del lines[start : end + 1]
+                        del lines[start:end + 1]
 
                     path.write_text("\n".join(lines))
                     print(f"Removed @overload docstring in {file_path}:{line_num}")
@@ -256,9 +263,8 @@ def process_issues():
         elif error_code in ["D107", "D105"]:
             if add_missing_docstring(file_path, line_num, issue):
                 fixed_count += 1
-        elif error_code == "D418":
-            if remove_overload_docstring(file_path, line_num):
-                fixed_count += 1
+        elif error_code == "D418" and remove_overload_docstring(file_path, line_num):
+            fixed_count += 1
 
     print(f"Fixed {fixed_count} docstring issues")
     return fixed_count
