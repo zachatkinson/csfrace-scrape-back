@@ -7,7 +7,8 @@ import sqlalchemy.exc
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
-from .models import Base, JobPriority, JobStatus, get_database_url
+from .models import Base
+from .utils import create_postgresql_enums, get_standard_enum_definitions, get_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -96,63 +97,7 @@ async def _create_enums_safely(engine) -> None:
     Uses PostgreSQL's transaction-safe enum creation pattern recommended
     in the official documentation with enhanced concurrency safety.
     """
-    enum_definitions = [
-        ("jobstatus", JobStatus),
-        ("jobpriority", JobPriority),
-    ]
-
     with engine.connect() as conn:
-        for enum_name, enum_class in enum_definitions:
-            try:
-                # Use CREATE TYPE IF NOT EXISTS for PostgreSQL 9.1+ (safer for concurrent execution)
-                # First check if enum exists to avoid unnecessary work
-                result = conn.execute(
-                    text("SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = :enum_name)"),
-                    {"enum_name": enum_name},
-                ).scalar()
-
-                if not result:
-                    try:
-                        # Use SQLAlchemy's PostgreSQL dialect with proper concurrency handling
-                        # This is the official recommended approach for SQLAlchemy + PostgreSQL
-                        pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
-                        pg_enum.create(conn, checkfirst=True)
-                        logger.debug("Created PostgreSQL enum type: %s", enum_name)
-
-                    except (
-                        sqlalchemy.exc.ProgrammingError,  # Type already exists
-                        sqlalchemy.exc.IntegrityError,  # Duplicate key
-                        sqlalchemy.exc.DatabaseError,  # General DB errors
-                    ) as create_error:
-                        error_msg = str(create_error).lower()
-                        # Handle concurrent enum creation race conditions gracefully
-                        if any(
-                            phrase in error_msg
-                            for phrase in [
-                                "already exists",
-                                "duplicate key",
-                                "relation already exists",
-                            ]
-                        ):
-                            logger.debug(
-                                "Enum %s already exists (concurrent execution): %s",
-                                enum_name,
-                                create_error,
-                            )
-                        else:
-                            logger.warning("Could not create enum %s: %s", enum_name, create_error)
-                            # Don't raise - let table creation proceed
-                else:
-                    logger.debug("PostgreSQL enum type already exists: %s", enum_name)
-
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                error_msg = str(e).lower()
-                # Handle any other concurrent execution conflicts gracefully
-                if any(phrase in error_msg for phrase in ["already exists", "duplicate key"]):
-                    logger.debug("Enum %s already exists (outer exception): %s", enum_name, e)
-                else:
-                    logger.warning("Unexpected error with enum %s: %s", enum_name, e)
-                    # Don't raise - let table creation proceed
-
+        create_postgresql_enums(conn, get_standard_enum_definitions())
         # Commit the transaction
         conn.commit()

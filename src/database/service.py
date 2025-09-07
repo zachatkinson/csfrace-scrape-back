@@ -22,10 +22,11 @@ from .models import (
     ContentResult,
     JobLog,
     JobPriority,
-    JobStatus,
     ScrapingJob,
     create_database_engine,
 )
+from .utils import create_postgresql_enums, get_standard_enum_definitions
+from ..common.status import JobStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -150,37 +151,8 @@ class DatabaseService:
         in the official documentation.
         """
 
-        enum_definitions = [
-            ("jobstatus", JobStatus),
-            ("jobpriority", JobPriority),
-        ]
-
         with self.engine.connect() as conn:
-            for enum_name, enum_class in enum_definitions:
-                try:
-                    # Check if enum type already exists (PostgreSQL best practice)
-                    result = conn.execute(
-                        text("SELECT EXISTS(SELECT 1 FROM pg_type WHERE typname = :enum_name)"),
-                        {"enum_name": enum_name},
-                    ).scalar()
-
-                    if not result:
-                        # Create enum type using SQLAlchemy PostgreSQL dialect
-                        pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
-                        pg_enum.create(conn, checkfirst=True)
-                        logger.debug(f"Created PostgreSQL enum type: {enum_name}")
-                    else:
-                        logger.debug(f"PostgreSQL enum type already exists: {enum_name}")
-
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    error_msg = str(e).lower()
-                    # Handle concurrent enum creation conflicts gracefully
-                    if any(phrase in error_msg for phrase in ["already exists", "duplicate key"]):
-                        logger.debug(f"Enum {enum_name} already exists (concurrent execution): {e}")
-                    else:
-                        logger.warning(f"Unexpected error creating enum {enum_name}: {e}")
-                        # Don't raise - let table creation proceed
-
+            create_postgresql_enums(conn, get_standard_enum_definitions())
             # Commit the transaction
             conn.commit()
 
