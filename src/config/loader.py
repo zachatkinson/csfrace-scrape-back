@@ -60,9 +60,9 @@ class ConfigLoader:
         """Load YAML configuration file."""
         try:
             with open(config_path, encoding="utf-8") as f:
-                config = yaml.safe_load(f) or {}
-                logger.info("Loaded YAML config", path=str(config_path), keys=list(config.keys()))
-                return config
+                loaded_config = yaml.safe_load(f) or {}
+                logger.info("Loaded YAML config", path=str(config_path), keys=list(loaded_config.keys()))
+                return loaded_config
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML in {config_path}: {e}") from e
 
@@ -71,9 +71,9 @@ class ConfigLoader:
         """Load JSON configuration file."""
         try:
             with open(config_path, encoding="utf-8") as f:
-                config = json.load(f)
-                logger.info("Loaded JSON config", path=str(config_path), keys=list(config.keys()))
-                return config
+                loaded_config = json.load(f)
+                logger.info("Loaded JSON config", path=str(config_path), keys=list(loaded_config.keys()))
+                return loaded_config
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in {config_path}: {e}") from e
 
@@ -180,12 +180,12 @@ class ConfigLoader:
         return BatchConfig(**merged)
 
     @staticmethod
-    def save_example_config(output_path: str | Path, format: str = "yaml") -> None:
+    def save_example_config(output_path: str | Path, file_format: str = "yaml") -> None:
         """Save an example configuration file.
 
         Args:
             output_path: Path to save example config
-            format: Format to save ('yaml' or 'json')
+            file_format: Format to save ('yaml' or 'json')
         """
         output_path = Path(output_path)
 
@@ -228,18 +228,18 @@ class ConfigLoader:
         }
 
         # Save in requested format
-        if format.lower() == "yaml":
+        if file_format.lower() == "yaml":
             with open(output_path, "w", encoding="utf-8") as f:
                 yaml.dump(
                     example_config, f, default_flow_style=False, sort_keys=False, indent=2, width=80
                 )
-        elif format.lower() == "json":
+        elif file_format.lower() == "json":
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(example_config, f, indent=2, sort_keys=True)
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {file_format}")
 
-        logger.info("Saved example config", path=str(output_path), format=format)
+        logger.info("Saved example config", path=str(output_path), format=file_format)
 
 
 def load_config_from_file(config_path: str | Path) -> tuple[ConverterConfig, BatchConfig]:
