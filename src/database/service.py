@@ -31,6 +31,7 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class JobCreateRequest:
     """Request object for creating scraping jobs."""
+
     url: str
     output_directory: str
     domain: str | None = None
@@ -42,6 +43,7 @@ class JobCreateRequest:
 @dataclass
 class JobLogRequest:
     """Request object for adding job logs."""
+
     job_id: int
     level: str
     message: str
@@ -244,8 +246,11 @@ class DatabaseService:
             with self.get_session() as session:
                 # Extract and process request parameters
                 domain = request.domain or self._extract_domain_from_url(request.url)
-                slug = (request.slug or
-                       (self._extract_slug_from_url(request.url) if not kwargs.get("custom_slug") else None))
+                slug = request.slug or (
+                    self._extract_slug_from_url(request.url)
+                    if not kwargs.get("custom_slug")
+                    else None
+                )
                 priority_enum = self._normalize_priority(request.priority)
 
                 job = ScrapingJob(
@@ -272,7 +277,9 @@ class DatabaseService:
                 return job
 
         except IntegrityError as e:
-            logger.error("Job creation failed - integrity constraint", url=request.url, error=str(e))
+            logger.error(
+                "Job creation failed - integrity constraint", url=request.url, error=str(e)
+            )
             raise DatabaseError(f"Job creation failed: {e}") from e
         except SQLAlchemyError as e:
             logger.error("Job creation failed - database error", url=request.url, error=str(e))

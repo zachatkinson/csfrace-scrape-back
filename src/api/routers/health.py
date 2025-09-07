@@ -2,10 +2,12 @@
 
 import importlib.metadata
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from ...auth.models import StatusResponse
 from ...monitoring.health import health_checker
@@ -14,6 +16,17 @@ from ...monitoring.observability import observability_manager
 from ..dependencies import DBSession
 from ..schemas import HealthCheckResponse, MetricsResponse
 from ..utils import handle_api_exceptions
+
+# Optional imports with graceful fallbacks
+try:
+    from ...caching.manager import cache_manager
+except ImportError:
+    cache_manager = None  # type: ignore[assignment]
+
+try:
+    from ...monitoring.performance import performance_monitor
+except ImportError:
+    performance_monitor = None  # type: ignore[assignment]
 
 # Get version from package metadata
 try:
@@ -42,56 +55,46 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
     try:
         await db.execute(text("SELECT 1"))
         database_status = {"status": "healthy", "connected": True}
-    except Exception as e:
-        database_status = {"status": "unhealthy", "connected": False, "error": str(e)}
+    except SQLAlchemyError as db_error:
+        database_status = {"status": "unhealthy", "connected": False, "error": str(db_error)}
 
-        # Get health checker status
-        health_summary = health_checker.get_health_summary()
+    # Get health checker status
+    health_summary = health_checker.get_health_summary()
 
-        # Get cache status (if available)
-        cache_status = {"status": "not_configured"}
-        try:
-            from ...caching.manager import cache_manager
+    # Get cache status (if available)
+    cache_status = await _get_cache_status()
 
-            await cache_manager.initialize()
-            cache_status = {
-                "status": "healthy",
-                "backend": getattr(cache_manager, "backend_type", "unknown"),
-            }
-        except Exception as e:
-            cache_status = {"status": "error", "error": str(e)}
+    # Get monitoring status
+    monitoring_status = observability_manager.get_component_status()
 
-        # Get monitoring status
-        monitoring_status = observability_manager.get_component_status()
+    # Determine overall status
+    overall_status = "healthy"
+    if database_status["status"] != "healthy":
+        overall_status = "unhealthy"
+    elif (
+        health_summary.get("status") == "degraded"
+        or health_summary.get("status") not in ["healthy", "degraded"]
+        or cache_status["status"] == "error"
+    ):
+        overall_status = "degraded"
 
-        # Determine overall status
-        overall_status = "healthy"
-        if database_status["status"] != "healthy":
-            overall_status = "unhealthy"
-        elif (
-            health_summary.get("status") == "degraded"
-            or health_summary.get("status") not in ["healthy", "degraded"]
-            or cache_status["status"] == "error"
-        ):
-            overall_status = "degraded"
+    response = HealthCheckResponse(
+        status=overall_status,
+        timestamp=datetime.now(UTC),
+        version=__version__,
+        database=database_status,
+        cache=cache_status,
+        monitoring=monitoring_status,
+    )
 
-        response = HealthCheckResponse(
-            status=overall_status,
-            timestamp=datetime.now(UTC),
-            version=__version__,
-            database=database_status,
-            cache=cache_status,
-            monitoring=monitoring_status,
-        )
+    # Return appropriate HTTP status
+    if overall_status == "unhealthy":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=response.model_dump(mode="json"),
+        ) from None  # Suppress original exception chain for clean HTTP response
 
-        # Return appropriate HTTP status
-        if overall_status == "unhealthy":
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=response.model_dump(mode="json"),
-            )
-
-        return response
+    return response
 
 
 @router.get("/metrics", response_model=MetricsResponse)
@@ -109,14 +112,7 @@ async def get_metrics() -> MetricsResponse:
     metrics_snapshot = metrics_collector.get_metrics_snapshot()
 
     # Get performance summary if available
-    performance_summary = {}
-    try:
-        from ...monitoring.performance import performance_monitor
-
-        performance_summary = performance_monitor.get_performance_summary()
-    except (ImportError, AttributeError):
-        # Performance monitoring may not be initialized - this is expected
-        pass
+    performance_summary = _get_performance_summary()
 
     return MetricsResponse(
         timestamp=datetime.now(UTC),
@@ -158,10 +154,11 @@ async def readiness_check(db: DBSession) -> StatusResponse:
 
         return StatusResponse(status="ready")
 
-    except Exception as e:
+    except SQLAlchemyError as db_error:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Service not ready: {str(e)}"
-        )
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service not ready: {str(db_error)}",
+        ) from db_error
 
 
 @router.get("/prometheus", response_class=PlainTextResponse)
@@ -175,3 +172,40 @@ async def prometheus_metrics() -> str:
     # Export Prometheus metrics
     metrics_data = metrics_collector.export_prometheus_metrics()
     return metrics_data.decode("utf-8")
+
+
+async def _get_cache_status() -> dict[str, Any]:
+    """Get cache status with proper error handling.
+
+    Returns:
+        Dictionary containing cache status information
+    """
+    if cache_manager is None:
+        return {"status": "not_configured"}
+
+    try:
+        await cache_manager.initialize()
+        return {
+            "status": "healthy",
+            "backend": getattr(cache_manager, "backend_type", "unknown"),
+        }
+    except (ConnectionError, TimeoutError) as cache_error:
+        return {"status": "error", "error": str(cache_error)}
+    except (AttributeError, ImportError, ValueError) as config_error:
+        return {"status": "error", "error": f"Cache configuration error: {str(config_error)}"}
+
+
+def _get_performance_summary() -> dict[str, Any]:
+    """Get performance summary with proper error handling.
+
+    Returns:
+        Dictionary containing performance metrics or empty dict if unavailable
+    """
+    if performance_monitor is None:
+        return {}
+
+    try:
+        return performance_monitor.get_performance_summary()
+    except AttributeError:
+        # Performance monitoring may not be fully initialized - this is expected
+        return {}
