@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from sqlalchemy import case, func
+from sqlalchemy import case, func, text
 
 from src.batch.enhanced_processor import BatchResults
 from src.database.models import Batch, JobStatus, ScrapingJob, SystemMetrics
@@ -390,8 +390,6 @@ class BatchMonitor:
         try:
             with self.database_service.get_session() as session:
                 # Try a simple query
-                from sqlalchemy import text
-
                 result = session.execute(text("SELECT 1"))
                 return result is not None
         except Exception as e:
@@ -407,8 +405,6 @@ class BatchMonitor:
         try:
             with self.database_service.get_session() as session:
                 # Try a simple query
-                from sqlalchemy import text
-
                 result = session.execute(text("SELECT 1"))
                 return result is not None
         except Exception as e:
@@ -574,7 +570,10 @@ class AlertManager:
                 return {
                     "type": "high_error_rate",
                     "severity": "warning" if error_rate < 25 else "critical",
-                    "message": f"Error rate is {error_rate:.1f}% (threshold: {self.alert_thresholds['error_rate_percent']}%)",
+                    "message": (
+                        f"Error rate is {error_rate:.1f}% "
+                        f"(threshold: {self.alert_thresholds['error_rate_percent']}%)"
+                    ),
                     "details": {
                         "error_rate_percent": error_rate,
                         "failed_jobs": failed_count,
@@ -609,7 +608,10 @@ class AlertManager:
                 return {
                     "type": "stalled_jobs",
                     "severity": "warning",
-                    "message": f"Found {len(stalled_jobs)} jobs running longer than {self.alert_thresholds['processing_delay_minutes']} minutes",
+                    "message": (
+                        f"Found {len(stalled_jobs)} jobs running longer than "
+                        f"{self.alert_thresholds['processing_delay_minutes']} minutes"
+                    ),
                     "details": {
                         "stalled_count": len(stalled_jobs),
                         "threshold_minutes": self.alert_thresholds["processing_delay_minutes"],

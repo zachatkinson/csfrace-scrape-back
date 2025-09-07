@@ -277,7 +277,7 @@ class TestEnhancedSessionManager:
         manager = EnhancedSessionManager("https://example.com", config)
         assert manager.persistent_jar is not None
 
-        session = await manager.get_session()
+        await manager.get_session()
         assert manager.cookie_jar is not None
 
         await manager.close()

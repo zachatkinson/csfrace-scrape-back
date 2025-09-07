@@ -90,7 +90,7 @@ class CheckpointManager:
             return None
 
         try:
-            with open(checkpoint_file) as f:
+            with open(checkpoint_file, encoding="utf-8") as f:
                 checkpoint_data = json.load(f)
 
             logger.info("Loaded checkpoint", batch_id=batch_id, file=str(checkpoint_file))
@@ -111,7 +111,7 @@ class CheckpointManager:
 
         for checkpoint_file in self.checkpoint_directory.glob("batch_*_checkpoint.json"):
             try:
-                with open(checkpoint_file) as f:
+                with open(checkpoint_file, encoding="utf-8") as f:
                     data = json.load(f)
 
                 batch_id = data["batch_id"]

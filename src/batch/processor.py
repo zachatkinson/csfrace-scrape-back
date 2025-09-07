@@ -1,7 +1,12 @@
 """Batch processing for multiple URLs with concurrent execution."""
 
 import asyncio
+import csv
+import hashlib
+import json
 import re
+import shutil
+import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -203,8 +208,6 @@ class BatchProcessor:
         except Exception as e:
             logger.warning("Failed to generate directory from URL", url=url, error=str(e))
             # Fallback to hash-based naming
-            import hashlib
-
             url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()[:8]
             return self.config.output_base_dir / f"post_{url_hash}"
 
@@ -338,10 +341,7 @@ class BatchProcessor:
 
     def _process_structured_csv(self, file_handle) -> int:
         """Process structured CSV with columns."""
-        import csv
-
         added = 0
-        from ..constants import CONSTANTS
 
         # Detect delimiter
         sample = file_handle.read(CONSTANTS.FILE_READ_BUFFER_SIZE)
@@ -386,8 +386,6 @@ class BatchProcessor:
 
     def _process_simple_csv(self, file_handle) -> int:
         """Process simple CSV/list of URLs."""
-        import csv
-
         added = 0
         file_handle.seek(0)
 
@@ -688,8 +686,6 @@ Total Jobs: {summary["total"]}
         summary_path = self.config.output_base_dir / "batch_summary.json"
         summary_path.parent.mkdir(parents=True, exist_ok=True)
 
-        import json
-
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, default=str)
 
@@ -707,8 +703,6 @@ Total Jobs: {summary["total"]}
         Raises:
             Exception: If archive creation fails
         """
-        import zipfile
-
         if not job.output_dir.exists():
             raise ValueError(f"Output directory does not exist: {job.output_dir}")
 
@@ -733,8 +727,6 @@ Total Jobs: {summary["total"]}
 
         # Optional: Clean up original directory if configured
         if getattr(self.config, "cleanup_after_archive", False):
-            import shutil
-
             shutil.rmtree(job.output_dir)
             logger.debug("Cleaned up original directory", path=str(job.output_dir))
 

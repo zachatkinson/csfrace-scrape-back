@@ -5,17 +5,20 @@ following CLAUDE.md standards for production reliability.
 """
 
 import asyncio
+import gc
 from unittest.mock import Mock, patch
 
 import pytest
 from aiohttp import ClientError, ServerTimeoutError
+from bs4 import BeautifulSoup
 
 from src.core.exceptions import (
     FetchError,
     RateLimitError,
 )
-from src.utils.retry import CircuitBreaker, ResilienceManager, RetryConfig
-from src.utils.session_manager import EnhancedSessionManager, SessionConfig
+from src.processors.html_processor import HTMLProcessor
+from src.utils.retry import BulkheadPattern, CircuitBreaker, ResilienceManager, RetryConfig
+from src.utils.session_manager import EnhancedSessionManager, PersistentCookieJar, SessionConfig
 
 
 class TestNetworkErrorScenarios:
@@ -140,11 +143,7 @@ class TestDataCorruptionScenarios:
             None,  # Null content
         ]
 
-        from src.processors.html_processor import HTMLProcessor
-
         processor = HTMLProcessor()
-
-        from bs4 import BeautifulSoup
 
         for html in malformed_html_samples:
             if html is None:
@@ -171,8 +170,6 @@ class TestDataCorruptionScenarios:
         # Try to decode with error handling
         try:
             decoded = invalid_encoded_content.decode("utf-8", errors="replace")
-            from bs4 import BeautifulSoup
-
             soup = BeautifulSoup(decoded, "html.parser")
             result = await processor.process(soup)
             assert result is not None
@@ -185,9 +182,6 @@ class TestDataCorruptionScenarios:
         """Test detection and handling of circular redirects."""
         config = SessionConfig(max_redirects=5)
         manager = EnhancedSessionManager("https://httpbin.org", config)
-
-        redirect_count = 0
-        max_redirects = 10
 
         with patch.object(manager, "make_request") as mock_request:
             # Simulate immediate circular redirect error
@@ -301,11 +295,8 @@ class TestConcurrencyErrorScenarios:
     @pytest.mark.asyncio
     async def test_resource_exhaustion_protection(self, mock_sleep):
         """Test protection against resource exhaustion."""
-        from src.utils.retry import BulkheadPattern
-
         bulkhead = BulkheadPattern(max_concurrent_operations=10)
         active_operations = []
-        rejected_operations = 0
 
         async def resource_intensive_operation(op_id):
             active_operations.append(op_id)
@@ -355,7 +346,7 @@ class TestAuthenticationErrorScenarios:
 
                 with pytest.raises(FetchError, match="Authentication failed"):
                     # This will trigger authentication and should raise the mocked error
-                    session = await manager.get_session()
+                    await manager.get_session()
         finally:
             await manager.close()
 
@@ -376,7 +367,7 @@ class TestAuthenticationErrorScenarios:
 
                 with pytest.raises(FetchError, match="Token expired"):
                     # This will trigger authentication and should raise the mocked error
-                    session = await manager.get_session()
+                    await manager.get_session()
         finally:
             await manager.close()
 
@@ -446,8 +437,6 @@ class TestFileSystemErrorScenarios:
     @pytest.mark.asyncio
     async def test_file_corruption_recovery(self, tmp_path):
         """Test recovery from corrupted file scenarios."""
-        from src.utils.session_manager import PersistentCookieJar
-
         cookie_file = tmp_path / "cookies.json"
 
         # Write corrupted JSON
@@ -466,8 +455,6 @@ class TestMemoryErrorScenarios:
     @pytest.mark.asyncio
     async def test_memory_leak_prevention(self):
         """Test prevention of memory leaks in long-running operations."""
-        import gc
-
         # Track memory usage
         initial_objects = len(gc.get_objects())
 
@@ -527,8 +514,6 @@ class TestCascadingFailureScenarios:
     @pytest.mark.asyncio
     async def test_circuit_breaker_prevents_cascade(self):
         """Test that circuit breaker prevents cascading failures."""
-        from src.utils.retry import CircuitBreaker
-
         breaker = CircuitBreaker(
             failure_threshold=3,
             recovery_timeout=1.0,
@@ -551,8 +536,6 @@ class TestCascadingFailureScenarios:
         assert breaker.state.value == "open"
 
         # Subsequent calls are rejected without calling the service
-        from src.core.exceptions import RateLimitError
-
         for _ in range(10):
             with pytest.raises(RateLimitError, match="Circuit breaker"):
                 async with breaker:
@@ -564,8 +547,6 @@ class TestCascadingFailureScenarios:
     @pytest.mark.asyncio
     async def test_bulkhead_isolation(self, mock_sleep):
         """Test that bulkhead pattern isolates failures."""
-        from src.utils.retry import BulkheadPattern
-
         bulkhead_a = BulkheadPattern(max_concurrent_operations=5)
         bulkhead_b = BulkheadPattern(max_concurrent_operations=5)
 

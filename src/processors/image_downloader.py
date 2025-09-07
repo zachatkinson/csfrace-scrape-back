@@ -9,6 +9,7 @@ import aiohttp
 import structlog
 from aiofiles import open as aopen
 
+from ..constants import CONSTANTS
 from ..core.config import config
 from ..core.exceptions import ConversionError
 from ..utils.retry import with_retry
@@ -147,8 +148,6 @@ class AsyncImageDownloader:
             # Check robots.txt and enforce crawl delay for images
             await robots_checker.check_and_delay(url, config.http.user_agent, session)
 
-            from ..constants import CONSTANTS
-
             async with session.get(
                 url, timeout=aiohttp.ClientTimeout(total=CONSTANTS.DEFAULT_TIMEOUT)
             ) as response:
@@ -221,6 +220,4 @@ class AsyncImageDownloader:
                 return ext
 
         # Default extension
-        from ..constants import CONSTANTS
-
         return CONSTANTS.DEFAULT_IMAGE_EXTENSION

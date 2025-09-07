@@ -2,6 +2,7 @@
 
 import asyncio
 import heapq
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -376,9 +377,6 @@ class BatchQueueManager:
         Args:
             filepath: Path to save queue state
         """
-        import json
-        from datetime import datetime
-
         state = {
             "timestamp": datetime.now(UTC).isoformat(),
             "status": self.status.value,
@@ -405,9 +403,7 @@ class BatchQueueManager:
         Args:
             filepath: Path to load queue state from
         """
-        import json
-
-        with open(filepath) as f:
+        with open(filepath, encoding="utf-8") as f:
             state = json.load(f)
 
         # Clear current queues
