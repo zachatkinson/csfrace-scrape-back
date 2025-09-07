@@ -23,6 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from ..common.status import JobStatus
 from ..constants import CONSTANTS
 
 # pylint: disable=too-few-public-methods  # SQLAlchemy models often have minimal methods
@@ -36,18 +37,6 @@ from ..constants import CONSTANTS
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
-
-
-class JobStatus(Enum):
-    """Status enumeration for scraping jobs."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    CANCELLED = "cancelled"
-    PARTIAL = "partial"
 
 
 class JobPriority(Enum):

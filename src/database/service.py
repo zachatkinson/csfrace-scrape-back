@@ -302,7 +302,7 @@ class DatabaseService:
                 filtered_kwargs = {
                     k: v for k, v in kwargs.items()
                     if k not in (
-                        'url', 'domain', 'slug', 'output_directory', 
+                        'url', 'domain', 'slug', 'output_directory',
                         'batch_id', 'priority', 'custom_slug'
                     )
                 }
