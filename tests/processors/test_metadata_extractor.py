@@ -544,7 +544,7 @@ class TestMetadataExtractorEdgeCases:
         extractor = MetadataExtractor("https://csfrace.com/entities")
 
         with patch(
-            "src.utils.html.find_meta_content",
+            "src.processors.metadata_extractor.find_meta_content",
             return_value="Racing news &amp; results - it's great!",
         ):
             html_content = "<html><head></head></html>"

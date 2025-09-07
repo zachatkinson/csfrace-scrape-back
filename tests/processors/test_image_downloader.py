@@ -176,7 +176,7 @@ class TestAsyncImageDownloader:
 
         with patch.object(downloader, "_download_image", return_value=expected_filename):
             with patch("src.processors.image_downloader.config") as mock_config:
-                mock_config.rate_limit_delay = 0.001
+                mock_config.http.rate_limit_delay = 0.001
                 result = await downloader._download_single(mock_session, url, 0, 1, None)
 
                 assert result == expected_filename
@@ -377,7 +377,7 @@ class TestAsyncImageDownloader:
     def test_get_extension_from_content_type_png(self, downloader):
         """Test extension extraction for PNG content type."""
         with patch("src.processors.image_downloader.config") as mock_config:
-            mock_config.content_type_extensions = {
+            mock_config.shopify.content_type_extensions = {
                 "image/jpeg": ".jpg",
                 "image/png": ".png",
                 "image/gif": ".gif",
@@ -478,7 +478,7 @@ class TestAsyncImageDownloader:
             mock_robots.check_and_delay = AsyncMock()
 
             with patch("src.processors.image_downloader.config") as mock_config:
-                mock_config.user_agent = "TestBot/1.0"
+                mock_config.http.user_agent = "TestBot/1.0"
                 with patch("src.processors.image_downloader.aopen", create=True):
                     with patch("src.constants.CONSTANTS") as mock_constants:
                         mock_constants.DEFAULT_TIMEOUT = 30

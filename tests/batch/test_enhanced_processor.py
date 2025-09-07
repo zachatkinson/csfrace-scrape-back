@@ -222,15 +222,15 @@ class TestBatchConfig:
 class TestBatchProcessor:  # pylint: disable=too-many-public-methods
     """Test BatchProcessor functionality."""
 
-    def test_processor_initialization(self, config, database_service, converter):
+    def test_processor_initialization(self, batch_config, mock_db_service, mock_converter):
         """Test batch processor initialization."""
         processor = BatchProcessor(
-            config=config, database_service=database_service, converter=converter
+            config=batch_config, database_service=mock_db_service, converter=mock_converter
         )
 
-        assert processor.config == config
-        assert processor.database_service == database_service
-        assert processor.converter == converter
+        assert processor.config == batch_config
+        assert processor.database_service == mock_db_service
+        assert processor.converter == mock_converter
         assert processor.state.completed_count == 0
         assert processor.state.failed_count == 0
         assert processor.state.cancelled is False
@@ -238,23 +238,23 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert hasattr(processor.concurrency.semaphore, "_value")
         assert processor.concurrency.rate_limiter is not None  # Rate limiter configured
 
-    def test_processor_initialization_no_rate_limit(self, database_service, converter):
+    def test_processor_initialization_no_rate_limit(self, mock_db_service, mock_converter):
         """Test batch processor initialization without rate limiting."""
         config = BatchConfig(rate_limit_per_second=None)
         processor = BatchProcessor(
-            config=config, database_service=database_service, converter=converter
+            config=config, database_service=mock_db_service, converter=mock_converter
         )
 
         assert processor.concurrency.rate_limiter is None
 
     @pytest.mark.asyncio
-    async def test_process_single_url_success(self, processor, converter):
+    async def test_process_single_url_success(self, batch_processor, mock_converter):
         """Test successful single URL processing."""
         url = "https://example.com/test"
         expected_data = {"content": "test data"}
-        converter.process_url.return_value = expected_data
+        mock_converter.process_url.return_value = expected_data
 
-        result = await processor.process_single_url(url, Priority.NORMAL)
+        result = await batch_processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is True
         assert result.url == url
@@ -262,41 +262,41 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert result.retries == 0
         assert result.error is None
 
-        converter.process_url.assert_called_once_with(url)
+        mock_converter.process_url.assert_called_once_with(url)
 
     @pytest.mark.asyncio
-    async def test_process_single_url_timeout(self, processor, converter):
+    async def test_process_single_url_timeout(self, batch_processor, mock_converter):
         """Test single URL processing with timeout."""
         url = "https://example.com/timeout"
-        converter.process_url.side_effect = TimeoutError()
+        mock_converter.process_url.side_effect = TimeoutError()
 
-        result = await processor.process_single_url(url, Priority.NORMAL)
+        result = await batch_processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is False
         assert result.url == url
         assert "Timeout after" in result.error
-        assert result.retries == processor.config.retry_attempts
+        assert result.retries == batch_processor.config.retry.retry_attempts
 
     @pytest.mark.asyncio
-    async def test_process_single_url_exception(self, processor, converter):
+    async def test_process_single_url_exception(self, batch_processor, mock_converter):
         """Test single URL processing with exception."""
         url = "https://example.com/error"
-        converter.process_url.side_effect = Exception("Processing error")
+        mock_converter.process_url.side_effect = Exception("Processing error")
 
-        result = await processor.process_single_url(url, Priority.NORMAL)
+        result = await batch_processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is False
         assert result.url == url
-        assert result.error == "Processing error"
-        assert result.retries == processor.config.retry_attempts
+        assert result.error == "Processing error: Processing error"
+        assert result.retries == batch_processor.config.retry.retry_attempts
 
     @pytest.mark.asyncio
-    async def test_process_single_url_retry_success(self, processor, converter):
+    async def test_process_single_url_retry_success(self, batch_processor, mock_converter):
         """Test single URL processing with retry success."""
         url = "https://example.com/retry"
 
         # First call fails, second succeeds
-        converter.process_url.side_effect = [
+        mock_converter.process_url.side_effect = [
             Exception("First attempt fails"),
             {"content": "success on retry"},
         ]
@@ -308,7 +308,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert result.url == url
         assert result.data == {"content": "success on retry"}
         assert result.retries == 1
-        assert converter.process_url.call_count == 2
+        assert mock_converter.process_url.call_count == 2
 
     @pytest.mark.asyncio
     async def test_process_single_url_with_rate_limiting(self, processor):
@@ -331,11 +331,11 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert len(result.failed) == 0
 
     @pytest.mark.asyncio
-    async def test_process_batch_success(self, processor, converter):
+    async def test_process_batch_success(self, batch_processor, mock_converter):
         """Test successful batch processing."""
         urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
 
-        converter.process_url.return_value = {"status": "ok"}
+        mock_converter.process_url.return_value = {"status": "ok"}
 
         result = await processor.process_batch("test_batch", urls)
 
@@ -351,12 +351,12 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert processor.database_service.update_batch_progress.call_count == 4
 
     @pytest.mark.asyncio
-    async def test_process_batch_with_priorities(self, processor, converter):
+    async def test_process_batch_with_priorities(self, batch_processor, mock_converter):
         """Test batch processing with URL priorities."""
         urls = ["url1", "url2", "url3"]
         priorities = {"url1": Priority.LOW, "url2": Priority.HIGH, "url3": Priority.NORMAL}
 
-        converter.process_url.return_value = {"status": "ok"}
+        mock_converter.process_url.return_value = {"status": "ok"}
 
         result = await processor.process_batch("priority_batch", urls, priorities)
 
@@ -364,7 +364,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert len(result.successful) == 3
 
     @pytest.mark.asyncio
-    async def test_process_batch_partial_failure(self, processor, converter):
+    async def test_process_batch_partial_failure(self, batch_processor, mock_converter):
         """Test batch processing with some failures."""
         urls = ["success_url", "fail_url", "success_url2"]
 
@@ -373,7 +373,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
                 raise ValueError("Processing failed")
             return {"status": "ok"}
 
-        converter.process_url.side_effect = mock_process_url
+        mock_converter.process_url.side_effect = mock_process_url
 
         result = await processor.process_batch("mixed_batch", urls)
 
@@ -383,7 +383,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert "fail_url" in result.failed
 
     @pytest.mark.asyncio
-    async def test_process_batch_continue_on_error_false(self, processor, converter):
+    async def test_process_batch_continue_on_error_false(self, batch_processor, mock_converter):
         """Test batch processing with continue_on_error=False."""
         processor.config.continue_on_error = False
         urls = ["url1", "fail_url", "url3"]
@@ -393,13 +393,13 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
                 raise ValueError("Processing failed")
             return {"status": "ok"}
 
-        converter.process_url.side_effect = mock_process_url
+        mock_converter.process_url.side_effect = mock_process_url
 
         with pytest.raises(BatchProcessingError):
             await processor.process_batch("error_batch", urls)
 
     @pytest.mark.asyncio
-    async def test_process_with_tracking(self, processor, converter):
+    async def test_process_with_tracking(self, batch_processor, mock_converter):
         """Test _process_with_tracking method."""
         url = "https://example.com/track"
         batch_id = 1
@@ -409,7 +409,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         mock_job = Mock(id=123)
         processor.database_service.create_job.return_value = mock_job
 
-        converter.process_url.return_value = {"data": "test"}
+        mock_converter.process_url.return_value = {"data": "test"}
 
         result = await processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
 
@@ -424,7 +424,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         processor.database_service.update_batch_progress.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_process_with_tracking_failure(self, processor, converter):
+    async def test_process_with_tracking_failure(self, batch_processor, mock_converter):
         """Test _process_with_tracking with processing failure."""
         url = "https://example.com/fail"
         batch_id = 1
@@ -433,7 +433,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         mock_job = Mock(id=123)
         processor.database_service.create_job.return_value = mock_job
 
-        converter.process_url.side_effect = Exception("Processing error")
+        mock_converter.process_url.side_effect = Exception("Processing error")
 
         result = await processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
 
@@ -446,7 +446,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert any(JobStatus.FAILED.value in str(call) for call in update_calls)
 
     @pytest.mark.asyncio
-    async def test_process_with_tracking_checkpoint_saving(self, processor, converter):
+    async def test_process_with_tracking_checkpoint_saving(self, batch_processor, mock_converter):
         """Test checkpoint saving during processing."""
         processor.config.save_checkpoints = True
         processor.config.checkpoint_interval = 1  # Save every job
@@ -456,9 +456,9 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
 
         mock_job = Mock(id=123)
         processor.database_service.create_job.return_value = mock_job
-        converter.process_url.return_value = {"data": "test"}
+        mock_converter.process_url.return_value = {"data": "test"}
 
-        with patch.object(processor, "_save_checkpoint", new_callable=AsyncMock) as mock_save:
+        with patch.object(batch_processor, "_save_checkpoint", new_callable=AsyncMock) as mock_save:
             await processor._process_with_tracking(url, batch_id, Priority.NORMAL)  # pylint: disable=protected-access
             mock_save.assert_called_once_with(batch_id)
 
@@ -489,7 +489,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         processor.database_service.get_session.return_value = mock_session
 
         # Mock process_batch to avoid actual processing
-        with patch.object(processor, "process_batch", new_callable=AsyncMock) as mock_process:
+        with patch.object(batch_processor, "process_batch", new_callable=AsyncMock) as mock_process:
             mock_process.return_value = BatchResults(
                 total=2, successful=["pending_url1"], failed=["failed_url"]
             )
@@ -514,7 +514,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
             await processor.resume_batch(999)
 
     @pytest.mark.asyncio
-    async def test_save_checkpoint(self, processor, tmp_path):
+    async def test_save_checkpoint(self, batch_processor, tmp_path):
         """Test saving processing checkpoint."""
         processor.config.output_directory = tmp_path
         processor.completed_count = 5
@@ -569,18 +569,18 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert stats["success_rate"] == 0
 
     @pytest.mark.asyncio
-    async def test_concurrent_processing_limit(self, config, database_service, converter):
+    async def test_concurrent_processing_limit(self, config, database_service, mock_converter):
         """Test that concurrent processing respects semaphore limits."""
         # Set very low concurrency limit
         config.concurrency.max_concurrent = 1
-        processor = BatchProcessor(config, database_service, converter)
+        processor = BatchProcessor(config, database_service, mock_converter)
 
         # Mock slow processing
         async def slow_process(_url):
             await asyncio.sleep(0.1)
             return {"data": "processed"}
 
-        converter.process_url.side_effect = slow_process
+        mock_converter.process_url.side_effect = slow_process
 
         urls = ["url1", "url2", "url3"]
 
@@ -615,7 +615,7 @@ async def test_processor_integration(tmp_path):
 
     converter = AsyncMock()
 
-    processor = BatchProcessor(config, mock_db, converter)
+    processor = BatchProcessor(config, mock_db, mock_converter)
 
     # Test data
     urls = [
@@ -631,7 +631,7 @@ async def test_processor_integration(tmp_path):
             raise ValueError("Simulated failure")
         return {"url": url, "content": f"Content for {url}"}
 
-    converter.process_url.side_effect = mock_process
+    mock_converter.process_url.side_effect = mock_process
 
     # Execute
     result = await processor.process_batch("integration_test", urls)

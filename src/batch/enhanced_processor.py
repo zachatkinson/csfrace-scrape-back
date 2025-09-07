@@ -117,32 +117,39 @@ class BatchConfig:
 
         Args:
             **kwargs: Configuration parameters including:
-                - max_concurrent: Maximum concurrent operations
-                - rate_limit_per_second: Rate limit per second
-                - retry_attempts: Number of retry attempts
-                - timeout_seconds: Timeout in seconds
-                - continue_on_error: Whether to continue on error
-                - output_directory: Output directory path
+                - concurrency: ConcurrencyConfig instance
+                - retry: RetryConfig instance  
+                - processing: ProcessingConfig instance
+                - output: OutputConfig instance
+                - max_concurrent: Maximum concurrent operations (backward compatibility)
+                - rate_limit_per_second: Rate limit per second (backward compatibility)
+                - retry_attempts: Number of retry attempts (backward compatibility)
+                - timeout_seconds: Timeout in seconds (backward compatibility)
+                - continue_on_error: Whether to continue on error (backward compatibility)
+                - output_directory: Output directory path (backward compatibility)
         """
-        # Initialize nested configurations with provided values or defaults
-        self.concurrency = ConcurrencyConfig(
+        # Use provided nested configs or create from kwargs/defaults
+        self.concurrency = kwargs.get("concurrency") or ConcurrencyConfig(
             max_concurrent=kwargs.get("max_concurrent", 5),
             rate_limit_per_second=kwargs.get("rate_limit_per_second"),
             timeout_seconds=kwargs.get("timeout_seconds", 30),
         )
 
-        self.retry = RetryConfig(
+        self.retry = kwargs.get("retry") or RetryConfig(
             retry_attempts=kwargs.get("retry_attempts", 2),
+            retry_delay=kwargs.get("retry_delay", 1.0),
             continue_on_error=kwargs.get("continue_on_error", True),
         )
 
-        self.processing = ProcessingConfig()
+        self.processing = kwargs.get("processing") or ProcessingConfig()
 
-        output_directory = kwargs.get("output_directory")
-        if output_directory:
-            self.output = OutputConfig(output_directory=Path(output_directory))
-        else:
-            self.output = OutputConfig()
+        self.output = kwargs.get("output")
+        if not self.output:
+            output_directory = kwargs.get("output_directory")
+            if output_directory:
+                self.output = OutputConfig(output_directory=Path(output_directory))
+            else:
+                self.output = OutputConfig()
 
     def validate(self) -> bool:
         """Validate configuration settings."""

@@ -849,7 +849,7 @@ class TestHTMLProcessorAdvanced:
 
         # Create a mock config with preserve_classes set
         mock_config = MagicMock()
-        mock_config.preserve_classes = ["center", "media-grid", "button"]
+        mock_config.shopify.preserve_classes = ["center", "media-grid", "button"]
 
         with patch("src.processors.html_processor.config", mock_config):
             result = await processor._cleanup_wordpress_artifacts(soup)
