@@ -69,7 +69,7 @@ class MetadataExtractor:
             return meta_desc.strip()
 
         # Try Open Graph description
-        og_desc = find_meta_content(soup, property="og:description")
+        og_desc = find_meta_content(soup, property_attr="og:description")
         if og_desc:
             return og_desc.strip()
 
