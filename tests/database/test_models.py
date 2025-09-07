@@ -13,8 +13,8 @@ from src.database.models import (
     ScrapingJob,
     SystemMetrics,
     create_database_engine,
-    get_database_url,
 )
+from src.database.utils import get_database_url
 
 
 class TestDatabaseModels:

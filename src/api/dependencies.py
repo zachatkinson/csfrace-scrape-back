@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from ..database.models import get_database_url
+from ..database.utils import get_database_url
 
 # Database engine and session factory
 engine = create_async_engine(
