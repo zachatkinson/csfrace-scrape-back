@@ -302,7 +302,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         ]
 
         with patch("asyncio.sleep", new_callable=AsyncMock):  # Speed up test
-            result = await processor.process_single_url(url, Priority.NORMAL)
+            result = await batch_processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is True
         assert result.url == url
@@ -311,20 +311,20 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert mock_converter.process_url.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_process_single_url_with_rate_limiting(self, processor):
+    async def test_process_single_url_with_rate_limiting(self, batch_processor):
         """Test single URL processing with rate limiting."""
         url = "https://example.com/rate_limited"
 
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            await processor.process_single_url(url, Priority.NORMAL)
+            await batch_processor.process_single_url(url, Priority.NORMAL)
 
         # Should have called sleep for rate limiting
         mock_sleep.assert_called()
 
     @pytest.mark.asyncio
-    async def test_process_batch_empty_urls(self, processor):
+    async def test_process_batch_empty_urls(self, batch_processor):
         """Test processing empty URL list."""
-        result = await processor.process_batch("empty_batch", [])
+        result = await batch_processor.process_batch("empty_batch", [])
 
         assert result.total == 0
         assert len(result.successful) == 0
@@ -337,7 +337,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
 
         mock_converter.process_url.return_value = {"status": "ok"}
 
-        result = await processor.process_batch("test_batch", urls)
+        result = await batch_processor.process_batch("test_batch", urls)
 
         assert result.total == 3
         assert len(result.successful) == 3
@@ -346,9 +346,9 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert result.statistics is not None
 
         # Verify database calls
-        processor.database_service.create_batch.assert_called_once()
+        batch_processor.database_service.create_batch.assert_called_once()
         # update_batch_progress is called once per job + once at end, so 4 times total for 3 URLs
-        assert processor.database_service.update_batch_progress.call_count == 4
+        assert batch_processor.database_service.update_batch_progress.call_count == 4
 
     @pytest.mark.asyncio
     async def test_process_batch_with_priorities(self, batch_processor, mock_converter):
@@ -358,7 +358,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
 
         mock_converter.process_url.return_value = {"status": "ok"}
 
-        result = await processor.process_batch("priority_batch", urls, priorities)
+        result = await batch_processor.process_batch("priority_batch", urls, priorities)
 
         assert result.total == 3
         assert len(result.successful) == 3
@@ -375,7 +375,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
 
         mock_converter.process_url.side_effect = mock_process_url
 
-        result = await processor.process_batch("mixed_batch", urls)
+        result = await batch_processor.process_batch("mixed_batch", urls)
 
         assert result.total == 3
         assert len(result.successful) == 2
@@ -385,7 +385,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
     @pytest.mark.asyncio
     async def test_process_batch_continue_on_error_false(self, batch_processor, mock_converter):
         """Test batch processing with continue_on_error=False."""
-        processor.config.continue_on_error = False
+        batch_processor.config.continue_on_error = False
         urls = ["url1", "fail_url", "url3"]
 
         def mock_process_url(url):
@@ -396,7 +396,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         mock_converter.process_url.side_effect = mock_process_url
 
         with pytest.raises(BatchProcessingError):
-            await processor.process_batch("error_batch", urls)
+            await batch_processor.process_batch("error_batch", urls)
 
     @pytest.mark.asyncio
     async def test_process_with_tracking(self, batch_processor, mock_converter):
@@ -407,21 +407,21 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
 
         # Mock job creation
         mock_job = Mock(id=123)
-        processor.database_service.create_job.return_value = mock_job
+        batch_processor.database_service.create_job.return_value = mock_job
 
         mock_converter.process_url.return_value = {"data": "test"}
 
-        result = await processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
+        result = await batch_processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
 
         assert result.success is True
         assert result.url == url
-        assert processor.completed_count == 1
-        assert processor.failed_count == 0
+        assert batch_processor.state.completed_count == 1
+        assert batch_processor.state.failed_count == 0
 
         # Verify database interactions
-        processor.database_service.create_job.assert_called_once()
-        processor.database_service.update_job_status.assert_called()
-        processor.database_service.update_batch_progress.assert_called_once()
+        batch_processor.database_service.create_job.assert_called_once()
+        batch_processor.database_service.update_job_status.assert_called()
+        batch_processor.database_service.update_batch_progress.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_with_tracking_failure(self, batch_processor, mock_converter):
@@ -431,39 +431,39 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         priority = Priority.NORMAL
 
         mock_job = Mock(id=123)
-        processor.database_service.create_job.return_value = mock_job
+        batch_processor.database_service.create_job.return_value = mock_job
 
         mock_converter.process_url.side_effect = Exception("Processing error")
 
-        result = await processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
+        result = await batch_processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
 
         assert result.success is False
-        assert processor.completed_count == 0
-        assert processor.failed_count == 1
+        assert batch_processor.state.completed_count == 0
+        assert batch_processor.state.failed_count == 1
 
         # Verify failed job was updated with error
-        update_calls = processor.database_service.update_job_status.call_args_list
+        update_calls = batch_processor.database_service.update_job_status.call_args_list
         assert any(JobStatus.FAILED.value in str(call) for call in update_calls)
 
     @pytest.mark.asyncio
     async def test_process_with_tracking_checkpoint_saving(self, batch_processor, mock_converter):
         """Test checkpoint saving during processing."""
-        processor.config.save_checkpoints = True
-        processor.config.checkpoint_interval = 1  # Save every job
+        batch_processor.config.save_checkpoints = True
+        batch_processor.config.checkpoint_interval = 1  # Save every job
 
         url = "https://example.com/checkpoint"
         batch_id = 1
 
         mock_job = Mock(id=123)
-        processor.database_service.create_job.return_value = mock_job
+        batch_processor.database_service.create_job.return_value = mock_job
         mock_converter.process_url.return_value = {"data": "test"}
 
         with patch.object(batch_processor, "_save_checkpoint", new_callable=AsyncMock) as mock_save:
-            await processor._process_with_tracking(url, batch_id, Priority.NORMAL)  # pylint: disable=protected-access
+            await batch_processor._process_with_tracking(url, batch_id, Priority.NORMAL)  # pylint: disable=protected-access
             mock_save.assert_called_once_with(batch_id)
 
     @pytest.mark.asyncio
-    async def test_resume_batch(self, processor):
+    async def test_resume_batch(self, batch_processor):
         """Test resuming an interrupted batch."""
         batch_id = 1
 
@@ -485,8 +485,8 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         mock_session.__enter__ = Mock(return_value=mock_session)  # pylint: disable=protected-access
         mock_session.__exit__ = Mock(return_value=None)  # pylint: disable=protected-access
 
-        processor.database_service.get_batch.return_value = mock_batch
-        processor.database_service.get_session.return_value = mock_session
+        batch_processor.database_service.get_batch.return_value = mock_batch
+        batch_processor.database_service.get_session.return_value = mock_session
 
         # Mock process_batch to avoid actual processing
         with patch.object(batch_processor, "process_batch", new_callable=AsyncMock) as mock_process:
@@ -494,7 +494,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
                 total=2, successful=["pending_url1"], failed=["failed_url"]
             )
 
-            result = await processor.resume_batch(batch_id)
+            result = await batch_processor.resume_batch(batch_id)
 
             assert result.total == 5  # Original total
             mock_process.assert_called_once()
@@ -506,21 +506,21 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
             assert len(processed_urls) == 2
 
     @pytest.mark.asyncio
-    async def test_resume_batch_not_found(self, processor):
+    async def test_resume_batch_not_found(self, batch_processor):
         """Test resuming non-existent batch."""
-        processor.database_service.get_batch.return_value = None
+        batch_processor.database_service.get_batch.return_value = None
 
         with pytest.raises(ValueError, match="Batch 999 not found"):
-            await processor.resume_batch(999)
+            await batch_processor.resume_batch(999)
 
     @pytest.mark.asyncio
     async def test_save_checkpoint(self, batch_processor, tmp_path):
         """Test saving processing checkpoint."""
-        processor.config.output_directory = tmp_path
-        processor.completed_count = 5
-        processor.failed_count = 2
+        batch_processor.config.output_directory = tmp_path
+        batch_processor.state.completed_count = 5
+        batch_processor.state.failed_count = 2
 
-        await processor._save_checkpoint(123)  # pylint: disable=protected-access
+        await batch_processor._save_checkpoint(123)  # pylint: disable=protected-access
 
         checkpoint_file = tmp_path / "checkpoint_123.json"
         assert checkpoint_file.exists()
@@ -533,25 +533,25 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert data["failed"] == 2
         assert "timestamp" in data
 
-    def test_cancel(self, processor):
+    def test_cancel(self, batch_processor):
         """Test cancelling batch processing."""
         # Add mock active tasks
         mock_task1 = Mock()
         mock_task2 = Mock()
-        processor.active_tasks.update([mock_task1, mock_task2])
+        batch_processor.state.active_tasks.update([mock_task1, mock_task2])
 
-        processor.cancel()
+        batch_processor.cancel()
 
-        assert processor.cancelled is True
+        assert batch_processor.state.cancelled is True
         mock_task1.cancel.assert_called_once()
         mock_task2.cancel.assert_called_once()
 
-    def test_get_statistics(self, processor):
+    def test_get_statistics(self, batch_processor):
         """Test getting processing statistics."""
-        processor.completed_count = 8
-        processor.failed_count = 2
+        batch_processor.state.completed_count = 8
+        batch_processor.state.failed_count = 2
 
-        stats = processor.get_statistics()
+        stats = batch_processor.get_statistics()
 
         assert stats["total_processed"] == 10
         assert stats["successful"] == 8
@@ -561,19 +561,19 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert "total_time_seconds" in stats
         assert "urls_per_second" in stats
 
-    def test_get_statistics_no_processed(self, processor):
+    def test_get_statistics_no_processed(self, batch_processor):
         """Test statistics with no processed jobs."""
-        stats = processor.get_statistics()
+        stats = batch_processor.get_statistics()
 
         assert stats["total_processed"] == 0
         assert stats["success_rate"] == 0
 
     @pytest.mark.asyncio
-    async def test_concurrent_processing_limit(self, config, database_service, mock_converter):
+    async def test_concurrent_processing_limit(self, batch_config, mock_db_service, mock_converter):
         """Test that concurrent processing respects semaphore limits."""
         # Set very low concurrency limit
-        config.concurrency.max_concurrent = 1
-        processor = BatchProcessor(config, database_service, mock_converter)
+        batch_config.concurrency.max_concurrent = 1
+        processor = BatchProcessor(batch_config, mock_db_service, mock_converter)
 
         # Mock slow processing
         async def slow_process(_url):
@@ -613,7 +613,7 @@ async def test_processor_integration(tmp_path):
     mock_db.update_job_status = Mock()
     mock_db.update_batch_progress = Mock()
 
-    converter = AsyncMock()
+    mock_converter = AsyncMock()
 
     processor = BatchProcessor(config, mock_db, mock_converter)
 
