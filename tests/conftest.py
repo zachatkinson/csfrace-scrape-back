@@ -1,22 +1,36 @@
 """Shared fixtures and test configuration for pytest."""
 
 import asyncio
+import importlib.util
+import logging
+import os
+import subprocess
 import tempfile
 import time
+import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
+import psycopg2
 import pytest
 import pytest_asyncio
 import structlog
 from aioresponses import aioresponses
 from bs4 import BeautifulSoup
+from sqlalchemy import create_engine
+from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer
 
+from src import __version__
 from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
+from src.caching.redis_cache import RedisCache
 from src.constants import TEST_CONSTANTS
+from src.database.models import Base, JobPriority, JobStatus
+from src.database.service import DatabaseService
+from src.plugins.base import PluginConfig, PluginType
 
 # CRITICAL: Configure structlog IMMEDIATELY after imports to prevent warnings
 # This prevents modules from caching loggers with default configuration
@@ -43,7 +57,7 @@ structlog.configure(
 def mock_sleep(monkeypatch):
     """Mock asyncio.sleep to return immediately for faster tests."""
 
-    async def instant_sleep(delay):
+    async def instant_sleep(_delay):
         # Return immediately without actually sleeping
         # This significantly speeds up tests that simulate timing
         return None
@@ -56,7 +70,7 @@ def mock_sleep(monkeypatch):
 def mock_time_sleep(monkeypatch):
     """Mock time.sleep to return immediately for faster tests."""
 
-    def instant_sleep(delay):
+    def instant_sleep(_delay):
         # Return immediately without actually sleeping
         return None
 
@@ -78,15 +92,15 @@ def postgres_container():
 
     Uses GitHub Actions service container in CI, testcontainers locally.
     """
-    import os
-
     # Check if running in CI with service container
     if all(
         env_var in os.environ for env_var in ["DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME"]
     ):
         # Use CI service container
         class CIPostgresContainer:
+            """Mock container class for CI environment using service containers."""
             def __init__(self):
+                """Initialize container with CI environment variables."""
                 self.host = os.environ["DATABASE_HOST"]
                 self.port = int(os.environ["DATABASE_PORT"])
                 self.dbname = os.environ["DATABASE_NAME"]
@@ -94,9 +108,11 @@ def postgres_container():
                 self.password = os.environ["DATABASE_PASSWORD"]
 
             def get_container_host_ip(self):
+                """Get the container host IP."""
                 return self.host
 
-            def get_exposed_port(self, port):
+            def get_exposed_port(self, _port):
+                """Get the exposed port (ignores input port as CI uses fixed port)."""
                 return self.port
 
         yield CIPostgresContainer()
@@ -115,12 +131,11 @@ def postgres_container():
                 try:
                     postgres.get_connection_url()
                     # Test actual connection
-                    import psycopg2
 
                     conn = psycopg2.connect(postgres.get_connection_url())
                     conn.close()
                     break
-                except Exception:
+                except Exception:  # pylint: disable=broad-exception-caught
                     time.sleep(0.1)  # Very short sleep for retry
             yield postgres
 
@@ -129,7 +144,7 @@ def postgres_container():
 
 
 @pytest.fixture
-def db_session(testcontainers_db_service):
+def db_session(testcontainers_db_service):  # pylint: disable=redefined-outer-name
     """Create database session following official SQLAlchemy 2.0 best practices.
 
     Uses the official SQLAlchemy 2.0 pattern with join_transaction_mode="create_savepoint".
@@ -138,10 +153,8 @@ def db_session(testcontainers_db_service):
     Official SQLAlchemy 2.0 testing pattern from:
     https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
     """
-    from sqlalchemy.orm import Session
-
     # Get the isolated connection from the service
-    connection = testcontainers_db_service._connection
+    connection = testcontainers_db_service._connection  # pylint: disable=protected-access
 
     # OFFICIAL SQLAlchemy 2.0 pattern - handles SAVEPOINT automatically
     session = Session(bind=connection, join_transaction_mode="create_savepoint")
@@ -154,7 +167,7 @@ def db_session(testcontainers_db_service):
 
 
 @pytest.fixture
-def testcontainers_db_service(postgres_container):
+def testcontainers_db_service(postgres_container):  # pylint: disable=too-many-locals,redefined-outer-name
     """Create DatabaseService using official SQLAlchemy best practices.
 
     Following official SQLAlchemy documentation:
@@ -163,11 +176,6 @@ def testcontainers_db_service(postgres_container):
     Uses ExternalTransaction pattern with SAVEPOINT isolation for concurrent testing.
     This is the ONLY database fixture pattern used throughout the codebase.
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-
-    from src.database.service import DatabaseService
-
     # Create engine from container following DRY principles
     if hasattr(postgres_container, "host"):
         # CI container
@@ -189,26 +197,23 @@ def testcontainers_db_service(postgres_container):
 
     # SQLAlchemy recommends drop_all() + create_all() for test suites
     # This ensures completely clean state between test sessions
-    from src.database.models import Base
 
     Base.metadata.drop_all(init_engine, checkfirst=True)
 
     # Create PostgreSQL enum types first (required for tables)
-    from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
-    from src.database.models import JobPriority, JobStatus
 
     with init_engine.connect() as conn:
         # Create enum types that the tables need
         try:
-            JobStatusEnum = PostgreSQLEnum(JobStatus, name="jobstatus", create_type=True)
-            JobStatusEnum.create(conn, checkfirst=True)
+            job_status_enum = ENUM(JobStatus, name="jobstatus", create_type=True)
+            job_status_enum.create(conn, checkfirst=True)
 
-            JobPriorityEnum = PostgreSQLEnum(JobPriority, name="jobpriority", create_type=True)
-            JobPriorityEnum.create(conn, checkfirst=True)
+            job_priority_enum = ENUM(JobPriority, name="jobpriority", create_type=True)
+            job_priority_enum.create(conn, checkfirst=True)
 
             conn.commit()
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             # Enum might already exist, continue
             conn.rollback()
 
@@ -226,15 +231,15 @@ def testcontainers_db_service(postgres_container):
     transaction = connection.begin()
 
     # Create isolated session factory using SQLAlchemy 2.0 pattern
-    def SessionLocal():
+    def session_local():  # pylint: disable=invalid-name
         return Session(bind=connection, join_transaction_mode="create_savepoint")
 
     # Create service with isolated session
-    service = DatabaseService._create_with_engine(test_engine)
-    service._session_factory = SessionLocal
+    service = DatabaseService._create_with_engine(test_engine)  # pylint: disable=protected-access
+    service._session_factory = session_local  # pylint: disable=protected-access
     service.engine = test_engine
-    service._connection = connection
-    service._transaction = transaction
+    service._connection = connection  # pylint: disable=protected-access
+    service._transaction = transaction  # pylint: disable=protected-access
 
     yield service
 
@@ -242,33 +247,32 @@ def testcontainers_db_service(postgres_container):
     try:
         transaction.rollback()
         connection.close()
-    except Exception as cleanup_error:
-        import logging
+    except Exception as cleanup_error:  # pylint: disable=broad-exception-caught
 
-        logging.getLogger(__name__).debug(f"Test cleanup: {cleanup_error}")
+        logging.getLogger(__name__).debug("Test cleanup: %s", cleanup_error)
     finally:
         test_engine.dispose()
 
 
 @pytest.fixture
-def db_service_with_session(testcontainers_db_service, db_session):
+def db_service_with_session(testcontainers_db_service, db_session):  # pylint: disable=redefined-outer-name
     """DatabaseService that uses the transactional test session.
 
     This ensures that all database operations through the service
     are rolled back after each test, preventing data bleeding.
     """
     # Replace the service's session factory to use our test session
-    original_factory = testcontainers_db_service._session_factory
+    original_factory = testcontainers_db_service._session_factory  # pylint: disable=protected-access
 
     def test_session_factory():
         return db_session
 
-    testcontainers_db_service._session_factory = test_session_factory
+    testcontainers_db_service._session_factory = test_session_factory  # pylint: disable=protected-access
 
     yield testcontainers_db_service
 
     # Restore original factory (though fixture cleanup will handle it)
-    testcontainers_db_service._session_factory = original_factory
+    testcontainers_db_service._session_factory = original_factory  # pylint: disable=protected-access
 
 
 @pytest.fixture
@@ -282,7 +286,6 @@ def test_isolation_id():
     Returns:
         str: 8-character unique identifier for test data isolation
     """
-    import uuid
 
     return uuid.uuid4().hex[:8]
 
@@ -304,12 +307,12 @@ def mock_responses():
 @pytest.fixture
 def temp_dir():
     """Create temporary directory for test files."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
+    with tempfile.TemporaryDirectory() as temp_path:
+        yield Path(temp_path)
 
 
 @pytest.fixture
-def cache_config(temp_dir):
+def cache_config(temp_dir):  # pylint: disable=redefined-outer-name
     """Create test cache configuration."""
     return CacheConfig(
         cache_dir=temp_dir / ".test_cache",
@@ -324,7 +327,7 @@ def cache_config(temp_dir):
 
 
 @pytest_asyncio.fixture
-async def file_cache(cache_config):
+async def file_cache(cache_config):  # pylint: disable=redefined-outer-name
     """Create test file cache instance."""
     cache = FileCache(cache_config)
     # FileCache initializes in constructor, no separate initialize method needed
@@ -380,7 +383,7 @@ def sample_html():
 
 
 @pytest.fixture
-def sample_soup(sample_html):
+def sample_soup(sample_html):  # pylint: disable=redefined-outer-name
     """BeautifulSoup object from sample HTML."""
     return BeautifulSoup(sample_html, "html.parser")
 
@@ -434,7 +437,7 @@ def sample_wordpress_content():
 
 
 @pytest.fixture
-def mock_wordpress_server(mock_responses):
+def mock_wordpress_server(mock_responses):  # pylint: disable=redefined-outer-name
     """Mock WordPress server responses."""
     # Mock robots.txt
     mock_responses.get(
@@ -474,8 +477,6 @@ def mock_wordpress_server(mock_responses):
 @pytest.fixture
 def plugin_config():
     """Sample plugin configuration."""
-    from src import __version__
-    from src.plugins.base import PluginConfig, PluginType
 
     return PluginConfig(
         name="test_plugin",
@@ -491,7 +492,6 @@ def plugin_config():
 async def mock_redis_cache():
     """Mock Redis cache for testing."""
     try:
-        from src.caching.redis_cache import RedisCache
 
         cache = MagicMock(spec=RedisCache)
         cache.get = AsyncMock(return_value=None)
@@ -518,8 +518,6 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "redis: marks tests that require Redis")
     config.addinivalue_line("markers", "database: marks tests that require PostgreSQL container")
 
-    pass
-
 
 def assert_enum_values(enum_class, expected_values):
     """Assert enum values match expected mapping to eliminate test duplication.
@@ -536,10 +534,8 @@ def assert_enum_values(enum_class, expected_values):
 
 
 # Skip tests if dependencies not available
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(_config, items):
     """Modify test collection to handle missing dependencies."""
-    import importlib.util
-    import subprocess
 
     redis_available = importlib.util.find_spec("redis") is not None
 

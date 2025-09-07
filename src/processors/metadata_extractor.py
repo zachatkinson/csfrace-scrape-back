@@ -116,10 +116,10 @@ class MetadataExtractor:
 
     def supports_url(self, url: str) -> bool:
         """Check if this extractor supports the given URL.
-        
+
         Args:
             url: URL to check
-            
+
         Returns:
             True if the URL is supported
         """

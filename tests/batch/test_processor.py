@@ -14,6 +14,7 @@ from src.batch.processor import BatchConfig, BatchJob, BatchProcessor
 from src.common.status import JobStatus
 from src.core.exceptions import ConversionError
 from src.utils.path_utils import get_directory_name
+from tests.conftest import assert_enum_values
 
 
 class TestBatchProcessor:
@@ -141,8 +142,6 @@ class TestBatchJob:
 
     def test_batch_job_status_enum(self):
         """Test JobStatus enum values."""
-        from tests.conftest import assert_enum_values
-
         assert_enum_values(
             JobStatus,
             {

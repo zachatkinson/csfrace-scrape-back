@@ -6,17 +6,17 @@ Create Date: 2025-09-03 23:24:06.834735
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "6a017959a425"
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -24,7 +24,7 @@ def upgrade() -> None:
     # Create JobStatus enum
     job_status_enum = sa.Enum(
         "pending",
-        "running", 
+        "running",
         "completed",
         "failed",
         "skipped",
@@ -34,12 +34,12 @@ def upgrade() -> None:
         create_type=True,
     )
     job_status_enum.create(op.get_bind())
-    
+
     # Create JobPriority enum
     job_priority_enum = sa.Enum(
         "low",
         "normal",
-        "high", 
+        "high",
         "urgent",
         name="jobpriority",
         create_type=True,

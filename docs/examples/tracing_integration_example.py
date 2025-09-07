@@ -8,22 +8,21 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from starlette.requests import Request
 
 # Import monitoring components
 from src.api.middleware import EnhancedTracingMiddleware
 from src.monitoring import (
-    ObservabilityConfig, 
+    ObservabilityConfig,
     ObservabilityManager,
     TracingConfig,
     observability_manager,
 )
 from src.utils.tracing_utils import (
+    add_trace_event,
+    set_trace_attribute,
     trace,
     trace_database_operation,
     trace_http_request,
-    add_trace_event,
-    set_trace_attribute,
 )
 
 
@@ -52,7 +51,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize observability system
     global_observability = ObservabilityManager(observability_config)
-    
+
     try:
         await global_observability.initialize()
         print("✅ Observability system initialized successfully")
@@ -63,17 +62,10 @@ async def lifespan(app: FastAPI):
 
 
 # Create FastAPI app with observability lifespan
-app = FastAPI(
-    title="CSFrace Scraper API",
-    version="2.2.2",
-    lifespan=lifespan
-)
+app = FastAPI(title="CSFrace Scraper API", version="2.2.2", lifespan=lifespan)
 
 # Add enhanced tracing middleware
-app.add_middleware(
-    EnhancedTracingMiddleware,
-    correlation_header="X-Correlation-ID"
-)
+app.add_middleware(EnhancedTracingMiddleware, correlation_header="X-Correlation-ID")
 
 
 # Example endpoints demonstrating tracing usage
@@ -107,12 +99,11 @@ async def scrape_content(request: dict):
 
     # Simulate scraping process with sub-operations
     result = await perform_scraping(url)
-    
+
     # Add completion event
-    add_trace_event("scraping_completed", {
-        "pages_scraped": result.get("page_count", 0),
-        "success": True
-    })
+    add_trace_event(
+        "scraping_completed", {"pages_scraped": result.get("page_count", 0), "success": True}
+    )
 
     return result
 
@@ -122,7 +113,7 @@ async def fetch_external_data(url: str) -> dict:
     """Example function with HTTP request tracing."""
     # Simulate external API call
     await asyncio.sleep(0.1)  # Simulate network delay
-    
+
     add_trace_event("external_api_response_received")
     return {"data": "external_content", "source": url}
 
@@ -132,7 +123,7 @@ async def save_scraped_content(content: dict) -> bool:
     """Example function with database operation tracing."""
     # Simulate database save
     add_trace_event("content_validation_started")
-    
+
     if not content.get("title"):
         set_trace_attribute("validation.error", "missing_title")
         add_trace_event("validation_failed", {"reason": "missing_title"})
@@ -140,21 +131,21 @@ async def save_scraped_content(content: dict) -> bool:
 
     # Simulate database insertion
     await asyncio.sleep(0.05)
-    
+
     set_trace_attribute("db.record_id", "12345")
     add_trace_event("content_saved_successfully")
-    
+
     return True
 
 
 async def perform_scraping(url: str) -> dict:
     """Example complex operation with multiple traced sub-operations."""
     # This will be part of the parent "scrape_wordpress_content" trace
-    
+
     # Step 1: Fetch external data
     external_data = await fetch_external_data(url)
     set_trace_attribute("external_data.size", len(str(external_data)))
-    
+
     # Step 2: Process content
     processed_content = {
         "title": "Example Article",
@@ -162,16 +153,19 @@ async def perform_scraping(url: str) -> dict:
         "url": url,
         "external_refs": external_data,
     }
-    
-    add_trace_event("content_processed", {
-        "word_count": len(processed_content["content"].split()),
-        "has_external_refs": bool(external_data)
-    })
-    
+
+    add_trace_event(
+        "content_processed",
+        {
+            "word_count": len(processed_content["content"].split()),
+            "has_external_refs": bool(external_data),
+        },
+    )
+
     # Step 3: Save to database
     save_success = await save_scraped_content(processed_content)
     set_trace_attribute("save.success", save_success)
-    
+
     if not save_success:
         set_trace_attribute("error", True)
         add_trace_event("scraping_failed", {"reason": "save_failed"})
@@ -195,6 +189,7 @@ async def get_observability_status():
 async def get_tracing_status():
     """Get current distributed tracing status."""
     from src.monitoring import distributed_tracer
+
     return distributed_tracer.get_tracing_status()
 
 
@@ -202,13 +197,14 @@ async def get_tracing_status():
 async def get_metrics():
     """Export Prometheus metrics."""
     from src.monitoring import observability_manager
+
     metrics_data = observability_manager.export_metrics()
-    return {"metrics": metrics_data.decode('utf-8')}
+    return {"metrics": metrics_data.decode("utf-8")}
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Run with proper configuration for tracing
     uvicorn.run(
         "tracing_integration_example:app",

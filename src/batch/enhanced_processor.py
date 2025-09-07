@@ -114,11 +114,11 @@ class BatchConfig:
 
     def __init__(self, **kwargs):
         """Initialize batch configuration with backward compatibility.
-        
+
         Args:
             **kwargs: Configuration parameters including:
                 - max_concurrent: Maximum concurrent operations
-                - rate_limit_per_second: Rate limit per second  
+                - rate_limit_per_second: Rate limit per second
                 - retry_attempts: Number of retry attempts
                 - timeout_seconds: Timeout in seconds
                 - continue_on_error: Whether to continue on error
@@ -126,19 +126,19 @@ class BatchConfig:
         """
         # Initialize nested configurations with provided values or defaults
         self.concurrency = ConcurrencyConfig(
-            max_concurrent=kwargs.get('max_concurrent', 5),
-            rate_limit_per_second=kwargs.get('rate_limit_per_second'),
-            timeout_seconds=kwargs.get('timeout_seconds', 30),
+            max_concurrent=kwargs.get("max_concurrent", 5),
+            rate_limit_per_second=kwargs.get("rate_limit_per_second"),
+            timeout_seconds=kwargs.get("timeout_seconds", 30),
         )
 
         self.retry = RetryConfig(
-            retry_attempts=kwargs.get('retry_attempts', 2),
-            continue_on_error=kwargs.get('continue_on_error', True),
+            retry_attempts=kwargs.get("retry_attempts", 2),
+            continue_on_error=kwargs.get("continue_on_error", True),
         )
 
         self.processing = ProcessingConfig()
 
-        output_directory = kwargs.get('output_directory')
+        output_directory = kwargs.get("output_directory")
         if output_directory:
             self.output = OutputConfig(output_directory=Path(output_directory))
         else:
