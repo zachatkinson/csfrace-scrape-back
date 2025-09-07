@@ -181,8 +181,7 @@ def with_retry(
 
             if last_exception:
                 raise last_exception
-            else:
-                raise RuntimeError(f"All {retry_config.max_attempts} retry attempts failed")
+            raise RuntimeError(f"All {retry_config.max_attempts} retry attempts failed")
 
         return wrapper
 
@@ -244,7 +243,7 @@ class CircuitBreaker:
 
         if self.state == CircuitBreakerState.CLOSED:
             return True
-        elif self.state == CircuitBreakerState.OPEN:
+        if self.state == CircuitBreakerState.OPEN:
             if current_time - (self.last_failure_time or 0) >= self.recovery_timeout:
                 self.state = CircuitBreakerState.HALF_OPEN
                 self.half_open_calls = 0
@@ -255,7 +254,7 @@ class CircuitBreaker:
                 )
                 return True
             return False
-        elif self.state == CircuitBreakerState.HALF_OPEN:
+        if self.state == CircuitBreakerState.HALF_OPEN:
             return self.half_open_calls < self.half_open_max_calls
 
         return False

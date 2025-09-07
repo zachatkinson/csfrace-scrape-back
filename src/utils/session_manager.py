@@ -9,11 +9,12 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import aiohttp
 import structlog
 from aiohttp import BasicAuth, ClientSession, TCPConnector
+from bs4 import BeautifulSoup
 
 from ..constants import CONSTANTS
 from ..core.exceptions import ConfigurationError, FetchError
@@ -262,7 +263,7 @@ class EnhancedSessionManager:
         """Check if authentication is configured."""
         if self.config.auth_type == "basic":
             return bool(self.config.username and self.config.password)
-        elif self.config.auth_type == "bearer":
+        if self.config.auth_type == "bearer":
             return bool(self.config.bearer_token)
         return False
 
@@ -390,8 +391,6 @@ class EnhancedSessionManager:
                 login_page = await response.text()
 
             # Parse login form and submit credentials
-            from bs4 import BeautifulSoup
-
             soup = BeautifulSoup(login_page, "html.parser")
 
             # Look for WordPress login form
@@ -447,7 +446,7 @@ class EnhancedSessionManager:
             async with self._session.get(self.base_url) as response:
                 if response.status == 401:
                     raise FetchError("Bearer token authentication failed - unauthorized")
-                elif response.status >= 400:
+                if response.status >= 400:
                     raise FetchError(f"Bearer token validation failed - status {response.status}")
 
             logger.info("Bearer token authentication validated")
@@ -532,8 +531,6 @@ class EnhancedSessionManager:
 
         # Ensure URL is absolute
         if not url.startswith(("http://", "https://")):
-            from urllib.parse import urljoin
-
             url = urljoin(self.base_url, url)
 
         return await session.request(method, url, **kwargs)

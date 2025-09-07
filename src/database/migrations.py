@@ -10,7 +10,7 @@ from alembic.config import Config  # pylint: disable=no-name-in-module
 from alembic.runtime.migration import MigrationContext  # pylint: disable=no-name-in-module
 from alembic.script import ScriptDirectory  # pylint: disable=no-name-in-module
 
-from .models import get_database_url
+from .utils import get_database_url
 
 logger = logging.getLogger(__name__)
 

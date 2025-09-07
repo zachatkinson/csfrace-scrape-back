@@ -157,7 +157,7 @@ class TestBatchConfig:
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=5, timeout_seconds=30),
             retry=RetryConfig(retry_attempts=3),
-            output=OutputConfig(output_directory=Path("output"))
+            output=OutputConfig(output_directory=Path("output")),
         )
 
         assert config.concurrency.max_concurrent == 5
@@ -186,7 +186,7 @@ class TestBatchConfig:
 
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=3, timeout_seconds=20),
-            retry=RetryConfig(retry_attempts=1)
+            retry=RetryConfig(retry_attempts=1),
         )
         assert config.validate() is True
 
@@ -194,9 +194,7 @@ class TestBatchConfig:
         """Test validation with invalid max_concurrent."""
         from src.batch.enhanced_processor import ConcurrencyConfig
 
-        config = BatchConfig(
-            concurrency=ConcurrencyConfig(max_concurrent=0)
-        )
+        config = BatchConfig(concurrency=ConcurrencyConfig(max_concurrent=0))
 
         with pytest.raises(ValueError, match="max_concurrent must be positive"):
             config.validate()
@@ -205,9 +203,7 @@ class TestBatchConfig:
         """Test validation with invalid timeout."""
         from src.batch.enhanced_processor import ConcurrencyConfig
 
-        config = BatchConfig(
-            concurrency=ConcurrencyConfig(timeout_seconds=-1)
-        )
+        config = BatchConfig(concurrency=ConcurrencyConfig(timeout_seconds=-1))
 
         with pytest.raises(ValueError, match="timeout_seconds must be positive"):
             config.validate()
@@ -216,9 +212,7 @@ class TestBatchConfig:
         """Test validation with invalid retry attempts."""
         from src.batch.enhanced_processor import RetryConfig
 
-        config = BatchConfig(
-            retry=RetryConfig(retry_attempts=-1)
-        )
+        config = BatchConfig(retry=RetryConfig(retry_attempts=-1))
 
         with pytest.raises(ValueError, match="retry_attempts cannot be negative"):
             config.validate()
@@ -227,9 +221,7 @@ class TestBatchConfig:
         """Test validation with invalid retry delay."""
         from src.batch.enhanced_processor import RetryConfig
 
-        config = BatchConfig(
-            retry=RetryConfig(retry_delay=-1.0)
-        )
+        config = BatchConfig(retry=RetryConfig(retry_delay=-1.0))
 
         with pytest.raises(ValueError, match="retry_delay cannot be negative"):
             config.validate()

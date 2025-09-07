@@ -49,9 +49,8 @@ def get_rate_limits() -> RateLimits:
             ADMIN_OPERATIONS="1000/hour",
             DEVELOPMENT="1000/hour",
         )
-    else:
-        # Production rate limits
-        return RateLimits()
+    # Production rate limits
+    return RateLimits()
 
 
 # Global instance - will be initialized when first accessed

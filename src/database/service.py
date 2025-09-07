@@ -211,32 +211,17 @@ class DatabaseService:
         **kwargs,
     ) -> ScrapingJob:
         """Create job with keyword arguments (backward compatibility)."""
-        ...
 
     @overload
     def create_job(self, request: JobCreateRequest, **kwargs) -> ScrapingJob:
         """Create job with JobCreateRequest."""
-        ...
 
-    def create_job(
-        self,
-        request: JobCreateRequest | None = None,
-        *,
-        url: str | None = None,
-        output_directory: str | None = None,
-        batch_id: int | None = None,
-        priority: str = "normal",
-        **kwargs,
-    ) -> ScrapingJob:
+    def create_job(self, request: JobCreateRequest | None = None, **kwargs) -> ScrapingJob:
         """Create a new scraping job.
 
         Args:
             request: Job creation request containing all parameters (new style)
-            url: URL to scrape (backward compatibility)
-            output_directory: Output directory (backward compatibility)
-            batch_id: Optional batch ID
-            priority: Job priority
-            **kwargs: Additional job configuration
+            **kwargs: Legacy arguments (url, output_directory, batch_id, priority, etc.)
 
         Returns:
             Created ScrapingJob instance
@@ -246,6 +231,9 @@ class DatabaseService:
         """
         # Handle backward compatibility: convert keyword args to JobCreateRequest
         if request is None:
+            url = kwargs.get("url")
+            output_directory = kwargs.get("output_directory")
+
             if url is None or output_directory is None:
                 raise ValueError(
                     "Either 'request' or both 'url' and 'output_directory' must be provided"
@@ -253,9 +241,13 @@ class DatabaseService:
             request = JobCreateRequest(
                 url=url,
                 output_directory=output_directory,
-                batch_id=batch_id,
-                priority=priority,
-                **kwargs,
+                batch_id=kwargs.get("batch_id"),
+                priority=kwargs.get("priority", "normal"),
+                **{
+                    k: v
+                    for k, v in kwargs.items()
+                    if k not in ("url", "output_directory", "batch_id", "priority")
+                },
             )
 
         try:
@@ -690,33 +682,22 @@ class DatabaseService:
             logger.error("Failed to save content result", job_id=job_id, error=str(e))
             raise DatabaseError(f"Content result save failed: {e}") from e
 
-    def add_job_log(
-        self,
-        request: JobLogRequest | None = None,
-        *,
-        job_id: int | None = None,
-        level: str | None = None,
-        message: str | None = None,
-        component: str | None = None,
-        operation: str | None = None,
-        context_data: dict[str, Any] | None = None,
-    ) -> JobLog | None:
+    def add_job_log(self, request: JobLogRequest | None = None, **kwargs) -> JobLog | None:
         """Add a log entry for a job.
 
         Args:
             request: Job log request containing all parameters (new style)
-            job_id: Job ID (legacy style)
-            level: Log level (legacy style)
-            message: Log message (legacy style)
-            component: Component name (legacy style)
-            operation: Operation name (legacy style)
-            context_data: Additional context data (legacy style)
+            **kwargs: Legacy arguments (job_id, level, message, component, operation, context_data)
 
         Returns:
             Created JobLog instance
         """
         # Support both old and new calling styles
         if request is None:
+            job_id = kwargs.get("job_id")
+            level = kwargs.get("level")
+            message = kwargs.get("message")
+
             if job_id is None or level is None or message is None:
                 raise ValueError(
                     "Either request object or job_id, level, and message must be provided"
@@ -725,9 +706,9 @@ class DatabaseService:
                 job_id=job_id,
                 level=level,
                 message=message,
-                component=component,
-                operation=operation,
-                context_data=context_data,
+                component=kwargs.get("component"),
+                operation=kwargs.get("operation"),
+                context_data=kwargs.get("context_data"),
             )
         try:
             with self.get_session() as session:

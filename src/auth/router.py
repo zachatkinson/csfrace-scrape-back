@@ -541,8 +541,7 @@ def complete_passkey_registration(
         # Use 422 for validation errors like invalid/expired challenges
         if "challenge" in str(e).lower() or "expired" in str(e).lower():
             raise validation_error(f"Passkey registration failed: {str(e)}") from e
-        else:
-            raise bad_request_error(f"Passkey registration failed: {str(e)}") from e
+        raise bad_request_error(f"Passkey registration failed: {str(e)}") from e
     except Exception as e:
         # Handle unexpected errors
         logger.error(

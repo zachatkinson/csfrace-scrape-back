@@ -13,7 +13,8 @@ def safe_copy_attributes(
     Args:
         source_element: Source HTML element
         target_element: Target HTML element to copy attributes to
-        attribute_map: Dict mapping source attr names to target attr names or (target_name, default_value)
+        attribute_map: Dict mapping source attr names to target attr names or
+            (target_name, default_value)
 
     Example:
         safe_copy_attributes(img, new_img, {
@@ -32,22 +33,22 @@ def safe_copy_attributes(
 
 
 def find_meta_content(
-    soup: BeautifulSoup, name: str | None = None, property: str | None = None
+    soup: BeautifulSoup, name: str | None = None, property_attr: str | None = None
 ) -> str | None:
     """Find meta tag content by name or property attribute.
 
     Args:
         soup: BeautifulSoup object
         name: Meta name attribute (for name="description")
-        property: Meta property attribute (for property="og:title")
+        property_attr: Meta property attribute (for property="og:title")
 
     Returns:
         Meta content value or None
     """
     if name:
         meta_tag = soup.find("meta", attrs={"name": name})
-    elif property:
-        meta_tag = soup.find("meta", attrs={"property": property})
+    elif property_attr:
+        meta_tag = soup.find("meta", attrs={"property": property_attr})
     else:
         return None
 
@@ -94,7 +95,7 @@ def extract_basic_element_data(element: Tag) -> dict[str, str]:
         class_attr = element.get("class", [])
         if isinstance(class_attr, list):
             return " ".join(str(cls) for cls in class_attr)
-        elif isinstance(class_attr, str):
+        if isinstance(class_attr, str):
             return class_attr
         return ""
 

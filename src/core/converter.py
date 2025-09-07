@@ -13,6 +13,7 @@ from ..constants import CONSTANTS, PROGRESS_CONSTANTS
 from ..processors.html_processor import HTMLProcessor
 from ..processors.image_downloader import AsyncImageDownloader
 from ..processors.metadata_extractor import MetadataExtractor
+from ..utils.http import safe_http_get_with_raise
 from ..utils.retry import with_retry
 from ..utils.robots import robots_checker
 from .config import ConverterConfig
@@ -112,8 +113,6 @@ class AsyncWordPressConverter:
             await robots_checker.check_and_delay(
                 self.base_url, self.config.http.user_agent, session
             )
-
-            from ..utils.http import safe_http_get_with_raise
 
             content = await safe_http_get_with_raise(
                 session, self.base_url, timeout=self.config.http.timeout
