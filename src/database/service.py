@@ -7,7 +7,7 @@ with proper error handling, transaction management, and connection pooling.
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, overload
 
 import structlog
 from sqlalchemy import and_, case, desc, func, or_, select, text, update
@@ -30,16 +30,22 @@ from .models import (
 logger = structlog.get_logger(__name__)
 
 
-@dataclass
 class JobCreateRequest:
     """Request object for creating scraping jobs."""
 
-    url: str
-    output_directory: str
-    domain: str | None = None
-    slug: str | None = None
-    batch_id: int | None = None
-    priority: str = "normal"
+    def __init__(self, url: str, output_directory: str, **kwargs):
+        """Initialize JobCreateRequest with flexible kwargs support."""
+        self.url = url
+        self.output_directory = output_directory
+        self.domain = kwargs.get('domain')
+        self.slug = kwargs.get('slug')
+        self.batch_id = kwargs.get('batch_id')
+        self.priority = kwargs.get('priority', 'normal')
+        
+        # Store additional kwargs for backward compatibility
+        for key, value in kwargs.items():
+            if key not in ('domain', 'slug', 'batch_id', 'priority'):
+                setattr(self, key, value)
 
 
 @dataclass
@@ -223,11 +229,42 @@ class DatabaseService:
                 return JobPriority.NORMAL
         return priority
 
+    @overload
+    def create_job(
+        self,
+        *,
+        url: str,
+        output_directory: str,
+        batch_id: int | None = None,
+        priority: str = "normal",
+        **kwargs
+    ) -> ScrapingJob:
+        """Create job with keyword arguments (backward compatibility)."""
+        ...
+
+    @overload
     def create_job(self, request: JobCreateRequest, **kwargs) -> ScrapingJob:
+        """Create job with JobCreateRequest."""
+        ...
+
+    def create_job(
+        self,
+        request: JobCreateRequest | None = None,
+        *,
+        url: str | None = None,
+        output_directory: str | None = None,
+        batch_id: int | None = None,
+        priority: str = "normal",
+        **kwargs
+    ) -> ScrapingJob:
         """Create a new scraping job.
 
         Args:
-            request: Job creation request containing all parameters
+            request: Job creation request containing all parameters (new style)
+            url: URL to scrape (backward compatibility)
+            output_directory: Output directory (backward compatibility)
+            batch_id: Optional batch ID
+            priority: Job priority
             **kwargs: Additional job configuration
 
         Returns:
@@ -236,6 +273,18 @@ class DatabaseService:
         Raises:
             DatabaseError: If job creation fails
         """
+        # Handle backward compatibility: convert keyword args to JobCreateRequest
+        if request is None:
+            if url is None or output_directory is None:
+                raise ValueError("Either 'request' or both 'url' and 'output_directory' must be provided")
+            request = JobCreateRequest(
+                url=url,
+                output_directory=output_directory,
+                batch_id=batch_id,
+                priority=priority,
+                **kwargs
+            )
+        
         try:
             with self.get_session() as session:
                 # Extract and process request parameters
@@ -247,6 +296,12 @@ class DatabaseService:
                 )
                 priority_enum = self._normalize_priority(request.priority)
 
+                # Filter out kwargs that are already handled explicitly to avoid conflicts
+                filtered_kwargs = {
+                    k: v for k, v in kwargs.items() 
+                    if k not in ('url', 'domain', 'slug', 'output_directory', 'batch_id', 'priority', 'custom_slug')
+                }
+
                 job = ScrapingJob(
                     url=request.url,
                     domain=domain,
@@ -254,7 +309,7 @@ class DatabaseService:
                     output_directory=request.output_directory,
                     batch_id=request.batch_id,
                     priority=priority_enum,
-                    **kwargs,
+                    **filtered_kwargs,
                 )
 
                 session.add(job)

@@ -84,20 +84,69 @@ class ConfigLoader:
             ConverterConfig instance
         """
         from ..core.config import config as default_config
+        from ..core.config import HttpConfig, OutputConfig, RobotsConfig, ShopifyConfig
 
         base = base_config or default_config
-        base_dict = asdict(base)
-
-        # Merge converter-specific settings
+        
+        # Get converter-specific settings
         converter_settings = config_dict.get("converter", {})
-        merged = {**base_dict, **converter_settings}
-
-        # Handle frozenset fields
-        if "preserve_classes" in merged and isinstance(merged["preserve_classes"], list):
-            merged["preserve_classes"] = frozenset(merged["preserve_classes"])
+        
+        # Create a merged flat dictionary for backwards compatibility
+        merged = {}
+        if base:
+            # Extract current values from nested structure
+            if hasattr(base, 'http'):
+                merged.update(asdict(base.http))
+            if hasattr(base, 'output'):
+                merged.update(asdict(base.output))  
+            if hasattr(base, 'robots'):
+                merged.update(asdict(base.robots))
+            if hasattr(base, 'shopify'):
+                merged.update(asdict(base.shopify))
+        
+        # Merge with new settings
+        merged.update(converter_settings)
+        
+        # Map old flat structure to new nested structure
+        http_config = HttpConfig(
+            timeout=merged.get("default_timeout", merged.get("timeout", 30)),
+            max_concurrent=merged.get("max_concurrent", 5),
+            rate_limit_delay=merged.get("rate_limit_delay", 0.5),
+            max_retries=merged.get("max_retries", 3),
+            backoff_factor=merged.get("backoff_factor", 2.0),
+            user_agent=merged.get("user_agent", "CSFrace-Scraper/1.0")
+        )
+        
+        output_config = OutputConfig(
+            create_images_dir=merged.get("create_images_dir", True),
+            images_subdir=merged.get("images_subdir", "images"),
+            output_format=merged.get("output_format", "html"),
+            save_metadata=merged.get("save_metadata", True)
+        )
+        
+        robots_config = RobotsConfig(
+            respect_robots_txt=merged.get("respect_robots_txt", True),
+            cache_duration=merged.get("robots_cache_duration", 3600)
+        )
+        
+        # Handle frozenset conversion for preserve_classes
+        preserve_classes = merged.get("preserve_classes", frozenset())
+        if isinstance(preserve_classes, list):
+            preserve_classes = frozenset(preserve_classes)
+        
+        shopify_config = ShopifyConfig(
+            preserve_classes=preserve_classes,
+            convert_divs_to_p=merged.get("convert_divs_to_p", True),
+            clean_empty_tags=merged.get("clean_empty_tags", True)
+        )
 
         logger.debug("Created converter config", settings=list(converter_settings.keys()))
-        return ConverterConfig(**merged)
+        return ConverterConfig(
+            http=http_config,
+            output=output_config, 
+            robots=robots_config,
+            shopify=shopify_config
+        )
 
     @staticmethod
     def create_batch_config(

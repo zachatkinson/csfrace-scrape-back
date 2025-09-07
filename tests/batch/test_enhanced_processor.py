@@ -152,59 +152,84 @@ class TestBatchConfig:
 
     def test_batch_config_creation(self):
         """Test creating batch configuration."""
+        from src.batch.enhanced_processor import ConcurrencyConfig, RetryConfig, OutputConfig
+        
         config = BatchConfig(
-            max_concurrent=5, timeout_seconds=30, retry_attempts=3, output_directory=Path("output")
+            concurrency=ConcurrencyConfig(max_concurrent=5, timeout_seconds=30),
+            retry=RetryConfig(retry_attempts=3),
+            output=OutputConfig(output_directory=Path("output"))
         )
 
-        assert config.max_concurrent == 5
-        assert config.timeout_seconds == 30
-        assert config.retry_attempts == 3
-        assert config.output_directory == Path("output")
+        assert config.concurrency.max_concurrent == 5
+        assert config.concurrency.timeout_seconds == 30
+        assert config.retry.retry_attempts == 3
+        assert config.output.output_directory == Path("output")
 
     def test_batch_config_defaults(self):
         """Test batch configuration defaults."""
         config = BatchConfig()
 
-        assert config.max_concurrent == 5
-        assert config.timeout_seconds == 30
-        assert config.retry_attempts == 2
-        assert config.retry_delay == 1.0
-        assert config.continue_on_error is True
-        assert config.output_directory == Path("batch_output")
-        assert config.create_archives is False
-        assert config.priority_queue is True
-        assert config.save_checkpoints is True
-        assert config.checkpoint_interval == 10
+        assert config.concurrency.max_concurrent == 5
+        assert config.concurrency.timeout_seconds == 30
+        assert config.retry.retry_attempts == 2
+        assert config.retry.retry_delay == 1.0
+        assert config.retry.continue_on_error is True
+        assert config.output.output_directory == Path("batch_output")
+        assert config.output.create_archives is False
+        assert config.processing.priority_queue is True
+        assert config.processing.save_checkpoints is True
+        assert config.processing.checkpoint_interval == 10
 
     def test_batch_config_validation_success(self):
         """Test successful batch configuration validation."""
-        config = BatchConfig(max_concurrent=3, timeout_seconds=20, retry_attempts=1)
+        from src.batch.enhanced_processor import ConcurrencyConfig, RetryConfig
+        
+        config = BatchConfig(
+            concurrency=ConcurrencyConfig(max_concurrent=3, timeout_seconds=20),
+            retry=RetryConfig(retry_attempts=1)
+        )
         assert config.validate() is True
 
     def test_batch_config_validation_invalid_max_concurrent(self):
         """Test validation with invalid max_concurrent."""
-        config = BatchConfig(max_concurrent=0)
+        from src.batch.enhanced_processor import ConcurrencyConfig
+        
+        config = BatchConfig(
+            concurrency=ConcurrencyConfig(max_concurrent=0)
+        )
 
         with pytest.raises(ValueError, match="max_concurrent must be positive"):
             config.validate()
 
     def test_batch_config_validation_invalid_timeout(self):
         """Test validation with invalid timeout."""
-        config = BatchConfig(timeout_seconds=-1)
+        from src.batch.enhanced_processor import ConcurrencyConfig
+        
+        config = BatchConfig(
+            concurrency=ConcurrencyConfig(timeout_seconds=-1)
+        )
 
         with pytest.raises(ValueError, match="timeout_seconds must be positive"):
             config.validate()
 
     def test_batch_config_validation_invalid_retry_attempts(self):
         """Test validation with invalid retry attempts."""
-        config = BatchConfig(retry_attempts=-1)
+        from src.batch.enhanced_processor import RetryConfig
+        
+        config = BatchConfig(
+            retry=RetryConfig(retry_attempts=-1)
+        )
 
         with pytest.raises(ValueError, match="retry_attempts cannot be negative"):
             config.validate()
 
     def test_batch_config_validation_invalid_retry_delay(self):
         """Test validation with invalid retry delay."""
-        config = BatchConfig(retry_delay=-1.0)
+        from src.batch.enhanced_processor import RetryConfig
+        
+        config = BatchConfig(
+            retry=RetryConfig(retry_delay=-1.0)
+        )
 
         with pytest.raises(ValueError, match="retry_delay cannot be negative"):
             config.validate()
