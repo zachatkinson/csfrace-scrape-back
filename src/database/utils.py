@@ -1,11 +1,11 @@
 """Database utilities for shared operations."""
 
 import os
+from enum import Enum
+
 import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
-from enum import Enum
-from typing import Type, Any
 
 from ..common.status import JobStatus
 
@@ -14,17 +14,17 @@ logger = structlog.get_logger(__name__)
 
 def create_postgresql_enums(
     connection: Connection,
-    enum_definitions: list[tuple[str, Type[Enum]]],
+    enum_definitions: list[tuple[str, type[Enum]]],
 ) -> None:
     """Create PostgreSQL enum types if they don't exist.
-    
+
     This utility consolidates duplicate enum creation logic across the codebase
     following PostgreSQL best practices for concurrent execution.
-    
+
     Args:
         connection: SQLAlchemy database connection
         enum_definitions: List of (enum_name, enum_class) tuples
-        
+
     Raises:
         Exception: If enum creation fails for non-concurrent reasons
     """
@@ -63,15 +63,15 @@ def create_postgresql_enums(
                 raise
 
 
-def get_standard_enum_definitions() -> list[tuple[str, Type[Enum]]]:
+def get_standard_enum_definitions() -> list[tuple[str, type[Enum]]]:
     """Get the standard enum definitions used across the application.
-    
+
     Returns:
         List of (enum_name, enum_class) tuples for standard enums
     """
     # Import here to avoid circular dependencies
     from ..database.models import JobPriority
-    
+
     return [
         ("jobstatus", JobStatus),
         ("jobpriority", JobPriority),
@@ -80,7 +80,7 @@ def get_standard_enum_definitions() -> list[tuple[str, Type[Enum]]]:
 
 def get_database_url() -> str:
     """Generate PostgreSQL database URL from environment variables.
-    
+
     Returns:
         PostgreSQL database URL string for PostgreSQL 17.6+
     """
@@ -91,7 +91,7 @@ def get_database_url() -> str:
         if "postgresql://" in database_url:
             return database_url.replace("postgresql://", "postgresql+psycopg://")
         return database_url
-        
+
     # Fallback: build from individual environment variables
     host = os.getenv("DATABASE_HOST", "localhost")
     port = os.getenv("DATABASE_PORT", "5432")
