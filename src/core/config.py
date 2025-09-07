@@ -57,28 +57,28 @@ class ConverterConfig:
     output: OutputConfig = field(default_factory=OutputConfig)
     robots: RobotsConfig = field(default_factory=RobotsConfig)
     shopify: ShopifyConfig = field(default_factory=ShopifyConfig)
-    
+
     # Backward compatibility properties
     @property
     def images_subdir(self) -> str:
         """Backward compatibility for images_subdir access."""
         return self.output.images_subdir
-    
+
     @property
     def default_timeout(self) -> int:
         """Backward compatibility for default_timeout access."""
         return self.http.timeout
-    
+
     @property
     def preserve_classes(self) -> frozenset[str]:
         """Backward compatibility for preserve_classes access."""
         return self.shopify.preserve_classes
-    
+
     @property
     def max_retries(self) -> int:
         """Backward compatibility for max_retries access."""
         return self.http.max_retries
-    
+
     @property
     def respect_robots_txt(self) -> bool:
         """Backward compatibility for respect_robots_txt access."""

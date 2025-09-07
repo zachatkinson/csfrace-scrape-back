@@ -3,7 +3,7 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import structlog
 import yaml
@@ -19,6 +19,39 @@ from ..core.config import (
     config,
 )
 
+# Configuration types - using Any is acceptable here for JSON/YAML flexibility
+# Best practice: Use TypedDict to document expected structure while allowing Any for values
+ConfigDict = dict[str, Any]
+
+
+class ConverterConfigDict(TypedDict, total=False):
+    """Expected structure for converter configuration dictionary.
+
+    Using TypedDict documents the expected keys while total=False allows partial configs.
+    This is the best practice for configuration - strict structure, flexible values.
+    """
+    # HTTP settings
+    default_timeout: int
+    timeout: int
+    max_concurrent: int
+    rate_limit_delay: float
+    max_retries: int
+    backoff_factor: float
+    user_agent: str
+
+    # Output settings
+    default_dir: str
+    images_subdir: str
+    metadata_file: str
+    html_file: str
+    shopify_file: str
+
+    # Behavior settings
+    respect_robots_txt: bool
+    preserve_classes: list[str]
+    preserve_ids: list[str]
+
+
 logger = structlog.get_logger(__name__)
 
 
@@ -26,7 +59,7 @@ class ConfigLoader:
     """Load and merge configuration from YAML/JSON files."""
 
     @staticmethod
-    def load_config(config_path: str | Path, config_type: str | None = None) -> dict[str, Any]:
+    def load_config(config_path: str | Path, config_type: str | None = None) -> ConfigDict:
         """Load configuration from file.
 
         Args:
@@ -56,7 +89,7 @@ class ConfigLoader:
         raise ValueError(f"Unsupported config format: {file_type}")
 
     @staticmethod
-    def _load_yaml(config_path: Path) -> dict[str, Any]:
+    def _load_yaml(config_path: Path) -> ConfigDict:
         """Load YAML configuration file."""
         try:
             with open(config_path, encoding="utf-8") as f:
@@ -67,7 +100,7 @@ class ConfigLoader:
             raise ValueError(f"Invalid YAML in {config_path}: {e}") from e
 
     @staticmethod
-    def _load_json(config_path: Path) -> dict[str, Any]:
+    def _load_json(config_path: Path) -> ConfigDict:
         """Load JSON configuration file."""
         try:
             with open(config_path, encoding="utf-8") as f:
@@ -79,7 +112,7 @@ class ConfigLoader:
 
     @staticmethod
     def create_converter_config(
-        config_dict: dict[str, Any], base_config: ConverterConfig | None = None
+        config_dict: ConfigDict, base_config: ConverterConfig | None = None
     ) -> ConverterConfig:
         """Create ConverterConfig from dictionary.
 
@@ -154,7 +187,7 @@ class ConfigLoader:
 
     @staticmethod
     def create_batch_config(
-        config_dict: dict[str, Any], base_config: BatchConfig | None = None
+        config_dict: ConfigDict, base_config: BatchConfig | None = None
     ) -> BatchConfig:
         """Create BatchConfig from dictionary.
 

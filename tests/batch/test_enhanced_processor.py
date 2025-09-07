@@ -152,8 +152,8 @@ class TestBatchConfig:
 
     def test_batch_config_creation(self):
         """Test creating batch configuration."""
-        from src.batch.enhanced_processor import ConcurrencyConfig, RetryConfig, OutputConfig
-        
+        from src.batch.enhanced_processor import ConcurrencyConfig, OutputConfig, RetryConfig
+
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=5, timeout_seconds=30),
             retry=RetryConfig(retry_attempts=3),
@@ -183,7 +183,7 @@ class TestBatchConfig:
     def test_batch_config_validation_success(self):
         """Test successful batch configuration validation."""
         from src.batch.enhanced_processor import ConcurrencyConfig, RetryConfig
-        
+
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=3, timeout_seconds=20),
             retry=RetryConfig(retry_attempts=1)
@@ -193,7 +193,7 @@ class TestBatchConfig:
     def test_batch_config_validation_invalid_max_concurrent(self):
         """Test validation with invalid max_concurrent."""
         from src.batch.enhanced_processor import ConcurrencyConfig
-        
+
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=0)
         )
@@ -204,7 +204,7 @@ class TestBatchConfig:
     def test_batch_config_validation_invalid_timeout(self):
         """Test validation with invalid timeout."""
         from src.batch.enhanced_processor import ConcurrencyConfig
-        
+
         config = BatchConfig(
             concurrency=ConcurrencyConfig(timeout_seconds=-1)
         )
@@ -215,7 +215,7 @@ class TestBatchConfig:
     def test_batch_config_validation_invalid_retry_attempts(self):
         """Test validation with invalid retry attempts."""
         from src.batch.enhanced_processor import RetryConfig
-        
+
         config = BatchConfig(
             retry=RetryConfig(retry_attempts=-1)
         )
@@ -226,7 +226,7 @@ class TestBatchConfig:
     def test_batch_config_validation_invalid_retry_delay(self):
         """Test validation with invalid retry delay."""
         from src.batch.enhanced_processor import RetryConfig
-        
+
         config = BatchConfig(
             retry=RetryConfig(retry_delay=-1.0)
         )

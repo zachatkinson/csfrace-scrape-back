@@ -41,7 +41,7 @@ class JobCreateRequest:
         self.slug = kwargs.get('slug')
         self.batch_id = kwargs.get('batch_id')
         self.priority = kwargs.get('priority', 'normal')
-        
+
         # Store additional kwargs for backward compatibility
         for key, value in kwargs.items():
             if key not in ('domain', 'slug', 'batch_id', 'priority'):
@@ -284,7 +284,7 @@ class DatabaseService:
                 priority=priority,
                 **kwargs
             )
-        
+
         try:
             with self.get_session() as session:
                 # Extract and process request parameters
@@ -298,7 +298,7 @@ class DatabaseService:
 
                 # Filter out kwargs that are already handled explicitly to avoid conflicts
                 filtered_kwargs = {
-                    k: v for k, v in kwargs.items() 
+                    k: v for k, v in kwargs.items()
                     if k not in ('url', 'domain', 'slug', 'output_directory', 'batch_id', 'priority', 'custom_slug')
                 }
 
