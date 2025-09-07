@@ -9,7 +9,15 @@ import structlog
 import yaml
 
 from ..batch.processor import BatchConfig
-from ..core.config import ConverterConfig
+from ..constants import CONSTANTS
+from ..core.config import (
+    ConverterConfig,
+    HttpConfig,
+    OutputConfig,
+    RobotsConfig,
+    ShopifyConfig,
+    config,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -43,10 +51,9 @@ class ConfigLoader:
         # Load based on format
         if file_type in ("yaml", "yml"):
             return ConfigLoader._load_yaml(config_path)
-        elif file_type == "json":
+        if file_type == "json":
             return ConfigLoader._load_json(config_path)
-        else:
-            raise ValueError(f"Unsupported config format: {file_type}")
+        raise ValueError(f"Unsupported config format: {file_type}")
 
     @staticmethod
     def _load_yaml(config_path: Path) -> dict[str, Any]:
@@ -57,7 +64,7 @@ class ConfigLoader:
                 logger.info("Loaded YAML config", path=str(config_path), keys=list(config.keys()))
                 return config
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML in {config_path}: {e}")
+            raise ValueError(f"Invalid YAML in {config_path}: {e}") from e
 
     @staticmethod
     def _load_json(config_path: Path) -> dict[str, Any]:
@@ -68,7 +75,7 @@ class ConfigLoader:
                 logger.info("Loaded JSON config", path=str(config_path), keys=list(config.keys()))
                 return config
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in {config_path}: {e}")
+            raise ValueError(f"Invalid JSON in {config_path}: {e}") from e
 
     @staticmethod
     def create_converter_config(
@@ -83,14 +90,11 @@ class ConfigLoader:
         Returns:
             ConverterConfig instance
         """
-        from ..core.config import config as default_config
-        from ..core.config import HttpConfig, OutputConfig, RobotsConfig, ShopifyConfig
+        base = base_config or config
 
-        base = base_config or default_config
-        
         # Get converter-specific settings
         converter_settings = config_dict.get("converter", {})
-        
+
         # Create a merged flat dictionary for backwards compatibility
         merged = {}
         if base:
@@ -98,15 +102,15 @@ class ConfigLoader:
             if hasattr(base, 'http'):
                 merged.update(asdict(base.http))
             if hasattr(base, 'output'):
-                merged.update(asdict(base.output))  
+                merged.update(asdict(base.output))
             if hasattr(base, 'robots'):
                 merged.update(asdict(base.robots))
             if hasattr(base, 'shopify'):
                 merged.update(asdict(base.shopify))
-        
+
         # Merge with new settings
         merged.update(converter_settings)
-        
+
         # Map old flat structure to new nested structure
         http_config = HttpConfig(
             timeout=merged.get("default_timeout", merged.get("timeout", 30)),
@@ -116,34 +120,34 @@ class ConfigLoader:
             backoff_factor=merged.get("backoff_factor", 2.0),
             user_agent=merged.get("user_agent", "CSFrace-Scraper/1.0")
         )
-        
+
         output_config = OutputConfig(
-            create_images_dir=merged.get("create_images_dir", True),
-            images_subdir=merged.get("images_subdir", "images"),
-            output_format=merged.get("output_format", "html"),
-            save_metadata=merged.get("save_metadata", True)
+            default_dir=merged.get("default_dir", CONSTANTS.DEFAULT_OUTPUT_DIR),
+            images_subdir=merged.get("images_subdir", CONSTANTS.DEFAULT_IMAGES_DIR),
+            metadata_file=merged.get("metadata_file", CONSTANTS.METADATA_FILE),
+            html_file=merged.get("html_file", CONSTANTS.HTML_FILE),
+            shopify_file=merged.get("shopify_file", CONSTANTS.SHOPIFY_FILE)
         )
-        
+
         robots_config = RobotsConfig(
             respect_robots_txt=merged.get("respect_robots_txt", True),
             cache_duration=merged.get("robots_cache_duration", 3600)
         )
-        
+
         # Handle frozenset conversion for preserve_classes
         preserve_classes = merged.get("preserve_classes", frozenset())
         if isinstance(preserve_classes, list):
             preserve_classes = frozenset(preserve_classes)
-        
+
         shopify_config = ShopifyConfig(
             preserve_classes=preserve_classes,
-            convert_divs_to_p=merged.get("convert_divs_to_p", True),
-            clean_empty_tags=merged.get("clean_empty_tags", True)
+            content_type_extensions=merged.get("content_type_extensions", CONSTANTS.IMAGE_CONTENT_TYPES)
         )
 
         logger.debug("Created converter config", settings=list(converter_settings.keys()))
         return ConverterConfig(
             http=http_config,
-            output=output_config, 
+            output=output_config,
             robots=robots_config,
             shopify=shopify_config
         )
