@@ -260,7 +260,7 @@ class BatchProcessor:
                 last_error = f"Processing error: {e}"
                 logger.warning("URL processing error", url=url, error=str(e), attempt=retries + 1)
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 last_error = f"Processing error: {e}"
                 logger.warning("URL processing error", url=url, error=str(e), attempt=retries + 1)
 
