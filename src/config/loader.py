@@ -94,7 +94,9 @@ class ConfigLoader:
         try:
             with open(config_path, encoding="utf-8") as f:
                 loaded_config = yaml.safe_load(f) or {}
-                logger.info("Loaded YAML config", path=str(config_path), keys=list(loaded_config.keys()))
+                logger.info(
+                    "Loaded YAML config", path=str(config_path), keys=list(loaded_config.keys())
+                )
                 return loaded_config
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML in {config_path}: {e}") from e
@@ -105,7 +107,9 @@ class ConfigLoader:
         try:
             with open(config_path, encoding="utf-8") as f:
                 loaded_config = json.load(f)
-                logger.info("Loaded JSON config", path=str(config_path), keys=list(loaded_config.keys()))
+                logger.info(
+                    "Loaded JSON config", path=str(config_path), keys=list(loaded_config.keys())
+                )
                 return loaded_config
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in {config_path}: {e}") from e
@@ -174,7 +178,9 @@ class ConfigLoader:
 
         shopify_config = ShopifyConfig(
             preserve_classes=preserve_classes,
-            content_type_extensions=merged.get("content_type_extensions", CONSTANTS.IMAGE_CONTENT_TYPES)
+            content_type_extensions=merged.get(
+                "content_type_extensions", CONSTANTS.IMAGE_CONTENT_TYPES
+            )
         )
 
         logger.debug("Created converter config", settings=list(converter_settings.keys()))

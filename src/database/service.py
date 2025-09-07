@@ -276,7 +276,9 @@ class DatabaseService:
         # Handle backward compatibility: convert keyword args to JobCreateRequest
         if request is None:
             if url is None or output_directory is None:
-                raise ValueError("Either 'request' or both 'url' and 'output_directory' must be provided")
+                raise ValueError(
+                    "Either 'request' or both 'url' and 'output_directory' must be provided"
+                )
             request = JobCreateRequest(
                 url=url,
                 output_directory=output_directory,
@@ -299,7 +301,10 @@ class DatabaseService:
                 # Filter out kwargs that are already handled explicitly to avoid conflicts
                 filtered_kwargs = {
                     k: v for k, v in kwargs.items()
-                    if k not in ('url', 'domain', 'slug', 'output_directory', 'batch_id', 'priority', 'custom_slug')
+                    if k not in (
+                        'url', 'domain', 'slug', 'output_directory', 
+                        'batch_id', 'priority', 'custom_slug'
+                    )
                 }
 
                 job = ScrapingJob(

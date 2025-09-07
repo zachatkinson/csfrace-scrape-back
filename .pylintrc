@@ -3,8 +3,21 @@
 # Use multiple processes to speed up Pylint.
 jobs=0
 
+# Add the source root to Python path for proper relative imports
+init-hook='import sys; sys.path.insert(0, ".")'
+
 [MESSAGES CONTROL]
 
 # Ignoring Import Errors is desired as super-linter
 # does not support installing dependencies as it runs
-disable=import-error
+# Also disable SQLAlchemy func false positives
+# Disable relative-beyond-top-level for properly structured packages (super-linter limitation)
+disable=import-error,not-callable,relative-beyond-top-level
+
+[TYPECHECK]
+
+# List of members which are set dynamically and missed by pylint inference
+# system, and so shouldn't trigger E1101 when accessed. Python regular
+# expressions are accepted.
+# SQLAlchemy 2.0+ func.* functions (official best practice from SQLAlchemy docs)
+generated-members=sqlalchemy.sql.func.*,sqlalchemy.orm.Query.*
