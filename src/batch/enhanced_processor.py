@@ -118,7 +118,7 @@ class BatchConfig:
         Args:
             **kwargs: Configuration parameters including:
                 - concurrency: ConcurrencyConfig instance
-                - retry: RetryConfig instance  
+                - retry: RetryConfig instance
                 - processing: ProcessingConfig instance
                 - output: OutputConfig instance
                 - max_concurrent: Maximum concurrent operations (backward compatibility)
@@ -309,7 +309,7 @@ class BatchProcessor:
         results = self._finalize_batch_results(results, start_time, batch)
 
         # Check continue_on_error setting
-        if not self.config.continue_on_error and results.failed:
+        if not self.config.retry.continue_on_error and results.failed:
             raise BatchProcessingError(
                 f"Batch processing failed with {len(results.failed)} failed URLs",
                 batch_id=batch.id,

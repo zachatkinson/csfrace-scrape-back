@@ -385,7 +385,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
     @pytest.mark.asyncio
     async def test_process_batch_continue_on_error_false(self, batch_processor, mock_converter):
         """Test batch processing with continue_on_error=False."""
-        batch_processor.config.continue_on_error = False
+        batch_processor.config.retry.continue_on_error = False
         urls = ["url1", "fail_url", "url3"]
 
         def mock_process_url(url):
