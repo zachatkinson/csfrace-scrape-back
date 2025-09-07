@@ -50,8 +50,6 @@ class BatchSummary(TypedDict):
 console = Console()
 
 
-
-
 @dataclass
 class BatchJob:  # pylint: disable=too-many-instance-attributes
     """Individual job in a batch processing operation."""

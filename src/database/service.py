@@ -10,11 +10,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, overload
 
 import structlog
-from sqlalchemy import and_, case, desc, func, or_, select, text, update
-from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+from sqlalchemy import and_, case, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
+from ..common.status import JobStatus
 from ..core.exceptions import DatabaseError
 from .models import (
     Base,
@@ -26,7 +26,6 @@ from .models import (
     create_database_engine,
 )
 from .utils import create_postgresql_enums, get_standard_enum_definitions
-from ..common.status import JobStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -38,14 +37,14 @@ class JobCreateRequest:
         """Initialize JobCreateRequest with flexible kwargs support."""
         self.url = url
         self.output_directory = output_directory
-        self.domain = kwargs.get('domain')
-        self.slug = kwargs.get('slug')
-        self.batch_id = kwargs.get('batch_id')
-        self.priority = kwargs.get('priority', 'normal')
+        self.domain = kwargs.get("domain")
+        self.slug = kwargs.get("slug")
+        self.batch_id = kwargs.get("batch_id")
+        self.priority = kwargs.get("priority", "normal")
 
         # Store additional kwargs for backward compatibility
         for key, value in kwargs.items():
-            if key not in ('domain', 'slug', 'batch_id', 'priority'):
+            if key not in ("domain", "slug", "batch_id", "priority"):
                 setattr(self, key, value)
 
 
@@ -209,7 +208,7 @@ class DatabaseService:
         output_directory: str,
         batch_id: int | None = None,
         priority: str = "normal",
-        **kwargs
+        **kwargs,
     ) -> ScrapingJob:
         """Create job with keyword arguments (backward compatibility)."""
         ...
@@ -227,7 +226,7 @@ class DatabaseService:
         output_directory: str | None = None,
         batch_id: int | None = None,
         priority: str = "normal",
-        **kwargs
+        **kwargs,
     ) -> ScrapingJob:
         """Create a new scraping job.
 
@@ -256,7 +255,7 @@ class DatabaseService:
                 output_directory=output_directory,
                 batch_id=batch_id,
                 priority=priority,
-                **kwargs
+                **kwargs,
             )
 
         try:
@@ -272,10 +271,17 @@ class DatabaseService:
 
                 # Filter out kwargs that are already handled explicitly to avoid conflicts
                 filtered_kwargs = {
-                    k: v for k, v in kwargs.items()
-                    if k not in (
-                        'url', 'domain', 'slug', 'output_directory',
-                        'batch_id', 'priority', 'custom_slug'
+                    k: v
+                    for k, v in kwargs.items()
+                    if k
+                    not in (
+                        "url",
+                        "domain",
+                        "slug",
+                        "output_directory",
+                        "batch_id",
+                        "priority",
+                        "custom_slug",
                     )
                 }
 
@@ -685,8 +691,8 @@ class DatabaseService:
             raise DatabaseError(f"Content result save failed: {e}") from e
 
     def add_job_log(
-        self, 
-        request: JobLogRequest | None = None, 
+        self,
+        request: JobLogRequest | None = None,
         *,
         job_id: int | None = None,
         level: str | None = None,
@@ -712,7 +718,9 @@ class DatabaseService:
         # Support both old and new calling styles
         if request is None:
             if job_id is None or level is None or message is None:
-                raise ValueError("Either request object or job_id, level, and message must be provided")
+                raise ValueError(
+                    "Either request object or job_id, level, and message must be provided"
+                )
             request = JobLogRequest(
                 job_id=job_id,
                 level=level,

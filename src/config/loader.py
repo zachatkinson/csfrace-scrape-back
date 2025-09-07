@@ -30,6 +30,7 @@ class ConverterConfigDict(TypedDict, total=False):
     Using TypedDict documents the expected keys while total=False allows partial configs.
     This is the best practice for configuration - strict structure, flexible values.
     """
+
     # HTTP settings
     default_timeout: int
     timeout: int
@@ -136,13 +137,13 @@ class ConfigLoader:
         merged = {}
         if base:
             # Extract current values from nested structure
-            if hasattr(base, 'http'):
+            if hasattr(base, "http"):
                 merged.update(asdict(base.http))
-            if hasattr(base, 'output'):
+            if hasattr(base, "output"):
                 merged.update(asdict(base.output))
-            if hasattr(base, 'robots'):
+            if hasattr(base, "robots"):
                 merged.update(asdict(base.robots))
-            if hasattr(base, 'shopify'):
+            if hasattr(base, "shopify"):
                 merged.update(asdict(base.shopify))
 
         # Merge with new settings
@@ -155,7 +156,7 @@ class ConfigLoader:
             rate_limit_delay=merged.get("rate_limit_delay", 0.5),
             max_retries=merged.get("max_retries", 3),
             backoff_factor=merged.get("backoff_factor", 2.0),
-            user_agent=merged.get("user_agent", "CSFrace-Scraper/1.0")
+            user_agent=merged.get("user_agent", "CSFrace-Scraper/1.0"),
         )
 
         output_config = OutputConfig(
@@ -163,12 +164,12 @@ class ConfigLoader:
             images_subdir=merged.get("images_subdir", CONSTANTS.DEFAULT_IMAGES_DIR),
             metadata_file=merged.get("metadata_file", CONSTANTS.METADATA_FILE),
             html_file=merged.get("html_file", CONSTANTS.HTML_FILE),
-            shopify_file=merged.get("shopify_file", CONSTANTS.SHOPIFY_FILE)
+            shopify_file=merged.get("shopify_file", CONSTANTS.SHOPIFY_FILE),
         )
 
         robots_config = RobotsConfig(
             respect_robots_txt=merged.get("respect_robots_txt", True),
-            cache_duration=merged.get("robots_cache_duration", 3600)
+            cache_duration=merged.get("robots_cache_duration", 3600),
         )
 
         # Handle frozenset conversion for preserve_classes
@@ -180,15 +181,12 @@ class ConfigLoader:
             preserve_classes=preserve_classes,
             content_type_extensions=merged.get(
                 "content_type_extensions", CONSTANTS.IMAGE_CONTENT_TYPES
-            )
+            ),
         )
 
         logger.debug("Created converter config", settings=list(converter_settings.keys()))
         return ConverterConfig(
-            http=http_config,
-            output=output_config,
-            robots=robots_config,
-            shopify=shopify_config
+            http=http_config, output=output_config, robots=robots_config, shopify=shopify_config
         )
 
     @staticmethod

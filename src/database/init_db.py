@@ -3,12 +3,10 @@
 import logging
 from pathlib import Path
 
-import sqlalchemy.exc
-from sqlalchemy import create_engine, text
-from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+from sqlalchemy import create_engine
 
 from .models import Base
-from .utils import create_postgresql_enums, get_standard_enum_definitions, get_database_url
+from .utils import create_postgresql_enums, get_database_url, get_standard_enum_definitions
 
 logger = logging.getLogger(__name__)
 

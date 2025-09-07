@@ -18,7 +18,6 @@ from sqlalchemy import (
     Text,
     create_engine,
     event,
-    text,
 )
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -539,7 +538,7 @@ def _create_enums_before_tables(target, connection, **kw):  # noqa: ARG001
     """
     # Lazy import to avoid circular dependencies
     from .utils import create_postgresql_enums, get_standard_enum_definitions
-    
+
     create_postgresql_enums(connection, get_standard_enum_definitions())
 
 
@@ -554,6 +553,7 @@ def create_database_engine(echo: bool = False):
         SQLAlchemy Engine instance configured for PostgreSQL 17.6+
     """
     from sqlalchemy import event
+
     from .utils import get_database_url
 
     database_url = get_database_url()
