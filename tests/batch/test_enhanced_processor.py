@@ -219,7 +219,7 @@ class TestBatchConfig:
             config.validate()
 
 
-class TestBatchProcessor:  # pylint: disable=too-many-public-methods
+class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-outer-name
     """Test BatchProcessor functionality."""
 
     def test_processor_initialization(self, batch_config, mock_db_service, mock_converter):
@@ -595,7 +595,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_processor_integration(tmp_path):
+async def test_processor_integration(tmp_path):  # pylint: disable=redefined-outer-name
     """Integration test for complete batch processing workflow."""
     # Setup
     config = BatchConfig(
@@ -613,9 +613,9 @@ async def test_processor_integration(tmp_path):
     mock_db.update_job_status = Mock()
     mock_db.update_batch_progress = Mock()
 
-    mock_converter = AsyncMock()
+    converter_mock = AsyncMock()
 
-    processor = BatchProcessor(config, mock_db, mock_converter)
+    processor = BatchProcessor(config, mock_db, converter_mock)
 
     # Test data
     urls = [
@@ -631,7 +631,7 @@ async def test_processor_integration(tmp_path):
             raise ValueError("Simulated failure")
         return {"url": url, "content": f"Content for {url}"}
 
-    mock_converter.process_url.side_effect = mock_process
+    converter_mock.process_url.side_effect = mock_process
 
     # Execute
     result = await processor.process_batch("integration_test", urls)
