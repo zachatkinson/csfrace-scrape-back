@@ -26,8 +26,8 @@ from src.database.service import DatabaseService
 def mock_db_service():
     """Create mock database service."""
     service = MagicMock(spec=DatabaseService)
-    service.get_session.return_value.__enter__ = Mock(return_value=MagicMock())
-    service.get_session.return_value.__exit__ = Mock(return_value=None)
+    service.get_session.return_value.__enter__ = Mock(return_value=MagicMock())  # pylint: disable=protected-access
+    service.get_session.return_value.__exit__ = Mock(return_value=None)  # pylint: disable=protected-access
 
     # Mock database operations
     service.create_batch = Mock(return_value=Mock(id=1))
@@ -486,8 +486,8 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_pending_job, mock_failed_job]
         mock_session.execute.return_value = mock_result
-        mock_session.__enter__ = Mock(return_value=mock_session)
-        mock_session.__exit__ = Mock(return_value=None)
+        mock_session.__enter__ = Mock(return_value=mock_session)  # pylint: disable=protected-access
+        mock_session.__exit__ = Mock(return_value=None)  # pylint: disable=protected-access
 
         processor.database_service.get_batch.return_value = mock_batch
         processor.database_service.get_session.return_value = mock_session
