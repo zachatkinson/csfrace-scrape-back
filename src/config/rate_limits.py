@@ -9,25 +9,25 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class RateLimits:
+class RateLimits:  # pylint: disable=too-many-instance-attributes
     """Centralized rate limiting configuration."""
 
     # Authentication endpoints
-    AUTH_LOGIN: str = "5/minute"  # Login attempts
-    AUTH_REGISTER: str = "3/minute"  # User registration
-    AUTH_PASSWORD_RESET: str = "2/minute"  # Password reset requests
-    AUTH_OAUTH: str = "10/minute"  # OAuth operations
-    AUTH_PASSKEY: str = "10/minute"  # WebAuthn/Passkey operations
+    AUTH_LOGIN: str = "5/minute"  # Login attempts  # pylint: disable=invalid-name
+    AUTH_REGISTER: str = "3/minute"  # User registration  # pylint: disable=invalid-name
+    AUTH_PASSWORD_RESET: str = "2/minute"  # Password reset requests  # pylint: disable=invalid-name
+    AUTH_OAUTH: str = "10/minute"  # OAuth operations  # pylint: disable=invalid-name
+    AUTH_PASSKEY: str = "10/minute"  # WebAuthn/Passkey operations  # pylint: disable=invalid-name
 
     # API endpoints
-    JOB_CREATION: str = "20/hour"  # Job creation
-    BATCH_CREATION: str = "10/hour"  # Batch creation (more restrictive)
+    JOB_CREATION: str = "20/hour"  # Job creation  # pylint: disable=invalid-name
+    BATCH_CREATION: str = "10/hour"  # Batch creation (more restrictive)  # pylint: disable=invalid-name
 
     # Admin endpoints (more permissive)
-    ADMIN_OPERATIONS: str = "100/hour"
+    ADMIN_OPERATIONS: str = "100/hour"  # pylint: disable=invalid-name
 
     # Development/Testing (more permissive)
-    DEVELOPMENT: str = "1000/hour"
+    DEVELOPMENT: str = "1000/hour"  # pylint: disable=invalid-name
 
 
 def get_rate_limits() -> RateLimits:
@@ -54,12 +54,12 @@ def get_rate_limits() -> RateLimits:
 
 
 # Global instance - will be initialized when first accessed
-_rate_limits_instance = None
+_rate_limits_instance = None  # pylint: disable=invalid-name
 
 
 def get_rate_limits_instance() -> RateLimits:
     """Get the global rate limits instance, creating if needed."""
-    global _rate_limits_instance
+    global _rate_limits_instance  # pylint: disable=global-statement
     if _rate_limits_instance is None:
         _rate_limits_instance = get_rate_limits()
     return _rate_limits_instance

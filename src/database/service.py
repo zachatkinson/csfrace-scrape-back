@@ -582,7 +582,7 @@ class DatabaseService:
             with self.get_session() as session:
                 # Get current job counts using case statements for conditional counting
                 counts_stmt = select(
-                    func.count(ScrapingJob.id).label("total"),
+                    func.count(ScrapingJob.id).label("total"),  # pylint: disable=not-callable
                     func.sum(case((ScrapingJob.status == JobStatus.COMPLETED, 1), else_=0)).label(
                         "completed"
                     ),
@@ -748,14 +748,14 @@ class DatabaseService:
 
                 # Overall statistics
                 stats_stmt = select(
-                    func.count(ScrapingJob.id).label("total_jobs"),
-                    func.count(ScrapingJob.id)
+                    func.count(ScrapingJob.id).label("total_jobs"),  # pylint: disable=not-callable
+                    func.count(ScrapingJob.id)  # pylint: disable=not-callable
                     .filter(ScrapingJob.status == JobStatus.COMPLETED)
                     .label("completed_jobs"),
-                    func.count(ScrapingJob.id)
+                    func.count(ScrapingJob.id)  # pylint: disable=not-callable
                     .filter(ScrapingJob.status == JobStatus.FAILED)
                     .label("failed_jobs"),
-                    func.count(ScrapingJob.id)
+                    func.count(ScrapingJob.id)  # pylint: disable=not-callable
                     .filter(ScrapingJob.status == JobStatus.PENDING)
                     .label("pending_jobs"),
                     func.avg(ScrapingJob.duration_seconds).label("avg_duration"),
@@ -801,7 +801,7 @@ class DatabaseService:
 
                 # Delete old completed jobs and their associated data
                 deleted_count = session.execute(
-                    select(func.count(ScrapingJob.id)).where(
+                    select(func.count(ScrapingJob.id)).where(  # pylint: disable=not-callable
                         and_(
                             ScrapingJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
                             ScrapingJob.completed_at < cutoff_date,

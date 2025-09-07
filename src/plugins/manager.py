@@ -108,7 +108,7 @@ class PluginManager:
         for plugin in self._plugins.values():
             try:
                 await plugin.cleanup()
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning("Plugin cleanup failed", plugin=plugin.config.name, error=str(e))
 
         self._plugins.clear()
@@ -141,7 +141,7 @@ class PluginManager:
 
             # Initialize plugin
             await plugin.initialize()
-            plugin._initialized = True
+            plugin._initialized = True  # pylint: disable=protected-access
 
             # Store plugin
             self._plugins[plugin_name] = plugin
@@ -150,7 +150,7 @@ class PluginManager:
                 "Plugin initialized", name=plugin_name, type=plugin_config.plugin_type.value
             )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Plugin initialization failed", name=plugin_name, error=str(e))
 
     def _build_pipeline(self) -> None:
@@ -243,7 +243,7 @@ class PluginManager:
                 # Call post-execution hooks
                 await self._call_hooks("post_plugin_execute", plugin_name, result, context)
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("Plugin execution failed", name=plugin_name, error=str(e))
 
                 # Record failure stats
@@ -311,7 +311,7 @@ class PluginManager:
             # 6. Post processing
             data = await self.execute_pipeline(PluginType.POST_PROCESSOR, data, context)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Plugin pipeline execution failed", url=url, error=str(e))
             raise
 
@@ -352,7 +352,7 @@ class PluginManager:
                     await callback(*args, **kwargs)
                 else:
                     callback(*args, **kwargs)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning(
                     "Hook callback failed", event=event, callback=callback.__name__, error=str(e)
                 )
