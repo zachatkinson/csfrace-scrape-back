@@ -280,19 +280,25 @@ class TestDatabaseModels:
 
     def test_enum_values(self):
         """Test enum value definitions."""
+        from tests.conftest import assert_enum_values
+        
         # JobStatus enum
-        assert JobStatus.PENDING.value == "pending"
-        assert JobStatus.RUNNING.value == "running"
-        assert JobStatus.COMPLETED.value == "completed"
-        assert JobStatus.FAILED.value == "failed"
-        assert JobStatus.SKIPPED.value == "skipped"
-        assert JobStatus.CANCELLED.value == "cancelled"
+        assert_enum_values(JobStatus, {
+            "PENDING": "pending",
+            "RUNNING": "running", 
+            "COMPLETED": "completed",
+            "FAILED": "failed",
+            "SKIPPED": "skipped",
+            "CANCELLED": "cancelled"
+        })
 
         # JobPriority enum
-        assert JobPriority.LOW.value == "low"
-        assert JobPriority.NORMAL.value == "normal"
-        assert JobPriority.HIGH.value == "high"
-        assert JobPriority.URGENT.value == "urgent"
+        assert_enum_values(JobPriority, {
+            "LOW": "low",
+            "NORMAL": "normal",
+            "HIGH": "high", 
+            "URGENT": "urgent"
+        })
 
     def test_cascade_deletion(self, testcontainers_db_service):
         """Test cascade deletion of related records."""

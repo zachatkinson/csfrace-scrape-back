@@ -518,6 +518,18 @@ def pytest_configure(config):
     pass
 
 
+def assert_enum_values(enum_class, expected_values):
+    """Assert enum values match expected mapping to eliminate test duplication.
+    
+    Args:
+        enum_class: The enum class to test
+        expected_values: Dict mapping enum member names to expected values
+    """
+    for member_name, expected_value in expected_values.items():
+        enum_member = getattr(enum_class, member_name)
+        assert enum_member.value == expected_value, f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
+
+
 # Skip tests if dependencies not available
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to handle missing dependencies."""
