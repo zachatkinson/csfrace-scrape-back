@@ -219,7 +219,7 @@ class TestBatchConfig:
             config.validate()
 
 
-class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-outer-name
+class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-outer-name,protected-access
     """Test BatchProcessor functionality."""
 
     def test_processor_initialization(self, batch_config, mock_db_service, mock_converter):
