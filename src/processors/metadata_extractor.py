@@ -6,6 +6,7 @@ import structlog
 from bs4 import BeautifulSoup
 
 from ..core.exceptions import ProcessingError
+from ..utils.html import find_meta_content
 
 logger = structlog.get_logger(__name__)
 
@@ -61,8 +62,6 @@ class MetadataExtractor:
 
     async def _extract_meta_description(self, soup: BeautifulSoup) -> str:
         """Extract meta description from various sources."""
-        from ..utils.html import find_meta_content
-
         # Try standard meta description
         meta_desc = find_meta_content(soup, name="description")
         if meta_desc:
@@ -114,3 +113,16 @@ class MetadataExtractor:
                     return date_value
 
         return "Date not found"
+
+    def supports_url(self, url: str) -> bool:
+        """Check if this extractor supports the given URL.
+        
+        Args:
+            url: URL to check
+            
+        Returns:
+            True if the URL is supported
+        """
+        parsed_url = urlparse(url)
+        base_parsed = urlparse(self.base_url)
+        return parsed_url.netloc == base_parsed.netloc
