@@ -582,7 +582,7 @@ def create_database_engine(echo: bool = False):
     def _reset_postgresql(dbapi_connection, _connection_record, reset_state):
         """Reset PostgreSQL connections properly following best practices."""
         if not reset_state.terminate_only:
-            # Use cursor for SQL commands - psycopg2 connection doesn't have execute method
+            # Use cursor for SQL commands - psycopg connection doesn't have execute method
             with dbapi_connection.cursor() as cursor:
                 cursor.execute("CLOSE ALL")  # Close cursors
                 cursor.execute("RESET ALL")  # Reset session variables

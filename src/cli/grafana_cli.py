@@ -274,7 +274,7 @@ time_range: 1h
 # export GRAFANA_ADMIN_PASSWORD=your-secure-password
 """
 
-        with open(config_file, "w") as f:
+        with open(config_file, "w", encoding="utf-8") as f:
             f.write(example_config)
 
         typer.echo(f"✅ Grafana configuration initialized in {output_dir}")
@@ -304,7 +304,7 @@ def _load_config_from_file(
         typer.Exit: If configuration file is invalid
     """
     try:
-        with open(config_file) as f:
+        with open(config_file, encoding="utf-8") as f:
             if config_file.suffix.lower() in [".yml", ".yaml"]:
                 config_data = yaml.safe_load(f)
             elif config_file.suffix.lower() == ".json":

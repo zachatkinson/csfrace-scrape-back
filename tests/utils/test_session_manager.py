@@ -180,7 +180,7 @@ class TestPersistentCookieJar:
             }
         }
 
-        with open(cookie_path, "w") as f:
+        with open(cookie_path, "w", encoding="utf-8") as f:
             json.dump(cookie_data, f)
 
         jar = PersistentCookieJar(cookie_path)

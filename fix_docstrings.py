@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Script to fix remaining docstring issues systematically."""
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -36,10 +37,7 @@ MAGIC_METHOD_TEMPLATES = {
 
 def get_ruff_issues() -> list[str]:
     """Get all remaining docstring issues from ruff."""
-    import os
-
     try:
-
         env = os.environ.copy()
         env["SECRET_KEY"] = (  # nosec S105 - test key
             "b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900"
@@ -59,73 +57,163 @@ def get_ruff_issues() -> list[str]:
             env=env,
             check=False,
         )
-        return (
-            result.stdout.strip().split("\n")
-            if result.stdout.strip()
-            else []
-        )
+        return result.stdout.strip().split("\n") if result.stdout.strip() else []
     except subprocess.SubprocessError as e:
         print(f"Error running ruff: {e}")
         return []
+
+
+def _extract_docstring_text(issue: str) -> str | None:
+    """Extract docstring text from issue description."""
+    match = re.search(r'"([^"]+)"', issue)
+    return match.group(1) if match else None
+
+
+def _apply_mapped_fixes(original_text: str) -> str | None:
+    """Apply predefined fixes from IMPERATIVE_FIXES mapping."""
+    for pattern, replacement in IMPERATIVE_FIXES.items():
+        if pattern in original_text:
+            return original_text.replace(pattern, replacement)
+    return None
+
+
+def _apply_generic_fixes(original_text: str) -> str | None:
+    """Apply generic fixes for common patterns."""
+    if original_text.startswith("Decorator factory"):
+        return "Create " + original_text.lower()
+    elif original_text.startswith("Wrapper for"):
+        return "Wrap " + original_text[11:]
+    elif original_text.startswith("Custom "):
+        return "Handle " + original_text.lower()
+    elif "representation of" in original_text:
+        return "Return " + original_text.lower()
+
+    # Try to add a verb at the beginning
+    verbs = [
+        "get",
+        "set",
+        "create",
+        "update",
+        "delete",
+        "handle",
+        "process",
+        "perform",
+        "return",
+        "load",
+        "save",
+        "check",
+        "validate",
+        "convert",
+        "transform",
+    ]
+    if not any(original_text.lower().startswith(verb) for verb in verbs):
+        return "Handle " + original_text.lower()
+
+    return None
+
+
+def _update_file_content(
+    path: Path, lines: list[str], line_num: int, original_text: str, new_text: str, file_path: str
+) -> bool:
+    """Update file content with the new text."""
+    lines[line_num - 1] = lines[line_num - 1].replace(original_text, new_text)
+    path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Fixed imperative mood in {file_path}:{line_num}")
+    return True
 
 
 def fix_imperative_mood(file_path: str, line_num: int, issue: str):
     """Fix D401 imperative mood issues."""
     try:
         path = Path(file_path)
-        content = path.read_text()
+        content = path.read_text(encoding="utf-8")
         lines = content.split("\n")
 
-        if line_num <= len(lines):
-            line = lines[line_num - 1]
+        if line_num > len(lines):
+            return False
 
-            # Extract the docstring content from the issue
-            match = re.search(r'"([^"]+)"', issue)
-            if match:
-                original_text = match.group(1)
+        original_text = _extract_docstring_text(issue)
+        if not original_text:
+            return False
 
-                # Try to find a fix in our mapping
-                for pattern, replacement in IMPERATIVE_FIXES.items():
-                    if pattern in original_text:
-                        new_text = original_text.replace(pattern, replacement)
-                        lines[line_num - 1] = line.replace(original_text, new_text)
-                        path.write_text("\n".join(lines))
-                        print(f"Fixed imperative mood in {file_path}:{line_num}")
-                        return True
+        # Try mapped fixes first
+        new_text = _apply_mapped_fixes(original_text)
+        if new_text:
+            return _update_file_content(path, lines, line_num, original_text, new_text, file_path)
 
-                # Generic fixes for common patterns
-                if original_text.startswith("Decorator factory"):
-                    new_text = "Create " + original_text.lower()
-                elif original_text.startswith("Wrapper for"):
-                    # Remove "Wrapper for"
-                    new_text = "Wrap " + original_text[11:]
-                elif original_text.startswith("Custom "):
-                    new_text = "Handle " + original_text.lower()
-                elif "representation of" in original_text:
-                    new_text = "Return " + original_text.lower()
-                else:
-                    # Try to add a verb at the beginning
-                    verbs = [
-                        "get", "set", "create", "update", "delete",
-                        "handle", "process", "perform", "return",
-                        "load", "save", "check", "validate",
-                        "convert", "transform",
-                    ]
-                    if not any(
-                        original_text.lower().startswith(verb)
-                        for verb in verbs
-                    ):
-                        new_text = "Handle " + original_text.lower()
-                    else:
-                        return False
+        # Try generic fixes
+        new_text = _apply_generic_fixes(original_text)
+        if new_text:
+            return _update_file_content(path, lines, line_num, original_text, new_text, file_path)
 
-                lines[line_num - 1] = line.replace(original_text, new_text)
-                path.write_text("\n".join(lines))
-                print(f"Fixed imperative mood in {file_path}:{line_num}")
-                return True
+        return False
 
     except (OSError, ValueError) as e:
         print(f"Error fixing imperative mood in {file_path}: {e}")
+        return False
+
+
+def _find_class_name(lines: list[str], line_num: int) -> str:
+    """Find class name by searching backwards from method definition."""
+    for i in range(line_num - 2, max(0, line_num - 20), -1):
+        if lines[i].strip().startswith("class "):
+            class_match = re.match(r"class\s+(\w+)", lines[i].strip())
+            if class_match:
+                return class_match.group(1)
+    return "instance"
+
+
+def _extract_init_args(method_line: str) -> list[str]:
+    """Extract argument names from __init__ method definition."""
+    args_match = re.search(r"__init__\([^)]+\)", method_line)
+    if not args_match:
+        return []
+
+    args_str = args_match.group(0)[9:-1]  # Remove "__init__(" and ")"
+    return [
+        arg.strip().split(":")[0].split("=")[0].strip()
+        for arg in args_str.split(",")
+        if arg.strip() and arg.strip() != "self"
+    ]
+
+
+def _create_init_docstring(class_name: str, args: list[str]) -> str:
+    """Create docstring for __init__ method."""
+    if args:
+        args_doc = "\n            ".join(
+            [f"{arg}: {arg.replace('_', ' ').title()} parameter" for arg in args]
+        )
+        return (
+            f'        """Initialize {class_name}.\n\n        '
+            f'Args:\n            {args_doc}\n\n        """'
+        )
+    return f'        """Initialize {class_name}."""'
+
+
+def _add_init_docstring(
+    path: Path, lines: list[str], line_num: int, method_line: str, file_path: str
+) -> bool:
+    """Add docstring for __init__ method."""
+    class_name = _find_class_name(lines, line_num)
+    args = _extract_init_args(method_line)
+    docstring = _create_init_docstring(class_name, args)
+
+    lines.insert(line_num, docstring)
+    path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Added __init__ docstring in {file_path}:{line_num}")
+    return True
+
+
+def _add_magic_method_docstring(
+    path: Path, lines: list[str], line_num: int, method_line: str, file_path: str
+) -> bool:
+    """Add docstring for magic methods."""
+    for method, template in MAGIC_METHOD_TEMPLATES.items():
+        if method in method_line:
+            lines.insert(line_num, f"        {template}")
+            path.write_text("\n".join(lines), encoding="utf-8")
+            print(f"Added {method} docstring in {file_path}:{line_num}")
+            return True
     return False
 
 
@@ -133,77 +221,31 @@ def add_missing_docstring(file_path: str, line_num: int, _issue: str):
     """Add missing docstrings for __init__ and magic methods."""
     try:
         path = Path(file_path)
-        content = path.read_text()
+        content = path.read_text(encoding="utf-8")
         lines = content.split("\n")
 
-        if line_num <= len(lines):
-            # Determine the type of missing docstring
-            method_line = lines[line_num - 1].strip()
+        if line_num > len(lines):
+            return False
 
-            if "def __init__(" in method_line:
-                # Extract class name from context
-                class_name = "instance"
-                for i in range(line_num - 2, max(0, line_num - 20), -1):
-                    if lines[i].strip().startswith("class "):
-                        class_match = re.match(r"class\s+(\w+)", lines[i].strip())
-                        if class_match:
-                            class_name = class_match.group(1)
-                            break
+        method_line = lines[line_num - 1].strip()
 
-                # Extract argument names
-                args_match = re.search(r"__init__\([^)]+\)", method_line)
-                if args_match:
-                    # Remove "__init__(" and ")"
-                    args_str = args_match.group(0)[9:-1]
-                    args = [
-                        arg.strip().split(":")[0].split("=")[0].strip()
-                        for arg in args_str.split(",")
-                        if arg.strip() and arg.strip() != "self"
-                    ]
+        if "def __init__(" in method_line:
+            return _add_init_docstring(path, lines, line_num, method_line, file_path)
+        elif any(method in method_line for method in MAGIC_METHOD_TEMPLATES):
+            return _add_magic_method_docstring(path, lines, line_num, method_line, file_path)
 
-                    if args:
-                        args_doc = "\n            ".join([
-                            f"{arg}: {arg.replace('_', ' ').title()} parameter"
-                            for arg in args
-                        ])
-                    else:
-                        args_doc = "No parameters"
-
-                    docstring = (
-                        f'        """Initialize {class_name}.\n\n        '
-                        f'Args:\n            {args_doc}\n\n        """'
-                    )
-                else:
-                    docstring = f'        """Initialize {class_name}."""'
-
-                # Insert docstring after the method definition line
-                lines.insert(line_num, docstring)
-                path.write_text("\n".join(lines))
-                print(f"Added __init__ docstring in {file_path}:{line_num}")
-                return True
-
-            elif any(
-                method in method_line
-                for method in MAGIC_METHOD_TEMPLATES
-            ):
-                # Find which magic method it is
-                for method, template in MAGIC_METHOD_TEMPLATES.items():
-                    if method in method_line:
-                        lines.insert(line_num, f"        {template}")
-                        path.write_text("\n".join(lines))
-                        print(f"Added {method} docstring in {file_path}:{line_num}")
-                        return True
+        return False
 
     except (OSError, ValueError) as e:
         print(f"Error adding docstring in {file_path}: {e}")
-    return False
+        return False
 
 
 def remove_overload_docstring(file_path: str, line_num: int):
     """Remove docstrings from @overload methods."""
     try:
         path = Path(file_path)
-        content = path.read_text()
+        content = path.read_text(encoding="utf-8")
         lines = content.split("\n")
 
         # Find the docstring and remove it
@@ -213,9 +255,7 @@ def remove_overload_docstring(file_path: str, line_num: int):
                 line = lines[i].strip()
                 if line.startswith('"""') or line.startswith("'''"):
                     # Found start of docstring
-                    if (
-                        line.count('"""') == 2 or line.count("'''") == 2
-                    ):
+                    if line.count('"""') == 2 or line.count("'''") == 2:
                         # Single line docstring
                         del lines[i]
                     else:
@@ -228,9 +268,9 @@ def remove_overload_docstring(file_path: str, line_num: int):
                                 end = j
                                 break
                         # Remove the docstring lines
-                        del lines[start:end + 1]
+                        del lines[start : end + 1]
 
-                    path.write_text("\n".join(lines))
+                    path.write_text("\n".join(lines), encoding="utf-8")
                     print(f"Removed @overload docstring in {file_path}:{line_num}")
                     return True
 

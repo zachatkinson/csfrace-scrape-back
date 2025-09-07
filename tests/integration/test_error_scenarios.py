@@ -422,7 +422,7 @@ class TestFileSystemErrorScenarios:
         # Create a mock that simulates disk full
         with patch("builtins.open", side_effect=OSError("No space left on device")):
             with pytest.raises(OSError, match="No space left on device"):
-                with open(tmp_path / "test.txt", "w") as f:
+                with open(tmp_path / "test.txt", "w", encoding="utf-8") as f:
                     f.write("test content")
 
     @pytest.mark.asyncio
@@ -437,7 +437,7 @@ class TestFileSystemErrorScenarios:
         try:
             # Attempt to write to read-only file
             with pytest.raises(PermissionError):
-                with open(protected_file, "w") as f:
+                with open(protected_file, "w", encoding="utf-8") as f:
                     f.write("Should fail")
         finally:
             # Cleanup
@@ -451,7 +451,7 @@ class TestFileSystemErrorScenarios:
         cookie_file = tmp_path / "cookies.json"
 
         # Write corrupted JSON
-        with open(cookie_file, "w") as f:
+        with open(cookie_file, "w", encoding="utf-8") as f:
             f.write("{corrupted json content}")
 
         # Should handle corrupted file gracefully

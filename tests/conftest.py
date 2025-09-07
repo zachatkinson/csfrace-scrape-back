@@ -133,7 +133,7 @@ def postgres_container():
                     postgres.get_connection_url()
                     # Test actual connection
 
-                    conn = psycopg2.connect(postgres.get_connection_url())
+                    conn = psycopg.connect(postgres.get_connection_url())
                     conn.close()
                     break
                 except Exception:  # pylint: disable=broad-exception-caught

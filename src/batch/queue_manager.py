@@ -394,7 +394,7 @@ class BatchQueueManager:
             "failed": self.failed_items,
         }
 
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
 
         logger.info("Persisted queue state", filepath=filepath)

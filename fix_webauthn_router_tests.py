@@ -11,7 +11,7 @@ def apply_systematic_fixes():
     """Apply systematic fixes to WebAuthn router tests."""
 
     # Read the test file
-    with open("tests/unit/auth/test_webauthn_router.py") as f:
+    with open("tests/unit/auth/test_webauthn_router.py", encoding="utf-8") as f:
         content = f.read()
 
     # Fix 1: All @patch decorators that reference
@@ -34,31 +34,25 @@ def apply_systematic_fixes():
 
     # Fix 3: Replace challengeKey with challenge_key and credential
     # with credential_response in JSON payloads
-    content = re.sub(
-        r'"challengeKey":\s*"([^"]*)"',
-        r'"challenge_key": "\1"',
-        content
-    )
+    content = re.sub(r'"challengeKey":\s*"([^"]*)"', r'"challenge_key": "\1"', content)
 
-    content = re.sub(
-        r'"credential":\s*\{',
-        '"credential_response": {',
-        content
-    )
+    content = re.sub(r'"credential":\s*\{', '"credential_response": {', content)
 
     # Fix 4: Fix base64 encoding for credential data
     # This requires manual inspection as it's context-dependent
 
     # Fix 5: Fix response expectations - Token model doesn't include user field
     content = re.sub(
-        (r'assert response_data\["user"\]\["id"\] == sample_user\.id\s*\n\s*'
-         r'assert response_data\["user"\]\["username"\] == sample_user\.username'),
+        (
+            r'assert response_data\["user"\]\["id"\] == sample_user\.id\s*\n\s*'
+            r'assert response_data\["user"\]\["username"\] == sample_user\.username'
+        ),
         'assert "expires_in" in response_data',
         content,
     )
 
     # Write back the updated content
-    with open("tests/unit/auth/test_webauthn_router.py", "w") as f:
+    with open("tests/unit/auth/test_webauthn_router.py", "w", encoding="utf-8") as f:
         f.write(content)
 
     print("Applied systematic WebAuthn router test fixes")

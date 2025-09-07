@@ -57,7 +57,7 @@ class CheckpointManager:
         # Write checkpoint atomically using temporary file
         temp_file = checkpoint_file.with_suffix(".tmp")
         try:
-            with open(temp_file, "w") as f:
+            with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(checkpoint_data, f, indent=2)
 
             # Atomic move to final location

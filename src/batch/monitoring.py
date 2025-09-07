@@ -522,7 +522,7 @@ class BatchMonitor:
             # Save report to file if requested
             if output_file:
                 output_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(output_file, "w") as f:
+                with open(output_file, "w", encoding="utf-8") as f:
                     json.dump(report, f, indent=2)
 
                 logger.info("Generated batch processing report", file=str(output_file))

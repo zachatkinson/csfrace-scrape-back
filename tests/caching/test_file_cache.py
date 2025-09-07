@@ -48,7 +48,7 @@ class TestFileCacheErrorHandling:
 
         # Create cache file with invalid JSON
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w") as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             f.write("invalid json content")
 
         result = await file_cache.get(test_key)
@@ -99,7 +99,7 @@ class TestFileCacheErrorHandling:
 
         # Create cache file with corrupted content
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w") as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             f.write("corrupted cache data")
 
         # Cleanup should handle the corrupted file by removing it
@@ -478,7 +478,7 @@ class TestFileCacheIntegration:
 
         # Simulate an error condition by corrupting the cache file
         cache_path = file_cache._get_cache_path(test_key, "generic")
-        with open(cache_path, "w") as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             f.write("corrupted data")
 
         # Get should handle the corruption gracefully

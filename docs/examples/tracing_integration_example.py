@@ -16,6 +16,7 @@ from src.monitoring import (
     ObservabilityConfig,
     ObservabilityManager,
     TracingConfig,
+    distributed_tracer,
     observability_manager,
 )
 from src.utils.tracing_utils import (
@@ -202,9 +203,6 @@ async def get_observability_status():
 @app.get("/observability/tracing")
 async def get_tracing_status():
     """Get current distributed tracing status."""
-    # pylint: disable=import-outside-toplevel
-    from src.monitoring import distributed_tracer
-
     return distributed_tracer.get_tracing_status()
 
 

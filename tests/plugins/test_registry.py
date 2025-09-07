@@ -1086,7 +1086,7 @@ class TestConfigurationLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "config.json"
 
-            with open(config_file, "w") as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)
 
             with patch("src.plugins.registry.logger") as mock_logger:
@@ -1133,7 +1133,7 @@ class TestConfigurationLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "config.json"
 
-            with open(config_file, "w") as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)
 
             # Should not raise error, just skip unknown plugins
@@ -1163,7 +1163,7 @@ class TestConfigurationLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "config.json"
 
-            with open(config_file, "w") as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)
 
             with patch("src.plugins.registry.logger"):
@@ -1199,7 +1199,7 @@ class TestConfigurationLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "config.json"
 
-            with open(config_file, "w") as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)
 
             with patch("src.plugins.registry.logger"):
