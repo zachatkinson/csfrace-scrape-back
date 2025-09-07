@@ -151,7 +151,7 @@ class ConfigLoader:
         # Map old flat structure to new nested structure
         http_config = HttpConfig(
             timeout=merged.get("default_timeout", merged.get("timeout", 30)),
-            max_concurrent=merged.get("max_concurrent", 5),
+            max_concurrent=merged.get("max_concurrent_downloads", merged.get("max_concurrent", 5)),
             rate_limit_delay=merged.get("rate_limit_delay", 0.5),
             max_retries=merged.get("max_retries", 3),
             backoff_factor=merged.get("backoff_factor", 2.0),

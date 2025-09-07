@@ -684,15 +684,43 @@ class DatabaseService:
             logger.error("Failed to save content result", job_id=job_id, error=str(e))
             raise DatabaseError(f"Content result save failed: {e}") from e
 
-    def add_job_log(self, request: JobLogRequest) -> JobLog | None:
+    def add_job_log(
+        self, 
+        request: JobLogRequest | None = None, 
+        *,
+        job_id: int | None = None,
+        level: str | None = None,
+        message: str | None = None,
+        component: str | None = None,
+        operation: str | None = None,
+        context_data: dict[str, Any] | None = None,
+    ) -> JobLog | None:
         """Add a log entry for a job.
 
         Args:
-            request: Job log request containing all parameters
+            request: Job log request containing all parameters (new style)
+            job_id: Job ID (legacy style)
+            level: Log level (legacy style)
+            message: Log message (legacy style)
+            component: Component name (legacy style)
+            operation: Operation name (legacy style)
+            context_data: Additional context data (legacy style)
 
         Returns:
             Created JobLog instance
         """
+        # Support both old and new calling styles
+        if request is None:
+            if job_id is None or level is None or message is None:
+                raise ValueError("Either request object or job_id, level, and message must be provided")
+            request = JobLogRequest(
+                job_id=job_id,
+                level=level,
+                message=message,
+                component=component,
+                operation=operation,
+                context_data=context_data,
+            )
         try:
             with self.get_session() as session:
                 log_entry = JobLog(

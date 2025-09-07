@@ -84,6 +84,16 @@ class ConverterConfig:
         """Backward compatibility for respect_robots_txt access."""
         return self.robots.respect_robots_txt
 
+    @property
+    def max_concurrent_downloads(self) -> int:
+        """Backward compatibility for max_concurrent_downloads access."""
+        return self.http.max_concurrent
+
+    @property
+    def rate_limit_delay(self) -> float:
+        """Backward compatibility for rate_limit_delay access."""
+        return self.http.rate_limit_delay
+
 
 # Global config instance
 config = ConverterConfig()
