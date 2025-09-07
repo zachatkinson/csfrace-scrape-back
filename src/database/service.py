@@ -30,7 +30,7 @@ from .utils import create_postgresql_enums, get_standard_enum_definitions
 logger = structlog.get_logger(__name__)
 
 
-class JobCreateRequest:
+class JobCreateRequest:  # pylint: disable=too-few-public-methods
     """Request object for creating scraping jobs."""
 
     def __init__(self, url: str, output_directory: str, **kwargs):

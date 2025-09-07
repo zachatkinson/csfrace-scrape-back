@@ -9,25 +9,25 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class RateLimits:  # pylint: disable=too-many-instance-attributes
+class RateLimits:  # pylint: disable=too-many-instance-attributes,invalid-name
     """Centralized rate limiting configuration."""
 
     # Authentication endpoints
-    AUTH_LOGIN: str = "5/minute"  # Login attempts  # pylint: disable=invalid-name
-    AUTH_REGISTER: str = "3/minute"  # User registration  # pylint: disable=invalid-name
-    AUTH_PASSWORD_RESET: str = "2/minute"  # Password reset requests  # pylint: disable=invalid-name
-    AUTH_OAUTH: str = "10/minute"  # OAuth operations  # pylint: disable=invalid-name
-    AUTH_PASSKEY: str = "10/minute"  # WebAuthn/Passkey operations  # pylint: disable=invalid-name
+    AUTH_LOGIN: str = "5/minute"  # Login attempts
+    AUTH_REGISTER: str = "3/minute"  # User registration
+    AUTH_PASSWORD_RESET: str = "2/minute"  # Password reset requests
+    AUTH_OAUTH: str = "10/minute"  # OAuth operations
+    AUTH_PASSKEY: str = "10/minute"  # WebAuthn/Passkey operations
 
     # API endpoints
-    JOB_CREATION: str = "20/hour"  # Job creation  # pylint: disable=invalid-name
-    BATCH_CREATION: str = "10/hour"  # Batch creation (more restrictive)  # pylint: disable=invalid-name
+    JOB_CREATION: str = "20/hour"  # Job creation
+    BATCH_CREATION: str = "10/hour"  # Batch creation (more restrictive)
 
     # Admin endpoints (more permissive)
-    ADMIN_OPERATIONS: str = "100/hour"  # pylint: disable=invalid-name
+    ADMIN_OPERATIONS: str = "100/hour"
 
     # Development/Testing (more permissive)
-    DEVELOPMENT: str = "1000/hour"  # pylint: disable=invalid-name
+    DEVELOPMENT: str = "1000/hour"
 
 
 def get_rate_limits() -> RateLimits:
