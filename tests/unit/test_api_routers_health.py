@@ -117,10 +117,7 @@ class TestHealthRouterEndpoints:
                 mock_cache_manager.initialize = AsyncMock()
                 mock_cache_manager.backend_type = "redis"
 
-                with patch.dict(
-                    "sys.modules",
-                    {"src.caching.manager": MagicMock(cache_manager=mock_cache_manager)},
-                ):
+                with patch("src.api.routers.health.cache_manager", mock_cache_manager):
                     result = await health_check(mock_db_session)
 
                     assert result.cache["status"] == "healthy"
@@ -143,10 +140,7 @@ class TestHealthRouterEndpoints:
                 mock_cache_manager = MagicMock()
                 mock_cache_manager.initialize.side_effect = Exception("Redis connection failed")
 
-                with patch.dict(
-                    "sys.modules",
-                    {"src.caching.manager": MagicMock(cache_manager=mock_cache_manager)},
-                ):
+                with patch("src.api.routers.health.cache_manager", mock_cache_manager):
                     result = await health_check(mock_db_session)
 
                     assert result.status == "degraded"

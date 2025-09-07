@@ -260,6 +260,10 @@ class BatchProcessor:
                 last_error = f"Processing error: {e}"
                 logger.warning("URL processing error", url=url, error=str(e), attempt=retries + 1)
 
+            except Exception as e:
+                last_error = f"Processing error: {e}"
+                logger.warning("URL processing error", url=url, error=str(e), attempt=retries + 1)
+
             retries += 1
             if retries <= self.config.retry.retry_attempts:
                 await asyncio.sleep(self.config.retry.retry_delay * retries)
@@ -303,6 +307,13 @@ class BatchProcessor:
 
         # Finalize results
         results = self._finalize_batch_results(results, start_time, batch)
+
+        # Check continue_on_error setting
+        if not self.config.continue_on_error and results.failed:
+            raise BatchProcessingError(
+                f"Batch processing failed with {len(results.failed)} failed URLs",
+                batch_id=batch.id,
+            )
 
         logger.info(
             "Batch processing complete",

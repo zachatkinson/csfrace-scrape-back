@@ -55,7 +55,7 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
     try:
         await db.execute(text("SELECT 1"))
         database_status = {"status": "healthy", "connected": True}
-    except SQLAlchemyError as db_error:
+    except Exception as db_error:
         database_status = {"status": "unhealthy", "connected": False, "error": str(db_error)}
 
     # Get health checker status
@@ -193,6 +193,8 @@ async def _get_cache_status() -> dict[str, Any]:
         return {"status": "error", "error": str(cache_error)}
     except (AttributeError, ImportError, ValueError) as config_error:
         return {"status": "error", "error": f"Cache configuration error: {str(config_error)}"}
+    except Exception as general_error:
+        return {"status": "error", "error": str(general_error)}
 
 
 def _get_performance_summary() -> dict[str, Any]:
