@@ -224,5 +224,4 @@ def truncate_path_component(component: str, max_length: int = 50) -> str:
         start_chars = max_length // 2 - 2
         end_chars = max_length - start_chars - 4  # Account for ellipsis
         return f"{component[:start_chars]}...{component[-end_chars:]}"
-    else:
-        return component[:max_length]
+    return component[:max_length]

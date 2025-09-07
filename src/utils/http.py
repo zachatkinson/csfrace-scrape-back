@@ -53,15 +53,14 @@ async def safe_http_get(
                 return HTTPResponse(
                     status=response.status, content=content, headers=dict(response.headers)
                 )
-            else:
-                if log_errors:
-                    logger.warning(
-                        "HTTP request returned unexpected status",
-                        url=url,
-                        status=response.status,
-                        expected=list(expected_statuses),
-                    )
-                return HTTPResponse(status=response.status, content=content)
+            if log_errors:
+                logger.warning(
+                    "HTTP request returned unexpected status",
+                    url=url,
+                    status=response.status,
+                    expected=list(expected_statuses),
+                )
+            return HTTPResponse(status=response.status, content=content)
 
     except TimeoutError:
         if log_errors:
@@ -117,12 +116,11 @@ def check_http_status(status: int, url: str, context: str = "request") -> bool:
     if status == CONSTANTS.HTTP_STATUS_OK:
         logger.debug(f"{context} successful", url=url, status=status)
         return True
-    elif status == CONSTANTS.HTTP_STATUS_NOT_FOUND:
+    if status == CONSTANTS.HTTP_STATUS_NOT_FOUND:
         logger.info(f"{context} returned 404", url=url)
         return False
-    elif status >= CONSTANTS.HTTP_STATUS_SERVER_ERROR:
+    if status >= CONSTANTS.HTTP_STATUS_SERVER_ERROR:
         logger.error(f"{context} server error", url=url, status=status)
         return False
-    else:
-        logger.warning(f"{context} unexpected status", url=url, status=status)
-        return False
+    logger.warning(f"{context} unexpected status", url=url, status=status)
+    return False
