@@ -2,12 +2,24 @@
 
 import os
 from enum import Enum
+from typing import TYPE_CHECKING
 
+import sqlalchemy.exc
 import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
 from ..common.status import JobStatus
+
+# Import for type checking only to avoid circular dependencies
+if TYPE_CHECKING:
+    from ..database.models import JobPriority
+else:
+    # Runtime import with error handling
+    try:
+        from ..database.models import JobPriority
+    except ImportError:
+        JobPriority = None
 
 logger = structlog.get_logger(__name__)
 
@@ -44,7 +56,7 @@ def create_postgresql_enums(
             else:
                 logger.debug("PostgreSQL enum type already exists: %s", enum_name)
 
-        except Exception as e:
+        except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError) as e:
             # Handle concurrent enum creation gracefully (for parallel tests)
             error_msg = str(e).lower()
             if any(
@@ -58,9 +70,8 @@ def create_postgresql_enums(
             ):
                 logger.debug("Enum type already exists (concurrent creation): %s", enum_name)
                 continue
-            else:
-                logger.error("Failed to create enum type", enum_name=enum_name, error=str(e))
-                raise
+            logger.error("Failed to create enum type", enum_name=enum_name, error=str(e))
+            raise
 
 
 def get_standard_enum_definitions() -> list[tuple[str, type[Enum]]]:
@@ -69,13 +80,13 @@ def get_standard_enum_definitions() -> list[tuple[str, type[Enum]]]:
     Returns:
         List of (enum_name, enum_class) tuples for standard enums
     """
-    # Import here to avoid circular dependencies
-    from ..database.models import JobPriority
+    enums: list[tuple[str, type[Enum]]] = [("jobstatus", JobStatus)]
 
-    return [
-        ("jobstatus", JobStatus),
-        ("jobpriority", JobPriority),
-    ]
+    # Only add JobPriority if it was imported successfully
+    if JobPriority is not None:
+        enums.append(("jobpriority", JobPriority))
+
+    return enums
 
 
 def get_database_url() -> str:
