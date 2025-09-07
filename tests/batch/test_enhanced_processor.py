@@ -1,4 +1,5 @@
 """Tests for enhanced batch processor with concurrent execution."""
+# pylint: disable=redefined-outer-name,protected-access,too-many-public-methods
 
 import asyncio
 import json
