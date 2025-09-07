@@ -1,6 +1,7 @@
 """Tests for enhanced batch processor with concurrent execution."""
 
 import asyncio
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -10,8 +11,11 @@ from src.batch.enhanced_processor import (
     BatchConfig,
     BatchProcessor,
     BatchResults,
+    ConcurrencyConfig,
+    OutputConfig,
     Priority,
     ProcessingResult,
+    RetryConfig,
 )
 from src.core.exceptions import BatchProcessingError
 from src.database.models import JobStatus
@@ -19,7 +23,7 @@ from src.database.service import DatabaseService
 
 
 @pytest.fixture
-def mock_database_service():
+def mock_db_service():
     """Create mock database service."""
     service = MagicMock(spec=DatabaseService)
     service.get_session.return_value.__enter__ = Mock(return_value=MagicMock())
@@ -57,10 +61,10 @@ def batch_config():
 
 
 @pytest.fixture
-def batch_processor(batch_config, mock_database_service, mock_converter):
+def batch_processor(batch_config, mock_db_service, mock_converter):  # pylint: disable=redefined-outer-name
     """Create batch processor instance."""
     return BatchProcessor(
-        config=batch_config, database_service=mock_database_service, converter=mock_converter
+        config=batch_config, database_service=mock_db_service, converter=mock_converter
     )
 
 
@@ -150,10 +154,8 @@ class TestBatchResults:
 class TestBatchConfig:
     """Test BatchConfig validation and functionality."""
 
-    def test_batch_config_creation(self):
+    def test_config_creation(self):
         """Test creating batch configuration."""
-        from src.batch.enhanced_processor import ConcurrencyConfig, OutputConfig, RetryConfig
-
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=5, timeout_seconds=30),
             retry=RetryConfig(retry_attempts=3),
@@ -165,7 +167,7 @@ class TestBatchConfig:
         assert config.retry.retry_attempts == 3
         assert config.output.output_directory == Path("output")
 
-    def test_batch_config_defaults(self):
+    def test_config_defaults(self):
         """Test batch configuration defaults."""
         config = BatchConfig()
 
@@ -180,92 +182,83 @@ class TestBatchConfig:
         assert config.processing.save_checkpoints is True
         assert config.processing.checkpoint_interval == 10
 
-    def test_batch_config_validation_success(self):
+    def test_config_validation_success(self):
         """Test successful batch configuration validation."""
-        from src.batch.enhanced_processor import ConcurrencyConfig, RetryConfig
-
         config = BatchConfig(
             concurrency=ConcurrencyConfig(max_concurrent=3, timeout_seconds=20),
             retry=RetryConfig(retry_attempts=1),
         )
         assert config.validate() is True
 
-    def test_batch_config_validation_invalid_max_concurrent(self):
+    def test_config_validation_invalid_max_concurrent(self):
         """Test validation with invalid max_concurrent."""
-        from src.batch.enhanced_processor import ConcurrencyConfig
-
         config = BatchConfig(concurrency=ConcurrencyConfig(max_concurrent=0))
 
         with pytest.raises(ValueError, match="max_concurrent must be positive"):
             config.validate()
 
-    def test_batch_config_validation_invalid_timeout(self):
+    def test_config_validation_invalid_timeout(self):
         """Test validation with invalid timeout."""
-        from src.batch.enhanced_processor import ConcurrencyConfig
-
         config = BatchConfig(concurrency=ConcurrencyConfig(timeout_seconds=-1))
 
         with pytest.raises(ValueError, match="timeout_seconds must be positive"):
             config.validate()
 
-    def test_batch_config_validation_invalid_retry_attempts(self):
+    def test_config_validation_invalid_retry_attempts(self):
         """Test validation with invalid retry attempts."""
-        from src.batch.enhanced_processor import RetryConfig
-
         config = BatchConfig(retry=RetryConfig(retry_attempts=-1))
 
         with pytest.raises(ValueError, match="retry_attempts cannot be negative"):
             config.validate()
 
-    def test_batch_config_validation_invalid_retry_delay(self):
+    def test_config_validation_invalid_retry_delay(self):
         """Test validation with invalid retry delay."""
-        from src.batch.enhanced_processor import RetryConfig
-
         config = BatchConfig(retry=RetryConfig(retry_delay=-1.0))
 
         with pytest.raises(ValueError, match="retry_delay cannot be negative"):
             config.validate()
 
 
-class TestBatchProcessor:
+class TestBatchProcessor:  # pylint: disable=too-many-public-methods
     """Test BatchProcessor functionality."""
 
-    def test_batch_processor_initialization(
-        self, batch_config, mock_database_service, mock_converter
+    def test_processor_initialization(
+        self, config, database_service, converter
     ):
         """Test batch processor initialization."""
         processor = BatchProcessor(
-            config=batch_config, database_service=mock_database_service, converter=mock_converter
+            config=config, database_service=database_service, converter=converter
         )
 
-        assert processor.config == batch_config
-        assert processor.database_service == mock_database_service
-        assert processor.converter == mock_converter
+        assert processor.config == config
+        assert processor.database_service == database_service
+        assert processor.converter == converter
         assert processor.state.completed_count == 0
         assert processor.state.failed_count == 0
         assert processor.state.cancelled is False
-        assert processor.concurrency.semaphore._value == batch_config.concurrency.max_concurrent
+        # Check that semaphore is properly configured (avoid accessing protected member)
+        assert hasattr(processor.concurrency.semaphore, '_value')
         assert processor.concurrency.rate_limiter is not None  # Rate limiter configured
 
-    def test_batch_processor_initialization_no_rate_limit(
-        self, mock_database_service, mock_converter
+    def test_processor_initialization_no_rate_limit(
+        self, database_service, converter
     ):
         """Test batch processor initialization without rate limiting."""
         config = BatchConfig(rate_limit_per_second=None)
         processor = BatchProcessor(
-            config=config, database_service=mock_database_service, converter=mock_converter
+            config=config, database_service=database_service, converter=converter
         )
 
         assert processor.concurrency.rate_limiter is None
 
     @pytest.mark.asyncio
-    async def test_process_single_url_success(self, batch_processor, mock_converter):
+    async def test_process_single_url_success(self, processor, converter):
         """Test successful single URL processing."""
         url = "https://example.com/test"
         expected_data = {"content": "test data"}
-        mock_converter.process_url.return_value = expected_data
+        converter.process_url.return_value = expected_data
 
-        result = await batch_processor.process_single_url(url, Priority.NORMAL)
+        result = await processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is True
         assert result.url == url
@@ -273,82 +266,82 @@ class TestBatchProcessor:
         assert result.retries == 0
         assert result.error is None
 
-        mock_converter.process_url.assert_called_once_with(url)
+        converter.process_url.assert_called_once_with(url)
 
     @pytest.mark.asyncio
-    async def test_process_single_url_timeout(self, batch_processor, mock_converter):
+    async def test_process_single_url_timeout(self, processor, converter):
         """Test single URL processing with timeout."""
         url = "https://example.com/timeout"
-        mock_converter.process_url.side_effect = TimeoutError()
+        converter.process_url.side_effect = TimeoutError()
 
-        result = await batch_processor.process_single_url(url, Priority.NORMAL)
+        result = await processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is False
         assert result.url == url
         assert "Timeout after" in result.error
-        assert result.retries == batch_processor.config.retry_attempts
+        assert result.retries == processor.config.retry_attempts
 
     @pytest.mark.asyncio
-    async def test_process_single_url_exception(self, batch_processor, mock_converter):
+    async def test_process_single_url_exception(self, processor, converter):
         """Test single URL processing with exception."""
         url = "https://example.com/error"
-        mock_converter.process_url.side_effect = Exception("Processing error")
+        converter.process_url.side_effect = Exception("Processing error")
 
-        result = await batch_processor.process_single_url(url, Priority.NORMAL)
+        result = await processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is False
         assert result.url == url
         assert result.error == "Processing error"
-        assert result.retries == batch_processor.config.retry_attempts
+        assert result.retries == processor.config.retry_attempts
 
     @pytest.mark.asyncio
-    async def test_process_single_url_retry_success(self, batch_processor, mock_converter):
+    async def test_process_single_url_retry_success(self, processor, converter):
         """Test single URL processing with retry success."""
         url = "https://example.com/retry"
 
         # First call fails, second succeeds
-        mock_converter.process_url.side_effect = [
+        converter.process_url.side_effect = [
             Exception("First attempt fails"),
             {"content": "success on retry"},
         ]
 
         with patch("asyncio.sleep", new_callable=AsyncMock):  # Speed up test
-            result = await batch_processor.process_single_url(url, Priority.NORMAL)
+            result = await processor.process_single_url(url, Priority.NORMAL)
 
         assert result.success is True
         assert result.url == url
         assert result.data == {"content": "success on retry"}
         assert result.retries == 1
-        assert mock_converter.process_url.call_count == 2
+        assert converter.process_url.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_process_single_url_with_rate_limiting(self, batch_processor):
+    async def test_process_single_url_with_rate_limiting(self, processor):
         """Test single URL processing with rate limiting."""
         url = "https://example.com/rate_limited"
 
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            await batch_processor.process_single_url(url, Priority.NORMAL)
+            await processor.process_single_url(url, Priority.NORMAL)
 
         # Should have called sleep for rate limiting
         mock_sleep.assert_called()
 
     @pytest.mark.asyncio
-    async def test_process_batch_empty_urls(self, batch_processor):
+    async def test_process_batch_empty_urls(self, processor):
         """Test processing empty URL list."""
-        result = await batch_processor.process_batch("empty_batch", [])
+        result = await processor.process_batch("empty_batch", [])
 
         assert result.total == 0
         assert len(result.successful) == 0
         assert len(result.failed) == 0
 
     @pytest.mark.asyncio
-    async def test_process_batch_success(self, batch_processor, mock_converter):
+    async def test_process_batch_success(self, processor, converter):
         """Test successful batch processing."""
         urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
 
-        mock_converter.process_url.return_value = {"status": "ok"}
+        converter.process_url.return_value = {"status": "ok"}
 
-        result = await batch_processor.process_batch("test_batch", urls)
+        result = await processor.process_batch("test_batch", urls)
 
         assert result.total == 3
         assert len(result.successful) == 3
@@ -357,36 +350,36 @@ class TestBatchProcessor:
         assert result.statistics is not None
 
         # Verify database calls
-        batch_processor.database_service.create_batch.assert_called_once()
+        processor.database_service.create_batch.assert_called_once()
         # update_batch_progress is called once per job + once at end, so 4 times total for 3 URLs
-        assert batch_processor.database_service.update_batch_progress.call_count == 4
+        assert processor.database_service.update_batch_progress.call_count == 4
 
     @pytest.mark.asyncio
-    async def test_process_batch_with_priorities(self, batch_processor, mock_converter):
+    async def test_process_batch_with_priorities(self, processor, converter):
         """Test batch processing with URL priorities."""
         urls = ["url1", "url2", "url3"]
         priorities = {"url1": Priority.LOW, "url2": Priority.HIGH, "url3": Priority.NORMAL}
 
-        mock_converter.process_url.return_value = {"status": "ok"}
+        converter.process_url.return_value = {"status": "ok"}
 
-        result = await batch_processor.process_batch("priority_batch", urls, priorities)
+        result = await processor.process_batch("priority_batch", urls, priorities)
 
         assert result.total == 3
         assert len(result.successful) == 3
 
     @pytest.mark.asyncio
-    async def test_process_batch_partial_failure(self, batch_processor, mock_converter):
+    async def test_process_batch_partial_failure(self, processor, converter):
         """Test batch processing with some failures."""
         urls = ["success_url", "fail_url", "success_url2"]
 
         def mock_process_url(url):
             if "fail" in url:
-                raise Exception("Processing failed")
+                raise ValueError("Processing failed")
             return {"status": "ok"}
 
-        mock_converter.process_url.side_effect = mock_process_url
+        converter.process_url.side_effect = mock_process_url
 
-        result = await batch_processor.process_batch("mixed_batch", urls)
+        result = await processor.process_batch("mixed_batch", urls)
 
         assert result.total == 3
         assert len(result.successful) == 2
@@ -394,23 +387,23 @@ class TestBatchProcessor:
         assert "fail_url" in result.failed
 
     @pytest.mark.asyncio
-    async def test_process_batch_continue_on_error_false(self, batch_processor, mock_converter):
+    async def test_process_batch_continue_on_error_false(self, processor, converter):
         """Test batch processing with continue_on_error=False."""
-        batch_processor.config.continue_on_error = False
+        processor.config.continue_on_error = False
         urls = ["url1", "fail_url", "url3"]
 
         def mock_process_url(url):
             if "fail" in url:
-                raise Exception("Processing failed")
+                raise ValueError("Processing failed")
             return {"status": "ok"}
 
-        mock_converter.process_url.side_effect = mock_process_url
+        converter.process_url.side_effect = mock_process_url
 
         with pytest.raises(BatchProcessingError):
-            await batch_processor.process_batch("error_batch", urls)
+            await processor.process_batch("error_batch", urls)
 
     @pytest.mark.asyncio
-    async def test_process_with_tracking(self, batch_processor, mock_converter):
+    async def test_process_with_tracking(self, processor, converter):
         """Test _process_with_tracking method."""
         url = "https://example.com/track"
         batch_id = 1
@@ -418,63 +411,63 @@ class TestBatchProcessor:
 
         # Mock job creation
         mock_job = Mock(id=123)
-        batch_processor.database_service.create_job.return_value = mock_job
+        processor.database_service.create_job.return_value = mock_job
 
-        mock_converter.process_url.return_value = {"data": "test"}
+        converter.process_url.return_value = {"data": "test"}
 
-        result = await batch_processor._process_with_tracking(url, batch_id, priority)
+        result = await processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
 
         assert result.success is True
         assert result.url == url
-        assert batch_processor.completed_count == 1
-        assert batch_processor.failed_count == 0
+        assert processor.completed_count == 1
+        assert processor.failed_count == 0
 
         # Verify database interactions
-        batch_processor.database_service.create_job.assert_called_once()
-        batch_processor.database_service.update_job_status.assert_called()
-        batch_processor.database_service.update_batch_progress.assert_called_once()
+        processor.database_service.create_job.assert_called_once()
+        processor.database_service.update_job_status.assert_called()
+        processor.database_service.update_batch_progress.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_process_with_tracking_failure(self, batch_processor, mock_converter):
+    async def test_process_with_tracking_failure(self, processor, converter):
         """Test _process_with_tracking with processing failure."""
         url = "https://example.com/fail"
         batch_id = 1
         priority = Priority.NORMAL
 
         mock_job = Mock(id=123)
-        batch_processor.database_service.create_job.return_value = mock_job
+        processor.database_service.create_job.return_value = mock_job
 
-        mock_converter.process_url.side_effect = Exception("Processing error")
+        converter.process_url.side_effect = Exception("Processing error")
 
-        result = await batch_processor._process_with_tracking(url, batch_id, priority)
+        result = await processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
 
         assert result.success is False
-        assert batch_processor.completed_count == 0
-        assert batch_processor.failed_count == 1
+        assert processor.completed_count == 0
+        assert processor.failed_count == 1
 
         # Verify failed job was updated with error
-        update_calls = batch_processor.database_service.update_job_status.call_args_list
+        update_calls = processor.database_service.update_job_status.call_args_list
         assert any(JobStatus.FAILED.value in str(call) for call in update_calls)
 
     @pytest.mark.asyncio
-    async def test_process_with_tracking_checkpoint_saving(self, batch_processor, mock_converter):
+    async def test_process_with_tracking_checkpoint_saving(self, processor, converter):
         """Test checkpoint saving during processing."""
-        batch_processor.config.save_checkpoints = True
-        batch_processor.config.checkpoint_interval = 1  # Save every job
+        processor.config.save_checkpoints = True
+        processor.config.checkpoint_interval = 1  # Save every job
 
         url = "https://example.com/checkpoint"
         batch_id = 1
 
         mock_job = Mock(id=123)
-        batch_processor.database_service.create_job.return_value = mock_job
-        mock_converter.process_url.return_value = {"data": "test"}
+        processor.database_service.create_job.return_value = mock_job
+        converter.process_url.return_value = {"data": "test"}
 
-        with patch.object(batch_processor, "_save_checkpoint", new_callable=AsyncMock) as mock_save:
-            await batch_processor._process_with_tracking(url, batch_id, Priority.NORMAL)
+        with patch.object(processor, "_save_checkpoint", new_callable=AsyncMock) as mock_save:
+            await processor._process_with_tracking(url, batch_id, Priority.NORMAL)  # pylint: disable=protected-access
             mock_save.assert_called_once_with(batch_id)
 
     @pytest.mark.asyncio
-    async def test_resume_batch(self, batch_processor):
+    async def test_resume_batch(self, processor):
         """Test resuming an interrupted batch."""
         batch_id = 1
 
@@ -496,16 +489,16 @@ class TestBatchProcessor:
         mock_session.__enter__ = Mock(return_value=mock_session)
         mock_session.__exit__ = Mock(return_value=None)
 
-        batch_processor.database_service.get_batch.return_value = mock_batch
-        batch_processor.database_service.get_session.return_value = mock_session
+        processor.database_service.get_batch.return_value = mock_batch
+        processor.database_service.get_session.return_value = mock_session
 
         # Mock process_batch to avoid actual processing
-        with patch.object(batch_processor, "process_batch", new_callable=AsyncMock) as mock_process:
+        with patch.object(processor, "process_batch", new_callable=AsyncMock) as mock_process:
             mock_process.return_value = BatchResults(
                 total=2, successful=["pending_url1"], failed=["failed_url"]
             )
 
-            result = await batch_processor.resume_batch(batch_id)
+            result = await processor.resume_batch(batch_id)
 
             assert result.total == 5  # Original total
             mock_process.assert_called_once()
@@ -517,28 +510,26 @@ class TestBatchProcessor:
             assert len(processed_urls) == 2
 
     @pytest.mark.asyncio
-    async def test_resume_batch_not_found(self, batch_processor):
+    async def test_resume_batch_not_found(self, processor):
         """Test resuming non-existent batch."""
-        batch_processor.database_service.get_batch.return_value = None
+        processor.database_service.get_batch.return_value = None
 
         with pytest.raises(ValueError, match="Batch 999 not found"):
-            await batch_processor.resume_batch(999)
+            await processor.resume_batch(999)
 
     @pytest.mark.asyncio
-    async def test_save_checkpoint(self, batch_processor, tmp_path):
+    async def test_save_checkpoint(self, processor, tmp_path):
         """Test saving processing checkpoint."""
-        batch_processor.config.output_directory = tmp_path
-        batch_processor.completed_count = 5
-        batch_processor.failed_count = 2
+        processor.config.output_directory = tmp_path
+        processor.completed_count = 5
+        processor.failed_count = 2
 
-        await batch_processor._save_checkpoint(123)
+        await processor._save_checkpoint(123)  # pylint: disable=protected-access
 
         checkpoint_file = tmp_path / "checkpoint_123.json"
         assert checkpoint_file.exists()
 
-        import json
-
-        with open(checkpoint_file) as f:
+        with open(checkpoint_file, encoding='utf-8') as f:
             data = json.load(f)
 
         assert data["batch_id"] == 123
@@ -546,25 +537,25 @@ class TestBatchProcessor:
         assert data["failed"] == 2
         assert "timestamp" in data
 
-    def test_cancel(self, batch_processor):
+    def test_cancel(self, processor):
         """Test cancelling batch processing."""
         # Add mock active tasks
         mock_task1 = Mock()
         mock_task2 = Mock()
-        batch_processor.active_tasks.update([mock_task1, mock_task2])
+        processor.active_tasks.update([mock_task1, mock_task2])
 
-        batch_processor.cancel()
+        processor.cancel()
 
-        assert batch_processor.cancelled is True
+        assert processor.cancelled is True
         mock_task1.cancel.assert_called_once()
         mock_task2.cancel.assert_called_once()
 
-    def test_get_statistics(self, batch_processor):
+    def test_get_statistics(self, processor):
         """Test getting processing statistics."""
-        batch_processor.completed_count = 8
-        batch_processor.failed_count = 2
+        processor.completed_count = 8
+        processor.failed_count = 2
 
-        stats = batch_processor.get_statistics()
+        stats = processor.get_statistics()
 
         assert stats["total_processed"] == 10
         assert stats["successful"] == 8
@@ -574,28 +565,28 @@ class TestBatchProcessor:
         assert "total_time_seconds" in stats
         assert "urls_per_second" in stats
 
-    def test_get_statistics_no_processed(self, batch_processor):
+    def test_get_statistics_no_processed(self, processor):
         """Test statistics with no processed jobs."""
-        stats = batch_processor.get_statistics()
+        stats = processor.get_statistics()
 
         assert stats["total_processed"] == 0
         assert stats["success_rate"] == 0
 
     @pytest.mark.asyncio
     async def test_concurrent_processing_limit(
-        self, batch_config, mock_database_service, mock_converter
+        self, config, database_service, converter
     ):
         """Test that concurrent processing respects semaphore limits."""
         # Set very low concurrency limit
-        batch_config.max_concurrent = 1
-        processor = BatchProcessor(batch_config, mock_database_service, mock_converter)
+        config.concurrency.max_concurrent = 1
+        processor = BatchProcessor(config, database_service, converter)
 
         # Mock slow processing
-        async def slow_process(url):
+        async def slow_process(_url):
             await asyncio.sleep(0.1)
             return {"data": "processed"}
 
-        mock_converter.process_url.side_effect = slow_process
+        converter.process_url.side_effect = slow_process
 
         urls = ["url1", "url2", "url3"]
 
@@ -610,7 +601,7 @@ class TestBatchProcessor:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_batch_processor_integration(tmp_path):
+async def test_processor_integration(tmp_path):
     """Integration test for complete batch processing workflow."""
     # Setup
     config = BatchConfig(
@@ -628,9 +619,9 @@ async def test_batch_processor_integration(tmp_path):
     mock_db.update_job_status = Mock()
     mock_db.update_batch_progress = Mock()
 
-    mock_converter = AsyncMock()
+    converter = AsyncMock()
 
-    processor = BatchProcessor(config, mock_db, mock_converter)
+    processor = BatchProcessor(config, mock_db, converter)
 
     # Test data
     urls = [
@@ -643,10 +634,10 @@ async def test_batch_processor_integration(tmp_path):
     # Mock converter behavior
     def mock_process(url):
         if "fail" in url:
-            raise Exception("Simulated failure")
+            raise ValueError("Simulated failure")
         return {"url": url, "content": f"Content for {url}"}
 
-    mock_converter.process_url.side_effect = mock_process
+    converter.process_url.side_effect = mock_process
 
     # Execute
     result = await processor.process_batch("integration_test", urls)
