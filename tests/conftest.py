@@ -171,7 +171,10 @@ def testcontainers_db_service(postgres_container):
     # Create engine from container following DRY principles
     if hasattr(postgres_container, "host"):
         # CI container
-        db_url = f"postgresql+psycopg://{postgres_container.username}:{postgres_container.password}@{postgres_container.host}:{postgres_container.port}/{postgres_container.dbname}"
+        db_url = (
+            f"postgresql+psycopg://{postgres_container.username}:{postgres_container.password}@"
+            f"{postgres_container.host}:{postgres_container.port}/{postgres_container.dbname}"
+        )
     else:
         # Testcontainer
         host = postgres_container.get_container_host_ip()
@@ -520,14 +523,16 @@ def pytest_configure(config):
 
 def assert_enum_values(enum_class, expected_values):
     """Assert enum values match expected mapping to eliminate test duplication.
-    
+
     Args:
         enum_class: The enum class to test
         expected_values: Dict mapping enum member names to expected values
     """
     for member_name, expected_value in expected_values.items():
         enum_member = getattr(enum_class, member_name)
-        assert enum_member.value == expected_value, f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
+        assert enum_member.value == expected_value, (
+            f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
+        )
 
 
 # Skip tests if dependencies not available

@@ -222,9 +222,7 @@ class TestBatchConfig:
 class TestBatchProcessor:  # pylint: disable=too-many-public-methods
     """Test BatchProcessor functionality."""
 
-    def test_processor_initialization(
-        self, config, database_service, converter
-    ):
+    def test_processor_initialization(self, config, database_service, converter):
         """Test batch processor initialization."""
         processor = BatchProcessor(
             config=config, database_service=database_service, converter=converter
@@ -237,12 +235,10 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert processor.state.failed_count == 0
         assert processor.state.cancelled is False
         # Check that semaphore is properly configured (avoid accessing protected member)
-        assert hasattr(processor.concurrency.semaphore, '_value')
+        assert hasattr(processor.concurrency.semaphore, "_value")
         assert processor.concurrency.rate_limiter is not None  # Rate limiter configured
 
-    def test_processor_initialization_no_rate_limit(
-        self, database_service, converter
-    ):
+    def test_processor_initialization_no_rate_limit(self, database_service, converter):
         """Test batch processor initialization without rate limiting."""
         config = BatchConfig(rate_limit_per_second=None)
         processor = BatchProcessor(
@@ -529,7 +525,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         checkpoint_file = tmp_path / "checkpoint_123.json"
         assert checkpoint_file.exists()
 
-        with open(checkpoint_file, encoding='utf-8') as f:
+        with open(checkpoint_file, encoding="utf-8") as f:
             data = json.load(f)
 
         assert data["batch_id"] == 123
@@ -573,9 +569,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods
         assert stats["success_rate"] == 0
 
     @pytest.mark.asyncio
-    async def test_concurrent_processing_limit(
-        self, config, database_service, converter
-    ):
+    async def test_concurrent_processing_limit(self, config, database_service, converter):
         """Test that concurrent processing respects semaphore limits."""
         # Set very low concurrency limit
         config.concurrency.max_concurrent = 1

@@ -142,14 +142,17 @@ class TestBatchJob:
     def test_batch_job_status_enum(self):
         """Test JobStatus enum values."""
         from tests.conftest import assert_enum_values
-        
-        assert_enum_values(JobStatus, {
-            "PENDING": "pending",
-            "RUNNING": "running", 
-            "COMPLETED": "completed",
-            "FAILED": "failed",
-            "SKIPPED": "skipped"
-        })
+
+        assert_enum_values(
+            JobStatus,
+            {
+                "PENDING": "pending",
+                "RUNNING": "running",
+                "COMPLETED": "completed",
+                "FAILED": "failed",
+                "SKIPPED": "skipped",
+            },
+        )
 
 
 class TestBatchConfig:
