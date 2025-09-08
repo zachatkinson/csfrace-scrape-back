@@ -100,13 +100,12 @@ class TestConcurrencyPerformance:
 
                     soup = BeautifulSoup(html, "html.parser")
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
+                        # Skip async processing in existing event loop for benchmarking
+                        return soup.get_text(strip=True)
                     except RuntimeError:
                         # No running loop, create new one
                         return asyncio.run(processor.process(soup))
-                    else:
-                        # Skip async processing in existing event loop for benchmarking
-                        return soup.get_text(strip=True)
 
                 futures = [executor.submit(sync_process, html) for html in html_documents]
                 return [future.result() for future in as_completed(futures)]
@@ -206,14 +205,14 @@ class TestMemoryProfiler:
         import logging
 
         logger = logging.getLogger(__name__)
-        
+
         # Calculate cleanup efficiency, handling division by zero
         if memory_increase > 0:
             cleanup_efficiency_pct = (memory_increase - memory_after_cleanup) / memory_increase
             efficiency_str = f"{cleanup_efficiency_pct:.2%}"
         else:
             efficiency_str = "N/A (no memory increase detected)"
-        
+
         logger.info(
             f"Memory stats - Initial: {initial_memory:.2f}MB, "
             f"Peak: {peak_memory:.2f}MB, Final: {final_memory:.2f}MB, "
@@ -425,14 +424,13 @@ class TestPerformanceRegression:
             soup = BeautifulSoup(sample_html, "html.parser")
             # Use existing event loop if available
             try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                # No running loop, create new one
-                return asyncio.run(processor.process(soup))
-            else:
+                asyncio.get_running_loop()
                 # There's a running loop, we need to use run_until_complete
                 # This is tricky in benchmarks, so we'll skip async for now
                 raise pytest.skip("Cannot benchmark async in existing event loop")
+            except RuntimeError:
+                # No running loop, create new one
+                return asyncio.run(processor.process(soup))
 
         result = benchmark(process_html_sync)
         assert len(result) > 0
