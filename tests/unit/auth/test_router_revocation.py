@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.auth.models import BulkTokenRevocationRequest, TokenRevocationRequest
-from src.database.models import User
+from src.auth.models import BulkTokenRevocationRequest, TokenRevocationRequest, User
 
 
 @pytest.fixture
