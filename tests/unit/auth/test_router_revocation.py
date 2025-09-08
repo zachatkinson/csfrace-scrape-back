@@ -3,6 +3,8 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from starlette.requests import Request
+from starlette.testclient import TestClient
 
 from src.auth.models import BulkTokenRevocationRequest, TokenRevocationRequest, User
 
@@ -42,12 +44,32 @@ def sample_token():
     return "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlciIsInVzZXJfaWQiOiJ1c2VyMTIzIiwianRpIjoidGVzdC1qdGktMTIzNDUiLCJ0eXBlIjoiYWNjZXNzIiwiaWF0IjoxNjAwMDAwMDAwLCJleHAiOjE2MDAwMDM2MDB9"
 
 
+@pytest.fixture
+def mock_request():
+    """Create a proper Starlette Request object for testing."""
+    from starlette.datastructures import Headers
+    from starlette.requests import Request
+
+    # Create a mock ASGI scope that represents a basic HTTP request
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/auth/revoke-token",
+        "headers": [(b"user-agent", b"Mozilla/5.0 Test Browser"), (b"host", b"testserver")],
+        "query_string": b"",
+        "client": ("192.168.1.1", 0),
+    }
+    
+    # Create a Request object with the mock scope
+    return Request(scope)
+
+
 class TestRevokeTokenEndpoint:
     """Test /auth/revoke-token endpoint - SOLID Single Responsibility testing."""
 
     @pytest.mark.asyncio
     async def test_revoke_token_success(
-        self, mock_current_user, mock_security_manager, mock_revocation_service, sample_token
+        self, mock_current_user, mock_security_manager, mock_revocation_service, sample_token, mock_request
     ):
         """Test successful token revocation - SOLID Single Responsibility."""
         # Arrange
@@ -62,7 +84,7 @@ class TestRevokeTokenEndpoint:
         with (
             patch("src.auth.router.security_manager", mock_security_manager),
             patch("src.auth.router.get_current_active_user", return_value=mock_current_user),
-            patch("src.auth.router.token_revocation_service", mock_revocation_service),
+            patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("src.auth.router.get_remote_address", return_value="192.168.1.1"),
             patch("jwt.decode") as mock_jwt_decode,
         ):
@@ -75,10 +97,6 @@ class TestRevokeTokenEndpoint:
 
             # Import the endpoint function
             from src.auth.router import revoke_token
-
-            # Create mock request
-            mock_request = MagicMock()
-            mock_request.headers.get.return_value = "Mozilla/5.0 Test Browser"
 
             # Act
             response = await revoke_token(mock_request, request_data, mock_current_user)
@@ -163,7 +181,7 @@ class TestRevokeTokenEndpoint:
 
         with (
             patch("src.auth.router.security_manager", mock_security_manager),
-            patch("src.auth.router.token_revocation_service", mock_revocation_service),
+            patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("jwt.decode") as mock_jwt_decode,
         ):
             mock_security_manager.verify_token.return_value = token_data
@@ -358,7 +376,7 @@ class TestRevocationEndpointsEdgeCases:
 
         with (
             patch("src.auth.router.security_manager", mock_security_manager),
-            patch("src.auth.router.token_revocation_service", mock_revocation_service),
+            patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("jwt.decode") as mock_jwt_decode,
         ):
             # Verify token succeeds (we want to allow revoking expired tokens)
@@ -409,7 +427,7 @@ class TestRevocationEndpointsEdgeCases:
 
         with (
             patch("src.auth.router.security_manager", mock_security_manager),
-            patch("src.auth.router.token_revocation_service", mock_revocation_service),
+            patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("jwt.decode") as mock_jwt_decode,
         ):
             mock_security_manager.verify_token.return_value = token_data
