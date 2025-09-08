@@ -4,6 +4,7 @@ import secrets
 import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
+from typing import Any, cast
 from urllib.parse import urlencode
 
 import httpx
@@ -260,7 +261,11 @@ class OAuthProviderRegistry:
         provider_class = cls._providers[provider]
         config = cls._provider_configs[provider]
 
-        return provider_class(client_id=config["client_id"], client_secret=config["client_secret"])
+        # MyPy cast: provider_class is guaranteed to be a concrete implementation
+        # with the correct constructor signature
+        return cast("Any", provider_class)(
+            client_id=config["client_id"], client_secret=config["client_secret"]
+        )
 
     @classmethod
     def get_supported_providers(cls) -> list[OAuthProvider]:

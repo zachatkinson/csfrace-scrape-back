@@ -42,7 +42,9 @@ class APIError(Exception):
 class ValidationError(APIError):
     """Error for request validation failures."""
 
-    def __init__(self, message: str, field: str = None, details: dict[str, Any] = None):
+    def __init__(
+        self, message: str, field: str | None = None, details: dict[str, Any] | None = None
+    ):
         super().__init__(
             message=message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -56,7 +58,7 @@ class ValidationError(APIError):
 class ResourceNotFoundError(APIError):
     """Error for resource not found cases."""
 
-    def __init__(self, resource_type: str, identifier: Any, details: dict[str, Any] = None):
+    def __init__(self, resource_type: str, identifier: Any, details: dict[str, Any] | None = None):
         message = f"{resource_type} '{identifier}' not found"
         super().__init__(
             message=message,
@@ -70,7 +72,9 @@ class ResourceNotFoundError(APIError):
 class DatabaseError(APIError):
     """Error for database operation failures."""
 
-    def __init__(self, operation: str, original_error: Exception, details: dict[str, Any] = None):
+    def __init__(
+        self, operation: str, original_error: Exception, details: dict[str, Any] | None = None
+    ):
         message = f"Database operation failed: {operation}"
         super().__init__(
             message=message,
@@ -143,7 +147,7 @@ class APIErrorFactory:
 
     @classmethod
     def validation_error(
-        cls, message: str, field: str = None, details: dict[str, Any] = None
+        cls, message: str, field: str | None = None, details: dict[str, Any] | None = None
     ) -> HTTPException:
         """Create a standardized validation error response.
 
@@ -161,7 +165,7 @@ class APIErrorFactory:
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
-    def business_logic_error(cls, message: str, error_code: str = None) -> HTTPException:
+    def business_logic_error(cls, message: str, error_code: str | None = None) -> HTTPException:
         """Create a standardized business logic error response.
 
         Args:
@@ -178,7 +182,7 @@ class APIErrorFactory:
 
     @classmethod
     def internal_server_error(
-        cls, message: str = "Internal server error", original_error: Exception = None
+        cls, message: str = "Internal server error", original_error: Exception | None = None
     ) -> HTTPException:
         """Create a standardized internal server error response.
 
@@ -233,7 +237,7 @@ class APIErrorFactory:
 
     @classmethod
     def service_unavailable(
-        cls, message: str = "Service temporarily unavailable", details: dict = None
+        cls, message: str = "Service temporarily unavailable", details: dict[Any, Any] | None = None
     ) -> HTTPException:
         """Create a standardized service unavailable error response."""
         error = APIError(
@@ -341,12 +345,12 @@ def not_found(resource: str, identifier: Any) -> HTTPException:
     return APIErrorFactory.not_found(resource, identifier)
 
 
-def internal_server_error(message: str, original_error: Exception = None) -> HTTPException:
+def internal_server_error(message: str, original_error: Exception | None = None) -> HTTPException:
     """Convenience function for 500 errors."""
     return APIErrorFactory.internal_server_error(message, original_error)
 
 
-def validation_error(message: str, field: str = None) -> HTTPException:
+def validation_error(message: str, field: str | None = None) -> HTTPException:
     """Convenience function for validation errors."""
     return APIErrorFactory.validation_error(message, field)
 
@@ -356,7 +360,7 @@ def database_error(operation: str, error: Exception) -> HTTPException:
     return APIErrorFactory.database_error(operation, error)
 
 
-def business_logic_error(message: str, error_code: str = None) -> HTTPException:
+def business_logic_error(message: str, error_code: str | None = None) -> HTTPException:
     """Convenience function for business logic errors."""
     return APIErrorFactory.business_logic_error(message, error_code)
 
