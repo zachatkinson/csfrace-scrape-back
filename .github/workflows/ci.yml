@@ -306,27 +306,21 @@ jobs:
         env:
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Modern Python linting stack (2025 best practices)
+          # Modern Python linting stack (2025 best practices) - Only validate enabled tools
           VALIDATE_PYTHON_RUFF: true     # Comprehensive linting (replaces flake8, isort, many pylint rules)
           VALIDATE_PYTHON_BLACK: true    # Code formatting
           VALIDATE_PYTHON_MYPY: true     # Type checking
           
-          # Disable redundant tools (replaced by Ruff)
-          VALIDATE_PYTHON_ISORT: false   # Ruff handles import sorting
-          VALIDATE_PYTHON_FLAKE8: false  # Ruff replaces flake8
-          VALIDATE_PYTHON_BANDIT: false  # Ruff includes security rules (S rules)
           # Only scan Python files
           VALIDATE_ALL_CODEBASE: false
           FILTER_REGEX_INCLUDE: ".*\\.(py)$"
+          
           # Auto-fix capable linters (modern stack only)
           FIX_PYTHON_BLACK: true
           FIX_PYTHON_RUFF: true
           
           # Performance optimization
           SUPPRESS_POSSUM: true
-          
-          # Disable Pylint (most rules covered by Ruff)
-          VALIDATE_PYTHON_PYLINT: false  # Ruff covers most important pylint rules
 
       - name: Run Bandit Security Linting (Enhanced)
         run: |
