@@ -47,7 +47,9 @@ class EnvironmentLoader:
         return os.environ.get(key, default).strip()
 
     @staticmethod
-    def get_int(key: str, default: int, min_value: int = None, max_value: int = None) -> int:
+    def get_int(
+        key: str, default: int, min_value: int | None = None, max_value: int | None = None
+    ) -> int:
         """Get an integer environment variable with validation.
 
         Args:
@@ -117,7 +119,7 @@ class EnvironmentLoader:
         return value
 
     @staticmethod
-    def get_list(key: str, default: list[str] = None, separator: str = ",") -> list[str]:
+    def get_list(key: str, default: list[str] | None = None, separator: str = ",") -> list[str]:
         """Get a comma-separated list from environment variable.
 
         Args:

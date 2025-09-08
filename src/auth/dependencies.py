@@ -52,7 +52,7 @@ def get_passkey_manager(
     return PasskeyManager(webauthn_service)
 
 
-def get_current_user(
+async def get_current_user(
     token: str = Depends(oauth2_scheme), db_service: DatabaseService = Depends(get_database_service)
 ) -> User:
     """Get current authenticated user from JWT token."""
@@ -63,7 +63,7 @@ def get_current_user(
     )
 
     # Verify token
-    token_data: TokenData | None = security_manager.verify_token(token)
+    token_data: TokenData | None = await security_manager.verify_token(token)
     if token_data is None or token_data.username is None:
         raise credentials_exception
 
@@ -104,7 +104,7 @@ def require_scopes(*required_scopes: str):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-        token_data = security_manager.verify_token(token)
+        token_data = await security_manager.verify_token(token)
         if token_data is None:
             raise credentials_exception
 

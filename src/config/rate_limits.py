@@ -18,6 +18,7 @@ class RateLimits:  # pylint: disable=too-many-instance-attributes,invalid-name
     AUTH_PASSWORD_RESET: str = "2/minute"  # Password reset requests
     AUTH_OAUTH: str = "10/minute"  # OAuth operations
     AUTH_PASSKEY: str = "10/minute"  # WebAuthn/Passkey operations
+    AUTH_SENSITIVE_OPERATION: str = "3/minute"  # Sensitive operations like token revocation
 
     # API endpoints
     JOB_CREATION: str = "20/hour"  # Job creation
@@ -44,6 +45,7 @@ def get_rate_limits() -> RateLimits:
             AUTH_PASSWORD_RESET="1000/minute",
             AUTH_OAUTH="1000/minute",
             AUTH_PASSKEY="1000/minute",
+            AUTH_SENSITIVE_OPERATION="1000/minute",
             JOB_CREATION="1000/hour",
             BATCH_CREATION="1000/hour",  # High enough for test suites
             ADMIN_OPERATIONS="1000/hour",

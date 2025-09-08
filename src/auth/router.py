@@ -399,12 +399,12 @@ async def _process_oauth_token_exchange(
 def _create_jwt_tokens_for_user(user: User) -> Token:
     """Create JWT access and refresh tokens for authenticated user."""
     access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
-    jwt_access_token = security_manager.create_access_token(
+    jwt_access_token, access_jti = security_manager.create_access_token(
         data={"sub": user.username, "user_id": user.id, "scopes": []},
         expires_delta=access_token_expires,
     )
 
-    jwt_refresh_token = security_manager.create_refresh_token(
+    jwt_refresh_token, refresh_jti = security_manager.create_refresh_token(
         data={"sub": user.username, "user_id": user.id}
     )
 
@@ -708,13 +708,13 @@ def complete_passkey_authentication(
 
         # Generate JWT tokens for authenticated user
         access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
-        jwt_access_token = security_manager.create_access_token(
+        jwt_access_token, access_jti = security_manager.create_access_token(
             data={"sub": user.username, "user_id": user.id, "scopes": []},
             expires_delta=access_token_expires,
         )
 
         # Create refresh token
-        jwt_refresh_token = security_manager.create_refresh_token(
+        jwt_refresh_token, refresh_jti = security_manager.create_refresh_token(
             data={"sub": user.username, "user_id": user.id}
         )
 
@@ -835,7 +835,10 @@ async def revoke_token(
         issued_at = datetime.fromtimestamp(payload.get("iat", 0), tz=UTC)
         expires_at = datetime.fromtimestamp(payload.get("exp", 0), tz=UTC)
 
-        # Revoke the token
+        # Revoke the token (JTI is required for revocation)
+        if not token_data.jti:
+            raise APIErrorFactory.validation_error("Token missing required JTI for revocation")
+
         success = await token_revocation_service.revoke_token(
             jti=token_data.jti,
             user_id=current_user.id,
@@ -863,7 +866,7 @@ async def revoke_token(
             jti=token_data.jti,
         )
 
-    except APIErrorFactory as e:
+    except HTTPException as e:
         raise e
     except jwt.InvalidTokenError:
         raise APIErrorFactory.validation_error("Invalid token format")
@@ -904,6 +907,7 @@ async def revoke_all_user_tokens(
             success=True,
             message=f"All tokens revoked successfully ({revoked_count} sessions)",
             revoked_count=revoked_count,
+            jti=None,  # Bulk revocation doesn't have specific JTI
         )
 
     except Exception as e:
@@ -1080,7 +1084,7 @@ async def unlock_user_account(
             "message": f"Account {unlock_request.user_id} unlocked successfully",
         }
 
-    except APIErrorFactory:
+    except HTTPException:
         raise
     except Exception as e:
         logger.error(

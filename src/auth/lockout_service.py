@@ -1,5 +1,6 @@
 """Account lockout service following SOLID principles and security best practices."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -392,7 +393,7 @@ class AccountLockoutService:
                 select(AccountLockout).where(
                     and_(
                         AccountLockout.created_at < cutoff_date,
-                        not AccountLockout.is_locked,
+                        ~AccountLockout.is_locked,  # Use ~ operator for SQL NOT
                     )
                 )
             )
@@ -484,15 +485,15 @@ class AccountLockoutService:
         else:
             return self.config.progressive_durations[-1]  # Use maximum duration
 
-    def _count_currently_locked(self, lockouts: list[AccountLockout]) -> int:
+    def _count_currently_locked(self, lockouts: Sequence[AccountLockout]) -> int:
         """Count currently locked accounts - DRY principle helper method."""
         return sum(
             1 for lockout in lockouts if lockout.is_locked and not lockout.is_lockout_expired
         )
 
-    def _count_by_field(self, lockouts: list[AccountLockout], field_name: str) -> dict:
+    def _count_by_field(self, lockouts: Sequence[AccountLockout], field_name: str) -> dict:
         """Count lockouts by a specific field - DRY principle helper method."""
-        counts = {}
+        counts: dict[str, int] = {}
         for lockout in lockouts:
             field_value = getattr(lockout, field_name)
             if field_value:  # Skip None values
@@ -500,7 +501,7 @@ class AccountLockoutService:
         return counts
 
     def _count_recent_lockouts(
-        self, lockouts: list[AccountLockout], hours: int = None, days: int = None
+        self, lockouts: Sequence[AccountLockout], hours: int | None = None, days: int | None = None
     ) -> int:
         """Count lockouts within a time period - DRY principle helper method."""
         if hours:
@@ -512,7 +513,7 @@ class AccountLockoutService:
 
         return sum(1 for lockout in lockouts if lockout.locked_at and lockout.locked_at >= cutoff)
 
-    def _calculate_average_failed_attempts(self, lockouts: list[AccountLockout]) -> float:
+    def _calculate_average_failed_attempts(self, lockouts: Sequence[AccountLockout]) -> float:
         """Calculate average failed attempts across lockouts - DRY principle helper method."""
         if not lockouts:
             return 0.0

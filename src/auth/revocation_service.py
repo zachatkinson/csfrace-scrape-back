@@ -1,5 +1,6 @@
 """JWT Token revocation service following SOLID principles and security best practices."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -295,16 +296,16 @@ class TokenRevocationService:
         result = await db.execute(select(RevokedToken).where(RevokedToken.jti == jti))
         return result.scalar_one_or_none()
 
-    def _count_by_field(self, revocations: list[RevokedToken], field_name: str) -> dict:
+    def _count_by_field(self, revocations: Sequence[RevokedToken], field_name: str) -> dict:
         """Count revocations by a specific field - DRY principle helper method."""
-        counts = {}
+        counts: dict[str, int] = {}
         for revocation in revocations:
             field_value = getattr(revocation, field_name)
             counts[field_value] = counts.get(field_value, 0) + 1
         return counts
 
     def _count_recent_revocations(
-        self, revocations: list[RevokedToken], hours: int = None, days: int = None
+        self, revocations: Sequence[RevokedToken], hours: int | None = None, days: int | None = None
     ) -> int:
         """Count revocations within a time period - DRY principle helper method."""
         if hours:
