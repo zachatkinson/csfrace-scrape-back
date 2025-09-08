@@ -145,12 +145,12 @@ class TestContentExtractors:
         """Test MainContentExtractor focuses only on main content identification."""
         html_with_sidebar = """
         <div>
-            <aside class="sidebar">Sidebar content</aside>
+            <aside class="sidebar">Sidebar content that adds some length to the overall document</aside>
             <main class="content">
-                <h1>Main article</h1>
-                <p>Main content here</p>
+                <h1>Main article with comprehensive title that provides sufficient context</h1>
+                <p>Main content here with detailed information that explains the topic thoroughly and provides enough text content to exceed the minimum character threshold for content extraction processing requirements.</p>
             </main>
-            <footer>Footer content</footer>
+            <footer>Footer content with additional information and links</footer>
         </div>
         """
 
@@ -159,8 +159,8 @@ class TestContentExtractors:
         result_html = str(result)
 
         # Should focus on main content
-        assert "Main article" in result_html
-        assert "Main content here" in result_html
+        assert "Main article with comprehensive title" in result_html
+        assert "Main content here with detailed information" in result_html
 
     @pytest.mark.asyncio
     async def test_cleanup_processor_sanitization(self, cleanup_processor):

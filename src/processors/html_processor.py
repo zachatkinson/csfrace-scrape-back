@@ -4,7 +4,6 @@ This addresses the critical SRP violation identified in the audit by
 separating concerns into focused, single-responsibility processors.
 """
 
-
 import structlog
 from bs4 import BeautifulSoup
 
@@ -35,7 +34,9 @@ class HTMLProcessorOrchestrator:
     """
 
     def __init__(
-        self, enable_sanitization: bool = True, custom_processors: list[ContentExtractorBase] | None = None
+        self,
+        enable_sanitization: bool = True,
+        custom_processors: list[ContentExtractorBase] | None = None,
     ):
         """Initialize HTML processor orchestrator.
 

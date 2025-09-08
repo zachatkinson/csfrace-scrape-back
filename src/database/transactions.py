@@ -81,6 +81,11 @@ async def _transaction_handler(
         try:
             from sqlalchemy import text
 
+            # Validate isolation level to prevent SQL injection (controlled enum values only)
+            valid_levels = {"READ_UNCOMMITTED", "READ_COMMITTED", "REPEATABLE_READ", "SERIALIZABLE"}
+            if isolation_level not in valid_levels:
+                raise ValueError(f"Invalid isolation level: {isolation_level}")
+
             await db.execute(text(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"))
             logger.debug(
                 "Set transaction isolation level",

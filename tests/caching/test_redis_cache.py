@@ -61,7 +61,11 @@ class TestRedisConnection:
     def redis_cache(self):
         """Create RedisCache instance with mocked redis."""
         with patch("src.caching.redis_cache.REDIS_AVAILABLE", True):
-            with patch("src.caching.redis_cache.redis") as mock_redis_module:
+            # Create a mock redis module with Redis class
+            mock_redis_module = MagicMock()
+            mock_redis_module.Redis = MagicMock()
+
+            with patch("src.caching.redis_cache.redis", mock_redis_module):
                 from src.caching.redis_cache import RedisCache
 
                 config = CacheConfig()
@@ -95,9 +99,7 @@ class TestRedisConnection:
         # So we need to patch it after the import
         with patch.object(cache.logger, "info") as mock_info:
             # Patch the actual redis attribute of the module
-            with patch(
-                "src.caching.redis_cache.redis.Redis", return_value=mock_client
-            ) as mock_redis_cls:
+            with patch(mock_redis_module, "Redis", return_value=mock_client) as mock_redis_cls:
                 result = await cache._get_client()
 
                 # Verify Redis client was created with correct parameters
@@ -141,7 +143,7 @@ class TestRedisConnection:
         cache.redis_client = None
 
         with patch.object(cache.logger, "error") as mock_error:
-            with patch("src.caching.redis_cache.redis.Redis", return_value=mock_client):
+            with patch.object(mock_redis_module, "Redis", return_value=mock_client):
                 with pytest.raises(Exception, match="Connection failed"):
                     await cache._get_client()
 
@@ -163,7 +165,7 @@ class TestRedisConnection:
 
         with patch.object(cache.logger, "error") as mock_error:
             with patch.object(cache.logger, "warning") as mock_warning:
-                with patch("src.caching.redis_cache.redis.Redis", return_value=mock_client):
+                with patch.object(mock_redis_module, "Redis", return_value=mock_client):
                     with pytest.raises(Exception, match="Connection failed"):
                         await cache._get_client()
 

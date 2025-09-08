@@ -98,8 +98,7 @@ class TokenRevocationService:
                 user_id=user_id,
                 error=str(e),
             )
-            if self._db_session is None:
-                await db.rollback()
+            await db.rollback()
             return False
         except Exception as e:
             logger.error(
@@ -108,8 +107,7 @@ class TokenRevocationService:
                 user_id=user_id,
                 error=str(e),
             )
-            if self._db_session is None:
-                await db.rollback()
+            await db.rollback()
             return False
         finally:
             if self._db_session is None:
@@ -273,7 +271,7 @@ class TokenRevocationService:
             stats = {
                 "total_revocations": len(all_revocations),
                 "revocations_by_type": self._count_by_field(all_revocations, "token_type"),
-                "revocations_by_reason": self._count_by_field(all_revocations, "reason"),
+                "revocations_by_reason": self._count_by_field(all_revocations, "revocation_reason"),
                 "recent_revocations_24h": self._count_recent_revocations(all_revocations, hours=24),
                 "recent_revocations_7d": self._count_recent_revocations(all_revocations, days=7),
             }

@@ -50,9 +50,9 @@ class TestTokenRevocationService:
     ):
         """Test successful token revocation - SOLID Single Responsibility."""
         # Arrange - DRY setup
-        mock_db_session.execute.return_value.scalar_one_or_none.return_value = (
-            None  # Not already revoked
-        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None  # Not already revoked
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         # Act
         result = await revocation_service.revoke_token(**sample_token_data)
@@ -75,9 +75,9 @@ class TestTokenRevocationService:
         """Test revoking already revoked token - DRY principle prevents duplicate work."""
         # Arrange
         existing_revoked_token = MagicMock(spec=RevokedToken)
-        mock_db_session.execute.return_value.scalar_one_or_none.return_value = (
-            existing_revoked_token
-        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = existing_revoked_token
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         # Act
         result = await revocation_service.revoke_token(**sample_token_data)
@@ -93,7 +93,9 @@ class TestTokenRevocationService:
     ):
         """Test database error handling in token revocation."""
         # Arrange
-        mock_db_session.execute.return_value.scalar_one_or_none.return_value = None
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
         mock_db_session.commit.side_effect = Exception("Database connection failed")
 
         # Act
@@ -108,7 +110,9 @@ class TestTokenRevocationService:
         """Test checking revocation status - token is revoked."""
         # Arrange
         revoked_token = MagicMock(spec=RevokedToken)
-        mock_db_session.execute.return_value.scalar_one_or_none.return_value = revoked_token
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = revoked_token
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         # Act
         result = await revocation_service.is_token_revoked("test-jti")
@@ -120,7 +124,9 @@ class TestTokenRevocationService:
     async def test_is_token_revoked_false(self, revocation_service, mock_db_session):
         """Test checking revocation status - token is not revoked."""
         # Arrange
-        mock_db_session.execute.return_value.scalar_one_or_none.return_value = None
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         # Act
         result = await revocation_service.is_token_revoked("test-jti")
@@ -157,7 +163,7 @@ class TestTokenRevocationService:
         added_token = mock_db_session.add.call_args[0][0]
         assert isinstance(added_token, RevokedToken)
         assert added_token.user_id == "user123"
-        assert added_token.reason == "security_lockout"
+        assert added_token.revocation_reason == "security_lockout"
         assert added_token.token_type == "bulk_revocation"
 
     @pytest.mark.asyncio
@@ -185,12 +191,12 @@ class TestTokenRevocationService:
         mock_revocations = [
             MagicMock(
                 token_type="access",
-                reason="user_requested",
+                revocation_reason="user_requested",
                 revoked_at=datetime.now(UTC) - timedelta(hours=2),
             ),
             MagicMock(
                 token_type="refresh",
-                reason="security_lockout",
+                revocation_reason="security_lockout",
                 revoked_at=datetime.now(UTC) - timedelta(days=2),
             ),
         ]
@@ -216,7 +222,9 @@ class TestTokenRevocationService:
         """Test getting system-wide revocation statistics - SOLID Interface Segregation."""
         # Arrange
         mock_revocations = [
-            MagicMock(token_type="access", reason="expired", revoked_at=datetime.now(UTC))
+            MagicMock(
+                token_type="access", revocation_reason="expired", revoked_at=datetime.now(UTC)
+            )
         ]
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = mock_revocations
@@ -252,14 +260,14 @@ class TestTokenRevocationServiceHelpers:
 
         # Arrange
         mock_revocations = [
-            MagicMock(token_type="access", reason="user_requested"),
-            MagicMock(token_type="access", reason="security_lockout"),
-            MagicMock(token_type="refresh", reason="user_requested"),
+            MagicMock(token_type="access", revocation_reason="user_requested"),
+            MagicMock(token_type="access", revocation_reason="security_lockout"),
+            MagicMock(token_type="refresh", revocation_reason="user_requested"),
         ]
 
         # Act
         type_counts = service._count_by_field(mock_revocations, "token_type")
-        reason_counts = service._count_by_field(mock_revocations, "reason")
+        reason_counts = service._count_by_field(mock_revocations, "revocation_reason")
 
         # Assert
         assert type_counts == {"access": 2, "refresh": 1}
@@ -309,7 +317,9 @@ class TestTokenRevocationServiceEdgeCases:
     async def test_revoke_token_with_all_optional_fields(self, revocation_service, mock_db_session):
         """Test token revocation with all optional security audit fields."""
         # Arrange
-        mock_db_session.execute.return_value.scalar_one_or_none.return_value = None
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         # Act
         result = await revocation_service.revoke_token(
@@ -327,7 +337,7 @@ class TestTokenRevocationServiceEdgeCases:
         # Assert
         assert result is True
         added_token = mock_db_session.add.call_args[0][0]
-        assert added_token.reason == "suspicious_activity"
+        assert added_token.revocation_reason == "suspicious_activity"
         assert added_token.revoked_by == "security_system"
         assert added_token.client_ip == "192.168.1.100"
         assert added_token.user_agent == "Mozilla/5.0 Test Browser"

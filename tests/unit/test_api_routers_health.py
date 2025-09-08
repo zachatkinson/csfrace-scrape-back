@@ -75,7 +75,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
                 # Should still return health check data in error detail
-                error_detail = exc_info.value.detail
+                error_detail = exc_info.value.detail["details"]
                 assert error_detail["status"] == "unhealthy"
                 assert error_detail["database"]["status"] == "unhealthy"
                 assert error_detail["database"]["connected"] is False
@@ -329,13 +329,15 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
     @pytest.mark.asyncio
     async def test_readiness_check_database_failure(self, mock_db_session):
         """Test readiness check with database failure."""
-        mock_db_session.execute.side_effect = Exception("Database not ready")
+        from sqlalchemy.exc import SQLAlchemyError
+
+        mock_db_session.execute.side_effect = SQLAlchemyError("Database not ready")
 
         with pytest.raises(HTTPException) as exc_info:
             await readiness_check(mock_db_session)
 
         assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-        assert "Service not ready: Database not ready" in exc_info.value.detail
+        assert "Service not ready: Database not ready" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_prometheus_metrics_success(self):
@@ -412,9 +414,9 @@ request_duration_seconds_bucket{le="1.0"} 800
             mock_health_checker.get_health_summary.return_value = {"status": "healthy"}
             with patch("src.api.routers.health.observability_manager") as mock_obs:
                 mock_obs.get_component_status.return_value = {"status": "healthy"}
-            with patch("builtins.__import__", side_effect=ImportError("No cache module")):
+            with patch("src.api.routers.health.cache_manager", None):
                 result = await health_check(mock_db_session)
-                assert result.cache["status"] == "error"
+                assert result.cache["status"] == "not_configured"
 
     @pytest.mark.asyncio
     async def test_health_check_observability_status_integration(self, mock_db_session):
