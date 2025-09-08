@@ -167,7 +167,7 @@ class TestWebAuthnRouterEndpoints:
         assert response.status_code == 500
         response_data = response.json()
         assert "detail" in response_data
-        assert "Failed to initiate passkey registration" in response_data["detail"]
+        assert "Failed to initiate passkey registration" in str(response_data["detail"])
 
     def test_complete_webauthn_registration_success(
         self, client, sample_user, mock_webauthn_service
@@ -264,7 +264,7 @@ class TestWebAuthnRouterEndpoints:
         assert response.status_code == 422
         response_data = response.json()
         assert "detail" in response_data
-        assert "Invalid or expired challenge" in response_data["detail"]
+        assert "Invalid or expired challenge" in str(response_data["detail"])
 
     def test_start_webauthn_authentication_success(self, client, mock_passkey_manager):
         """Test successful WebAuthn authentication start."""
@@ -308,7 +308,7 @@ class TestWebAuthnRouterEndpoints:
         assert response.status_code == 500
         response_data = response.json()
         assert "detail" in response_data  # FastAPI uses "detail" not "error"
-        assert "Failed to initiate passkey authentication" in response_data["detail"]
+        assert "Failed to initiate passkey authentication" in str(response_data["detail"])
 
     def test_complete_webauthn_authentication_success(
         self, client, sample_user, mock_webauthn_service
@@ -422,7 +422,7 @@ class TestWebAuthnRouterEndpoints:
         # Verify error response
         assert response.status_code == 400
         response_data = response.json()
-        assert "Invalid or expired challenge" in response_data["detail"]
+        assert "Invalid or expired challenge" in str(response_data["detail"])
 
     def test_get_user_passkeys_success(self, client, sample_user, mock_passkey_manager):
         """Test successful retrieval of user passkeys."""
