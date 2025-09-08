@@ -448,8 +448,8 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
     @pytest.mark.asyncio
     async def test_process_with_tracking_checkpoint_saving(self, batch_processor, mock_converter):
         """Test checkpoint saving during processing."""
-        batch_processor.config.save_checkpoints = True
-        batch_processor.config.checkpoint_interval = 1  # Save every job
+        batch_processor.config.processing.save_checkpoints = True
+        batch_processor.config.processing.checkpoint_interval = 1  # Save every job
 
         url = "https://example.com/checkpoint"
         batch_id = 1
@@ -516,7 +516,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
     @pytest.mark.asyncio
     async def test_save_checkpoint(self, batch_processor, tmp_path):
         """Test saving processing checkpoint."""
-        batch_processor.config.output_directory = tmp_path
+        batch_processor.config.output.output_directory = tmp_path
         batch_processor.state.completed_count = 5
         batch_processor.state.failed_count = 2
 

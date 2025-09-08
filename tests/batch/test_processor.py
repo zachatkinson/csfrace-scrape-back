@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.batch.processor import BatchConfig, BatchJob, BatchProcessor
-from src.common.status import JobStatus
+from src.common.status import BatchStatus, JobStatus
 from src.core.exceptions import ConversionError
 from src.utils.path_utils import get_directory_name
 from tests.conftest import assert_enum_values
@@ -117,7 +117,7 @@ class TestBatchJob:
 
         assert job.url == "https://example.com/test"
         assert job.output_dir == Path("/tmp/test")
-        assert job.status == JobStatus.PENDING
+        assert job.status == BatchStatus.PENDING
         assert job.error is None
         assert job.start_time is None
         assert job.end_time is None
@@ -463,7 +463,7 @@ class TestBatchProcessorAsyncProcessing:
 
             result = await processor._process_single_job(job, mock_progress)
 
-            assert result.status == JobStatus.COMPLETED
+            assert result.status == BatchStatus.COMPLETED
             assert result.start_time is not None
             assert result.end_time is not None
             assert result.duration is not None
@@ -488,7 +488,7 @@ class TestBatchProcessorAsyncProcessing:
 
             result = await processor._process_single_job(job, mock_progress)
 
-            assert result.status == JobStatus.FAILED
+            assert result.status == BatchStatus.FAILED
             assert "Timeout after" in result.error
 
     @pytest.mark.asyncio
@@ -504,7 +504,7 @@ class TestBatchProcessorAsyncProcessing:
 
             result = await processor._process_single_job(job, mock_progress)
 
-            assert result.status == JobStatus.FAILED
+            assert result.status == BatchStatus.FAILED
             assert result.error == "Test error"
 
     @pytest.mark.asyncio
@@ -522,7 +522,7 @@ class TestBatchProcessorAsyncProcessing:
 
         result = await processor._process_single_job(job, mock_progress)
 
-        assert result.status == JobStatus.SKIPPED
+        assert result.status == BatchStatus.SKIPPED
 
     @pytest.mark.asyncio
     async def test_process_all_complete_workflow(self, processor):
@@ -549,16 +549,16 @@ class TestBatchProcessorAsyncProcessing:
         """Test result compilation and statistics."""
         # Create jobs with different statuses
         job1 = BatchJob(url="https://example.com/post1", output_dir=Path("/tmp/job1"))
-        job1.status = JobStatus.COMPLETED
+        job1.status = BatchStatus.COMPLETED
         job1.start_time = 100.0
         job1.end_time = 103.0
 
         job2 = BatchJob(url="https://example.com/post2", output_dir=Path("/tmp/job2"))
-        job2.status = JobStatus.FAILED
+        job2.status = BatchStatus.FAILED
         job2.error = "Test error"
 
         job3 = BatchJob(url="https://example.com/post3", output_dir=Path("/tmp/job3"))
-        job3.status = JobStatus.SKIPPED
+        job3.status = BatchStatus.SKIPPED
 
         processor.jobs = [job1, job2, job3]
 
@@ -803,7 +803,7 @@ class TestBatchProcessorEdgeCases:
 
                     result = await processor._process_single_job(job, mock_progress)
 
-                    assert result.status == JobStatus.COMPLETED
+                    assert result.status == BatchStatus.COMPLETED
                     mock_archive.assert_called_once_with(job)
                     assert result.archive_path == Path("/tmp/test.zip")
 
@@ -827,5 +827,5 @@ class TestBatchProcessorEdgeCases:
                 # Job should still complete successfully even if archive fails
                 result = await processor._process_single_job(job, mock_progress)
 
-                assert result.status == JobStatus.COMPLETED
+                assert result.status == BatchStatus.COMPLETED
                 assert result.archive_path is None  # Archive creation failed
