@@ -206,11 +206,19 @@ class TestMemoryProfiler:
         import logging
 
         logger = logging.getLogger(__name__)
+        
+        # Calculate cleanup efficiency, handling division by zero
+        if memory_increase > 0:
+            cleanup_efficiency_pct = (memory_increase - memory_after_cleanup) / memory_increase
+            efficiency_str = f"{cleanup_efficiency_pct:.2%}"
+        else:
+            efficiency_str = "N/A (no memory increase detected)"
+        
         logger.info(
             f"Memory stats - Initial: {initial_memory:.2f}MB, "
             f"Peak: {peak_memory:.2f}MB, Final: {final_memory:.2f}MB, "
             f"Increase: {memory_increase:.2f}MB, "
-            f"Cleanup efficiency: {(memory_increase - memory_after_cleanup) / memory_increase:.2%}"
+            f"Cleanup efficiency: {efficiency_str}"
         )
 
     @memory_profiler.profile
