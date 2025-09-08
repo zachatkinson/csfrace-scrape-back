@@ -148,7 +148,7 @@ class AsyncWordPressConverter:
             metadata = await self.metadata_extractor.extract(soup)
 
             # Process HTML content
-            processed_html = await self.html_processor.process_content(soup)
+            processed_html = await self.html_processor.process(soup)
 
             # Extract image URLs
             image_urls = self._extract_image_urls(processed_html)
