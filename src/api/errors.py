@@ -86,7 +86,10 @@ class BusinessLogicError(APIError):
     """Error for business logic violations."""
 
     def __init__(
-        self, message: str, error_code: str = "BUSINESS_LOGIC_ERROR", details: dict[str, Any] = None
+        self,
+        message: str,
+        error_code: str = "BUSINESS_LOGIC_ERROR",
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(
             message=message,
