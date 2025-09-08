@@ -116,7 +116,7 @@ class TestRevokeTokenEndpoint:
 
     @pytest.mark.asyncio
     async def test_revoke_token_unauthorized_user(
-        self, mock_current_user, mock_security_manager, sample_token
+        self, mock_current_user, mock_security_manager, sample_token, mock_request
     ):
         """Test token revocation by unauthorized user - Security requirement."""
         # Arrange
@@ -134,7 +134,6 @@ class TestRevokeTokenEndpoint:
 
             from src.auth.router import revoke_token
 
-            mock_request = MagicMock()
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
@@ -144,7 +143,7 @@ class TestRevokeTokenEndpoint:
             assert "Cannot revoke token for another user" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_revoke_token_invalid_token(self, mock_current_user, mock_security_manager):
+    async def test_revoke_token_invalid_token(self, mock_current_user, mock_security_manager, mock_request):
         """Test token revocation with invalid token format."""
         # Arrange
         request_data = TokenRevocationRequest(token="invalid.token.format")
@@ -157,8 +156,6 @@ class TestRevokeTokenEndpoint:
 
             from src.auth.router import revoke_token
 
-            mock_request = MagicMock()
-
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
                 await revoke_token(mock_request, request_data, mock_current_user)
@@ -167,7 +164,7 @@ class TestRevokeTokenEndpoint:
 
     @pytest.mark.asyncio
     async def test_revoke_token_service_failure(
-        self, mock_current_user, mock_security_manager, mock_revocation_service, sample_token
+        self, mock_current_user, mock_security_manager, mock_revocation_service, sample_token, mock_request
     ):
         """Test token revocation when service fails."""
         # Arrange
@@ -190,7 +187,6 @@ class TestRevokeTokenEndpoint:
 
             from src.auth.router import revoke_token
 
-            mock_request = MagicMock()
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
@@ -215,7 +211,6 @@ class TestRevokeAllTokensEndpoint:
 
             from src.auth.router import revoke_all_user_tokens
 
-            mock_request = MagicMock()
 
             # Act
             response = await revoke_all_user_tokens(mock_request, request_data, mock_current_user)
@@ -243,7 +238,6 @@ class TestRevokeAllTokensEndpoint:
 
             from src.auth.router import revoke_all_user_tokens
 
-            mock_request = MagicMock()
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
@@ -391,7 +385,6 @@ class TestRevocationEndpointsEdgeCases:
 
             from src.auth.router import revoke_token
 
-            mock_request = MagicMock()
 
             # Act
             response = await revoke_token(mock_request, request_data, mock_current_user)
@@ -435,7 +428,6 @@ class TestRevocationEndpointsEdgeCases:
 
             from src.auth.router import revoke_token
 
-            mock_request = MagicMock()
 
             # Act
             response = await revoke_token(mock_request, request_data, mock_current_user)
