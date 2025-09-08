@@ -90,7 +90,7 @@ class TestHTMLProcessorOrchestrator:
         """
 
         soup = BeautifulSoup(complex_html, "html.parser")
-        result = await orchestrator.process_content(soup)
+        result = await orchestrator.process(soup)
 
         converted_html = str(result)
 
