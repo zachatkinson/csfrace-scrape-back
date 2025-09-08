@@ -4,14 +4,14 @@ This module contains ALL constants used throughout the application.
 NO hardcoded values should exist in business logic - everything must be here.
 """
 
-from os import environ
+from .core.environment import EnvironmentLoader
 
 # URLs - NO hardcoding allowed anywhere else
-DEFAULT_BASE_URL: str = environ.get("BASE_URL", "https://example.com")
-TEST_BASE_URL: str = environ.get("TEST_URL", "https://test.example.com")
+DEFAULT_BASE_URL: str = EnvironmentLoader.get_url("BASE_URL", "https://example.com")
+TEST_BASE_URL: str = EnvironmentLoader.get_url("TEST_URL", "https://test.example.com")
 
 # Domain configuration for link processing
-TARGET_DOMAIN: str = environ.get("TARGET_DOMAIN", "csfrace.com")
+TARGET_DOMAIN: str = EnvironmentLoader.get_optional("TARGET_DOMAIN", "csfrace.com")
 
 # Protocol constants
 HTTP_PROTOCOL: str = "http://"
@@ -21,18 +21,18 @@ HTTPS_PROTOCOL: str = "https://"
 LOCALHOST_DOMAIN: str = "localhost"
 
 # Paths - configurable via environment
-DEFAULT_OUTPUT_DIR: str = environ.get("OUTPUT_DIR", "converted_content")
+DEFAULT_OUTPUT_DIR: str = EnvironmentLoader.get_optional("OUTPUT_DIR", "converted_content")
 DEFAULT_IMAGES_DIR: str = "images"  # Sub-directory name is a constant (part of app logic)
 
-# HTTP Configuration
-DEFAULT_TIMEOUT: int = int(environ.get("DEFAULT_TIMEOUT", "30"))
-MAX_CONCURRENT: int = int(environ.get("MAX_CONCURRENT", "10"))
-MAX_RETRIES: int = int(environ.get("MAX_RETRIES", "3"))
-BACKOFF_FACTOR: float = float(environ.get("BACKOFF_FACTOR", "2.0"))
-RATE_LIMIT_DELAY: float = float(environ.get("RATE_LIMIT_DELAY", "0.5"))
+# HTTP Configuration - with validation
+DEFAULT_TIMEOUT: int = EnvironmentLoader.get_int("DEFAULT_TIMEOUT", 30, min_value=1, max_value=300)
+MAX_CONCURRENT: int = EnvironmentLoader.get_int("MAX_CONCURRENT", 10, min_value=1, max_value=100)
+MAX_RETRIES: int = EnvironmentLoader.get_int("MAX_RETRIES", 3, min_value=0, max_value=10)
+BACKOFF_FACTOR: float = float(EnvironmentLoader.get_optional("BACKOFF_FACTOR", "2.0"))
+RATE_LIMIT_DELAY: float = float(EnvironmentLoader.get_optional("RATE_LIMIT_DELAY", "0.5"))
 
 # User Agent
-DEFAULT_USER_AGENT: str = environ.get(
+DEFAULT_USER_AGENT: str = EnvironmentLoader.get_optional(
     "USER_AGENT",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -43,24 +43,36 @@ METADATA_FILE: str = "metadata.txt"
 HTML_FILE: str = "converted_content.html"
 SHOPIFY_FILE: str = "shopify_ready_content.html"
 
-# Cache Configuration
-DEFAULT_TTL: int = int(environ.get("DEFAULT_TTL", "1800"))  # 30 minutes
-CACHE_TTL_HTML: int = int(environ.get("CACHE_TTL_HTML", "1800"))  # 30 minutes for HTML
-CACHE_TTL_IMAGES: int = int(environ.get("CACHE_TTL_IMAGES", "86400"))  # 24 hours for images
-CACHE_TTL_METADATA: int = int(environ.get("CACHE_TTL_METADATA", "3600"))  # 1 hour for metadata
-MAX_CACHE_SIZE_MB: int = int(environ.get("MAX_CACHE_SIZE_MB", "1000"))  # 1GB max cache
-REDIS_HOST: str = environ.get("REDIS_HOST", "localhost")
-REDIS_PORT: int = int(environ.get("REDIS_PORT", "6379"))
-REDIS_DB: int = int(environ.get("REDIS_DB", "0"))
-REDIS_KEY_PREFIX: str = environ.get("REDIS_KEY_PREFIX", "wp_converter:")
+# Cache Configuration - with validation
+DEFAULT_TTL: int = EnvironmentLoader.get_int("DEFAULT_TTL", 1800, min_value=60)  # 30 minutes
+CACHE_TTL_HTML: int = EnvironmentLoader.get_int(
+    "CACHE_TTL_HTML", 1800, min_value=60
+)  # 30 minutes for HTML
+CACHE_TTL_IMAGES: int = EnvironmentLoader.get_int(
+    "CACHE_TTL_IMAGES", 86400, min_value=300
+)  # 24 hours for images
+CACHE_TTL_METADATA: int = EnvironmentLoader.get_int(
+    "CACHE_TTL_METADATA", 3600, min_value=60
+)  # 1 hour for metadata
+MAX_CACHE_SIZE_MB: int = EnvironmentLoader.get_int(
+    "MAX_CACHE_SIZE_MB", 1000, min_value=100
+)  # 1GB max cache
+REDIS_HOST: str = EnvironmentLoader.get_optional("REDIS_HOST", "localhost")
+REDIS_PORT: int = EnvironmentLoader.get_int("REDIS_PORT", 6379, min_value=1, max_value=65535)
+REDIS_DB: int = EnvironmentLoader.get_int("REDIS_DB", 0, min_value=0, max_value=15)
+REDIS_KEY_PREFIX: str = EnvironmentLoader.get_optional("REDIS_KEY_PREFIX", "wp_converter:")
 
 # Redis connection timeouts - configurable for different environments
-REDIS_SOCKET_CONNECT_TIMEOUT: float = float(environ.get("REDIS_SOCKET_CONNECT_TIMEOUT", "5.0"))
-REDIS_SOCKET_TIMEOUT: float = float(environ.get("REDIS_SOCKET_TIMEOUT", "5.0"))
+REDIS_SOCKET_CONNECT_TIMEOUT: float = float(
+    EnvironmentLoader.get_optional("REDIS_SOCKET_CONNECT_TIMEOUT", "5.0")
+)
+REDIS_SOCKET_TIMEOUT: float = float(EnvironmentLoader.get_optional("REDIS_SOCKET_TIMEOUT", "5.0"))
 
 # Robots.txt Configuration
-ROBOTS_CACHE_DURATION: int = int(environ.get("ROBOTS_CACHE_DURATION", "3600"))  # 1 hour
-RESPECT_ROBOTS_TXT: bool = environ.get("RESPECT_ROBOTS_TXT", "true").lower() == "true"
+ROBOTS_CACHE_DURATION: int = EnvironmentLoader.get_int(
+    "ROBOTS_CACHE_DURATION", 3600, min_value=300
+)  # 1 hour
+RESPECT_ROBOTS_TXT: bool = EnvironmentLoader.get_bool("RESPECT_ROBOTS_TXT", True)
 
 # Shopify-compatible CSS classes to preserve
 SHOPIFY_PRESERVE_CLASSES: frozenset[str] = frozenset(
@@ -99,7 +111,9 @@ BYTES_PER_MB: int = 1024 * 1024  # Byte to MB conversion
 CACHE_CLEANUP_RATIO: float = 0.8  # Clean to 80% of max size
 
 # Cache and key management
-MAX_KEY_LENGTH: int = int(environ.get("MAX_KEY_LENGTH", "250"))  # Maximum cache key length
+MAX_KEY_LENGTH: int = EnvironmentLoader.get_int(
+    "MAX_KEY_LENGTH", 250, min_value=50, max_value=2000
+)  # Maximum cache key length
 HASH_LENGTH: int = 16  # Standard hash truncation length
 KEY_READABLE_OFFSET: int = 20  # Offset for readable part in long keys
 SAMPLE_KEY_COUNT: int = 10  # Number of sample keys for statistics
@@ -116,31 +130,33 @@ ERROR_TYPE_INTERNAL: str = "internal_error"
 
 # Development server configuration
 LOCALHOST_IP: str = "127.0.0.1"
-DEFAULT_API_PORT: int = int(environ.get("API_PORT", "8000"))
-ALLOWED_ORIGINS_DEFAULT: str = environ.get(
+DEFAULT_API_PORT: int = EnvironmentLoader.get_int("API_PORT", 8000, min_value=1024, max_value=65535)
+ALLOWED_ORIGINS_DEFAULT: str = EnvironmentLoader.get_optional(
     "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4321"
 )
 
 # Timeout configurations
-ROBOTS_TIMEOUT: int = int(environ.get("ROBOTS_TIMEOUT", "10"))  # Robots.txt fetch timeout
+ROBOTS_TIMEOUT: int = EnvironmentLoader.get_int(
+    "ROBOTS_TIMEOUT", 10, min_value=1, max_value=60
+)  # Robots.txt fetch timeout
 
 # HTTP timeouts
-CONNECTION_TIMEOUT: float = float(environ.get("CONNECTION_TIMEOUT", "10.0"))
-READ_TIMEOUT: float = float(environ.get("READ_TIMEOUT", "30.0"))
-TOTAL_TIMEOUT: float = float(environ.get("TOTAL_TIMEOUT", "60.0"))
+CONNECTION_TIMEOUT: float = float(EnvironmentLoader.get_optional("CONNECTION_TIMEOUT", "10.0"))
+READ_TIMEOUT: float = float(EnvironmentLoader.get_optional("READ_TIMEOUT", "30.0"))
+TOTAL_TIMEOUT: float = float(EnvironmentLoader.get_optional("TOTAL_TIMEOUT", "60.0"))
 
 # Browser timeouts
-BROWSER_TIMEOUT: float = float(environ.get("BROWSER_TIMEOUT", "30.0"))
-PAGE_LOAD_TIMEOUT: float = float(environ.get("PAGE_LOAD_TIMEOUT", "30.0"))
-SCRIPT_TIMEOUT: float = float(environ.get("SCRIPT_TIMEOUT", "10.0"))
+BROWSER_TIMEOUT: float = float(EnvironmentLoader.get_optional("BROWSER_TIMEOUT", "30.0"))
+PAGE_LOAD_TIMEOUT: float = float(EnvironmentLoader.get_optional("PAGE_LOAD_TIMEOUT", "30.0"))
+SCRIPT_TIMEOUT: float = float(EnvironmentLoader.get_optional("SCRIPT_TIMEOUT", "10.0"))
 
 # Rendering timeouts
-RENDER_TIMEOUT: float = float(environ.get("RENDER_TIMEOUT", "60.0"))
-SCREENSHOT_TIMEOUT: float = float(environ.get("SCREENSHOT_TIMEOUT", "10.0"))
+RENDER_TIMEOUT: float = float(EnvironmentLoader.get_optional("RENDER_TIMEOUT", "60.0"))
+SCREENSHOT_TIMEOUT: float = float(EnvironmentLoader.get_optional("SCREENSHOT_TIMEOUT", "10.0"))
 
 # Network timeouts
-DNS_TIMEOUT: float = float(environ.get("DNS_TIMEOUT", "5.0"))
-KEEPALIVE_TIMEOUT: float = float(environ.get("KEEPALIVE_TIMEOUT", "30.0"))
+DNS_TIMEOUT: float = float(EnvironmentLoader.get_optional("DNS_TIMEOUT", "5.0"))
+KEEPALIVE_TIMEOUT: float = float(EnvironmentLoader.get_optional("KEEPALIVE_TIMEOUT", "30.0"))
 
 # Progress tracking constants
 PROGRESS_START: int = 0
@@ -157,7 +173,7 @@ IFRAME_ASPECT_RATIO: str = "16/9"  # Standard video aspect ratio
 LOG_LEVEL_INFO: int = 20  # INFO logging level
 
 # Logging Configuration
-LOG_LEVEL: str = environ.get("LOG_LEVEL", "INFO")  # Configurable via env
+LOG_LEVEL: str = EnvironmentLoader.get_optional("LOG_LEVEL", "INFO")  # Configurable via env
 LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Test Constants
@@ -182,8 +198,12 @@ SAMPLE_HTML_TITLE: str = "Test Blog Post"
 SAMPLE_HTML_DESCRIPTION: str = "A test blog post for unit testing"
 
 # CLI Constants
-DEFAULT_PROMETHEUS_URL: str = environ.get("DEFAULT_PROMETHEUS_URL", "http://prometheus:9090")
-DEFAULT_GRAFANA_PORT: int = int(environ.get("DEFAULT_GRAFANA_PORT", "3000"))
+DEFAULT_PROMETHEUS_URL: str = EnvironmentLoader.get_url(
+    "DEFAULT_PROMETHEUS_URL", "http://prometheus:9090"
+)
+DEFAULT_GRAFANA_PORT: int = EnvironmentLoader.get_int(
+    "DEFAULT_GRAFANA_PORT", 3000, min_value=1024, max_value=65535
+)
 
 # Example URLs for help text
 EXAMPLE_CSFRACE_URL: str = "https://csfrace.com/blog/sample-post"
@@ -195,18 +215,45 @@ PROGRESS_SEPARATOR: str = "-" * 50
 # Exit codes
 EXIT_CODE_KEYBOARD_INTERRUPT: int = 130
 
-# OAuth2 Client Credentials - Environment Variable Based Configuration
-OAUTH_GOOGLE_CLIENT_ID: str = environ.get("OAUTH_GOOGLE_CLIENT_ID", "")
-OAUTH_GOOGLE_CLIENT_SECRET: str = environ.get("OAUTH_GOOGLE_CLIENT_SECRET", "")
+# API Validation Constants - All validation limits centralized
+# Job validation limits
+API_MAX_RETRIES_LIMIT: int = 10  # Maximum allowed retry attempts
+API_MIN_TIMEOUT_SECONDS: int = 5  # Minimum timeout value
+API_MAX_TIMEOUT_SECONDS: int = 300  # Maximum timeout value (5 minutes)
 
-OAUTH_GITHUB_CLIENT_ID: str = environ.get("OAUTH_GITHUB_CLIENT_ID", "")
-OAUTH_GITHUB_CLIENT_SECRET: str = environ.get("OAUTH_GITHUB_CLIENT_SECRET", "")
+# Batch validation limits
+API_MAX_NAME_LENGTH: int = 255  # Maximum batch name length
+API_MAX_URLS_PER_BATCH: int = 1000  # Maximum URLs in a single batch
+API_MAX_CONCURRENT_JOBS: int = 20  # Maximum concurrent job processing
 
-OAUTH_MICROSOFT_CLIENT_ID: str = environ.get("OAUTH_MICROSOFT_CLIENT_ID", "")
-OAUTH_MICROSOFT_CLIENT_SECRET: str = environ.get("OAUTH_MICROSOFT_CLIENT_SECRET", "")
+# Database and pagination limits
+DATABASE_POOL_SIZE: int = EnvironmentLoader.get_int(
+    "DATABASE_POOL_SIZE", 20, min_value=5, max_value=100
+)
+DATABASE_MAX_OVERFLOW: int = EnvironmentLoader.get_int(
+    "DATABASE_MAX_OVERFLOW", 30, min_value=10, max_value=200
+)
+API_DEFAULT_PAGE_SIZE: int = 50  # Default pagination page size
+API_MAX_PAGE_SIZE: int = 200  # Maximum allowed page size
+API_DEFAULT_LIMIT: int = 100  # Default query limit
+
+# OAuth2 Client Credentials - SECURE Environment Variable Configuration
+# These should be set in production - no insecure defaults!
+OAUTH_GOOGLE_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_GOOGLE_CLIENT_ID", "")
+OAUTH_GOOGLE_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_GOOGLE_CLIENT_SECRET", "")
+
+OAUTH_GITHUB_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_GITHUB_CLIENT_ID", "")
+OAUTH_GITHUB_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_GITHUB_CLIENT_SECRET", "")
+
+OAUTH_MICROSOFT_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_MICROSOFT_CLIENT_ID", "")
+OAUTH_MICROSOFT_CLIENT_SECRET: str = EnvironmentLoader.get_optional(
+    "OAUTH_MICROSOFT_CLIENT_SECRET", ""
+)
 
 # OAuth2 Redirect URIs - Centralized Configuration
-OAUTH_REDIRECT_URI_BASE: str = environ.get("OAUTH_REDIRECT_URI_BASE", "http://localhost:8000")
+OAUTH_REDIRECT_URI_BASE: str = EnvironmentLoader.get_url(
+    "OAUTH_REDIRECT_URI_BASE", "http://localhost:8000"
+)
 
 # Google OAuth2 Configuration
 GOOGLE_AUTHORIZATION_URL: str = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -231,25 +278,35 @@ MICROSOFT_SCOPES: list[str] = ["openid", "profile", "email", "User.Read"]
 
 # OAuth2 Security Settings
 STATE_TOKEN_LENGTH: int = 32  # Length for OAuth2 state parameter
-OAUTH_TIMEOUT: int = int(environ.get("OAUTH_TIMEOUT", "30"))  # OAuth request timeout
-OAUTH_MAX_RETRIES: int = int(environ.get("OAUTH_MAX_RETRIES", "3"))  # OAuth retry attempts
+OAUTH_TIMEOUT: int = EnvironmentLoader.get_int(
+    "OAUTH_TIMEOUT", 30, min_value=5, max_value=120
+)  # OAuth request timeout
+OAUTH_MAX_RETRIES: int = EnvironmentLoader.get_int(
+    "OAUTH_MAX_RETRIES", 3, min_value=0, max_value=10
+)  # OAuth retry attempts
 
 # Authentication constants
 BEARER_TOKEN_TYPE: str = "bearer"  # noqa: S105
 PASSWORD_CONTEXT_DEPRECATED: str = "auto"  # noqa: S105
 
 # WebAuthn/Passkeys configuration constants
-WEBAUTHN_RP_ID: str = environ.get("WEBAUTHN_RP_ID", "localhost")
-WEBAUTHN_RP_NAME: str = environ.get("WEBAUTHN_RP_NAME", "CSFrace Backend")
-WEBAUTHN_ORIGIN: str = environ.get("WEBAUTHN_ORIGIN", "http://localhost:8000")
+WEBAUTHN_RP_ID: str = EnvironmentLoader.get_optional("WEBAUTHN_RP_ID", "localhost")
+WEBAUTHN_RP_NAME: str = EnvironmentLoader.get_optional("WEBAUTHN_RP_NAME", "CSFrace Backend")
+WEBAUTHN_ORIGIN: str = EnvironmentLoader.get_url("WEBAUTHN_ORIGIN", "http://localhost:8000")
 
 # Challenge Configuration - Security Settings
 CHALLENGE_LENGTH_BYTES: int = 32  # 256-bit challenge (FIDO2 standard)
-CHALLENGE_TIMEOUT_MS: int = int(environ.get("WEBAUTHN_CHALLENGE_TIMEOUT_MS", "60000"))  # 1 minute
-CHALLENGE_MAX_AGE_MINUTES: int = int(environ.get("WEBAUTHN_CHALLENGE_MAX_AGE", "10"))  # 10 minutes
+CHALLENGE_TIMEOUT_MS: int = EnvironmentLoader.get_int(
+    "WEBAUTHN_CHALLENGE_TIMEOUT_MS", 60000, min_value=30000, max_value=300000
+)  # 1 minute
+CHALLENGE_MAX_AGE_MINUTES: int = EnvironmentLoader.get_int(
+    "WEBAUTHN_CHALLENGE_MAX_AGE", 10, min_value=1, max_value=60
+)  # 10 minutes
 
 # Credential Configuration
-MAX_CREDENTIALS_PER_USER: int = int(environ.get("WEBAUTHN_MAX_CREDENTIALS", "10"))
+MAX_CREDENTIALS_PER_USER: int = EnvironmentLoader.get_int(
+    "WEBAUTHN_MAX_CREDENTIALS", 10, min_value=1, max_value=50
+)
 DEVICE_NAME_MAX_LENGTH: int = 100
 CREDENTIAL_ID_LENGTH: int = 64  # Base64URL encoded length
 
@@ -262,13 +319,17 @@ REQUIRE_RESIDENT_KEY: bool = False  # For discoverable credentials
 ATTESTATION_CONVEYANCE: str = "none"  # none, indirect, direct, enterprise
 
 # Timeout Configuration
-REGISTRATION_TIMEOUT_MS: int = int(environ.get("WEBAUTHN_REG_TIMEOUT_MS", "60000"))
-AUTHENTICATION_TIMEOUT_MS: int = int(environ.get("WEBAUTHN_AUTH_TIMEOUT_MS", "60000"))
+REGISTRATION_TIMEOUT_MS: int = EnvironmentLoader.get_int(
+    "WEBAUTHN_REG_TIMEOUT_MS", 60000, min_value=30000, max_value=300000
+)
+AUTHENTICATION_TIMEOUT_MS: int = EnvironmentLoader.get_int(
+    "WEBAUTHN_AUTH_TIMEOUT_MS", 60000, min_value=30000, max_value=300000
+)
 
 # Security Settings
 ALLOWED_ORIGINS: list[str] = [
-    environ.get("WEBAUTHN_ORIGIN", "http://localhost:8000"),
-    environ.get("WEBAUTHN_PRODUCTION_ORIGIN", "https://api.csfrace.com"),
+    EnvironmentLoader.get_url("WEBAUTHN_ORIGIN", "http://localhost:8000"),
+    EnvironmentLoader.get_url("WEBAUTHN_PRODUCTION_ORIGIN", "https://api.csfrace.com"),
 ]
 
 # Database Configuration

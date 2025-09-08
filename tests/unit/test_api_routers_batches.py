@@ -138,7 +138,7 @@ class TestBatchRouterEndpoints:
     async def test_create_batch_database_error(
         self, mock_request, mock_db_session, batch_create_data
     ):
-        """Test batch creation with database error."""
+        """Test batch creation with database error using APIErrorFactory."""
         with patch("src.api.routers.batches.BatchCRUD.create_batch") as mock_create:
             mock_create.side_effect = SQLAlchemyError("Database connection failed")
 
@@ -148,9 +148,13 @@ class TestBatchRouterEndpoints:
                     mock_request, batch_create_data, mock_background_tasks, mock_db_session
                 )
 
+            # APIErrorFactory.from_sqlalchemy_error returns structured error
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to create batch" in exc_info.value.detail
-            assert "Database connection failed" in exc_info.value.detail
+            error_detail = exc_info.value.detail
+            assert isinstance(error_detail, dict)
+            assert error_detail["error"] is True
+            assert error_detail["error_code"] == "DATABASE_ERROR"
+            assert "create batch" in error_detail["message"]
 
     @pytest.mark.asyncio
     async def test_list_batches_success(self, mock_db_session):
@@ -249,16 +253,20 @@ class TestBatchRouterEndpoints:
 
     @pytest.mark.asyncio
     async def test_list_batches_database_error(self, mock_db_session):
-        """Test batch listing with database error."""
+        """Test batch listing with database error using APIErrorFactory."""
         with patch("src.api.routers.batches.BatchCRUD.get_batches") as mock_get_batches:
             mock_get_batches.side_effect = SQLAlchemyError("Connection timeout")
 
             with pytest.raises(HTTPException) as exc_info:
                 await list_batches(mock_db_session, page=1, page_size=50)
 
+            # APIErrorFactory.from_sqlalchemy_error returns structured error
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to retrieve batches" in exc_info.value.detail
-            assert "Connection timeout" in exc_info.value.detail
+            error_detail = exc_info.value.detail
+            assert isinstance(error_detail, dict)
+            assert error_detail["error"] is True
+            assert error_detail["error_code"] == "DATABASE_ERROR"
+            assert "retrieve batches" in error_detail["message"]
 
     @pytest.mark.asyncio
     async def test_get_batch_success(self, mock_db_session, sample_batch_with_jobs):
@@ -277,26 +285,36 @@ class TestBatchRouterEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_batch_not_found(self, mock_db_session):
-        """Test batch retrieval when batch doesn't exist."""
+        """Test batch retrieval when batch doesn't exist using APIErrorFactory."""
         with patch("src.api.routers.batches.BatchCRUD.get_batch", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await get_batch(999, mock_db_session)
 
+            # APIErrorFactory.not_found returns structured error
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-            assert "Batch 999 not found" in exc_info.value.detail
+            error_detail = exc_info.value.detail
+            assert isinstance(error_detail, dict)
+            assert error_detail["error"] is True
+            assert error_detail["error_code"] == "RESOURCE_NOT_FOUND"
+            assert "Batch" in error_detail["message"]
+            assert "999" in error_detail["message"]
 
     @pytest.mark.asyncio
     async def test_get_batch_database_error(self, mock_db_session):
-        """Test batch retrieval with database error."""
+        """Test batch retrieval with database error using APIErrorFactory."""
         with patch("src.api.routers.batches.BatchCRUD.get_batch") as mock_get:
             mock_get.side_effect = SQLAlchemyError("Query execution failed")
 
             with pytest.raises(HTTPException) as exc_info:
                 await get_batch(1, mock_db_session)
 
+            # APIErrorFactory.from_sqlalchemy_error returns structured error
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to retrieve batch" in exc_info.value.detail
-            assert "Query execution failed" in exc_info.value.detail
+            error_detail = exc_info.value.detail
+            assert isinstance(error_detail, dict)
+            assert error_detail["error"] is True
+            assert error_detail["error_code"] == "DATABASE_ERROR"
+            assert "retrieve batch" in error_detail["message"]
 
     @pytest.mark.asyncio
     async def test_list_batches_empty_result(self, mock_db_session):
@@ -441,14 +459,14 @@ class TestBatchRouterEndpoints:
     async def test_batch_router_error_message_formatting(
         self, mock_request, mock_db_session, batch_create_data
     ):
-        """Test that error messages are properly formatted."""
+        """Test that error messages are properly formatted using APIErrorFactory."""
         error_scenarios = [
-            ("Connection timeout", "Failed to create batch: Connection timeout"),
-            ("Invalid constraint", "Failed to create batch: Invalid constraint"),
-            ("Unique violation", "Failed to create batch: Unique violation"),
+            ("Connection timeout", "create batch"),
+            ("Invalid constraint", "create batch"),
+            ("Unique violation", "create batch"),
         ]
 
-        for db_error, expected_message in error_scenarios:
+        for db_error, expected_operation in error_scenarios:
             with patch("src.api.routers.batches.BatchCRUD.create_batch") as mock_create:
                 mock_create.side_effect = SQLAlchemyError(db_error)
 
@@ -458,8 +476,13 @@ class TestBatchRouterEndpoints:
                         mock_request, batch_create_data, mock_background_tasks, mock_db_session
                     )
 
+                # APIErrorFactory.from_sqlalchemy_error returns structured error
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-                assert expected_message in exc_info.value.detail
+                error_detail = exc_info.value.detail
+                assert isinstance(error_detail, dict)
+                assert error_detail["error"] is True
+                assert error_detail["error_code"] == "DATABASE_ERROR"
+                assert expected_operation in error_detail["message"]
 
     @pytest.mark.asyncio
     async def test_list_batches_edge_case_page_calculations(self, mock_db_session):
@@ -657,8 +680,13 @@ class TestBatchRouterEndpoints:
                         mock_request, batch_create_data, mock_background_tasks, mock_db_session
                     )
 
+                # APIErrorFactory.from_sqlalchemy_error returns structured error for all SQLAlchemy errors
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-                assert "Failed to create batch" in exc_info.value.detail
+                error_detail = exc_info.value.detail
+                assert isinstance(error_detail, dict)
+                assert error_detail["error"] is True
+                assert error_detail["error_code"] == "DATABASE_ERROR"
+                assert "create batch" in error_detail["message"]
 
     @pytest.mark.asyncio
     async def test_batch_crud_method_calls_exact_parameters(

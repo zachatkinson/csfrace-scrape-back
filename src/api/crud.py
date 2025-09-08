@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..constants import API_DEFAULT_LIMIT
 from ..database.models import Batch, ContentResult, JobPriority, JobStatus, ScrapingJob
 from .schemas import BatchCreate, JobCreate, JobUpdate
 
@@ -80,7 +81,7 @@ class JobCRUD:
     async def get_jobs(
         db: AsyncSession,
         skip: int = 0,
-        limit: int = 100,
+        limit: int = API_DEFAULT_LIMIT,
         status: JobStatus | None = None,
         domain: str | None = None,
     ) -> tuple[list[ScrapingJob], int]:
@@ -271,7 +272,7 @@ class BatchCRUD:
 
     @staticmethod
     async def get_batches(
-        db: AsyncSession, skip: int = 0, limit: int = 100
+        db: AsyncSession, skip: int = 0, limit: int = API_DEFAULT_LIMIT
     ) -> tuple[list[Batch], int]:
         """Get paginated list of batches.
 

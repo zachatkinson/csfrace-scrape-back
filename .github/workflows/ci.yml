@@ -326,11 +326,97 @@ jobs:
           # Include Pylint for comprehensive code quality
           VALIDATE_PYTHON_PYLINT: true
 
-      - name: Run Safety CLI (Dependency Vulnerability Scanning)
-        uses: pyupio/safety-action@v1
+      - name: Run Bandit Security Linting (Enhanced)
+        run: |
+          # Run Bandit with comprehensive security scanning
+          uv run bandit -r src/ -f json -o bandit-report.json || true
+          uv run bandit -r src/ -f txt -o bandit-report.txt || true
+          
+          # Generate SARIF format for GitHub Security tab integration
+          uv run bandit -r src/ -f sarif -o bandit-results.sarif || true
+          
+          echo "::notice title=Bandit Security Scan::Bandit security scan completed"
+
+      - name: Upload Bandit Security Scan Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('bandit-results.sarif') != ''
         with:
-          api-key: ${{ secrets.SAFETY_API_KEY }}
+          sarif_file: bandit-results.sarif
+          category: bandit-security
+
+      - name: Run Safety Dependency Vulnerability Scanning (Enhanced)
+        run: |
+          # Enhanced Safety scanning with multiple output formats
+          echo "::group::Safety Vulnerability Scanning"
+          
+          # Check if Safety API key is available
+          if [[ -n "${{ secrets.SAFETY_API_KEY }}" ]]; then
+            echo "Using Safety API key for enhanced scanning"
+            export SAFETY_API_KEY="${{ secrets.SAFETY_API_KEY }}"
+            uv run safety check --json --output safety-report.json || true
+            uv run safety check --output safety-report.txt || true
+          else
+            echo "No API key - using fallback offline database"
+            uv run safety check --json --output safety-report.json --offline || true
+            uv run safety check --output safety-report.txt --offline || true
+          fi
+          
+          # Generate summary for GitHub Actions
+          if [[ -f "safety-report.json" ]]; then
+            echo "::notice title=Safety Scan::Safety dependency scan completed"
+          fi
+          
+          echo "::endgroup::"
         continue-on-error: true
+
+      - name: Run Semgrep SAST Code Analysis
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/python
+            p/django
+            p/flask
+            p/owasp-top-ten
+          generateSarif: "1"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload Semgrep SARIF Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('semgrep.sarif') != ''
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-sast
+
+      - name: Run CodeQL Analysis (GitHub's Semantic Code Analysis)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          config-file: ./.github/codeql/codeql-config.yml
+        continue-on-error: true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+        continue-on-error: true
+
+      - name: Upload Security Scan Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-results-${{ github.run_number }}
+          path: |
+            bandit-report.json
+            bandit-report.txt
+            bandit-results.sarif
+            safety-report.json
+            safety-report.txt
+            semgrep.sarif
+          retention-days: 30
 
 
       - name: Calculate job duration and set outputs
@@ -950,12 +1036,84 @@ jobs:
           severity: 'HIGH,CRITICAL'
         continue-on-error: true
 
+      - name: Run Trivy comprehensive security scan (Enhanced)
+        uses: aquasecurity/trivy-action@0.16.1
+        if: always()
+        with:
+          image-ref: 'csfrace-scraper:${{ github.sha }}'
+          format: 'json'
+          output: 'trivy-comprehensive.json'
+          # Scan all severity levels for comprehensive security assessment
+          severity: 'LOW,MEDIUM,HIGH,CRITICAL'
+          # Include configuration files and secrets
+          scanners: 'vuln,config,secret'
+          # Skip update to use cached DB for faster scans
+          skip-update: false
+          # Include license scanning
+          # license-full: true
+        continue-on-error: true
+
+      - name: Run Trivy filesystem security scan (Enhanced)
+        uses: aquasecurity/trivy-action@0.16.1
+        if: always()
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          # Scan for misconfigurations and secrets in codebase
+          scanners: 'vuln,config,secret'
+          # Skip files we don't need to scan
+          skip-dirs: '__pycache__,node_modules,.git,venv,env'
+        continue-on-error: true
+
+      - name: Generate Trivy security summary
+        if: always()
+        run: |
+          echo "## 🔒 Docker Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ -f trivy-comprehensive.json ]]; then
+            # Parse JSON and create summary (basic implementation)
+            critical_count=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            high_count=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            medium_count=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            
+            echo "### Image Security Scan Summary:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔴 **Critical**: ${critical_count}" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟠 **High**: ${high_count}" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟡 **Medium**: ${medium_count}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [[ ${critical_count} -gt 0 || ${high_count} -gt 0 ]]; then
+              echo "⚠️ **Action Required**: High or Critical vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **No High or Critical vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ **Trivy scan results not available**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📋 **Full security reports available in:**" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Security tab (SARIF results)" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow artifacts (JSON reports)" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-          category: trivy
+          category: trivy-image
+
+      - name: Upload Trivy filesystem scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-fs-results.sarif') != ''
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: trivy-filesystem
 
       - name: Run Hadolint (Dockerfile linting)
         uses: hadolint/hadolint-action@v3.1.0
@@ -971,6 +1129,18 @@ jobs:
         with:
           sarif_file: hadolint-results.sarif
           category: hadolint
+
+      - name: Upload Docker Security Scan Artifacts (Enhanced)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docker-security-scan-results-${{ github.run_number }}
+          path: |
+            trivy-results.sarif
+            trivy-comprehensive.json
+            trivy-fs-results.sarif
+            hadolint-results.sarif
+          retention-days: 30
 
   # Dependency Review (PR only)
   dependency-review:
@@ -994,6 +1164,267 @@ jobs:
         with:
           fail-on-severity: moderate
           allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT
+
+  # Security Reporting and Notifications (Enhanced)
+  security-reporting:
+    name: Security Reports & Notifications
+    runs-on: ubuntu-latest
+    needs: [quality, docker-security]
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      issues: write
+      pull-requests: write
+    
+    # Run on all security scans completion (success or failure)
+    if: ${{ always() && (needs.quality.result != 'skipped' || needs.docker-security.result != 'skipped') }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download Security Scan Artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: '*-security-scan-results-*'
+          merge-multiple: true
+
+      - name: Generate Comprehensive Security Report (Enhanced)
+        id: security-summary
+        run: |
+          echo "## 🛡️ Comprehensive Security Scan Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow**: ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY  
+          echo "**Run**: [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Initialize counters
+          total_issues=0
+          critical_issues=0
+          high_issues=0
+          has_security_issues=false
+          
+          # Analyze Bandit results (if available)
+          if [[ -f bandit-report.json ]]; then
+            echo "### 🔍 Static Code Analysis (Bandit)" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse Bandit JSON results
+            bandit_issues=$(jq '.results | length' bandit-report.json 2>/dev/null || echo "0")
+            bandit_high=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json 2>/dev/null || echo "0")
+            bandit_medium=$(jq '[.results[] | select(.issue_severity == "MEDIUM")] | length' bandit-report.json 2>/dev/null || echo "0")
+            
+            echo "- **Total Issues**: ${bandit_issues}" >> $GITHUB_STEP_SUMMARY
+            echo "- **High Severity**: ${bandit_high}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Medium Severity**: ${bandit_medium}" >> $GITHUB_STEP_SUMMARY
+            
+            total_issues=$((total_issues + bandit_issues))
+            high_issues=$((high_issues + bandit_high))
+            
+            if [[ ${bandit_issues} -gt 0 ]]; then
+              has_security_issues=true
+            fi
+          else
+            echo "### 🔍 Static Code Analysis (Bandit)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Bandit scan results not available**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Analyze Safety results (if available)
+          if [[ -f safety-report.json ]]; then
+            echo "### 📦 Dependency Vulnerability Scan (Safety)" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse Safety JSON results
+            safety_issues=$(jq '.vulnerabilities | length' safety-report.json 2>/dev/null || echo "0")
+            
+            echo "- **Vulnerable Dependencies**: ${safety_issues}" >> $GITHUB_STEP_SUMMARY
+            
+            total_issues=$((total_issues + safety_issues))
+            
+            if [[ ${safety_issues} -gt 0 ]]; then
+              has_security_issues=true
+              # For Safety, all vulnerabilities are considered high severity
+              high_issues=$((high_issues + safety_issues))
+            fi
+          else
+            echo "### 📦 Dependency Vulnerability Scan (Safety)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Safety scan results not available**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Analyze Trivy results (if available)
+          if [[ -f trivy-comprehensive.json ]]; then
+            echo "### 🐳 Container Security Scan (Trivy)" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse Trivy JSON results
+            trivy_critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            trivy_high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            trivy_medium=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            trivy_total=$((trivy_critical + trivy_high + trivy_medium))
+            
+            echo "- **Critical Vulnerabilities**: ${trivy_critical}" >> $GITHUB_STEP_SUMMARY
+            echo "- **High Vulnerabilities**: ${trivy_high}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Medium Vulnerabilities**: ${trivy_medium}" >> $GITHUB_STEP_SUMMARY
+            
+            total_issues=$((total_issues + trivy_total))
+            critical_issues=$((critical_issues + trivy_critical))
+            high_issues=$((high_issues + trivy_high))
+            
+            if [[ ${trivy_total} -gt 0 ]]; then
+              has_security_issues=true
+            fi
+          else
+            echo "### 🐳 Container Security Scan (Trivy)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Trivy scan results not available**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall Security Status
+          echo "### 📊 Overall Security Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Security Issues**: ${total_issues}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Critical Issues**: ${critical_issues}" >> $GITHUB_STEP_SUMMARY
+          echo "- **High Severity Issues**: ${high_issues}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ ${critical_issues} -gt 0 ]]; then
+            echo "🚨 **CRITICAL SECURITY ISSUES DETECTED** - Immediate action required!" >> $GITHUB_STEP_SUMMARY
+            echo "has_critical_issues=true" >> $GITHUB_OUTPUT
+          elif [[ ${high_issues} -gt 0 ]]; then
+            echo "⚠️ **High severity security issues detected** - Review and remediation recommended" >> $GITHUB_STEP_SUMMARY
+            echo "has_critical_issues=false" >> $GITHUB_OUTPUT
+          elif [[ ${total_issues} -gt 0 ]]; then
+            echo "💡 **Medium/Low security issues detected** - Consider addressing when convenient" >> $GITHUB_STEP_SUMMARY
+            echo "has_critical_issues=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ **No security issues detected** - All scans passed successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "has_critical_issues=false" >> $GITHUB_OUTPUT
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Resources and Next Steps
+          echo "### 📋 Resources & Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Security Tab**: [View detailed findings](${{ github.server_url }}/${{ github.repository }}/security)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Artifacts**: [Download scan reports](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **SARIF Files**: Uploaded to GitHub Security for detailed analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Set outputs for notifications
+          echo "total_issues=${total_issues}" >> $GITHUB_OUTPUT
+          echo "critical_issues=${critical_issues}" >> $GITHUB_OUTPUT
+          echo "high_issues=${high_issues}" >> $GITHUB_OUTPUT
+          echo "has_security_issues=${has_security_issues}" >> $GITHUB_OUTPUT
+          
+          # Create issue body for potential security issue creation
+          cat > security-issue-body.md << 'EOF'
+          ## 🛡️ Security Scan Alert
+          
+          **Critical security issues detected in workflow run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          **Details:**
+          - **Branch**: `${{ github.ref_name }}`
+          - **Commit**: `${{ github.sha }}`
+          - **Critical Issues**: ${critical_issues}
+          - **High Severity Issues**: ${high_issues}
+          - **Total Issues**: ${total_issues}
+          
+          **Action Required:**
+          1. Review the security scan results in the [GitHub Security tab](${{ github.server_url }}/${{ github.repository }}/security)
+          2. Download detailed reports from [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          3. Address critical and high-severity issues before proceeding
+          
+          **Automated Detection:** This issue was created automatically by the security scanning workflow.
+          EOF
+        shell: bash
+
+      - name: Create Security Issue for Critical Findings (Enhanced)
+        if: ${{ steps.security-summary.outputs.has_critical_issues == 'true' && github.event_name != 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issueBody = fs.readFileSync('security-issue-body.md', 'utf8');
+            
+            // Check if similar security issue already exists (prevent spam)
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security,critical',
+              per_page: 5
+            });
+            
+            const hasOpenSecurityIssue = existingIssues.some(issue => 
+              issue.title.includes('Critical Security Issues Detected')
+            );
+            
+            if (!hasOpenSecurityIssue) {
+              // Create new security issue
+              const { data: issue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Critical Security Issues Detected - Workflow #${{ github.run_number }}`,
+                body: issueBody,
+                labels: ['security', 'critical', 'automated'],
+                assignees: [] // Add default assignees if needed
+              });
+              
+              console.log(`Created security issue: ${issue.html_url}`);
+              
+              // Add comment with additional context
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `**Security Scan Summary:**\n- Critical: ${{ steps.security-summary.outputs.critical_issues }}\n- High: ${{ steps.security-summary.outputs.high_issues }}\n- Total: ${{ steps.security-summary.outputs.total_issues }}\n\n**GitHub Security Tab**: ${{ github.server_url }}/${{ github.repository }}/security`
+              });
+            } else {
+              console.log('Open security issue already exists, skipping creation to prevent spam');
+            }
+
+      - name: Add Security Comment to PR (Enhanced)
+        if: ${{ github.event_name == 'pull_request' && steps.security-summary.outputs.has_security_issues == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const criticalCount = '${{ steps.security-summary.outputs.critical_issues }}';
+            const highCount = '${{ steps.security-summary.outputs.high_issues }}';
+            const totalCount = '${{ steps.security-summary.outputs.total_issues }}';
+            
+            let severity = '';
+            if (parseInt(criticalCount) > 0) {
+              severity = '🚨 **CRITICAL**';
+            } else if (parseInt(highCount) > 0) {
+              severity = '⚠️ **HIGH**';
+            } else {
+              severity = '💡 **MEDIUM/LOW**';
+            }
+            
+            const comment = `## ${severity} Security Issues Detected
+            
+            **Security Scan Results:**
+            - **Critical Issues**: ${criticalCount}
+            - **High Severity**: ${highCount}  
+            - **Total Issues**: ${totalCount}
+            
+            **Next Steps:**
+            1. Review findings in the [GitHub Security tab](${{ github.server_url }}/${{ github.repository }}/security)
+            2. Download detailed reports from [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            3. Address security issues before merging
+            
+            **Note:** This comment was generated automatically by the security scanning workflow.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
 
   # Consolidated umbrella repo update (only runs after all tests pass)
   umbrella-update:

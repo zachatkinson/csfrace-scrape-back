@@ -15,6 +15,7 @@ from ..auth.router import router as auth_router
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
 from ..monitoring.metrics import metrics_collector
+from .errors import APIErrorFactory
 from .routers import batches, health, jobs
 
 
@@ -141,25 +142,26 @@ def _is_https_request(request: Request) -> bool:
 # Exception handlers
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
-    """Handle rate limit exceeded exceptions with proper headers."""
-    response = JSONResponse(
-        status_code=429, content={"detail": f"Rate limit exceeded: {exc.detail}"}
-    )
+    """Handle rate limit exceeded exceptions with proper headers using APIErrorFactory."""
+    http_exc = APIErrorFactory.rate_limit_exceeded(f"Rate limit exceeded: {exc.detail}")
+
+    response = JSONResponse(status_code=http_exc.status_code, content=http_exc.detail)
     # Headers are automatically injected by SlowAPI when headers_enabled=True
     return response
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
-    """Global exception handler for unhandled errors."""
-    return JSONResponse(
-        status_code=CONSTANTS.HTTP_STATUS_SERVER_ERROR,
-        content={
-            "detail": CONSTANTS.ERROR_INTERNAL_SERVER,
-            "type": CONSTANTS.ERROR_TYPE_INTERNAL,
-            "path": str(request.url.path),
-        },
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Global exception handler for unhandled errors using APIErrorFactory."""
+    http_exc = APIErrorFactory.internal_server_error(
+        "An unexpected error occurred", original_error=exc
     )
+
+    # Add request path to error details for debugging
+    if isinstance(http_exc.detail, dict):
+        http_exc.detail["path"] = str(request.url.path)
+
+    return JSONResponse(status_code=http_exc.status_code, content=http_exc.detail)
 
 
 # Include routers
@@ -191,11 +193,9 @@ async def prometheus_metrics() -> str:
         metrics_data = metrics_collector.export_prometheus_metrics()
         return metrics_data.decode("utf-8")
     except Exception as e:
-        from fastapi import HTTPException, status
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to export Prometheus metrics: {str(e)}",
+        # Use APIErrorFactory for consistent error handling
+        raise APIErrorFactory.internal_server_error(
+            f"Failed to export Prometheus metrics: {str(e)}", original_error=e
         )
 
 

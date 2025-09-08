@@ -1,35 +1,45 @@
 """Authentication configuration following security best practices."""
 
-import os
 from datetime import timedelta
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 from ..constants import AUTH_CONSTANTS
+from ..core.environment import EnvironmentLoader
 
 
 class AuthConfig(BaseSettings):
     """Authentication configuration with environment variable support."""
 
-    # JWT Configuration
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "")
+    # JWT Configuration - SECURE, no insecure defaults
+    SECRET_KEY: str = EnvironmentLoader.get_optional("SECRET_KEY", "")  # Will be validated below
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = EnvironmentLoader.get_int(
+        "ACCESS_TOKEN_EXPIRE_MINUTES", 30, min_value=1, max_value=1440
+    )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = EnvironmentLoader.get_int(
+        "REFRESH_TOKEN_EXPIRE_DAYS", 7, min_value=1, max_value=365
+    )
 
     # Password Configuration
     PWD_CONTEXT_SCHEMES: list[str] = ["bcrypt"]
     PWD_CONTEXT_DEPRECATED: str = AUTH_CONSTANTS.PASSWORD_CONTEXT_DEPRECATED
 
-    # Rate Limiting
-    AUTH_RATE_LIMIT: str = "5/minute"  # Login attempts
-    REGISTER_RATE_LIMIT: str = "3/hour"  # Registration attempts
-    PASSWORD_RESET_RATE_LIMIT: str = "3/hour"  # noqa: S105
+    # Rate Limiting - configurable for different environments
+    AUTH_RATE_LIMIT: str = EnvironmentLoader.get_optional(
+        "AUTH_RATE_LIMIT", "5/minute"
+    )  # Login attempts
+    REGISTER_RATE_LIMIT: str = EnvironmentLoader.get_optional(
+        "REGISTER_RATE_LIMIT", "3/hour"
+    )  # Registration attempts
+    PASSWORD_RESET_RATE_LIMIT: str = EnvironmentLoader.get_optional(
+        "PASSWORD_RESET_RATE_LIMIT", "3/hour"
+    )  # noqa: S105
 
-    # Security Headers
-    SECURE_COOKIES: bool = True
-    SAME_SITE_COOKIES: str = "strict"
+    # Security Headers - configurable for different environments
+    SECURE_COOKIES: bool = EnvironmentLoader.get_bool("SECURE_COOKIES", True)
+    SAME_SITE_COOKIES: str = EnvironmentLoader.get_optional("SAME_SITE_COOKIES", "strict")
 
     # OAuth2 Configuration (will be populated later)
     GOOGLE_CLIENT_ID: str | None = None

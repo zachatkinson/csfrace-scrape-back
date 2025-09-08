@@ -4,7 +4,7 @@ import importlib.metadata
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +14,7 @@ from ...monitoring.health import health_checker
 from ...monitoring.metrics import metrics_collector
 from ...monitoring.observability import observability_manager
 from ..dependencies import DBSession
+from ..errors import APIErrorFactory
 from ..schemas import HealthCheckResponse, MetricsResponse
 from ..utils import handle_api_exceptions
 
@@ -89,10 +90,9 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
 
     # Return appropriate HTTP status
     if overall_status == "unhealthy":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=response.model_dump(mode="json"),
-        ) from None  # Suppress original exception chain for clean HTTP response
+        raise APIErrorFactory.service_unavailable(
+            "Service is unhealthy", details=response.model_dump(mode="json")
+        )
 
     return response
 
@@ -155,10 +155,7 @@ async def readiness_check(db: DBSession) -> StatusResponse:
         return StatusResponse(status="ready")
 
     except SQLAlchemyError as db_error:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service not ready: {str(db_error)}",
-        ) from db_error
+        raise APIErrorFactory.service_unavailable(f"Service not ready: {str(db_error)}")
 
 
 @router.get("/prometheus", response_class=PlainTextResponse)

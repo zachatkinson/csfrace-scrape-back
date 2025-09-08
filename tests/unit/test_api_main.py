@@ -123,7 +123,7 @@ class TestGlobalExceptionHandler:
 
     @pytest.mark.asyncio
     async def test_global_exception_handler_response(self, mock_request):
-        """Test global exception handler returns proper error response."""
+        """Test global exception handler returns proper error response using APIErrorFactory."""
         test_exception = Exception("Test error message")
 
         response = await global_exception_handler(mock_request, test_exception)
@@ -131,14 +131,17 @@ class TestGlobalExceptionHandler:
         assert response.status_code == 500
         assert response.media_type == "application/json"
 
-        # Check response content
+        # Check response content - should be structured error from APIErrorFactory
         import json
 
         content = json.loads(response.body.decode())
 
-        assert content["detail"] == "Internal server error"
-        assert content["type"] == "internal_error"
-        assert content["path"] == "/test/path"
+        # APIErrorFactory structured response format
+        assert content["error"] is True
+        assert content["error_code"] == "INTERNAL_SERVER_ERROR"
+        assert "An unexpected error occurred" in content["message"]
+        assert "timestamp" in content
+        assert content["path"] == "/test/path"  # Added by global handler
 
     @pytest.mark.asyncio
     async def test_global_exception_handler_different_paths(self):
@@ -155,6 +158,9 @@ class TestGlobalExceptionHandler:
 
             content = json.loads(response.body.decode())
             assert content["path"] == path
+            # Verify it still uses APIErrorFactory structure
+            assert content["error"] is True
+            assert content["error_code"] == "INTERNAL_SERVER_ERROR"
 
     @pytest.mark.asyncio
     async def test_global_exception_handler_preserves_exception_details(self, mock_request):
@@ -175,9 +181,11 @@ class TestGlobalExceptionHandler:
 
             content = json.loads(response.body.decode())
 
-            # All should return same standardized error format
-            assert content["detail"] == "Internal server error"
-            assert content["type"] == "internal_error"
+            # All should return same standardized APIErrorFactory format
+            assert content["error"] is True
+            assert content["error_code"] == "INTERNAL_SERVER_ERROR"
+            assert "An unexpected error occurred" in content["message"]
+            assert content["path"] == "/test/path"
 
     @pytest.mark.asyncio
     async def test_global_exception_handler_json_response_format(self, mock_request):
@@ -189,14 +197,18 @@ class TestGlobalExceptionHandler:
 
         content = json.loads(response.body.decode())
 
-        # Required fields
-        assert "detail" in content
-        assert "type" in content
-        assert "path" in content
+        # Required APIErrorFactory fields
+        assert "error" in content
+        assert "error_code" in content
+        assert "message" in content
+        assert "timestamp" in content
+        assert "path" in content  # Added by global handler
 
         # Check types
-        assert isinstance(content["detail"], str)
-        assert isinstance(content["type"], str)
+        assert isinstance(content["error"], bool)
+        assert isinstance(content["error_code"], str)
+        assert isinstance(content["message"], str)
+        assert isinstance(content["timestamp"], str)
         assert isinstance(content["path"], str)
 
 

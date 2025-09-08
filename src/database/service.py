@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from ..common.status import JobStatus
+from ..constants import API_DEFAULT_LIMIT
 from ..core.exceptions import DatabaseError
 from .models import (
     Base,
@@ -374,7 +375,7 @@ class DatabaseService:
             logger.error("Failed to update job status", job_id=job_id, error=str(e))
             raise DatabaseError(f"Job status update failed: {e}") from e
 
-    def get_pending_jobs(self, limit: int = 100) -> list[ScrapingJob]:
+    def get_pending_jobs(self, limit: int = API_DEFAULT_LIMIT) -> list[ScrapingJob]:
         """Retrieve pending jobs for processing.
 
         Args:
@@ -422,7 +423,7 @@ class DatabaseService:
             raise DatabaseError(f"Pending jobs retrieval failed: {e}") from e
 
     def get_jobs_by_status(
-        self, status: JobStatus, limit: int = 100, offset: int = 0
+        self, status: JobStatus, limit: int = API_DEFAULT_LIMIT, offset: int = 0
     ) -> list[ScrapingJob]:
         """Retrieve jobs by status with pagination.
 

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,8 +12,9 @@ from ...config.rate_limits import rate_limits
 from ...database.models import JobStatus
 from ..crud import BatchCRUD, JobCRUD
 from ..dependencies import DBSession, async_session
+from ..errors import APIErrorFactory
 from ..schemas import BatchCreate, BatchListResponse, BatchResponse, BatchWithJobsResponse
-from ..utils import create_response_dict, internal_server_error
+from ..utils import create_response_dict
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 limiter = Limiter(key_func=get_remote_address)
@@ -131,7 +132,7 @@ async def create_batch(
 
         return BatchResponse.model_validate(batch)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to create batch: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("create batch", e)
 
 
 @router.get("/", response_model=BatchListResponse)
@@ -164,7 +165,7 @@ async def list_batches(
 
         return BatchListResponse(**response_data)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to retrieve batches: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("retrieve batches", e)
 
 
 @router.get("/{batch_id}", response_model=BatchWithJobsResponse)
@@ -184,9 +185,7 @@ async def get_batch(batch_id: int, db: DBSession) -> BatchWithJobsResponse:
     try:
         batch = await BatchCRUD.get_batch(db, batch_id)
         if not batch:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Batch {batch_id} not found"
-            )
+            raise APIErrorFactory.not_found("Batch", batch_id)
         return BatchWithJobsResponse.model_validate(batch)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to retrieve batch: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("retrieve batch", e)

@@ -89,43 +89,40 @@ class TestMetadataExtractor:
             assert metadata["url_slug"] == expected_slug, f"Failed for URL: {url}"
 
     @pytest.mark.asyncio
-    async def test_extract_meta_description_standard(self, extractor):
-        """Test extraction of standard meta description."""
+    async def test_extract_standard_meta_description_through_public_interface(self, extractor):
+        """Test extraction of standard meta description through public interface."""
         html_content = """
         <html>
         <head>
+            <title>Test Page</title>
             <meta name="description" content="Standard meta description content.">
         </head>
         </html>
         """
 
         soup = BeautifulSoup(html_content, "html.parser")
+        metadata = await extractor.extract(soup)
 
-        with patch(
-            "src.utils.html.find_meta_content", return_value="Standard meta description content."
-        ):
-            meta_desc = await extractor._extract_meta_description(soup)
-            assert meta_desc == "Standard meta description content."
+        # Test the behavior through the public interface
+        assert metadata["meta_description"] == "Standard meta description content."
 
     @pytest.mark.asyncio
-    async def test_extract_meta_description_og(self, extractor):
-        """Test extraction of Open Graph description when standard is missing."""
+    async def test_extract_og_meta_description_through_public_interface(self, extractor):
+        """Test extraction of Open Graph description through public interface when standard is missing."""
         html_content = """
         <html>
         <head>
+            <title>Test Page</title>
             <meta property="og:description" content="Open Graph description.">
         </head>
         </html>
         """
 
         soup = BeautifulSoup(html_content, "html.parser")
+        metadata = await extractor.extract(soup)
 
-        # Mock find_meta_content to return None for standard, then OG description
-        with patch(
-            "src.utils.html.find_meta_content", side_effect=[None, "Open Graph description."]
-        ):
-            meta_desc = await extractor._extract_meta_description(soup)
-            assert meta_desc == "Open Graph description."
+        # Test the behavior through the public interface
+        assert metadata["meta_description"] == "Open Graph description."
 
     @pytest.mark.asyncio
     async def test_extract_meta_description_twitter(self, extractor):

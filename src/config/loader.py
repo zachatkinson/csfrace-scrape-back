@@ -181,7 +181,9 @@ class ConfigLoader:
             preserve_classes = frozenset(preserve_classes_override)
         else:
             # Use existing classes as fallback
-            existing_classes = base.shopify.preserve_classes if base and hasattr(base, 'shopify') else frozenset()
+            existing_classes = (
+                base.shopify.preserve_classes if base and hasattr(base, "shopify") else frozenset()
+            )
             preserve_classes = existing_classes
 
         shopify_config = ShopifyConfig(
@@ -197,7 +199,7 @@ class ConfigLoader:
         object.__setattr__(converter_config, "output", output_config)
         object.__setattr__(converter_config, "robots", robots_config)
         object.__setattr__(converter_config, "shopify", shopify_config)
-        
+
         logger.debug("Created converter config", settings=list(converter_settings.keys()))
         return converter_config
 

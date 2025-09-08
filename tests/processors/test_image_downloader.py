@@ -109,9 +109,7 @@ class TestAsyncImageDownloader:
         mock_session.get.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_download_all_single_image_success(
-        self, downloader, mock_session
-    ):
+    async def test_download_all_single_image_success(self, downloader, mock_session):
         """Test successful download of single image."""
         image_url = "https://example.com/image.jpg"
         expected_filename = "image.jpg"

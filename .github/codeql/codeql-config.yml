@@ -1,0 +1,139 @@
+name: "CodeQL Security Analysis Configuration"
+disable-default-queries: false
+
+# Additional security queries following DRY principle - centralized configuration
+queries:
+  # Security queries
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality
+    uses: security-and-quality
+  
+  # Python-specific security queries
+  - uses: codeql/python-queries/Security
+  - uses: codeql/python-queries/Security/CWE-089  # SQL Injection
+  - uses: codeql/python-queries/Security/CWE-079  # XSS
+  - uses: codeql/python-queries/Security/CWE-078  # OS Command Injection
+  - uses: codeql/python-queries/Security/CWE-022  # Path Traversal
+  - uses: codeql/python-queries/Security/CWE-352  # CSRF
+  - uses: codeql/python-queries/Security/CWE-295  # SSL/TLS Validation
+  - uses: codeql/python-queries/Security/CWE-311  # Cleartext Transmission
+  - uses: codeql/python-queries/Security/CWE-327  # Weak Crypto
+
+# Path filters - SOLID Single Responsibility for configuration
+paths:
+  # Include paths for analysis
+  - "src/"
+  - "tests/"
+  
+# Exclude paths to reduce noise - DRY principle for common exclusions
+paths-ignore:
+  - "**/node_modules"
+  - "**/vendor"
+  - "**/__pycache__"
+  - "**/*.pyc"
+  - "**/venv"
+  - "**/env"
+  - "**/.git"
+  - "**/build"
+  - "**/dist"
+  - "**/coverage"
+  - "**/.coverage"
+  - "**/htmlcov"
+  - "**/*.log"
+  - "**/logs/"
+  - "**/temp/"
+  - "**/tmp/"
+
+# Query filters - Focus on high-severity security issues
+query-filters:
+  # Exclude low-severity issues to focus on critical security findings
+  - exclude:
+      id: py/unused-import
+      severity: note
+  - exclude:
+      id: py/unreachable-statement
+      severity: warning
+  
+  # Include all high and critical security findings
+  - include:
+      kind: problem
+      severity: error
+  - include:
+      kind: problem
+      severity: warning
+      tags: security
+
+# Environment-specific configuration
+environment:
+  # Python version to analyze
+  python: "3.11"
+  
+  # Additional libraries for analysis context
+  dependencies:
+    - "fastapi"
+    - "sqlalchemy"
+    - "pydantic"
+    - "aiohttp"
+    - "requests"
+    - "cryptography"
+    - "passlib"
+    - "python-jose"
+    - "python-multipart"
+
+# Custom security patterns for this application
+patterns:
+  # JWT token security patterns
+  - pattern: |
+      jwt.encode($payload, $secret, algorithm="none")
+    message: "JWT signed with 'none' algorithm is insecure"
+    severity: error
+    
+  # SQL injection patterns
+  - pattern: |
+      $query = "..." + $user_input + "..."
+      $session.execute($query)
+    message: "Potential SQL injection vulnerability"
+    severity: error
+    
+  # Password hardcoding patterns
+  - pattern: |
+      password = "..."
+    message: "Hardcoded password detected"
+    severity: error
+    where:
+      variable: password
+      
+  # Insecure random patterns
+  - pattern: |
+      import random
+      random.random()
+    message: "Use secrets module for cryptographic randomness"
+    severity: warning
+    
+  # Debug mode in production
+  - pattern: |
+      debug=True
+    message: "Debug mode should not be enabled in production"
+    severity: error
+
+# Scan configuration for different environments
+configurations:
+  default:
+    # Standard configuration for all scans
+    timeout: 120
+    threads: 0  # Use all available threads
+    ram: 0      # Use all available RAM
+    
+  ci:
+    # Optimized for CI/CD environments
+    timeout: 300  # 5 minutes max for CI
+    threads: 2
+    ram: 2048
+    
+  security:
+    # Deep security scan configuration
+    timeout: 600  # 10 minutes for thorough analysis
+    threads: 4
+    ram: 4096
+    enable-all-queries: true

@@ -10,7 +10,7 @@ import structlog
 from bs4 import BeautifulSoup
 
 from ..constants import CONSTANTS, PROGRESS_CONSTANTS
-from ..processors.html_processor import HTMLProcessor
+from ..processors.html_processor import HTMLProcessorOrchestrator
 from ..processors.image_downloader import AsyncImageDownloader
 from ..processors.metadata_extractor import MetadataExtractor
 from ..utils.http import safe_http_get_with_raise
@@ -40,7 +40,7 @@ class AsyncWordPressConverter:
         self.images_dir = self.output_dir / self.config.output.images_subdir
 
         # Initialize processors
-        self.html_processor = HTMLProcessor()
+        self.html_processor = HTMLProcessorOrchestrator()
         self.metadata_extractor = MetadataExtractor(self.base_url)
         self.image_downloader = AsyncImageDownloader(
             self.images_dir, max_concurrent=self.config.http.max_concurrent
@@ -149,7 +149,7 @@ class AsyncWordPressConverter:
             metadata = await self.metadata_extractor.extract(soup)
 
             # Process HTML content
-            processed_html = await self.html_processor.process(soup)
+            processed_html = await self.html_processor.process_content(soup)
 
             # Extract image URLs
             image_urls = self._extract_image_urls(processed_html)

@@ -217,30 +217,102 @@ class MicrosoftOAuthProvider(OAuthProviderInterface):
             )
 
 
+class OAuthProviderRegistry:
+    """Registry pattern for OAuth providers - SOLID Open/Closed Principle compliant.
+
+    New providers can be registered without modifying existing code.
+    """
+
+    _providers: dict[OAuthProvider, type[OAuthProviderInterface]] = {}
+    _provider_configs: dict[OAuthProvider, dict[str, str]] = {}
+
+    @classmethod
+    def register_provider(
+        cls,
+        provider_type: OAuthProvider,
+        provider_class: type[OAuthProviderInterface],
+        client_id: str,
+        client_secret: str,
+    ) -> None:
+        """Register a new OAuth provider type.
+
+        Args:
+            provider_type: The OAuth provider enum
+            provider_class: The provider implementation class
+            client_id: OAuth client ID for this provider
+            client_secret: OAuth client secret for this provider
+        """
+        cls._providers[provider_type] = provider_class
+        cls._provider_configs[provider_type] = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+        }
+        logger.debug("OAuth provider registered", provider=provider_type.value)
+
+    @classmethod
+    def create_provider(cls, provider: OAuthProvider) -> OAuthProviderInterface:
+        """Create OAuth provider instance from registry."""
+        if provider not in cls._providers:
+            raise ValueError(
+                f"Unsupported OAuth provider: {provider}. Available: {list(cls._providers.keys())}"
+            )
+
+        provider_class = cls._providers[provider]
+        config = cls._provider_configs[provider]
+
+        return provider_class(client_id=config["client_id"], client_secret=config["client_secret"])
+
+    @classmethod
+    def get_supported_providers(cls) -> list[OAuthProvider]:
+        """Get list of registered OAuth providers."""
+        return list(cls._providers.keys())
+
+    @classmethod
+    def is_provider_registered(cls, provider: OAuthProvider) -> bool:
+        """Check if a provider is registered."""
+        return provider in cls._providers
+
+
+# Register all OAuth providers on module load (Open/Closed compliant)
+def _register_default_providers() -> None:
+    """Register default OAuth providers - can be extended without modification."""
+    OAuthProviderRegistry.register_provider(
+        OAuthProvider.GOOGLE,
+        GoogleOAuthProvider,
+        OAUTH_GOOGLE_CLIENT_ID,
+        OAUTH_GOOGLE_CLIENT_SECRET,
+    )
+
+    OAuthProviderRegistry.register_provider(
+        OAuthProvider.GITHUB,
+        GitHubOAuthProvider,
+        OAUTH_GITHUB_CLIENT_ID,
+        OAUTH_GITHUB_CLIENT_SECRET,
+    )
+
+    OAuthProviderRegistry.register_provider(
+        OAuthProvider.MICROSOFT,
+        MicrosoftOAuthProvider,
+        OAUTH_MICROSOFT_CLIENT_ID,
+        OAUTH_MICROSOFT_CLIENT_SECRET,
+    )
+
+
+# Initialize providers on import
+_register_default_providers()
+
+
+# Backward compatibility alias - can be removed after migration
 class OAuthProviderFactory:
-    """Factory pattern for OAuth providers - Open/Closed Principle."""
+    """Backward compatibility wrapper around OAuthProviderRegistry."""
 
     @staticmethod
     def create_provider(provider: OAuthProvider) -> OAuthProviderInterface:
-        """Create OAuth provider instance based on type."""
-        if provider == OAuthProvider.GOOGLE:
-            return GoogleOAuthProvider(
-                client_id=OAUTH_GOOGLE_CLIENT_ID, client_secret=OAUTH_GOOGLE_CLIENT_SECRET
-            )
-        if provider == OAuthProvider.GITHUB:
-            return GitHubOAuthProvider(
-                client_id=OAUTH_GITHUB_CLIENT_ID, client_secret=OAUTH_GITHUB_CLIENT_SECRET
-            )
-        if provider == OAuthProvider.MICROSOFT:
-            return MicrosoftOAuthProvider(
-                client_id=OAUTH_MICROSOFT_CLIENT_ID, client_secret=OAUTH_MICROSOFT_CLIENT_SECRET
-            )
-        raise ValueError(f"Unsupported OAuth provider: {provider}")
+        return OAuthProviderRegistry.create_provider(provider)
 
     @staticmethod
     def get_supported_providers() -> list[OAuthProvider]:
-        """Get list of supported OAuth providers."""
-        return [OAuthProvider.GOOGLE, OAuthProvider.GITHUB, OAuthProvider.MICROSOFT]
+        return OAuthProviderRegistry.get_supported_providers()
 
 
 class OAuthService:

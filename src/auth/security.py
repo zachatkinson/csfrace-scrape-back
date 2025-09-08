@@ -1,5 +1,6 @@
 """Security utilities for authentication following FastAPI official patterns."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -25,8 +26,19 @@ class SecurityManager:
         """Generate password hash."""
         return self.pwd_context.hash(password)
 
-    def create_access_token(self, data: dict, expires_delta: timedelta | None = None) -> str:
-        """Create JWT access token following FastAPI official pattern."""
+    def create_access_token(
+        self, data: dict, expires_delta: timedelta | None = None, jti: str | None = None
+    ) -> tuple[str, str]:
+        """Create JWT access token with revocation support - SOLID Single Responsibility.
+
+        Args:
+            data: Token payload data
+            expires_delta: Custom expiration delta
+            jti: Optional JWT ID (generated if not provided)
+
+        Returns:
+            Tuple of (token, jti) for revocation tracking
+        """
         to_encode = data.copy()
 
         if expires_delta:
@@ -34,12 +46,34 @@ class SecurityManager:
         else:
             expire = datetime.now(UTC) + auth_config.access_token_expire_delta
 
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, auth_config.SECRET_KEY, algorithm=auth_config.ALGORITHM)
-        return encoded_jwt
+        # Generate JTI for revocation tracking - DRY principle
+        token_jti = jti or str(uuid.uuid4())
 
-    def create_refresh_token(self, data: dict, expires_delta: timedelta | None = None) -> str:
-        """Create JWT refresh token."""
+        to_encode.update(
+            {
+                "exp": expire,
+                "iat": datetime.now(UTC),  # Issued at
+                "jti": token_jti,  # JWT ID for revocation
+                "type": "access",  # Token type for validation
+            }
+        )
+
+        encoded_jwt = jwt.encode(to_encode, auth_config.SECRET_KEY, algorithm=auth_config.ALGORITHM)
+        return encoded_jwt, token_jti
+
+    def create_refresh_token(
+        self, data: dict, expires_delta: timedelta | None = None, jti: str | None = None
+    ) -> tuple[str, str]:
+        """Create JWT refresh token with revocation support - SOLID Single Responsibility.
+
+        Args:
+            data: Token payload data
+            expires_delta: Custom expiration delta
+            jti: Optional JWT ID (generated if not provided)
+
+        Returns:
+            Tuple of (token, jti) for revocation tracking
+        """
         to_encode = data.copy()
 
         if expires_delta:
@@ -47,25 +81,52 @@ class SecurityManager:
         else:
             expire = datetime.now(UTC) + auth_config.refresh_token_expire_delta
 
-        to_encode.update({"exp": expire, "type": "refresh"})
-        encoded_jwt = jwt.encode(to_encode, auth_config.SECRET_KEY, algorithm=auth_config.ALGORITHM)
-        return encoded_jwt
+        # Generate JTI for revocation tracking - DRY principle
+        token_jti = jti or str(uuid.uuid4())
 
-    def verify_token(self, token: str) -> TokenData | None:
-        """Verify and decode JWT token."""
+        to_encode.update(
+            {
+                "exp": expire,
+                "iat": datetime.now(UTC),  # Issued at
+                "jti": token_jti,  # JWT ID for revocation
+                "type": "refresh",  # Token type for validation
+            }
+        )
+
+        encoded_jwt = jwt.encode(to_encode, auth_config.SECRET_KEY, algorithm=auth_config.ALGORITHM)
+        return encoded_jwt, token_jti
+
+    async def verify_token(self, token: str) -> TokenData | None:
+        """Verify and decode JWT token with revocation checking - SOLID Single Responsibility."""
         try:
             payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
+
+            # Extract token claims
             username: str = payload.get("sub")
             user_id: str = payload.get("user_id")
             scopes: list[str] = payload.get("scopes", [])
+            jti: str = payload.get("jti")
+            token_type: str = payload.get("type")
 
-            if username is None:
+            if username is None or jti is None:
                 return None
 
-            token_data = TokenData(username=username, user_id=user_id, scopes=scopes)
+            # Check if token is revoked - Security Requirement
+            if await self.is_token_revoked(jti):
+                return None
+
+            token_data = TokenData(
+                username=username, user_id=user_id, scopes=scopes, jti=jti, token_type=token_type
+            )
             return token_data
         except jwt.PyJWTError:
             return None
+
+    async def is_token_revoked(self, jti: str) -> bool:
+        """Check if token JTI is in the revocation blacklist - SOLID Single Responsibility."""
+        from .revocation_service import token_revocation_service
+
+        return await token_revocation_service.is_token_revoked(jti)
 
     def is_token_expired(self, token: str) -> bool:
         """Check if token is expired."""

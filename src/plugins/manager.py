@@ -421,6 +421,38 @@ class PluginManager:
 
         return info
 
+    def is_initialized(self) -> bool:
+        """Check if the plugin manager has been initialized.
+
+        Returns:
+            True if initialized, False otherwise
+        """
+        return self._initialized
+
+    def get_loaded_plugins(self) -> dict[str, str]:
+        """Get loaded plugin names and their types.
+
+        Returns:
+            Dictionary mapping plugin names to their types
+        """
+        return {name: plugin.config.plugin_type.value for name, plugin in self._plugins.items()}
+
+    def get_pipeline_info(self) -> dict[str, list[str]]:
+        """Get current pipeline configuration.
+
+        Returns:
+            Dictionary mapping plugin types to ordered plugin names
+        """
+        return {ptype.value: plugins for ptype, plugins in self._pipeline.items()}
+
+    def get_registered_hooks(self) -> dict[str, int]:
+        """Get information about registered hooks.
+
+        Returns:
+            Dictionary mapping hook names to callback counts
+        """
+        return {event: len(callbacks) for event, callbacks in self._hooks.items()}
+
 
 # Global plugin manager instance
 plugin_manager = PluginManager()

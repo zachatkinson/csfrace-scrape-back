@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from ..constants import API_DEFAULT_LIMIT
 from .models import User, UserCreate, UserInDB, UserUpdate
 from .security import security_manager
 
@@ -146,7 +147,7 @@ class AuthService:
         # return True
         return False
 
-    def list_users(self, _skip: int = 0, _limit: int = 100) -> list[User]:
+    def list_users(self, _skip: int = 0, _limit: int = API_DEFAULT_LIMIT) -> list[User]:
         """List users with pagination."""
         # Placeholder implementation - database integration pending
         # Production implementation will query User table with pagination:

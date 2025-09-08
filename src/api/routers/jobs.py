@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,8 +13,9 @@ from ...core.converter import AsyncWordPressConverter
 from ...database.models import JobStatus
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
+from ..errors import APIErrorFactory
 from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
-from ..utils import create_response_dict, internal_server_error
+from ..utils import create_response_dict
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -114,7 +115,7 @@ async def create_job(
 
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to create job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("create job", e)
 
 
 @router.get("/", response_model=JobListResponse)
@@ -153,7 +154,7 @@ async def list_jobs(
 
         return JobListResponse(**response_data)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to retrieve jobs: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("retrieve jobs", e)
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -173,12 +174,10 @@ async def get_job(job_id: int, db: DBSession) -> JobResponse:
     try:
         job = await JobCRUD.get_job(db, job_id)
         if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+            raise APIErrorFactory.not_found("Job", job_id)
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to retrieve job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("retrieve job", e)
 
 
 @router.put("/{job_id}", response_model=JobResponse)
@@ -199,12 +198,10 @@ async def update_job(job_id: int, job_data: JobUpdate, db: DBSession) -> JobResp
     try:
         job = await JobCRUD.update_job(db, job_id, job_data)
         if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+            raise APIErrorFactory.not_found("Job", job_id)
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to update job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("update job", e)
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -221,11 +218,9 @@ async def delete_job(job_id: int, db: DBSession) -> None:
     try:
         deleted = await JobCRUD.delete_job(db, job_id)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+            raise APIErrorFactory.not_found("Job", job_id)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to delete job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("delete job", e)
 
 
 @router.post("/{job_id}/start", response_model=JobResponse)
@@ -245,20 +240,18 @@ async def start_job(job_id: int, db: DBSession) -> JobResponse:
     try:
         job = await JobCRUD.get_job(db, job_id)
         if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+            raise APIErrorFactory.not_found("Job", job_id)
 
         if job.status != JobStatus.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Job {job_id} cannot be started (current status: {job.status.value})",
+            raise APIErrorFactory.business_logic_error(
+                f"Job {job_id} cannot be started (current status: {job.status.value})",
+                "INVALID_STATUS_TRANSITION",
             )
 
         updated_job = await JobCRUD.update_job_status(db, job_id, JobStatus.RUNNING)
         return JobResponse.model_validate(updated_job)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to start job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("start job", e)
 
 
 @router.post("/{job_id}/cancel", response_model=JobResponse)
@@ -278,20 +271,18 @@ async def cancel_job(job_id: int, db: DBSession) -> JobResponse:
     try:
         job = await JobCRUD.get_job(db, job_id)
         if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+            raise APIErrorFactory.not_found("Job", job_id)
 
         if job.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Job {job_id} cannot be cancelled (current status: {job.status.value})",
+            raise APIErrorFactory.business_logic_error(
+                f"Job {job_id} cannot be cancelled (current status: {job.status.value})",
+                "INVALID_STATUS_TRANSITION",
             )
 
         updated_job = await JobCRUD.update_job_status(db, job_id, JobStatus.CANCELLED)
         return JobResponse.model_validate(updated_job)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to cancel job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("cancel job", e)
 
 
 @router.post("/{job_id}/retry", response_model=JobResponse)
@@ -311,15 +302,13 @@ async def retry_job(job_id: int, db: DBSession) -> JobResponse:
     try:
         job = await JobCRUD.get_job(db, job_id)
         if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found"
-            )
+            raise APIErrorFactory.not_found("Job", job_id)
 
         if not job.can_retry:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Job {job_id} cannot be retried (status: {job.status.value}, "
+            raise APIErrorFactory.business_logic_error(
+                f"Job {job_id} cannot be retried (status: {job.status.value}, "
                 f"retries: {job.retry_count}/{job.max_retries})",
+                "RETRY_LIMIT_EXCEEDED",
             )
 
         # Reset job for retry
@@ -334,4 +323,4 @@ async def retry_job(job_id: int, db: DBSession) -> JobResponse:
         await db.refresh(job)
         return JobResponse.model_validate(job)
     except SQLAlchemyError as e:
-        raise internal_server_error(f"Failed to retry job: {str(e)}")
+        raise APIErrorFactory.from_sqlalchemy_error("retry job", e)

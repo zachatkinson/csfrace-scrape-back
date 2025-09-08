@@ -10,44 +10,108 @@ from src.auth.oauth_service import (
     GitHubOAuthProvider,
     GoogleOAuthProvider,
     MicrosoftOAuthProvider,
-    OAuthProviderFactory,
     OAuthProviderInterface,
+    OAuthProviderRegistry,
     OAuthService,
 )
 from src.auth.service import AuthService
 from src.constants import OAUTH_CONSTANTS
 
 
-class TestOAuthProviderFactory:
-    """Test OAuth provider factory - Open/Closed Principle testing."""
+class TestOAuthProviderRegistry:
+    """Test OAuth provider registry - SOLID Open/Closed Principle compliance."""
 
-    def test_factory_creates_google_provider(self):
-        """Test factory creates Google OAuth provider."""
-        provider = OAuthProviderFactory.create_provider(OAuthProvider.GOOGLE)
+    def test_registry_creates_google_provider(self):
+        """Test registry creates Google OAuth provider."""
+        provider = OAuthProviderRegistry.create_provider(OAuthProvider.GOOGLE)
         assert isinstance(provider, GoogleOAuthProvider)
         assert provider.client_id == OAUTH_CONSTANTS.OAUTH_GOOGLE_CLIENT_ID
         assert provider.client_secret == OAUTH_CONSTANTS.OAUTH_GOOGLE_CLIENT_SECRET
 
-    def test_factory_creates_github_provider(self):
-        """Test factory creates GitHub OAuth provider."""
-        provider = OAuthProviderFactory.create_provider(OAuthProvider.GITHUB)
+    def test_registry_creates_github_provider(self):
+        """Test registry creates GitHub OAuth provider."""
+        provider = OAuthProviderRegistry.create_provider(OAuthProvider.GITHUB)
         assert isinstance(provider, GitHubOAuthProvider)
         assert provider.client_id == OAUTH_CONSTANTS.OAUTH_GITHUB_CLIENT_ID
         assert provider.client_secret == OAUTH_CONSTANTS.OAUTH_GITHUB_CLIENT_SECRET
 
-    def test_factory_creates_microsoft_provider(self):
-        """Test factory creates Microsoft OAuth provider."""
-        provider = OAuthProviderFactory.create_provider(OAuthProvider.MICROSOFT)
+    def test_registry_creates_microsoft_provider(self):
+        """Test registry creates Microsoft OAuth provider."""
+        provider = OAuthProviderRegistry.create_provider(OAuthProvider.MICROSOFT)
         assert isinstance(provider, MicrosoftOAuthProvider)
         assert provider.client_id == OAUTH_CONSTANTS.OAUTH_MICROSOFT_CLIENT_ID
         assert provider.client_secret == OAUTH_CONSTANTS.OAUTH_MICROSOFT_CLIENT_SECRET
 
-    def test_factory_raises_for_unsupported_provider(self):
-        """Test factory raises error for unsupported provider."""
+    def test_registry_raises_for_unregistered_provider(self):
+        """Test registry raises error for unregistered provider."""
+
+        # First, let's create a temporary provider type for testing
+        class FakeProvider:
+            pass
+
+        fake_provider = FakeProvider()
         with pytest.raises(ValueError, match="Unsupported OAuth provider"):
-            # Create a fake enum value that doesn't exist
-            fake_provider = "unsupported_provider"
-            OAuthProviderFactory.create_provider(fake_provider)
+            OAuthProviderRegistry.create_provider(fake_provider)
+
+    def test_registry_get_supported_providers(self):
+        """Test registry returns list of supported providers."""
+        supported = OAuthProviderRegistry.get_supported_providers()
+        assert isinstance(supported, list)
+        assert OAuthProvider.GOOGLE in supported
+        assert OAuthProvider.GITHUB in supported
+        assert OAuthProvider.MICROSOFT in supported
+
+    def test_registry_is_provider_registered(self):
+        """Test registry can check if provider is registered."""
+        assert OAuthProviderRegistry.is_provider_registered(OAuthProvider.GOOGLE) is True
+        assert OAuthProviderRegistry.is_provider_registered(OAuthProvider.GITHUB) is True
+        assert OAuthProviderRegistry.is_provider_registered(OAuthProvider.MICROSOFT) is True
+
+    def test_registry_extensibility_through_registration(self):
+        """Test that new providers can be registered without modifying existing code."""
+        # This test demonstrates Open/Closed Principle compliance
+
+        # Mock a new provider class
+        class TestProvider(OAuthProviderInterface):
+            def __init__(self, client_id: str, client_secret: str):
+                self.client_id = client_id
+                self.client_secret = client_secret
+
+            def get_authorization_url(self, state: str, redirect_uri: str) -> str:
+                return f"https://test.com/auth?client_id={self.client_id}"
+
+            async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
+                return "test_token"
+
+            async def get_user_info(self, access_token: str) -> OAuthUserInfo:
+                return OAuthUserInfo(
+                    provider=None,
+                    provider_id="test123",
+                    email="test@example.com",
+                    name="Test User",
+                    avatar_url=None,
+                )
+
+        # Create a test provider enum value (in real implementation this would be added to OAuthProvider enum)
+        class TestProviderType:
+            def __init__(self, value: str):
+                self.value = value
+
+        test_provider_type = TestProviderType("TEST_PROVIDER")
+
+        # Register the new provider
+        OAuthProviderRegistry.register_provider(
+            test_provider_type, TestProvider, "test_client_id", "test_client_secret"
+        )
+
+        # Verify it's registered
+        assert OAuthProviderRegistry.is_provider_registered(test_provider_type) is True
+
+        # Verify it can be created
+        provider = OAuthProviderRegistry.create_provider(test_provider_type)
+        assert isinstance(provider, TestProvider)
+        assert provider.client_id == "test_client_id"
+        assert provider.client_secret == "test_client_secret"
 
 
 class TestGoogleOAuthProvider:

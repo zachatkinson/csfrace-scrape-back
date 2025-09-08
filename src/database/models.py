@@ -4,7 +4,7 @@ This module defines the database schema for storing scraping jobs, results, and 
 following CLAUDE.md standards with proper relationships and constraints.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
 
@@ -521,6 +521,345 @@ class WebAuthnChallenge(Base):
     def mark_used(self) -> None:
         """Mark challenge as used."""
         self.used_at = datetime.now(UTC)
+
+
+class AccountLockout(Base):
+    """Model for tracking account lockouts and failed login attempts - SOLID Single Responsibility Principle."""
+
+    __tablename__ = "account_lockouts"
+
+    # Primary key - unique lockout record ID
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="Unique lockout record identifier"
+    )
+
+    # User identification
+    user_id: Mapped[str] = mapped_column(
+        String(50), index=True, nullable=False, comment="User ID who is locked out"
+    )
+
+    username: Mapped[str] = mapped_column(
+        String(100),
+        index=True,
+        nullable=False,
+        comment="Username for quick lookups and audit trail",
+    )
+
+    # Lockout tracking
+    failed_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, comment="Current number of consecutive failed login attempts"
+    )
+
+    is_locked: Mapped[bool] = mapped_column(
+        Boolean, default=False, index=True, comment="Current lockout status"
+    )
+
+    lockout_reason: Mapped[str | None] = mapped_column(
+        String(100),
+        comment="Reason for lockout (failed_attempts, suspicious_activity, admin_action)",
+    )
+
+    # Timing information
+    first_failed_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="Timestamp of first failed attempt in current sequence"
+    )
+
+    last_failed_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="Timestamp of most recent failed attempt"
+    )
+
+    locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="Timestamp when account was locked"
+    )
+
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+        comment="Timestamp when lockout expires (NULL for permanent)",
+    )
+
+    unlocked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="Timestamp when account was unlocked"
+    )
+
+    # Security audit trail
+    client_ip: Mapped[str | None] = mapped_column(
+        String(45),  # IPv6 max length
+        comment="IP address of failed login attempts",
+    )
+
+    user_agent: Mapped[str | None] = mapped_column(
+        Text, comment="User agent of failed login attempts"
+    )
+
+    unlocked_by: Mapped[str | None] = mapped_column(
+        String(100), comment="Admin user who unlocked the account manually"
+    )
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        comment="Record creation timestamp",
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        comment="Last update timestamp",
+    )
+
+    @classmethod
+    def create_lockout_record(
+        cls,
+        user_id: str,
+        username: str,
+        lockout_reason: str,
+        failed_attempts: int = 0,
+        client_ip: str | None = None,
+        user_agent: str | None = None,
+        lockout_duration_minutes: int | None = None,
+    ) -> "AccountLockout":
+        """Factory method for creating lockout records - SOLID Factory Pattern.
+
+        Args:
+            user_id: User identifier
+            username: Username for audit trail
+            lockout_reason: Reason for lockout
+            failed_attempts: Number of failed attempts
+            client_ip: IP address of attempts
+            user_agent: User agent of attempts
+            lockout_duration_minutes: Duration in minutes (None for permanent)
+
+        Returns:
+            AccountLockout instance ready for database insertion
+        """
+        now = datetime.now(UTC)
+        locked_until = None
+        if lockout_duration_minutes is not None:
+            locked_until = now + timedelta(minutes=lockout_duration_minutes)
+
+        return cls(
+            user_id=user_id,
+            username=username,
+            failed_attempts=failed_attempts,
+            is_locked=True,
+            lockout_reason=lockout_reason,
+            first_failed_attempt_at=now,
+            last_failed_attempt_at=now,
+            locked_at=now,
+            locked_until=locked_until,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+
+    @classmethod
+    def create_failed_attempt_record(
+        cls,
+        user_id: str,
+        username: str,
+        client_ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> "AccountLockout":
+        """Factory method for creating failed attempt tracking records - SOLID Factory Pattern.
+
+        Args:
+            user_id: User identifier
+            username: Username for audit trail
+            client_ip: IP address of failed attempt
+            user_agent: User agent of failed attempt
+
+        Returns:
+            AccountLockout instance for tracking failed attempts
+        """
+        now = datetime.now(UTC)
+
+        return cls(
+            user_id=user_id,
+            username=username,
+            failed_attempts=1,
+            is_locked=False,
+            lockout_reason=None,
+            first_failed_attempt_at=now,
+            last_failed_attempt_at=now,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+
+    def unlock_account(self, unlocked_by: str | None = None) -> None:
+        """Unlock the account - SOLID Single Responsibility.
+
+        Args:
+            unlocked_by: Admin user performing the unlock
+        """
+        self.is_locked = False
+        self.unlocked_at = datetime.now(UTC)
+        self.unlocked_by = unlocked_by
+        self.updated_at = datetime.now(UTC)
+
+    def increment_failed_attempts(
+        self, client_ip: str | None = None, user_agent: str | None = None
+    ) -> None:
+        """Increment failed attempt counter - SOLID Single Responsibility.
+
+        Args:
+            client_ip: IP address of failed attempt
+            user_agent: User agent of failed attempt
+        """
+        self.failed_attempts += 1
+        self.last_failed_attempt_at = datetime.now(UTC)
+        self.updated_at = datetime.now(UTC)
+
+        # Update security audit trail
+        if client_ip:
+            self.client_ip = client_ip
+        if user_agent:
+            self.user_agent = user_agent
+
+    def reset_failed_attempts(self) -> None:
+        """Reset failed attempt counter after successful login - SOLID Single Responsibility."""
+        self.failed_attempts = 0
+        self.first_failed_attempt_at = None
+        self.last_failed_attempt_at = None
+        self.updated_at = datetime.now(UTC)
+
+    @property
+    def is_lockout_expired(self) -> bool:
+        """Check if lockout period has expired - SOLID Single Responsibility."""
+        if not self.is_locked or not self.locked_until:
+            return False
+        return datetime.now(UTC) >= self.locked_until
+
+    @property
+    def lockout_remaining_minutes(self) -> int | None:
+        """Get remaining lockout time in minutes - SOLID Single Responsibility."""
+        if not self.is_locked or not self.locked_until:
+            return None
+
+        remaining = self.locked_until - datetime.now(UTC)
+        if remaining.total_seconds() <= 0:
+            return 0
+
+        return int(remaining.total_seconds() / 60)
+
+
+class RevokedToken(Base):
+    """Model for tracking revoked JWT tokens - SOLID Single Responsibility Principle.
+
+    This table provides a secure token revocation mechanism by maintaining a blacklist
+    of revoked tokens. Follows security best practices for JWT invalidation.
+    """
+
+    __tablename__ = "revoked_tokens"
+
+    # Primary key - using token JTI (JWT ID) for unique identification
+    jti: Mapped[str] = mapped_column(
+        String(100), primary_key=True, comment="JWT ID claim - unique identifier for each token"
+    )
+
+    # Token metadata for security and auditing
+    user_id: Mapped[str | None] = mapped_column(
+        String(50), index=True, comment="User who owned the token (for bulk revocation)"
+    )
+
+    token_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="access",
+        comment="Token type: access, refresh, or reset",
+    )
+
+    # Security timestamps - DRY principle with consistent datetime handling
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, comment="When token was originally issued"
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,  # Indexed for cleanup operations
+        comment="When token naturally expires",
+    )
+
+    revoked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        comment="When token was revoked",
+    )
+
+    # Revocation context for security auditing
+    revocation_reason: Mapped[str | None] = mapped_column(
+        String(100), comment="Reason for revocation: logout, password_change, admin_action, etc."
+    )
+
+    revoked_by: Mapped[str | None] = mapped_column(
+        String(50), comment="Who/what revoked the token (user_id, admin_id, or system)"
+    )
+
+    # Additional context for security analysis
+    client_ip: Mapped[str | None] = mapped_column(
+        String(45),  # IPv6 max length
+        comment="IP address when token was revoked",
+    )
+
+    user_agent: Mapped[str | None] = mapped_column(
+        String(500), comment="User agent when token was revoked"
+    )
+
+    def __repr__(self) -> str:
+        """String representation following DRY patterns from other models."""
+        return (
+            f"<RevokedToken(jti='{self.jti}', user_id='{self.user_id}', "
+            f"type='{self.token_type}', revoked_at='{self.revoked_at}')>"
+        )
+
+    @property
+    def is_expired(self) -> bool:
+        """Check if revoked token has naturally expired - DRY property pattern."""
+        return datetime.now(UTC) > self.expires_at
+
+    @classmethod
+    def create_revocation_record(
+        cls,
+        jti: str,
+        user_id: str | None,
+        token_type: str,
+        issued_at: datetime,
+        expires_at: datetime,
+        reason: str | None = None,
+        revoked_by: str | None = None,
+        client_ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> "RevokedToken":
+        """Factory method for creating revocation records - SOLID Factory Pattern.
+
+        Args:
+            jti: JWT ID claim
+            user_id: Token owner user ID
+            token_type: access, refresh, or reset
+            issued_at: When token was issued
+            expires_at: When token expires
+            reason: Reason for revocation
+            revoked_by: Who revoked the token
+            client_ip: Client IP address
+            user_agent: Client user agent
+
+        Returns:
+            New RevokedToken instance
+        """
+        return cls(
+            jti=jti,
+            user_id=user_id,
+            token_type=token_type,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            revocation_reason=reason,
+            revoked_by=revoked_by,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
 
 
 # PostgreSQL enum metadata event listener (SQLAlchemy best practice)

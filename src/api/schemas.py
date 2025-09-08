@@ -5,6 +5,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from ..constants import (
+    API_MAX_CONCURRENT_JOBS,
+    API_MAX_NAME_LENGTH,
+    API_MAX_RETRIES_LIMIT,
+    API_MAX_TIMEOUT_SECONDS,
+    API_MAX_URLS_PER_BATCH,
+    API_MIN_TIMEOUT_SECONDS,
+)
 from ..database.models import JobPriority, JobStatus
 
 
@@ -24,8 +32,8 @@ class JobCreate(BaseModel):
     custom_slug: str | None = None
     priority: JobPriority = JobPriority.NORMAL
     output_directory: str | None = None
-    max_retries: int = Field(default=3, ge=0, le=10)
-    timeout_seconds: int = Field(default=30, ge=5, le=300)
+    max_retries: int = Field(default=3, ge=0, le=API_MAX_RETRIES_LIMIT)
+    timeout_seconds: int = Field(default=30, ge=API_MIN_TIMEOUT_SECONDS, le=API_MAX_TIMEOUT_SECONDS)
     skip_existing: bool = False
     converter_config: dict[str, Any] | None = None
     processing_options: dict[str, Any] | None = None
@@ -35,8 +43,10 @@ class JobUpdate(BaseModel):
     """Schema for updating an existing job."""
 
     priority: JobPriority | None = None
-    max_retries: int | None = Field(None, ge=0, le=10)
-    timeout_seconds: int | None = Field(None, ge=5, le=300)
+    max_retries: int | None = Field(None, ge=0, le=API_MAX_RETRIES_LIMIT)
+    timeout_seconds: int | None = Field(
+        None, ge=API_MIN_TIMEOUT_SECONDS, le=API_MAX_TIMEOUT_SECONDS
+    )
     skip_existing: bool | None = None
     converter_config: dict[str, Any] | None = None
     processing_options: dict[str, Any] | None = None
@@ -85,10 +95,10 @@ class JobListResponse(BaseModel):
 class BatchCreate(BaseModel):
     """Schema for creating a new batch."""
 
-    name: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=1, max_length=API_MAX_NAME_LENGTH)
     description: str | None = None
-    urls: list[HttpUrl] = Field(..., max_length=1000)
-    max_concurrent: int = Field(default=5, ge=1, le=20)
+    urls: list[HttpUrl] = Field(..., max_length=API_MAX_URLS_PER_BATCH)
+    max_concurrent: int = Field(default=5, ge=1, le=API_MAX_CONCURRENT_JOBS)
     continue_on_error: bool = True
     output_base_directory: str | None = None
     create_archives: bool = False

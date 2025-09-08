@@ -50,6 +50,8 @@ class TokenData(BaseModel):
     username: str | None = None
     user_id: str | None = None
     scopes: list[str] = []
+    jti: str | None = None  # JWT ID for revocation tracking
+    token_type: str | None = None  # Token type ('access' or 'refresh')
 
 
 class User(BaseModel):
@@ -377,6 +379,73 @@ class StatusResponse(BaseModel):
     """Standard status response model for health checks."""
 
     status: str
+
+
+# Token Revocation Models - Security Operations
+class TokenRevocationRequest(BaseModel):
+    """Request model for token revocation - Single Responsibility."""
+
+    token: str = Field(..., min_length=1, max_length=1000, description="JWT token to revoke")
+    reason: str | None = Field(None, max_length=100, description="Reason for revocation")
+
+
+class BulkTokenRevocationRequest(BaseModel):
+    """Request model for bulk token revocation - Security Operations."""
+
+    reason: str = Field(..., max_length=100, description="Reason for bulk revocation")
+    revoke_all_sessions: bool = Field(True, description="Revoke all user sessions")
+
+
+class TokenRevocationResponse(BaseModel):
+    """Response model for token revocation operations."""
+
+    success: bool
+    message: str
+    revoked_count: int = Field(default=1, description="Number of tokens revoked")
+    jti: str | None = Field(None, description="JWT ID of revoked token")
+
+
+class RevocationStatsResponse(BaseModel):
+    """Response model for revocation statistics - Monitoring."""
+
+    total_revocations: int
+    revocations_by_type: dict[str, int]
+    revocations_by_reason: dict[str, int]
+    recent_revocations_24h: int
+    recent_revocations_7d: int
+    user_id: str | None = None
+
+
+# Account Lockout Models - Security Operations
+class AccountLockoutStatusResponse(BaseModel):
+    """Response model for account lockout status checks - Single Responsibility."""
+
+    is_locked: bool
+    remaining_minutes: int | None = None
+    failed_attempts: int = 0
+    lockout_reason: str | None = None
+    locked_since: datetime | None = None
+
+
+class UnlockAccountRequest(BaseModel):
+    """Request model for administrative account unlock - Security Operations."""
+
+    user_id: str = Field(..., min_length=1, max_length=50, description="User ID to unlock")
+    reason: str = Field(..., max_length=200, description="Reason for unlock")
+
+
+class LockoutStatsResponse(BaseModel):
+    """Response model for lockout statistics - Monitoring."""
+
+    total_lockout_records: int
+    currently_locked_accounts: int
+    lockouts_by_reason: dict[str, int]
+    recent_lockouts_24h: int
+    recent_lockouts_7d: int
+    average_failed_attempts: float
+    user_id: str | None = None
+    current_failed_attempts: int | None = None
+    is_currently_locked: bool | None = None
 
 
 # Type Aliases for Path Parameters - FastAPI Best Practices
