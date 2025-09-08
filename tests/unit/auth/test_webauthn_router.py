@@ -314,7 +314,10 @@ class TestWebAuthnRouterEndpoints:
         self, client, sample_user, mock_webauthn_service
     ):
         """Test successful WebAuthn authentication completion."""
-        with patch("src.auth.router.security_manager.create_access_token") as mock_create_token:
+        with (
+            patch("src.auth.router.security_manager.create_access_token") as mock_create_access_token,
+            patch("src.auth.router.security_manager.create_refresh_token") as mock_create_refresh_token,
+        ):
             # Mock successful verification using the dependency-injected service
             now = datetime.now(UTC)
             from src.auth.webauthn_service import CredentialMetadata
@@ -337,8 +340,9 @@ class TestWebAuthnRouterEndpoints:
                 mock_credential,
             )
 
-            # Mock token creation
-            mock_create_token.return_value = "test_access_token"
+            # Mock token creation - both methods return (token, jti) tuples
+            mock_create_access_token.return_value = ("test_access_token", "test_access_jti")
+            mock_create_refresh_token.return_value = ("test_refresh_token", "test_refresh_jti")
 
             # Make request with mock credential data
             import base64
@@ -379,8 +383,8 @@ class TestWebAuthnRouterEndpoints:
             # Verify service was called correctly
             mock_webauthn_service.verify_authentication_response.assert_called_once()
 
-            # Verify token was created with correct user data
-            call_args = mock_create_token.call_args
+            # Verify access token was created with correct user data
+            call_args = mock_create_access_token.call_args
             assert call_args[1]["data"]["sub"] == sample_user.username  # JWT subject is username
             assert call_args[1]["data"]["user_id"] == sample_user.id
 
