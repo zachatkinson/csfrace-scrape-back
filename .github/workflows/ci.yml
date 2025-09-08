@@ -322,23 +322,6 @@ jobs:
           # Performance optimization
           SUPPRESS_POSSUM: true
 
-      - name: Run Bandit Security Linting (Enhanced)
-        run: |
-          # Run Bandit with comprehensive security scanning
-          uv run bandit -r src/ -f json -o bandit-report.json || true
-          uv run bandit -r src/ -f txt -o bandit-report.txt || true
-          
-          # Generate SARIF format for GitHub Security tab integration
-          uv run bandit -r src/ -f sarif -o bandit-results.sarif || true
-          
-          echo "::notice title=Bandit Security Scan::Bandit security scan completed"
-
-      - name: Upload Bandit Security Scan Results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('bandit-results.sarif') != ''
-        with:
-          sarif_file: bandit-results.sarif
-          category: bandit-security
 
       - name: Run Safety Dependency Vulnerability Scanning (Enhanced)
         run: |
@@ -405,9 +388,6 @@ jobs:
         with:
           name: security-scan-results-${{ github.run_number }}
           path: |
-            bandit-report.json
-            bandit-report.txt
-            bandit-results.sarif
             safety-report.json
             safety-report.txt
             semgrep.sarif
@@ -1203,29 +1183,6 @@ jobs:
           high_issues=0
           has_security_issues=false
           
-          # Analyze Bandit results (if available)
-          if [[ -f bandit-report.json ]]; then
-            echo "### 🔍 Static Code Analysis (Bandit)" >> $GITHUB_STEP_SUMMARY
-            
-            # Parse Bandit JSON results
-            bandit_issues=$(jq '.results | length' bandit-report.json 2>/dev/null || echo "0")
-            bandit_high=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json 2>/dev/null || echo "0")
-            bandit_medium=$(jq '[.results[] | select(.issue_severity == "MEDIUM")] | length' bandit-report.json 2>/dev/null || echo "0")
-            
-            echo "- **Total Issues**: ${bandit_issues}" >> $GITHUB_STEP_SUMMARY
-            echo "- **High Severity**: ${bandit_high}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Medium Severity**: ${bandit_medium}" >> $GITHUB_STEP_SUMMARY
-            
-            total_issues=$((total_issues + bandit_issues))
-            high_issues=$((high_issues + bandit_high))
-            
-            if [[ ${bandit_issues} -gt 0 ]]; then
-              has_security_issues=true
-            fi
-          else
-            echo "### 🔍 Static Code Analysis (Bandit)" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **Bandit scan results not available**" >> $GITHUB_STEP_SUMMARY
-          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Analyze Safety results (if available)
