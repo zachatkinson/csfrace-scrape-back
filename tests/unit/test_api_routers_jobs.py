@@ -98,7 +98,7 @@ class TestJobRouterEndpoints:
                 )
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to create job" in exc_info.value.detail
+            assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_list_jobs_success(self, mock_db_session):
