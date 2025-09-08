@@ -334,9 +334,9 @@ class APIErrorFactory:
     @staticmethod
     def _get_timestamp() -> str:
         """Get current timestamp in ISO format."""
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        return datetime.utcnow().isoformat() + "Z"
+        return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 # Convenience functions for backward compatibility and common patterns

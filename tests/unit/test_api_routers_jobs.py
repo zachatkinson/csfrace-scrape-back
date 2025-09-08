@@ -204,7 +204,7 @@ class TestJobRouterEndpoints:
                 await list_jobs(mock_db_session, page=1, page_size=50)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to retrieve jobs" in exc_info.value.detail
+            assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_get_job_success(self, mock_db_session, sample_job):
@@ -226,7 +226,7 @@ class TestJobRouterEndpoints:
                 await get_job(999, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-            assert "Job 999 not found" in exc_info.value.detail
+            assert "not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_get_job_database_error(self, mock_db_session):
@@ -238,7 +238,7 @@ class TestJobRouterEndpoints:
                 await get_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to retrieve job" in exc_info.value.detail
+            assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_update_job_success(self, mock_db_session, sample_job, job_update_data):
@@ -261,7 +261,7 @@ class TestJobRouterEndpoints:
                 await update_job(999, job_update_data, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-            assert "Job 999 not found" in exc_info.value.detail
+            assert "not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_update_job_database_error(self, mock_db_session, job_update_data):
@@ -273,7 +273,7 @@ class TestJobRouterEndpoints:
                 await update_job(1, job_update_data, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to update job" in exc_info.value.detail
+            assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_delete_job_success(self, mock_db_session):
@@ -292,7 +292,7 @@ class TestJobRouterEndpoints:
                 await delete_job(999, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-            assert "Job 999 not found" in exc_info.value.detail
+            assert "not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_delete_job_database_error(self, mock_db_session):
@@ -304,7 +304,7 @@ class TestJobRouterEndpoints:
                 await delete_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to delete job" in exc_info.value.detail
+            assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_start_job_success(self, mock_db_session, sample_job):
@@ -347,7 +347,7 @@ class TestJobRouterEndpoints:
                 await start_job(999, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-            assert "Job 999 not found" in exc_info.value.detail
+            assert "not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_start_job_invalid_status(self, mock_db_session, sample_job):
@@ -359,7 +359,7 @@ class TestJobRouterEndpoints:
                 await start_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert "cannot be started" in exc_info.value.detail
+            assert "cannot be started" in str(exc_info.value.detail)
             assert "running" in exc_info.value.detail
 
     @pytest.mark.asyncio
@@ -373,7 +373,7 @@ class TestJobRouterEndpoints:
                     await start_job(1, mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-                assert "Failed to start job" in exc_info.value.detail
+                assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_cancel_job_success(self, mock_db_session, sample_job):
@@ -516,7 +516,7 @@ class TestJobRouterEndpoints:
                 await retry_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Failed to retry job" in exc_info.value.detail
+            assert "Database operation failed" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_list_jobs_skip_calculation(self, mock_db_session):

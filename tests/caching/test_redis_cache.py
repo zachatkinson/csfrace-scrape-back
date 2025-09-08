@@ -145,7 +145,7 @@ class TestRedisConnection:
         # We need to patch the redis module inside the _get_client method
         with patch("src.caching.redis_cache.redis", mock_redis_module):
             mock_redis_module.Redis.return_value = mock_client
-            
+
             with patch.object(cache.logger, "error") as mock_error:
                 with pytest.raises(Exception, match="Connection failed"):
                     await cache._get_client()
