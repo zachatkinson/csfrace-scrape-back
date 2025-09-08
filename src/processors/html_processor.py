@@ -4,6 +4,7 @@ This addresses the critical SRP violation identified in the audit by
 separating concerns into focused, single-responsibility processors.
 """
 
+
 import structlog
 from bs4 import BeautifulSoup
 
@@ -34,7 +35,7 @@ class HTMLProcessorOrchestrator:
     """
 
     def __init__(
-        self, enable_sanitization: bool = True, custom_processors: list[ContentExtractorBase] = None
+        self, enable_sanitization: bool = True, custom_processors: list[ContentExtractorBase] | None = None
     ):
         """Initialize HTML processor orchestrator.
 
@@ -110,7 +111,7 @@ class HTMLProcessorOrchestrator:
             # Step 3: Apply final sanitization if enabled
             if self.sanitizer:
                 html_content = str(content)
-                html_content = self.sanitizer.sanitize(html_content)
+                html_content = self.sanitizer.sanitize_html(html_content)
                 logger.debug("HTML sanitization applied")
             else:
                 html_content = str(content)
@@ -122,7 +123,7 @@ class HTMLProcessorOrchestrator:
             logger.error("HTML processing pipeline failed", error=str(e))
             raise ProcessingError(f"HTML processing failed: {e}") from e
 
-    def add_processor(self, processor: ContentExtractorBase, position: int = None) -> None:
+    def add_processor(self, processor: ContentExtractorBase, position: int | None = None) -> None:
         """Add a custom processor to the pipeline.
 
         Supports Open/Closed Principle - extend functionality without
