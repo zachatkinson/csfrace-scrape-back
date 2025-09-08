@@ -1,11 +1,22 @@
 """Comprehensive tests for token revocation endpoints in auth router."""
 
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.requests import Request
 
+# Set test-friendly rate limits BEFORE importing any modules that use rate limits
+os.environ["TESTING"] = "true"
+
+# Import and force reload of rate limits with test configuration
+import src.config.rate_limits
 from src.auth.models import BulkTokenRevocationRequest, TokenRevocationRequest, User
+from src.config.rate_limits import get_rate_limits_instance
+
+# Reset the global instance to force reinitialization with TESTING=true
+src.config.rate_limits._rate_limits_instance = None
+src.config.rate_limits.rate_limits = get_rate_limits_instance()
 
 
 @pytest.fixture
@@ -61,17 +72,6 @@ def mock_request():
     return Request(scope)
 
 
-@pytest.fixture
-def mock_rate_limiter():
-    """Mock rate limiter to bypass rate limiting in tests."""
-    from unittest.mock import AsyncMock
-
-    limiter = AsyncMock()
-    # Mock the limit decorator to be a no-op
-    limiter.limit = lambda rate: lambda func: func
-    return limiter
-
-
 class TestRevokeTokenEndpoint:
     """Test /auth/revoke-token endpoint - SOLID Single Responsibility testing."""
 
@@ -100,7 +100,6 @@ class TestRevokeTokenEndpoint:
             patch("src.auth.router.get_current_active_user", return_value=mock_current_user),
             patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("src.auth.router.get_remote_address", return_value="192.168.1.1"),
-            patch("src.auth.router.limiter", mock_rate_limiter),
             patch("jwt.decode") as mock_jwt_decode,
         ):
             mock_security_manager.verify_token.return_value = token_data
@@ -204,7 +203,6 @@ class TestRevokeTokenEndpoint:
             patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("jwt.decode") as mock_jwt_decode,
             patch("src.auth.router.get_remote_address", return_value="192.168.1.1"),
-            patch("src.auth.router.limiter", mock_rate_limiter),
         ):
             mock_security_manager.verify_token.return_value = token_data
             mock_jwt_decode.return_value = {"iat": 1600000000, "exp": 1600003600}
@@ -224,7 +222,7 @@ class TestRevokeAllTokensEndpoint:
 
     @pytest.mark.asyncio
     async def test_revoke_all_tokens_success(
-        self, mock_current_user, mock_revocation_service, mock_request, mock_rate_limiter
+        self, mock_current_user, mock_revocation_service, mock_request
     ):
         """Test successful bulk token revocation."""
         # Arrange
@@ -234,7 +232,6 @@ class TestRevokeAllTokensEndpoint:
 
         with (
             patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
-            patch("src.auth.router.limiter", mock_rate_limiter),
         ):
             mock_revocation_service.revoke_all_user_tokens.return_value = 5
 
