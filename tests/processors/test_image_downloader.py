@@ -555,7 +555,7 @@ class TestAsyncImageDownloaderEdgeCases:
         with patch("src.processors.image_downloader.robots_checker") as mock_robots:
             mock_robots.check_and_delay = AsyncMock()
 
-            with patch("src.constants.CONSTANTS") as mock_constants:
+            with patch("src.processors.image_downloader.CONSTANTS") as mock_constants:
                 mock_constants.DEFAULT_TIMEOUT = 10
 
                 # Use shared fake response to avoid duplication

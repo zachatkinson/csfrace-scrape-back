@@ -448,7 +448,7 @@ class TestMetadataExtractorEdgeCases:
 
         soup = BeautifulSoup(malformed_html, "html.parser")
 
-        with patch("src.utils.html.find_meta_content", return_value="test"):
+        with patch("src.processors.metadata_extractor.find_meta_content", return_value="test"):
             metadata = await extractor.extract(soup)
 
             # Should handle malformed HTML gracefully
