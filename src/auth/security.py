@@ -111,8 +111,12 @@ class SecurityManager:
             if username is None or jti is None:
                 return None
 
-            # Check if token is revoked - Security Requirement
-            if await self.is_token_revoked(jti):
+            # Check if token is revoked - Security Requirement (fail securely)
+            try:
+                if await self.is_token_revoked(jti):
+                    return None
+            except Exception:
+                # Fail securely: if revocation check fails, reject the token
                 return None
 
             token_data = TokenData(

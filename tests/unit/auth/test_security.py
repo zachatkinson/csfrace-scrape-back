@@ -190,8 +190,8 @@ class TestSecurityManagerTokenVerification:
         # Arrange
         token, jti = security_manager.create_access_token(sample_token_data)
 
-        with patch("src.auth.security.token_revocation_service") as mock_service:
-            mock_service.is_token_revoked.return_value = False
+        with patch("src.auth.revocation_service.token_revocation_service") as mock_service:
+            mock_service.is_token_revoked = AsyncMock(return_value=False)
 
             # Act
             token_data = await security_manager.verify_token(token)
@@ -212,8 +212,8 @@ class TestSecurityManagerTokenVerification:
         # Arrange
         token, jti = security_manager.create_access_token(sample_token_data)
 
-        with patch("src.auth.security.token_revocation_service") as mock_service:
-            mock_service.is_token_revoked.return_value = True
+        with patch("src.auth.revocation_service.token_revocation_service") as mock_service:
+            mock_service.is_token_revoked = AsyncMock(return_value=True)
 
             # Act
             token_data = await security_manager.verify_token(token)
@@ -340,8 +340,8 @@ class TestSecurityManagerEdgeCases:
         # Arrange
         token, jti = security_manager.create_access_token(sample_token_data)
 
-        with patch("src.auth.security.token_revocation_service") as mock_service:
-            mock_service.is_token_revoked.side_effect = Exception("Database error")
+        with patch("src.auth.revocation_service.token_revocation_service") as mock_service:
+            mock_service.is_token_revoked = AsyncMock(side_effect=Exception("Database error"))
 
             # Act
             token_data = await security_manager.verify_token(token)
@@ -399,8 +399,8 @@ class TestSecurityManagerEdgeCases:
         # Arrange
         token, jti = security_manager.create_access_token(sample_token_data)
 
-        with patch("src.auth.security.token_revocation_service") as mock_service:
-            mock_service.is_token_revoked.return_value = False
+        with patch("src.auth.revocation_service.token_revocation_service") as mock_service:
+            mock_service.is_token_revoked = AsyncMock(return_value=False)
 
             # Act - Simulate concurrent verification
             import asyncio
