@@ -2,13 +2,13 @@
 
 # pylint: disable=protected-access
 
-import asyncio
 import json
 import tempfile
 import zipfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncio
 import pytest
 
 from src.batch.processor import BatchConfig, BatchJob, BatchProcessor

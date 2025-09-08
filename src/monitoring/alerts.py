@@ -1,6 +1,5 @@
 """Alerting system with configurable thresholds and notification channels."""
 
-import asyncio
 import smtplib
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -10,6 +9,7 @@ from email.mime.text import MIMEText
 from enum import Enum
 from typing import Any
 
+import asyncio
 import structlog
 
 logger = structlog.get_logger(__name__)

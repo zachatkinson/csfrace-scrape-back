@@ -4,12 +4,12 @@ This module implements comprehensive rendering performance tests following TDD a
 standards to ensure optimal performance and identify bottlenecks in the rendering pipeline.
 """
 
-import asyncio
 import gc
 import os
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncio
 import psutil
 import pytest
 

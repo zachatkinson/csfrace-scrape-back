@@ -1,10 +1,10 @@
 """Common utilities for API endpoints."""
 
-import asyncio
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar
 
+import asyncio
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError

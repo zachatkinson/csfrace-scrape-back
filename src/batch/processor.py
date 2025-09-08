@@ -1,6 +1,5 @@
 """Batch processing for multiple URLs with concurrent execution."""
 
-import asyncio
 import csv
 import hashlib
 import json
@@ -13,6 +12,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 from urllib.parse import urlparse
 
+import asyncio
 import structlog
 from rich.console import Console
 from rich.panel import Panel

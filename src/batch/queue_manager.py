@@ -1,6 +1,5 @@
 """Priority-based batch queue management system for Phase 4B."""
 
-import asyncio
 import heapq
 import json
 from dataclasses import dataclass, field
@@ -8,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
+import asyncio
 import structlog
 
 from src.batch.enhanced_processor import Priority, ProcessingResult

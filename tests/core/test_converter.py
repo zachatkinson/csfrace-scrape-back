@@ -4,11 +4,11 @@ This module follows TDD principles and tests all critical paths, error scenarios
 and edge cases in the converter module.
 """
 
-import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
 import aiohttp
+import asyncio
 import pytest
 from aioresponses import aioresponses
 

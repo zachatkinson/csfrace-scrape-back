@@ -4,10 +4,10 @@ This module tests error handling, recovery, and edge cases in integrated scenari
 following CLAUDE.md standards for production reliability.
 """
 
-import asyncio
 import gc
 from unittest.mock import Mock, patch
 
+import asyncio
 import pytest
 from aiohttp import ClientError, ServerTimeoutError
 from bs4 import BeautifulSoup

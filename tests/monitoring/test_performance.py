@@ -2,12 +2,12 @@
 
 # pylint: disable=too-many-public-methods,use-implicit-booleaness-not-comparison,unused-variable
 
-import asyncio
 import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
+import asyncio
 import pytest
 
 from src.monitoring.performance import (

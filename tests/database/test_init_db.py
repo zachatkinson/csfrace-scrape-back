@@ -1,6 +1,5 @@
 """Tests for database initialization module."""
 
-import asyncio
 import inspect
 import logging
 import os
@@ -8,6 +7,7 @@ import tempfile
 import time
 from unittest.mock import MagicMock, patch
 
+import asyncio
 import pytest
 
 import src.database.init_db as init_db_module

@@ -4,10 +4,10 @@ This test module ensures all retry patterns meet CLAUDE.md requirements for
 production-ready reliability and error handling.
 """
 
-import asyncio
 import time
 from unittest.mock import AsyncMock
 
+import asyncio
 import pytest
 from aiohttp import ClientError
 

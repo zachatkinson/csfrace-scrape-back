@@ -1,9 +1,9 @@
 """Tests for batch queue management system."""
 
-import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncio
 import pytest
 
 from src.batch.enhanced_processor import Priority, ProcessingResult

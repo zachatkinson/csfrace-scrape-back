@@ -5,8 +5,11 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from src.api.errors import APIErrorFactory, ResourceNotFoundError
-from src.api.errors import ValidationError as APIValidationError
+from src.api.errors import (
+    APIErrorFactory,
+    ResourceNotFoundError,
+    ValidationError as APIValidationError,
+)
 from src.core.exceptions import ConfigurationError, ConversionError, ProcessingError, RateLimitError
 
 

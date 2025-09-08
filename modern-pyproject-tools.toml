@@ -1,0 +1,150 @@
+# Modern Python Linting Configuration (2025)
+# Replace your existing tool configurations with this optimized version
+# Ruff + Black + MyPy = Fast, comprehensive, industry standard
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+# Comprehensive rule set (replaces flake8, isort, many pylint rules)
+select = [
+    # Pycodestyle
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    
+    # Pyflakes
+    "F",     # pyflakes errors
+    
+    # Import sorting (replaces isort)
+    "I",     # isort
+    
+    # Code quality (replaces many pylint rules)
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions  
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "SIM",   # flake8-simplify
+    "RET",   # flake8-return
+    "ARG",   # flake8-unused-arguments
+    
+    # Security (replaces bandit)
+    "S",     # bandit security
+    
+    # Modern Python
+    "ASYNC", # flake8-async
+    "ICN",   # flake8-import-conventions
+    "PIE",   # flake8-pie
+    "Q",     # flake8-quotes
+]
+
+ignore = [
+    # Black handles line length
+    "E501",   # line too long
+    
+    # Security false positives for our use case
+    "S105",   # hardcoded password (often OAuth URLs/tokens)
+    "S106",   # hardcoded password (often config strings)
+    
+    # Optional rules (can enable if desired)
+    "B904",   # raise from err (optional)
+    "ARG002", # unused method argument (common in interfaces)
+    "ARG004", # unused static method argument (common in utilities)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# More lenient for tests
+"tests/*" = [
+    "S101",    # assert allowed in tests
+    "ARG001",  # unused function argument (fixtures)
+    "ARG002",  # unused method argument (fixtures)
+]
+
+# Example code can be more relaxed
+"src/database/examples/*" = [
+    "F821",    # undefined name (examples may be incomplete)
+    "B904",    # raise from (examples focus on patterns)
+]
+
+# Config files can have unused imports
+"src/config/*" = [
+    "F401",    # unused import (config modules export for others)
+]
+
+[tool.ruff.lint.isort]
+# Import sorting configuration (replaces [tool.isort])
+known-first-party = ["src"]
+known-third-party = [
+    "aiohttp",
+    "asyncio", 
+    "beautifulsoup4",
+    "bleach",
+    "click",
+    "httpx",
+    "pydantic",
+    "pytest",
+    "structlog", 
+    "tenacity",
+    "fastapi",
+    "sqlalchemy",
+]
+split-on-trailing-comma = true
+combine-as-imports = true
+
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.venv
+    | __pycache__
+    | build
+    | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+show_error_codes = true
+
+# Paths
+files = ["src", "tests"]
+exclude = [
+    "build/",
+    "dist/",
+    "src/database/examples/",  # Example code
+]
+
+# Type checking optimizations
+incremental = true
+cache_dir = ".mypy_cache"
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+# More lenient for tests
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+# Third-party packages without stubs
+module = [
+    "aioresponses.*",
+    "pytest_postgresql.*", 
+    "testcontainers.*",
+    "memory_profiler.*",
+    "hypothesis.*",
+    "factory_boy.*",
+    "freezegun.*",
+]
+ignore_missing_imports = true
+
+# Remove these old sections (replaced by Ruff):
+# [tool.isort] - Ruff handles import sorting
+# [tool.flake8] - Ruff replaces flake8  
+# [tool.pylint] - Ruff covers most pylint rules

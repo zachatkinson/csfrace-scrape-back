@@ -1,12 +1,12 @@
 """Browser management and JavaScript rendering capabilities."""
 
-import asyncio
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
+import asyncio
 import structlog
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 from pydantic import BaseModel, Field, field_validator

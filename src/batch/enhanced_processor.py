@@ -1,6 +1,5 @@
 """Enhanced batch processor with advanced features for Phase 4B."""
 
-import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -8,6 +7,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import asyncio
 import structlog
 from sqlalchemy import select
 

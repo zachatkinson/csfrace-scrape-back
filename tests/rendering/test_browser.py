@@ -8,11 +8,11 @@ Applied the same proven patterns from error handling refactor:
 4. Tests verify actual behavior, not mock configuration
 """
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Any, Protocol
 from unittest import IsolatedAsyncioTestCase
 
+import asyncio
 import pytest
 
 from src.rendering.browser import (

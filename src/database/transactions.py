@@ -4,11 +4,11 @@ Eliminates DRY violations and ensures consistent data integrity patterns
 across all database operations in the application.
 """
 
-import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import asyncio
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 class TransactionError(Exception):
     """Custom exception for transaction-related errors."""
 
-    def __init__(self, message: str, original_error: Exception = None):
+    def __init__(self, message: str, original_error: Exception | None = None):
         super().__init__(message)
         self.original_error = original_error
 
@@ -79,7 +79,9 @@ async def _transaction_handler(
     # Set isolation level if specified
     if isolation_level:
         try:
-            await db.execute(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}")
+            from sqlalchemy import text
+
+            await db.execute(text(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"))
             logger.debug(
                 "Set transaction isolation level",
                 transaction_id=transaction_id,
@@ -206,7 +208,7 @@ class TransactionManager:
 
     async def execute_with_retry(
         self,
-        operation: callable,
+        operation: Callable,
         max_retries: int = 3,
         backoff_factor: float = 2.0,
         retry_exceptions: tuple = (SQLAlchemyError,),
@@ -274,7 +276,7 @@ class TransactionManager:
         ) from last_exception
 
     async def execute_in_parallel(
-        self, operations: list[callable], max_concurrent: int = 5
+        self, operations: list[Callable], max_concurrent: int = 5
     ) -> list[Any]:
         """Execute multiple database operations in parallel with separate transactions.
 
@@ -296,7 +298,7 @@ class TransactionManager:
         """
         semaphore = asyncio.Semaphore(max_concurrent)
 
-        async def _execute_with_semaphore(operation: callable) -> Any:
+        async def _execute_with_semaphore(operation: Callable) -> Any:
             async with semaphore, database_transaction() as db:
                 return await operation(db)
 
@@ -315,7 +317,7 @@ transaction_manager = TransactionManager()
 
 
 # Convenience functions for common patterns
-async def execute_with_transaction(operation: callable, **kwargs) -> Any:
+async def execute_with_transaction(operation: Callable, **kwargs) -> Any:
     """Convenience function to execute operation with transaction.
 
     Args:
@@ -329,7 +331,7 @@ async def execute_with_transaction(operation: callable, **kwargs) -> Any:
         return await operation(db)
 
 
-async def execute_with_retry(operation: callable, **kwargs) -> Any:
+async def execute_with_retry(operation: Callable, **kwargs) -> Any:
     """Convenience function to execute operation with retry logic.
 
     Args:

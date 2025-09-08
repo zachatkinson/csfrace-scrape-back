@@ -1,10 +1,10 @@
 """Robots.txt parsing and rate limiting compliance."""
 
-import asyncio
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
 import aiohttp
+import asyncio
 import structlog
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 

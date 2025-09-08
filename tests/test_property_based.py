@@ -4,13 +4,12 @@ This module implements property-based testing following CLAUDE.md standards
 to discover edge cases and ensure robust behavior across all input ranges.
 """
 
-import asyncio
 import datetime
 from unittest.mock import Mock
 
+import asyncio
 import pytest
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
+from hypothesis import HealthCheck, given, settings, strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, rule
 
 from src.processors.html_processor import HTMLProcessor

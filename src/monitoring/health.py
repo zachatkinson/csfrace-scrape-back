@@ -1,6 +1,5 @@
 """Health check system with dependency validation and status monitoring."""
 
-import asyncio
 import time
 from collections.abc import Callable
 from contextlib import suppress
@@ -9,6 +8,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+import asyncio
 import structlog
 
 logger = structlog.get_logger(__name__)

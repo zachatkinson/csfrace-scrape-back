@@ -1,11 +1,11 @@
 """Plugin manager for orchestrating plugin execution and lifecycle management."""
 
-import asyncio
 from collections import defaultdict
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import asyncio
 import structlog
 
 from .base import BasePlugin, PluginType

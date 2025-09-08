@@ -8,14 +8,13 @@ This demonstrates the correct approach:
 4. Let real async behavior flow naturally
 """
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Protocol
 from unittest import IsolatedAsyncioTestCase
 
+import asyncio
 import pytest
-from playwright.async_api import Error as PlaywrightError
-from playwright.async_api import TimeoutError as PlaywrightTimeout
+from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeout
 
 from src.rendering.browser import BrowserConfig, RenderResult
 

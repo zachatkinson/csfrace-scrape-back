@@ -2,10 +2,10 @@
 
 # pylint: disable=protected-access,too-many-public-methods,use-implicit-booleaness-not-comparison,import-outside-toplevel
 
-import asyncio
 import time
 from unittest.mock import MagicMock, patch
 
+import asyncio
 import pytest
 
 from src.monitoring.metrics import MetricsCollector, MetricsConfig

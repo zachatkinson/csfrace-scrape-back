@@ -8,10 +8,10 @@ Applied the same successful dependency injection patterns from browser tests:
 4. Tests verify actual integration behavior vs mock setup
 """
 
-import asyncio
 from typing import Protocol
 from unittest import IsolatedAsyncioTestCase
 
+import asyncio
 import pytest
 
 from src.rendering.browser import BrowserConfig, RenderResult

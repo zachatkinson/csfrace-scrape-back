@@ -1,11 +1,11 @@
 """Async WordPress to Shopify content converter using aiohttp."""
 
-import asyncio
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
+import asyncio
 import structlog
 from bs4 import BeautifulSoup
 
@@ -16,8 +16,7 @@ from ..processors.metadata_extractor import MetadataExtractor
 from ..utils.http import safe_http_get_with_raise
 from ..utils.retry import with_retry
 from ..utils.robots import robots_checker
-from .config import ConverterConfig
-from .config import config as default_config
+from .config import ConverterConfig, config as default_config
 from .exceptions import ConversionError, FetchError, ProcessingError, SaveError
 
 logger = structlog.get_logger(__name__)

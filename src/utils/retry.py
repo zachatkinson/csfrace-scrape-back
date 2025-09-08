@@ -8,7 +8,6 @@ specified in CLAUDE.md, including:
 - Comprehensive error handling and observability
 """
 
-import asyncio
 import functools
 import secrets
 import time
@@ -17,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TypeVar
 
+import asyncio
 import structlog
 from aiohttp import ClientError, ServerTimeoutError
 

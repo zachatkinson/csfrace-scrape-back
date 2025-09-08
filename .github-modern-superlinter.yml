@@ -1,0 +1,74 @@
+# Modern Super-Linter Configuration
+# Uses efficient Ruff + Black + MyPy stack (2025 best practices)
+# Place this configuration in your .github/workflows/ file
+
+name: Code Quality & Security (Modern Stack)
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  modern-linting:
+    name: Modern Python Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install UV (Python package manager)
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "0.8.14"
+
+      - name: Install dependencies
+        run: uv sync
+
+      # Modern Super-Linter with only essential Python tools
+      - name: Run Modern Super-Linter
+        uses: github/super-linter@v7
+        env:
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          # Enable only modern Python tools
+          VALIDATE_PYTHON_RUFF: true
+          VALIDATE_PYTHON_BLACK: true  
+          VALIDATE_PYTHON_MYPY: true
+          
+          # Disable redundant tools
+          VALIDATE_PYTHON_FLAKE8: false      # Replaced by Ruff
+          VALIDATE_PYTHON_ISORT: false       # Ruff handles import sorting
+          VALIDATE_PYTHON_PYLINT: false      # Most rules covered by Ruff
+          VALIDATE_PYTHON_BANDIT: false      # Ruff includes security rules
+          
+          # Performance optimizations
+          VALIDATE_ALL_CODEBASE: false
+          FILTER_REGEX_INCLUDE: .*\.(py)$
+          
+          # Auto-fix capabilities
+          FIX_PYTHON_RUFF: true
+          FIX_PYTHON_BLACK: true
+          
+          SUPPRESS_POSSUM: true
+
+      # Optional: Additional security scanning
+      - name: Run Bandit Security Scan (Optional)
+        run: |
+          uv run bandit -r src/ -f json -o bandit-report.json || true
+          uv run bandit -r src/ -f txt -o bandit-report.txt || true
+        continue-on-error: true
+
+      # Optional: Run native tools directly for speed
+      - name: Native Modern Linting (Backup)
+        run: |
+          echo "🚀 Running native modern linting stack..."
+          uv run ruff check src/ tests/ --output-format=github
+          uv run black --check --diff src/ tests/
+          uv run mypy src/ --show-error-codes
+        if: failure()

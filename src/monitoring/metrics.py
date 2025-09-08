@@ -1,6 +1,5 @@
 """System and application metrics collection with Prometheus integration."""
 
-import asyncio
 import threading
 import time
 from contextlib import suppress
@@ -8,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+import asyncio
 import psutil
 import structlog
 

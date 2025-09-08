@@ -1,9 +1,9 @@
 """High-level rendering service that integrates detection and browser automation."""
 
-import asyncio
 from dataclasses import asdict
 from typing import Any
 
+import asyncio
 import structlog
 from pydantic import BaseModel, Field
 

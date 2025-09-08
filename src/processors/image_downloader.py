@@ -1,11 +1,11 @@
 """Async image downloader with concurrent processing."""
 
-import asyncio
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlparse
 
 import aiohttp
+import asyncio
 import structlog
 from aiofiles import open as aopen
 

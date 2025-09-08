@@ -1,10 +1,10 @@
 """Tests for enhanced batch processor with concurrent execution."""
 
-import asyncio
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import asyncio
 import pytest
 
 from src.batch.enhanced_processor import (

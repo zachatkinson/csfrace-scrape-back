@@ -2,9 +2,9 @@
 
 # pylint: disable=protected-access,too-many-public-methods
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
+import asyncio
 import pytest
 
 from src.monitoring.alerts import AlertConfig

@@ -1,9 +1,9 @@
 """Central observability manager orchestrating all monitoring components."""
 
-import asyncio
 from dataclasses import dataclass
 from typing import Any
 
+import asyncio
 import structlog
 
 from .alerts import AlertConfig, alert_manager

@@ -1,9 +1,9 @@
 """API test configuration and fixtures."""
 
-import asyncio
 import os
 from collections.abc import AsyncGenerator
 
+import asyncio
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient

@@ -1,12 +1,12 @@
 """Test helper functions and utilities."""
 
-import asyncio
 import tempfile
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
 import aiohttp
+import asyncio
 from bs4 import BeautifulSoup
 
 from src.constants import TEST_CONSTANTS

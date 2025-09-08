@@ -1,8 +1,8 @@
 """Performance tests for caching system components."""
 
-import asyncio
 import time
 
+import asyncio
 import pytest
 
 from src.caching.base import CacheBackend, CacheConfig

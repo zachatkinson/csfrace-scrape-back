@@ -1,7 +1,6 @@
 """Integration tests for Redis cache backend."""
 
 import asyncio
-
 import pytest
 import pytest_asyncio
 

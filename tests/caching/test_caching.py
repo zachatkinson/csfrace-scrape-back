@@ -1,10 +1,10 @@
 """Tests for caching system components."""
 
-import asyncio
 import time
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import asyncio
 import pytest
 
 from src.caching.base import BaseCacheBackend, CacheBackend, CacheConfig, CacheEntry

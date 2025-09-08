@@ -1,9 +1,9 @@
 """Comprehensive tests for async image downloader."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
+import asyncio
 import pytest
 import pytest_asyncio
 

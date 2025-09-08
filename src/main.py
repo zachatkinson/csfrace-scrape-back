@@ -9,10 +9,10 @@ License: MIT
 """
 
 import argparse
-import asyncio
 import sys
 from pathlib import Path
 
+import asyncio
 import structlog
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn

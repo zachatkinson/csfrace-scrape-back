@@ -60,17 +60,21 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "isort>=5.12.0",
+    # Modern Python linting stack (2025 best practices)
+    "ruff>=0.12.0",      # Replaces: flake8, isort, many pylint rules
+    "black>=25.0.0",     # Code formatting
+    "mypy>=1.17.0",      # Type checking
+    
+    # Development tools  
     "autoflake>=2.2.0",
     "pre-commit>=3.3.0",
-    "mypy>=1.5.0",
-    "bandit>=1.7.5",
-    "flake8>=7.0.0",  # Code style checking (matches CI Super Linter)
+    
+    # Security & audit (keep for detailed reports)
     "safety>=3.6.1",
-    "pip-audit>=2.6.0",
+    "pip-audit>=2.6.0", 
     "detect-secrets>=1.4.0",
+    
+    # Type stubs
     "types-psutil>=5.9.0",
 ]
 test = [
@@ -131,28 +135,7 @@ extend-exclude = '''
 )/
 '''
 
-# isort configuration
-[tool.isort]
-profile = "black"
-line_length = 100
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-known_first_party = ["src"]
-known_third_party = [
-    "aiohttp",
-    "asyncio",
-    "beautifulsoup4", 
-    "bleach",
-    "click",
-    "httpx",
-    "pydantic",
-    "pytest",
-    "structlog",
-    "tenacity",
-]
+# Import sorting handled by Ruff (no separate isort config needed)
 
 # Ruff configuration (replaces flake8, isort, and more)
 [tool.ruff]
@@ -205,6 +188,24 @@ ignore = [
 "src/api/routers/batches.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting batch creation
 "fix_docstrings.py" = ["S105"]  # Test key for development script
 "docs/examples/tracing_integration_example.py" = ["S104"]  # Example server binding for documentation
+
+# Import sorting configuration (replaces isort)
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+known-third-party = [
+    "aiohttp",
+    "asyncio",
+    "beautifulsoup4", 
+    "bleach",
+    "click",
+    "httpx",
+    "pydantic",
+    "pytest",
+    "structlog",
+    "tenacity",
+]
+split-on-trailing-comma = true
+combine-as-imports = true
 
 # MyPy configuration
 [tool.mypy]
@@ -350,7 +351,6 @@ dev = [
     "hypothesis>=6.138.3",
     "ipdb>=0.13.0",
     "ipython>=8.18.1",
-    "isort>=6.0.1",
     "line-profiler>=4.1.0",
     "lxml>=6.0.1",
     "memory-profiler>=0.61.0",
@@ -389,8 +389,6 @@ dev = [
     "pytest-split>=0.10.0",
     "types-bleach>=6.2.0.20250809",
     "types-aiofiles>=24.1.0.20250822",
-    "pylint>=3.3.8",
-    "flake8>=7.3.0",
 ]
 
 # Python Semantic Release configuration - Best Practices 2025

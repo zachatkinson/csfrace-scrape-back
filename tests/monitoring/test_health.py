@@ -2,10 +2,10 @@
 
 # pylint: disable=protected-access,too-many-public-methods,broad-exception-raised,too-few-public-methods,use-implicit-booleaness-not-comparison,comparison-with-callable
 
-import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncio
 import pytest
 
 from src.monitoring.health import (

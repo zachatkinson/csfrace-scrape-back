@@ -1,6 +1,5 @@
 """Shared fixtures and test configuration for pytest."""
 
-import asyncio
 import importlib.util
 import logging
 import os
@@ -12,6 +11,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
+import asyncio
 import psycopg
 import pytest
 import pytest_asyncio
