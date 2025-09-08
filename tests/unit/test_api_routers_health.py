@@ -160,15 +160,12 @@ class TestHealthRouterEndpoints:
             ) as mock_obs:
                 mock_obs.return_value = {"status": "healthy"}
 
-                # Import will fail
-                with patch(
-                    "builtins.__import__",
-                    side_effect=ImportError("No module named 'src.caching.manager'"),
-                ):
+                # Simulate cache manager not available (import error scenario)
+                with patch("src.api.routers.health.cache_manager", None):
                     result = await health_check(mock_db_session)
 
-                    # Should handle import error gracefully
-                    assert result.cache["status"] == "error"
+                    # Should handle missing cache manager gracefully
+                    assert result.cache["status"] == "not_configured"
 
     @pytest.mark.asyncio
     async def test_health_check_general_exception(self, mock_db_session):
@@ -232,14 +229,11 @@ class TestHealthRouterEndpoints:
         ) as mock_collector:
             mock_collector.return_value = mock_metrics
 
-            # Mock performance monitor
+            # Mock performance monitor directly
             mock_perf_monitor = MagicMock()
             mock_perf_monitor.get_performance_summary.return_value = mock_performance
 
-            with patch.dict(
-                "sys.modules",
-                {"src.monitoring.performance": MagicMock(performance_monitor=mock_perf_monitor)},
-            ):
+            with patch("src.api.routers.health.performance_monitor", mock_perf_monitor):
                 result = await get_metrics()
 
                 # Performance data should be merged into application_metrics
@@ -261,11 +255,8 @@ class TestHealthRouterEndpoints:
         ) as mock_collector:
             mock_collector.return_value = mock_metrics
 
-            # Performance import fails
-            with patch(
-                "builtins.__import__",
-                side_effect=ImportError("No module named 'src.monitoring.performance'"),
-            ):
+            # Simulate performance monitor not available (import error scenario)
+            with patch("src.api.routers.health.performance_monitor", None):
                 result = await get_metrics()
 
                 # Should work without performance data

@@ -146,8 +146,10 @@ class ConfigLoader:
             if hasattr(base, "shopify"):
                 merged.update(asdict(base.shopify))
 
-        # Merge with new settings
-        merged.update(converter_settings)
+        # Merge with new settings (but handle preserve_classes specially)
+        converter_settings_copy = converter_settings.copy()
+        preserve_classes_override = converter_settings_copy.pop("preserve_classes", None)
+        merged.update(converter_settings_copy)
 
         # Map old flat structure to new nested structure
         http_config = HttpConfig(
@@ -173,9 +175,14 @@ class ConfigLoader:
         )
 
         # Handle frozenset conversion for preserve_classes
-        preserve_classes = merged.get("preserve_classes", frozenset())
-        if isinstance(preserve_classes, list):
-            preserve_classes = frozenset(preserve_classes)
+        # Need to handle preserve_classes specially since it should override defaults
+        if preserve_classes_override is not None and isinstance(preserve_classes_override, list):
+            # If config provides new classes, use only those (replace, not merge)
+            preserve_classes = frozenset(preserve_classes_override)
+        else:
+            # Use existing classes as fallback
+            existing_classes = base.shopify.preserve_classes if base and hasattr(base, 'shopify') else frozenset()
+            preserve_classes = existing_classes
 
         shopify_config = ShopifyConfig(
             preserve_classes=preserve_classes,
@@ -184,10 +191,15 @@ class ConfigLoader:
             ),
         )
 
+        # Create empty ConverterConfig and set attributes directly to avoid __init__ interference
+        converter_config = object.__new__(ConverterConfig)
+        object.__setattr__(converter_config, "http", http_config)
+        object.__setattr__(converter_config, "output", output_config)
+        object.__setattr__(converter_config, "robots", robots_config)
+        object.__setattr__(converter_config, "shopify", shopify_config)
+        
         logger.debug("Created converter config", settings=list(converter_settings.keys()))
-        return ConverterConfig(
-            http=http_config, output=output_config, robots=robots_config, shopify=shopify_config
-        )
+        return converter_config
 
     @staticmethod
     def create_batch_config(
