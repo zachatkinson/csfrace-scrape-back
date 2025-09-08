@@ -366,7 +366,7 @@ jobs:
         continue-on-error: true
 
       - name: Run Semgrep SAST Code Analysis
-        uses: semgrep/semgrep-action@v1.95.0
+        uses: semgrep/semgrep-action@v1
         with:
           config: >-
             p/security-audit
