@@ -76,7 +76,6 @@ class TestRevokeTokenEndpoint:
         mock_revocation_service,
         sample_token,
         mock_request,
-        mock_rate_limiter,
     ):
         """Test successful token revocation - SOLID Single Responsibility."""
         # Arrange
@@ -179,7 +178,6 @@ class TestRevokeTokenEndpoint:
         mock_revocation_service,
         sample_token,
         mock_request,
-        mock_rate_limiter,
     ):
         """Test token revocation when service fails."""
         # Arrange
