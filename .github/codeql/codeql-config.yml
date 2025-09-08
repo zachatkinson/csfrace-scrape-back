@@ -52,4 +52,13 @@ query-filters:
       tags: security
 
 
+# Python-specific configuration for better package resolution
+packs:
+  # Python security analysis pack
+  python:
+    - codeql/python-queries
+
+# Build configuration for Python projects
+build-mode: none  # Use automatic build detection
+
 # Simplified configuration for reliable CI execution

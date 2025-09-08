@@ -364,8 +364,8 @@ jobs:
             p/flask
             p/owasp-top-ten
           publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
-          publishDeployment: ${{ github.repository }}
-          generateSarif: "1"
+          # Note: generateSarif and publishDeployment are deprecated in v1
+          # SARIF output is now automatic when publishToken is provided
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         continue-on-error: true
