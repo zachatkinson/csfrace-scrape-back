@@ -196,7 +196,7 @@ async def refresh_access_token(
         raise APIErrorFactory.unauthorized("Could not validate refresh token")
 
     # Verify this is actually a refresh token
-    if token_data.token_type != "refresh":
+    if token_data.token_type != "refresh":  # noqa: S105
         raise APIErrorFactory.unauthorized("Invalid token type for refresh operation")
 
     # Get user

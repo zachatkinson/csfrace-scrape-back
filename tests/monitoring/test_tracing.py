@@ -1,4 +1,5 @@
 """Tests for OpenTelemetry distributed tracing implementation."""
+
 # pylint: disable=protected-access,unused-argument
 
 from unittest.mock import AsyncMock, MagicMock, patch

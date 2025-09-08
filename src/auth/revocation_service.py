@@ -165,7 +165,7 @@ class TokenRevocationService:
             bulk_revocation = RevokedToken.create_revocation_record(
                 jti=f"BULK_REVOCATION_{user_id}_{int(datetime.now(UTC).timestamp())}",
                 user_id=user_id,
-                token_type="bulk_revocation",
+                token_type="bulk_revocation",  # noqa: S106
                 issued_at=datetime.now(UTC),
                 expires_at=datetime.now(UTC) + timedelta(days=365),  # Long expiry for audit
                 reason=reason,
@@ -218,7 +218,8 @@ class TokenRevocationService:
                 select(RevokedToken).where(
                     and_(
                         RevokedToken.expires_at < cutoff_date,
-                        RevokedToken.token_type != "bulk_revocation",  # Keep audit records
+                        RevokedToken.token_type
+                        != "bulk_revocation",  # Keep audit records  # noqa: S105
                     )
                 )
             )

@@ -153,8 +153,8 @@ class TestExtractBasicSEO:
         """Test extracting title and description."""
         html = "<html><head><title>Test Title</title></head></html>"
         soup = BeautifulSoup(html, "html.parser")
-        mock_find_meta.side_effect = (
-            lambda soup, name: "Test description" if name == "description" else None
+        mock_find_meta.side_effect = lambda soup, name: (
+            "Test description" if name == "description" else None
         )
 
         result = plugin._extract_basic_seo(soup, "https://example.com")
@@ -168,8 +168,8 @@ class TestExtractBasicSEO:
         """Test extracting keywords."""
         html = "<html><head><title>Test</title></head></html>"
         soup = BeautifulSoup(html, "html.parser")
-        mock_find_meta.side_effect = (
-            lambda soup, name: "keyword1, keyword2, keyword3" if name == "keywords" else None
+        mock_find_meta.side_effect = lambda soup, name: (
+            "keyword1, keyword2, keyword3" if name == "keywords" else None
         )
 
         result = plugin._extract_basic_seo(soup, "https://example.com")
@@ -232,8 +232,8 @@ class TestExtractBasicSEO:
         """Test keywords extraction filters empty items."""
         html = "<html><head></head></html>"
         soup = BeautifulSoup(html, "html.parser")
-        mock_find_meta.side_effect = (
-            lambda soup, name: "keyword1, , keyword2,  , keyword3" if name == "keywords" else None
+        mock_find_meta.side_effect = lambda soup, name: (
+            "keyword1, , keyword2,  , keyword3" if name == "keywords" else None
         )
 
         result = plugin._extract_basic_seo(soup, "https://example.com")

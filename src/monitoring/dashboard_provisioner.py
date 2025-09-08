@@ -169,15 +169,15 @@ class GrafanaDashboardProvisioner:
 
             # Add Grafana service if not present
             if "grafana" not in compose_config.get("services", {}):
-                compose_config.setdefault("services", {})["grafana"] = (
-                    self._get_grafana_service_config()
-                )
+                compose_config.setdefault("services", {})[
+                    "grafana"
+                ] = self._get_grafana_service_config()
 
             # Add Prometheus service if not present
             if "prometheus" not in compose_config.get("services", {}):
-                compose_config.setdefault("services", {})["prometheus"] = (
-                    self._get_prometheus_service_config()
-                )
+                compose_config.setdefault("services", {})[
+                    "prometheus"
+                ] = self._get_prometheus_service_config()
 
             # Add volumes
             compose_config.setdefault("volumes", {}).update(

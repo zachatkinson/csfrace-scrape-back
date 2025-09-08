@@ -168,7 +168,9 @@ def db_session(testcontainers_db_service):  # pylint: disable=redefined-outer-na
 
 
 @pytest.fixture
-def testcontainers_db_service(postgres_container):  # pylint: disable=too-many-locals,redefined-outer-name
+def testcontainers_db_service(
+    postgres_container,
+):  # pylint: disable=too-many-locals,redefined-outer-name
     """Create DatabaseService using official SQLAlchemy best practices.
 
     Following official SQLAlchemy documentation:
@@ -254,24 +256,32 @@ def testcontainers_db_service(postgres_container):  # pylint: disable=too-many-l
 
 
 @pytest.fixture
-def db_service_with_session(testcontainers_db_service, db_session):  # pylint: disable=redefined-outer-name
+def db_service_with_session(
+    testcontainers_db_service, db_session
+):  # pylint: disable=redefined-outer-name
     """DatabaseService that uses the transactional test session.
 
     This ensures that all database operations through the service
     are rolled back after each test, preventing data bleeding.
     """
     # Replace the service's session factory to use our test session
-    original_factory = testcontainers_db_service._session_factory  # pylint: disable=protected-access
+    original_factory = (
+        testcontainers_db_service._session_factory
+    )  # pylint: disable=protected-access
 
     def test_session_factory():
         return db_session
 
-    testcontainers_db_service._session_factory = test_session_factory  # pylint: disable=protected-access
+    testcontainers_db_service._session_factory = (
+        test_session_factory  # pylint: disable=protected-access
+    )
 
     yield testcontainers_db_service
 
     # Restore original factory (though fixture cleanup will handle it)
-    testcontainers_db_service._session_factory = original_factory  # pylint: disable=protected-access
+    testcontainers_db_service._session_factory = (
+        original_factory  # pylint: disable=protected-access
+    )
 
 
 @pytest.fixture
@@ -526,9 +536,9 @@ def assert_enum_values(enum_class, expected_values):
     """
     for member_name, expected_value in expected_values.items():
         enum_member = getattr(enum_class, member_name)
-        assert enum_member.value == expected_value, (
-            f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
-        )
+        assert (
+            enum_member.value == expected_value
+        ), f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
 
 
 # Skip tests if dependencies not available

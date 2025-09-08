@@ -153,15 +153,18 @@ class AdaptiveRenderer:
 
                 render_time = asyncio.get_event_loop().time() - start_time
 
-                return RenderResult(
-                    html=static_html,
-                    url=url,
-                    status_code=200,  # Assume success for provided HTML
-                    final_url=url,
-                    load_time=render_time,
-                    javascript_executed=False,
-                    metadata={"analysis": asdict(analysis), "source": "static_provided"},
-                ), analysis
+                return (
+                    RenderResult(
+                        html=static_html,
+                        url=url,
+                        status_code=200,  # Assume success for provided HTML
+                        final_url=url,
+                        load_time=render_time,
+                        javascript_executed=False,
+                        metadata={"analysis": asdict(analysis), "source": "static_provided"},
+                    ),
+                    analysis,
+                )
 
         # Use JavaScript rendering
         logger.info("Using JavaScript rendering", url=url)

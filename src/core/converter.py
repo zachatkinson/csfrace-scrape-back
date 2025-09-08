@@ -318,9 +318,9 @@ class AsyncWordPressConverter:
                     await self.image_downloader.download_all(
                         session,
                         image_urls,
-                        progress_callback=lambda p: progress_callback(70 + int(p * 0.3))
-                        if progress_callback
-                        else None,
+                        progress_callback=lambda p: (
+                            progress_callback(70 + int(p * 0.3)) if progress_callback else None
+                        ),
                     )
 
                 if progress_callback:

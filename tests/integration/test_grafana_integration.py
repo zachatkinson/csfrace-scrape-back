@@ -104,9 +104,9 @@ class TestGrafanaIntegration:
                 grid_required = ["h", "w", "x", "y"]
                 for field in grid_required:
                     assert field in grid_pos, f"{dashboard_name} panel {i} gridPos missing {field}"
-                    assert isinstance(grid_pos[field], int), (
-                        f"{dashboard_name} panel {i} {field} should be int"
-                    )
+                    assert isinstance(
+                        grid_pos[field], int
+                    ), f"{dashboard_name} panel {i} {field} should be int"
 
     def test_prometheus_query_validation(self, temp_config):
         """Test that Prometheus queries in dashboards are properly formatted."""
@@ -132,9 +132,9 @@ class TestGrafanaIntegration:
                             # Verify basic Prometheus query structure
                             expr = target["expr"]
                             assert isinstance(expr, str), "Prometheus expression should be string"
-                            assert len(expr.strip()) > 0, (
-                                "Prometheus expression should not be empty"
-                            )
+                            assert (
+                                len(expr.strip()) > 0
+                            ), "Prometheus expression should not be empty"
 
                             # Verify required target fields
                             assert "refId" in target, "Target should have refId"

@@ -17,7 +17,7 @@ class DiscordOAuthProvider(OAuthProviderInterface):
         self.client_id = client_id
         self.client_secret = client_secret
         self.authorization_url = "https://discord.com/api/oauth2/authorize"
-        self.token_url = "https://discord.com/api/oauth2/token"
+        self.token_url = "https://discord.com/api/oauth2/token"  # noqa: S105
         self.user_info_url = "https://discord.com/api/users/@me"
 
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:
@@ -72,7 +72,7 @@ class TwitterOAuthProvider(OAuthProviderInterface):
         self.client_secret = client_secret
         # Twitter OAuth 2.0 endpoints
         self.authorization_url = "https://twitter.com/i/oauth2/authorize"
-        self.token_url = "https://api.twitter.com/2/oauth2/token"
+        self.token_url = "https://api.twitter.com/2/oauth2/token"  # noqa: S105
         self.user_info_url = "https://api.twitter.com/2/users/me"
 
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:

@@ -57,9 +57,11 @@ async def database_transaction(
     """
     if session is None:
         # Create new session
-        async with async_session() as db:
-            async with _transaction_handler(db, auto_commit, isolation_level) as session:
-                yield session
+        async with (
+            async_session() as db,
+            _transaction_handler(db, auto_commit, isolation_level) as session,
+        ):
+            yield session
     else:
         # Use existing session (for nested transactions)
         async with _transaction_handler(session, auto_commit, isolation_level) as session:
@@ -139,7 +141,7 @@ async def _transaction_handler(
 
 
 @asynccontextmanager
-async def batch_transaction(batch_size: int = 1000) -> AsyncGenerator[AsyncSession]:
+async def batch_transaction(batch_size: int = 1000) -> AsyncGenerator[AsyncSession]:  # noqa: ARG001
     """Transaction context for batch operations with periodic commits.
 
     Useful for processing large datasets where we want to commit in batches

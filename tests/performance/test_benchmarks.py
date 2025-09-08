@@ -116,9 +116,9 @@ class TestConcurrencyPerformance:
         assert len(results) == 20
         # Allow for some processing errors - ensure at least 70% of results have content (CI-friendly)
         non_empty_results = [r for r in results if len(r) > 0]
-        assert len(non_empty_results) >= 14, (
-            f"Expected at least 14 non-empty results, got {len(non_empty_results)}"
-        )
+        assert (
+            len(non_empty_results) >= 14
+        ), f"Expected at least 14 non-empty results, got {len(non_empty_results)}"
 
     def _generate_large_html(self, size_kb: int = 50) -> str:
         """Generate large HTML document for testing."""

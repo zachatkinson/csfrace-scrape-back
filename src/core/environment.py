@@ -33,7 +33,7 @@ class EnvironmentLoader:
         return value
 
     @staticmethod
-    def get_optional(key: str, default: str = "", description: str = "") -> str:
+    def get_optional(key: str, default: str = "", description: str = "") -> str:  # noqa: ARG004
         """Get an optional environment variable with default.
 
         Args:

@@ -279,13 +279,15 @@ class TestCoreModuleIntegration:
     def test_config_loader_integration(self, tmp_path):
         """Test config loader integration."""
         config_file = tmp_path / "integration.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
         http:
           timeout: 30
           user_agent: "TestBot/1.0"
         robots:
           respect_robots_txt: true
-        """)
+        """
+        )
 
         config = ConfigLoader.load_config(config_file)
 

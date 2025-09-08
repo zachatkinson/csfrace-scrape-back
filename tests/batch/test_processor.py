@@ -1,4 +1,5 @@
 """Unit tests for batch processor."""
+
 # pylint: disable=protected-access
 
 import asyncio

@@ -499,7 +499,9 @@ class OAuthService:
 
         logger.debug("OAuth state stored", state=state, provider=provider.value)
 
-    async def get_cached_user_info(self, access_token: str) -> OAuthUserInfo:  # pylint: disable=unused-argument
+    async def get_cached_user_info(
+        self, access_token: str
+    ) -> OAuthUserInfo:  # pylint: disable=unused-argument
         """Get OAuth user information using the access token.
 
         This method fetches fresh user information from the OAuth provider

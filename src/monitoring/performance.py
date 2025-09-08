@@ -550,9 +550,9 @@ class PerformanceMonitor:
                         "operation": operation,
                         "avg_duration_ms": avg_duration,
                         "std_dev_ms": std_dev,
-                        "coefficient_of_variation": std_dev / avg_duration
-                        if avg_duration > 0
-                        else 0,
+                        "coefficient_of_variation": (
+                            std_dev / avg_duration if avg_duration > 0 else 0
+                        ),
                     }
                 )
 

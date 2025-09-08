@@ -46,9 +46,9 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-
             "method": method,
             "path": path,
             "user_agent": request.headers.get("User-Agent"),
-            "client_ip": getattr(request.client, "host", "unknown")
-            if request.client
-            else "unknown",
+            "client_ip": (
+                getattr(request.client, "host", "unknown") if request.client else "unknown"
+            ),
         }
 
         custom_trace_id = performance_monitor.start_trace(

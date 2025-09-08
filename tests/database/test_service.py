@@ -658,9 +658,7 @@ class TestDatabaseServiceRetryOperations:
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update({"retry_count": 1})
             session.query(ScrapingJob).filter(ScrapingJob.id == job2.id).update(
-                {
-                    "retry_count": 3  # At limit, should not be eligible
-                }
+                {"retry_count": 3}  # At limit, should not be eligible
             )
 
         # Get retry jobs
@@ -1096,9 +1094,9 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         stats = db_service_with_session.get_job_statistics(days=7)
 
         # Verify we added exactly 2 jobs (account for concurrent test jobs)
-        assert stats["total_jobs"] == initial_count + 2, (
-            f"Expected {initial_count + 2} total jobs, got {stats['total_jobs']}"
-        )
+        assert (
+            stats["total_jobs"] == initial_count + 2
+        ), f"Expected {initial_count + 2} total jobs, got {stats['total_jobs']}"
         assert stats["avg_duration_seconds"] == 0.0  # Null average becomes 0
         assert stats["total_content_size_bytes"] == 0
         assert stats["total_images_downloaded"] == 0

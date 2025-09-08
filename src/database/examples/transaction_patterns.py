@@ -4,8 +4,15 @@ This shows the before/after patterns for eliminating DRY violations
 and improving data integrity across database operations.
 """
 
+import logging
+from datetime import datetime
+
+from fastapi import HTTPException
+
 from ..models import Batch, Job, JobStatus
 from ..transactions import TransactionError, batch_transaction, database_transaction
+
+logger = logging.getLogger(__name__)
 
 # ===== BEFORE: Repeated transaction pattern (DRY VIOLATION) =====
 
@@ -34,7 +41,7 @@ async def old_update_jobs_pattern(db, batch_id, job_updates):
                 job.result = update_data.result
 
         batch = await db.get(Batch, batch_id)
-        batch.updated_at = datetime.utcnow()
+        batch.updated_at = datetime.now()
         await db.commit()
 
     except Exception as e:
@@ -79,7 +86,7 @@ async def new_update_jobs_pattern(batch_id, job_updates):
         # Update batch timestamp
         batch = await db.get(Batch, batch_id)
         if batch:
-            batch.updated_at = datetime.utcnow()
+            batch.updated_at = datetime.now()
             results.append(batch)
 
         return results

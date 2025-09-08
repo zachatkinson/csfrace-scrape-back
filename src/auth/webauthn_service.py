@@ -266,14 +266,16 @@ class WebAuthnService:
         # Generate authentication options
         authentication_options = generate_authentication_options(
             rp_id=self.config.rp_id,
-            allow_credentials=[
-                PublicKeyCredentialDescriptor(
-                    id=base64url_to_bytes(cred["id"]), type=PublicKeyCredentialType.PUBLIC_KEY
-                )
-                for cred in allow_credentials
-            ]
-            if allow_credentials
-            else None,
+            allow_credentials=(
+                [
+                    PublicKeyCredentialDescriptor(
+                        id=base64url_to_bytes(cred["id"]), type=PublicKeyCredentialType.PUBLIC_KEY
+                    )
+                    for cred in allow_credentials
+                ]
+                if allow_credentials
+                else None
+            ),
             user_verification=UserVerificationRequirement.PREFERRED,
         )
 
