@@ -25,7 +25,7 @@ class TestRedisCacheInitialization:
     def test_redis_cache_initialization_with_redis_available(self):
         """Test RedisCache initialization when redis is available."""
         with patch("src.caching.redis_cache.REDIS_AVAILABLE", True):
-            with patch("src.caching.redis_cache.redis") as mock_redis:
+            with patch("src.caching.redis_cache.redis"):
                 from src.caching.redis_cache import RedisCache
 
                 config = CacheConfig()
@@ -608,7 +608,7 @@ class TestRedisCacheStats:
         with patch("src.caching.redis_cache.redis") as mock_redis_module:
             mock_redis_module.RedisError = MockRedisError
 
-            with patch("src.caching.redis_cache.logger") as mock_module_logger:
+            with patch("src.caching.redis_cache.logger"):
                 result = await cache.stats()
 
                 # Should still work with partial sampling
