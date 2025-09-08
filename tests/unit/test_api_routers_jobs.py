@@ -360,7 +360,7 @@ class TestJobRouterEndpoints:
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
             assert "cannot be started" in str(exc_info.value.detail)
-            assert "running" in exc_info.value.detail
+            assert "running" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_start_job_database_error(self, mock_db_session, sample_job):
@@ -427,7 +427,7 @@ class TestJobRouterEndpoints:
                 await cancel_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert "cannot be cancelled" in exc_info.value.detail
+            assert "cannot be cancelled" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_cancel_job_invalid_status_failed(self, mock_db_session, sample_job):
@@ -439,7 +439,7 @@ class TestJobRouterEndpoints:
                 await cancel_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert "cannot be cancelled" in exc_info.value.detail
+            assert "cannot be cancelled" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_cancel_job_invalid_status_cancelled(self, mock_db_session, sample_job):
@@ -451,7 +451,7 @@ class TestJobRouterEndpoints:
                 await cancel_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert "cannot be cancelled" in exc_info.value.detail
+            assert "cannot be cancelled" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_retry_job_success(self, mock_db_session, sample_job):
@@ -498,8 +498,8 @@ class TestJobRouterEndpoints:
                 await retry_job(1, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert "cannot be retried" in exc_info.value.detail
-            assert "retries: 3/3" in exc_info.value.detail
+            assert "cannot be retried" in str(exc_info.value.detail)
+            assert "retries: 3/3" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_retry_job_database_error(self, mock_db_session, sample_job):
@@ -550,7 +550,7 @@ class TestJobRouterEndpoints:
                     await start_job(1, mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-                assert invalid_status.value in exc_info.value.detail
+                assert invalid_status.value in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_cancel_job_valid_statuses(self, mock_db_session):
