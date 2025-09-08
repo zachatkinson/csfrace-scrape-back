@@ -98,12 +98,12 @@ class TestRedisConnection:
         # The real issue is that the redis module is already imported in the redis_cache module
         # So we need to patch it after the import
         with patch.object(cache.logger, "info") as mock_info:
-            # Patch the actual redis attribute of the module
-            with patch(mock_redis_module, "Redis", return_value=mock_client) as mock_redis_cls:
+            with patch("src.caching.redis_cache.redis", mock_redis_module):
+                mock_redis_module.Redis.return_value = mock_client
                 result = await cache._get_client()
 
                 # Verify Redis client was created with correct parameters
-                mock_redis_cls.assert_called_once_with(
+                mock_redis_module.Redis.assert_called_once_with(
                     host=cache.config.redis_host,
                     port=cache.config.redis_port,
                     db=cache.config.redis_db,
@@ -134,7 +134,7 @@ class TestRedisConnection:
 
     @pytest.mark.asyncio
     async def test_get_client_handles_connection_failure(self, redis_cache):
-        """Test _get_client handles connection failures."""
+        """Test _get_client handles connection failures during ping."""
         cache, mock_redis_module = redis_cache
         mock_client = AsyncMock()
         mock_client.ping.side_effect = Exception("Connection failed")
@@ -142,8 +142,11 @@ class TestRedisConnection:
         # Ensure no existing client
         cache.redis_client = None
 
-        with patch.object(cache.logger, "error") as mock_error:
-            with patch.object(mock_redis_module, "Redis", return_value=mock_client):
+        # We need to patch the redis module inside the _get_client method
+        with patch("src.caching.redis_cache.redis", mock_redis_module):
+            mock_redis_module.Redis.return_value = mock_client
+            
+            with patch.object(cache.logger, "error") as mock_error:
                 with pytest.raises(Exception, match="Connection failed"):
                     await cache._get_client()
 
@@ -165,7 +168,8 @@ class TestRedisConnection:
 
         with patch.object(cache.logger, "error") as mock_error:
             with patch.object(cache.logger, "warning") as mock_warning:
-                with patch.object(mock_redis_module, "Redis", return_value=mock_client):
+                with patch("src.caching.redis_cache.redis", mock_redis_module):
+                    mock_redis_module.Redis.return_value = mock_client
                     with pytest.raises(Exception, match="Connection failed"):
                         await cache._get_client()
 
