@@ -11,7 +11,6 @@ import structlog
 from bs4 import BeautifulSoup, Tag
 
 from ..core.exceptions import ProcessingError
-from ..utils.html import safe_copy_attributes
 
 logger = structlog.get_logger(__name__)
 
@@ -114,7 +113,10 @@ class FontProcessor(ContentExtractorBase):
             # Convert font elements to spans with appropriate styles
             for font_tag in content.find_all("font"):
                 span = content.new_tag("span")
-                safe_copy_attributes(font_tag, span, exclude=["face", "size"])
+                # Copy all attributes except face and size (which are handled separately)
+                for attr, value in font_tag.attrs.items():
+                    if attr not in ["face", "size"]:
+                        span[attr] = value
 
                 # Convert font attributes to CSS
                 if font_tag.get("face"):

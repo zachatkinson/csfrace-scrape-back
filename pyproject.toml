@@ -414,3 +414,9 @@ allowed_tags = [
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
 
+[dependency-groups]
+dev = [
+    "types-bleach>=6.2.0.20250809",
+    "types-pyyaml>=6.0.12.20250822",
+]
+
