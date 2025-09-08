@@ -19,7 +19,7 @@ from src.api.schemas import HealthCheckResponse, MetricsResponse
 from src.auth.models import StatusResponse
 
 
-class TestHealthRouterEndpoints:
+class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
     """Test health router endpoint functions."""
 
     @pytest.fixture
