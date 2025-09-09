@@ -53,23 +53,23 @@ def get_rate_limits() -> RateLimits:
             ADMIN_OPERATIONS="1000/hour",
             DEVELOPMENT="1000/hour",
         )
-    
+
     # Check for development environment
     if os.getenv("ENVIRONMENT") == "development":
         # Development-friendly rate limits - realistic but not overbearing
         return RateLimits(
-            AUTH_LOGIN="30/minute",       # 5 → 30 (realistic for login testing)
-            AUTH_REGISTER="15/minute",    # 3 → 15 (enough for registration testing) 
+            AUTH_LOGIN="30/minute",  # 5 → 30 (realistic for login testing)
+            AUTH_REGISTER="15/minute",  # 3 → 15 (enough for registration testing)
             AUTH_PASSWORD_RESET="10/minute",  # 2 → 10 (reasonable for password reset testing)
-            AUTH_OAUTH="50/minute",       # 10 → 50 (sufficient for OAuth flow testing)
-            AUTH_PASSKEY="50/minute",     # 10 → 50 (good for passkey testing)
+            AUTH_OAUTH="50/minute",  # 10 → 50 (sufficient for OAuth flow testing)
+            AUTH_PASSKEY="50/minute",  # 10 → 50 (good for passkey testing)
             AUTH_SENSITIVE_OPERATION="20/minute",  # 3 → 20 (safe but not restrictive)
-            JOB_CREATION="100/hour",      # 20 → 100 (allows good job testing without abuse)
-            BATCH_CREATION="50/hour",     # 10 → 50 (reasonable batch testing)
+            JOB_CREATION="100/hour",  # 20 → 100 (allows good job testing without abuse)
+            BATCH_CREATION="50/hour",  # 10 → 50 (reasonable batch testing)
             ADMIN_OPERATIONS="200/hour",  # 100 → 200 (admin operations need more headroom)
-            DEVELOPMENT="500/hour",       # 1000 → 500 (general development usage)
+            DEVELOPMENT="500/hour",  # 1000 → 500 (general development usage)
         )
-    
+
     # Production rate limits
     return RateLimits()
 

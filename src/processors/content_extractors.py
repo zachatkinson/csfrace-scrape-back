@@ -8,7 +8,7 @@ import re
 from abc import ABC, abstractmethod
 
 import structlog
-from bs4 import BeautifulSoup, Tag
+from bs4 import Tag
 
 from ..core.exceptions import ProcessingError
 
@@ -55,7 +55,7 @@ class MainContentExtractor(ContentExtractorBase):
     def __init__(self):
         super().__init__("MainContentExtractor")
 
-    async def extract(self, soup: BeautifulSoup) -> Tag:
+    async def extract(self, content: Tag) -> Tag:
         """Find and extract main content area."""
         try:
             # Try common content selectors in order of preference
@@ -71,13 +71,15 @@ class MainContentExtractor(ContentExtractorBase):
             ]
 
             for selector in selectors:
-                content = soup.select_one(selector)
-                if content and len(content.get_text().strip()) > 100:
+                found_content = (
+                    content.select_one(selector) if hasattr(content, "select_one") else None
+                )
+                if found_content and len(found_content.get_text().strip()) > 100:
                     self._log_processing("Found main content", selector=selector)
-                    return content
+                    return found_content
 
             # Fallback to body if no main content found
-            body = soup.find("body")
+            body = content.find("body") if hasattr(content, "find") else None
             if body:
                 self._log_processing("Using body as fallback content")
                 return body

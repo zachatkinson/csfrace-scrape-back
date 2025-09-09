@@ -53,7 +53,7 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
     """
     # Use the dedicated health service following SOLID principles
     health_data = await health_service.get_comprehensive_health_status(db)
-    
+
     response = HealthCheckResponse(**health_data)
 
     # Return appropriate HTTP status based on overall health
@@ -150,14 +150,14 @@ async def _get_cache_status() -> dict[str, Any]:
 
     try:
         await cache_manager.initialize()
-        
+
         # Get detailed backend type following Redis best practices
         try:
             detailed_backend = await cache_manager.get_detailed_backend_type()
         except Exception:
             # Fallback to basic backend type
             detailed_backend = cache_manager.backend_type
-            
+
         return {
             "status": "healthy",
             "backend": detailed_backend,

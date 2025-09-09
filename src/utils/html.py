@@ -3,6 +3,7 @@
 from typing import Any
 
 from bs4 import BeautifulSoup, Tag
+from bs4.element import AttributeValueList
 
 
 def safe_copy_attributes(
@@ -29,7 +30,12 @@ def safe_copy_attributes(
         else:
             target_attr, default_value = target_config, ""
 
-        target_element[target_attr] = source_element.get(source_attr, default_value)
+        attr_value = source_element.get(source_attr, default_value)
+        # Ensure we have a valid value for Tag attribute assignment
+        if attr_value is not None:
+            target_element[target_attr] = attr_value
+        else:
+            target_element[target_attr] = default_value
 
 
 def find_meta_content(
@@ -92,8 +98,8 @@ def extract_basic_element_data(element: Tag) -> dict[str, str]:
 
     def _get_class_str() -> str:
         """Safely get class attribute as joined string."""
-        class_attr = element.get("class", [])
-        if isinstance(class_attr, list):
+        class_attr = element.get("class")
+        if isinstance(class_attr, list | AttributeValueList):
             return " ".join(str(cls) for cls in class_attr)
         if isinstance(class_attr, str):
             return class_attr

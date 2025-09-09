@@ -51,25 +51,25 @@ class CacheConfig:
     compress: bool = True
     cleanup_on_startup: bool = True
     max_key_length: int = CONSTANTS.MAX_KEY_LENGTH
-    
+
     @classmethod
     def from_environment(cls) -> "CacheConfig":
         """Create cache config from environment variables.
-        
+
         Returns:
             CacheConfig instance configured from environment
         """
         backend_str = CONSTANTS.CACHE_BACKEND.lower()
-        
+
         # Map string to enum
         backend_map = {
             "file": CacheBackend.FILE,
-            "redis": CacheBackend.REDIS, 
-            "memory": CacheBackend.MEMORY
+            "redis": CacheBackend.REDIS,
+            "memory": CacheBackend.MEMORY,
         }
-        
+
         backend = backend_map.get(backend_str, CacheBackend.FILE)
-        
+
         return cls(backend=backend)
 
 

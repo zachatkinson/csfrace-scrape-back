@@ -210,17 +210,23 @@ class DynamicContentDetector:
 
         # Check script src attributes
         for script in soup.find_all("script", src=True):
-            src = script["src"].lower()
-            for i, pattern in enumerate(self._js_framework_patterns):
-                if pattern.search(src):
-                    frameworks.add(self.indicators.js_frameworks[i])
+            if isinstance(script, Tag):
+                src_attr = script.get("src")
+                if isinstance(src_attr, str):
+                    src = src_attr.lower()
+                    for i, pattern in enumerate(self._js_framework_patterns):
+                        if pattern.search(src):
+                            frameworks.add(self.indicators.js_frameworks[i])
 
         # Check inline scripts
         for script in soup.find_all("script", string=True):
-            script_content = script.string.lower()
-            for i, pattern in enumerate(self._js_framework_patterns):
-                if pattern.search(script_content):
-                    frameworks.add(self.indicators.js_frameworks[i])
+            if isinstance(script, Tag) and script.string:
+                script_content_raw = script.string
+                if isinstance(script_content_raw, str):
+                    script_content = script_content_raw.lower()
+                    for i, pattern in enumerate(self._js_framework_patterns):
+                        if pattern.search(script_content):
+                            frameworks.add(self.indicators.js_frameworks[i])
 
         return list(frameworks)
 

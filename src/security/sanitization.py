@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 import bleach
 import structlog
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 logger = structlog.get_logger(__name__)
 
@@ -288,14 +288,18 @@ class HTMLSanitizer:
             script.decompose()
 
         # Validate all links point to safe domains
-        for link in soup.find_all("a", href=True):
-            if not self._is_safe_url(link["href"]):
-                link["href"] = "#"  # Make link safe but non-functional
+        for link_element in soup.find_all("a", href=True):
+            if isinstance(link_element, Tag):
+                href_attr = link_element.get("href")
+                if isinstance(href_attr, str) and not self._is_safe_url(href_attr):
+                    link_element["href"] = "#"  # Make link safe but non-functional
 
         # Ensure iframes only embed from trusted sources
-        for iframe in soup.find_all("iframe", src=True):
-            if not self._is_trusted_iframe_source(iframe["src"]):
-                iframe.decompose()
+        for iframe_element in soup.find_all("iframe", src=True):
+            if isinstance(iframe_element, Tag):
+                src_attr = iframe_element.get("src")
+                if isinstance(src_attr, str) and not self._is_trusted_iframe_source(src_attr):
+                    iframe_element.decompose()
 
         return str(soup)
 
@@ -323,32 +327,38 @@ class HTMLSanitizer:
 
         # Filter style attributes
         for element in soup.find_all(attrs={"style": True}):
-            style_value = element.get("style", "")
-            sanitized_style = self._sanitize_css(style_value)
-            if sanitized_style:
-                element["style"] = sanitized_style
-            else:
-                del element["style"]
+            if isinstance(element, Tag):
+                style_attr = element.get("style", "")
+                style_value = style_attr if isinstance(style_attr, str) else ""
+                sanitized_style = self._sanitize_css(style_value)
+                if sanitized_style:
+                    element["style"] = sanitized_style
+                else:
+                    del element["style"]
 
         # Filter URLs in href and src attributes
         for element in soup.find_all(attrs={"href": True}):
-            href_value = element.get("href", "")
-            sanitized_href = self._sanitize_url(href_value)
-            if sanitized_href:
-                element["href"] = sanitized_href
-            else:
-                element["href"] = "#"
+            if isinstance(element, Tag):
+                href_attr = element.get("href", "")
+                href_value = href_attr if isinstance(href_attr, str) else ""
+                sanitized_href = self._sanitize_url(href_value)
+                if sanitized_href:
+                    element["href"] = sanitized_href
+                else:
+                    element["href"] = "#"
 
         for element in soup.find_all(attrs={"src": True}):
-            src_value = element.get("src", "")
-            if element.name == "iframe" and not self._is_trusted_iframe_source(src_value):
-                element.decompose()
-                continue
-            sanitized_src = self._sanitize_url(src_value)
-            if sanitized_src:
-                element["src"] = sanitized_src
-            else:
-                element.decompose()
+            if isinstance(element, Tag):
+                src_attr = element.get("src", "")
+                src_value = src_attr if isinstance(src_attr, str) else ""
+                if element.name == "iframe" and not self._is_trusted_iframe_source(src_value):
+                    element.decompose()
+                    continue
+                sanitized_src = self._sanitize_url(src_value)
+                if sanitized_src:
+                    element["src"] = sanitized_src
+                else:
+                    element.decompose()
 
         return str(soup)
 

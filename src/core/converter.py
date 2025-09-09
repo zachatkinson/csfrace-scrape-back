@@ -181,11 +181,12 @@ class AsyncWordPressConverter:
 
         image_urls = []
         for img in img_tags:
-            src = img.get("src")
-            if src:
-                # Convert to absolute URL
-                absolute_url = urljoin(self.base_url, src)
-                image_urls.append(absolute_url)
+            if hasattr(img, "get"):  # Type guard for Tag
+                src = img.get("src")
+                if src and isinstance(src, str):
+                    # Convert to absolute URL
+                    absolute_url = urljoin(self.base_url, src)
+                    image_urls.append(absolute_url)
 
         # Remove duplicates while preserving order
         seen = set()
