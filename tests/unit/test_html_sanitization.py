@@ -369,7 +369,7 @@ class TestHTMLSanitizerEdgeCases:
         """Test strict mode rule application."""
         # Test external link modification (lines 288, 293)
         html = '<a href="http://unsafe-external.com">External</a>'
-        result = sanitizer.sanitize_html(html)
+        _ = sanitizer.sanitize_html(html)
         # In strict mode, external links might be modified
 
     def test_iframe_decomposition(self, sanitizer):

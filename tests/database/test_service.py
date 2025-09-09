@@ -1260,7 +1260,7 @@ class TestDatabaseServiceErrorHandling:
     @pytest.fixture
     def mock_service(self, mock_session):
         """Create a database service with mocked dependencies."""
-        with patch("src.database.service.create_database_engine") as mock_engine:
+        with patch("src.database.service.create_database_engine"):
             with patch("src.database.service.sessionmaker") as mock_sessionmaker:
                 mock_sessionmaker.return_value = MagicMock(return_value=mock_session)
                 service = DatabaseService(echo=False)
