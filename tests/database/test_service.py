@@ -1025,7 +1025,6 @@ class TestDatabaseServiceStatisticsAndAnalytics:
     def test_get_job_statistics(self, db_service_with_session):
         """Test job statistics calculation for time period."""
         # Create jobs with different statuses and timing
-        now = datetime.now(UTC)
 
         # Recent jobs (within 7 days)
         job1 = db_service_with_session.create_job(
@@ -1112,7 +1111,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
             url="https://example.com/test2",
             output_directory="/tmp/output2",
         )
-        job3 = db_service_with_session.create_job(
+        _ = db_service_with_session.create_job(
             url="https://example.com/test3",
             output_directory="/tmp/output3",
         )

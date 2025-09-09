@@ -95,7 +95,6 @@ class TestConcurrencyPerformance:
             with ThreadPoolExecutor(max_workers=4) as executor:
                 # Create synchronous wrapper for async process method
                 def sync_process(html):
-                    import asyncio
                     from bs4 import BeautifulSoup
 
                     soup = BeautifulSoup(html, "html.parser")

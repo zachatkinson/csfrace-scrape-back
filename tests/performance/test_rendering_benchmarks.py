@@ -122,7 +122,6 @@ class TestRenderingPerformanceBenchmarks:
         successful_requests = [
             r for r in results if not isinstance(r, str) or not r.startswith("Error")
         ]
-        error_requests = [r for r in results if isinstance(r, str) and r.startswith("Error")]
 
         # Pool should serve requests (may queue some)
         assert len(successful_requests) > 0

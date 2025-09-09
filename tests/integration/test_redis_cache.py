@@ -222,8 +222,6 @@ class TestRedisCacheIntegration:
         """Test Redis error handling and connection recovery."""
         # Test that cache handles operations gracefully
         # When client is None, it should reconnect automatically
-        original_client = redis_cache.redis_client
-
         # Simulate connection lost
         redis_cache.redis_client = None
 

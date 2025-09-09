@@ -450,9 +450,6 @@ class TestSessionManagerAuthentication:
         mock_response.text = AsyncMock(return_value="<html>Dashboard content</html>")
 
         # Create async context manager mock
-        async def mock_get(*args, **kwargs):
-            return mock_response
-
         mock_session.get = Mock(return_value=mock_response)
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
