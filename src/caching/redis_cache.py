@@ -97,6 +97,59 @@ class RedisCache(BaseCacheBackend):
                 raise
 
         return self.redis_client
+    
+    async def get_server_info(self) -> dict[str, Any]:
+        """Get Redis server information following Redis best practices.
+        
+        Returns:
+            Dictionary containing Redis server information
+        """
+        try:
+            client = await self._get_client()
+            info = await client.info()
+            
+            # Extract key information following Redis documentation patterns
+            server_info = {
+                "redis_version": info.get("redis_version", "unknown"),
+                "redis_mode": info.get("redis_mode", "standalone"),
+                "os": info.get("os", "unknown"),
+                "arch_bits": info.get("arch_bits", "unknown"),
+                "multiplexing_api": info.get("multiplexing_api", "unknown"),
+                "process_id": info.get("process_id", "unknown"),
+                "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+                "connected_clients": info.get("connected_clients", 0),
+                "used_memory_human": info.get("used_memory_human", "unknown"),
+                "role": info.get("role", "unknown"),  # master/slave for replication
+            }
+            
+            return server_info
+            
+        except Exception as e:
+            logger.warning("Failed to get Redis server info", error=str(e))
+            return {"error": str(e)}
+    
+    async def get_backend_type(self) -> str:
+        """Get detailed backend type information following Redis best practices.
+        
+        Returns:
+            Detailed backend type string
+        """
+        try:
+            server_info = await self.get_server_info()
+            
+            if "error" in server_info:
+                return "redis_error"
+            
+            # Build descriptive backend type following Redis documentation patterns
+            version = server_info.get("redis_version", "unknown")
+            mode = server_info.get("redis_mode", "standalone")
+            arch = server_info.get("arch_bits", "unknown")
+            
+            return f"redis_{mode}_{version}_{arch}bit"
+            
+        except Exception as e:
+            logger.warning("Failed to detect Redis backend type", error=str(e))
+            return "redis_unknown"
 
     def _make_redis_key(self, key: str) -> str:
         """Create Redis key with prefix.

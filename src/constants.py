@@ -57,6 +57,10 @@ CACHE_TTL_METADATA: int = EnvironmentLoader.get_int(
 MAX_CACHE_SIZE_MB: int = EnvironmentLoader.get_int(
     "MAX_CACHE_SIZE_MB", 1000, min_value=100
 )  # 1GB max cache
+
+# Cache backend configuration
+CACHE_BACKEND: str = EnvironmentLoader.get_optional("CACHE_BACKEND", "file")  # file, redis, memory
+
 REDIS_HOST: str = EnvironmentLoader.get_optional("REDIS_HOST", "localhost")
 REDIS_PORT: int = EnvironmentLoader.get_int("REDIS_PORT", 6379, min_value=1, max_value=65535)
 REDIS_DB: int = EnvironmentLoader.get_int("REDIS_DB", 0, min_value=0, max_value=15)

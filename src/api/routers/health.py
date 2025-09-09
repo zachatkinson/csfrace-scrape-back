@@ -182,9 +182,17 @@ async def _get_cache_status() -> dict[str, Any]:
 
     try:
         await cache_manager.initialize()
+        
+        # Get detailed backend type following Redis best practices
+        try:
+            detailed_backend = await cache_manager.get_detailed_backend_type()
+        except Exception:
+            # Fallback to basic backend type
+            detailed_backend = cache_manager.backend_type
+            
         return {
             "status": "healthy",
-            "backend": getattr(cache_manager, "backend_type", "unknown"),
+            "backend": detailed_backend,
         }
     except (ConnectionError, TimeoutError) as cache_error:
         return {"status": "error", "error": str(cache_error)}

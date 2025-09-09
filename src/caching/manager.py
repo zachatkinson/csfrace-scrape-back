@@ -336,6 +336,38 @@ class CacheManager:
 
         return hashlib.sha256(url.encode()).hexdigest()[: CONSTANTS.HASH_LENGTH]
 
+    @property
+    def backend_type(self) -> str:
+        """Get the backend type for health reporting.
+        
+        Returns:
+            The backend type name (redis, file, etc.)
+        """
+        if not self._initialized or not self.backend:
+            return "not_initialized"
+        
+        return self.config.backend.value
+    
+    async def get_detailed_backend_type(self) -> str:
+        """Get detailed backend type information following best practices.
+        
+        Returns:
+            Detailed backend type string with version/mode info
+        """
+        if not self._initialized or not self.backend:
+            return "not_initialized"
+            
+        # For Redis backends, get detailed server info
+        if hasattr(self.backend, 'get_backend_type'):
+            try:
+                return await self.backend.get_backend_type()
+            except Exception as e:
+                logger.warning("Failed to get detailed backend type", error=str(e))
+                return f"{self.config.backend.value}_error"
+        
+        # For other backends, return basic type
+        return self.config.backend.value
+    
     async def shutdown(self) -> None:
         """Shutdown cache manager and backend."""
         if self.backend:
@@ -348,5 +380,5 @@ class CacheManager:
         logger.info("Cache manager shutdown")
 
 
-# Global cache manager instance
-cache_manager = CacheManager()
+# Global cache manager instance configured from environment
+cache_manager = CacheManager(CacheConfig.from_environment())
