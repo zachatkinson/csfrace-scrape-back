@@ -126,49 +126,48 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
     async def test_health_check_with_cache_healthy(self, mock_db_session):
         """Test health check with healthy cache."""
         mock_db_session.execute = AsyncMock()
-
-        with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
-            mock_health.return_value = {"status": "healthy"}
-
-            with patch(
-                "src.api.routers.health.observability_manager.get_component_status"
-            ) as mock_obs:
-                mock_obs.return_value = {"status": "healthy"}
-
-                # Mock cache manager
-                mock_cache_manager = MagicMock()
-                mock_cache_manager.initialize = AsyncMock()
-                mock_cache_manager.backend_type = "redis"
-
-                with patch("src.api.routers.health.cache_manager", mock_cache_manager):
-                    result = await health_check(mock_db_session)
-
-                    assert result.cache["status"] == "healthy"
-                    assert result.cache["backend"] == "redis"
+        mock_health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now(UTC),
+            "version": __version__,
+            "database": {"status": "healthy", "connected": True},
+            "cache": {"status": "healthy", "backend": "redis"},
+            "monitoring": {
+                "metrics_collector": {"enabled": True, "status": "healthy"},
+                "health_checker": {"enabled": True, "status": "healthy"},
+                "alert_manager": {"enabled": True, "status": "healthy"},
+                "performance_monitor": {"enabled": True, "status": "healthy"}
+            }
+        }
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            mock_health.return_value = mock_health_status
+            result = await health_check(mock_db_session)
+            assert result.cache["status"] == "healthy"
+            assert result.cache["backend"] == "redis"
 
     @pytest.mark.asyncio
     async def test_health_check_with_cache_error(self, mock_db_session):
         """Test health check with cache error."""
         mock_db_session.execute = AsyncMock()
-
-        with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
-            mock_health.return_value = {"status": "healthy"}
-
-            with patch(
-                "src.api.routers.health.observability_manager.get_component_status"
-            ) as mock_obs:
-                mock_obs.return_value = {"status": "healthy"}
-
-                # Mock cache manager that fails
-                mock_cache_manager = MagicMock()
-                mock_cache_manager.initialize.side_effect = Exception("Redis connection failed")
-
-                with patch("src.api.routers.health.cache_manager", mock_cache_manager):
-                    result = await health_check(mock_db_session)
-
-                    assert result.status == "degraded"
-                    assert result.cache["status"] == "error"
-                    assert "Redis connection failed" in result.cache["error"]
+        mock_health_status = {
+            "status": "degraded",
+            "timestamp": datetime.now(UTC),
+            "version": __version__,
+            "database": {"status": "healthy", "connected": True},
+            "cache": {"status": "error", "error": "Redis connection failed"},
+            "monitoring": {
+                "metrics_collector": {"enabled": True, "status": "healthy"},
+                "health_checker": {"enabled": True, "status": "healthy"},
+                "alert_manager": {"enabled": True, "status": "healthy"},
+                "performance_monitor": {"enabled": True, "status": "healthy"}
+            }
+        }
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            mock_health.return_value = mock_health_status
+            result = await health_check(mock_db_session)
+            assert result.status == "degraded"
+            assert result.cache["status"] == "error"
+            assert "Redis connection failed" in result.cache["error"]
 
     @pytest.mark.asyncio
     async def test_health_check_cache_import_error(self, mock_db_session):
@@ -203,7 +202,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
     @pytest.mark.asyncio
     async def test_health_check_general_exception(self, mock_db_session):
         """Test health check with unexpected exception."""
-        with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
             mock_health.side_effect = Exception("Unexpected error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -423,53 +422,72 @@ request_duration_seconds_bucket{le="1.0"} 800
     async def test_health_check_timestamp_format(self, mock_db_session):
         """Test that health check timestamp is properly formatted."""
         mock_db_session.execute = AsyncMock()
-
-        with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
-            mock_health.return_value = {"status": "healthy"}
-
-            with patch(
-                "src.api.routers.health.observability_manager.get_component_status"
-            ) as mock_obs:
-                mock_obs.return_value = {"status": "healthy"}
-
-                result = await health_check(mock_db_session)
-
-                assert isinstance(result.timestamp, datetime)
-                assert result.timestamp.tzinfo == UTC
+        mock_health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now(UTC),
+            "version": __version__,
+            "database": {"status": "healthy", "connected": True},
+            "cache": {"status": "healthy", "backend": "redis"},
+            "monitoring": {
+                "metrics_collector": {"enabled": True, "status": "healthy"},
+                "health_checker": {"enabled": True, "status": "healthy"},
+                "alert_manager": {"enabled": True, "status": "healthy"},
+                "performance_monitor": {"enabled": True, "status": "healthy"}
+            }
+        }
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            mock_health.return_value = mock_health_status
+            result = await health_check(mock_db_session)
+            assert isinstance(result.timestamp, datetime)
+            assert result.timestamp.tzinfo == UTC
 
     @pytest.mark.asyncio
     async def test_health_check_cache_status_scenarios(self, mock_db_session):
         """Test different cache status scenarios."""
         mock_db_session.execute = AsyncMock()
-
-        # Test cache not configured (default)
-        with patch("src.api.routers.health.health_checker") as mock_health_checker:
-            mock_health_checker.get_health_summary.return_value = {"status": "healthy"}
-            with patch("src.api.routers.health.observability_manager") as mock_obs:
-                mock_obs.get_component_status.return_value = {"status": "healthy"}
-            with patch("src.api.routers.health.cache_manager", None):
-                result = await health_check(mock_db_session)
-                assert result.cache["status"] == "not_configured"
+        mock_health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now(UTC),
+            "version": __version__,
+            "database": {"status": "healthy", "connected": True},
+            "cache": {"status": "not_configured", "backend": "none"},
+            "monitoring": {
+                "metrics_collector": {"enabled": True, "status": "healthy"},
+                "health_checker": {"enabled": True, "status": "healthy"},
+                "alert_manager": {"enabled": True, "status": "healthy"},
+                "performance_monitor": {"enabled": True, "status": "healthy"}
+            }
+        }
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            mock_health.return_value = mock_health_status
+            result = await health_check(mock_db_session)
+            assert result.cache["status"] == "not_configured"
 
     @pytest.mark.asyncio
     async def test_health_check_observability_status_integration(self, mock_db_session):
         """Test integration with observability manager status."""
         mock_db_session.execute = AsyncMock()
-
         test_obs_statuses = ["healthy", "degraded", "error", "unknown"]
-
+        
         for obs_status in test_obs_statuses:
-            with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
-                mock_health.return_value = {"status": "healthy"}
-
-                with patch(
-                    "src.api.routers.health.observability_manager.get_component_status"
-                ) as mock_obs:
-                    mock_obs.return_value = {"status": obs_status}
-
-                    result = await health_check(mock_db_session)
-
-                    assert result.monitoring["status"] == obs_status
+            mock_health_status = {
+                "status": "healthy",
+                "timestamp": datetime.now(UTC),
+                "version": __version__,
+                "database": {"status": "healthy", "connected": True},
+                "cache": {"status": "healthy", "backend": "redis"},
+                "monitoring": {
+                    "metrics_collector": {"enabled": True, "status": obs_status},
+                    "health_checker": {"enabled": True, "status": obs_status},
+                    "alert_manager": {"enabled": True, "status": obs_status},
+                    "performance_monitor": {"enabled": True, "status": obs_status}
+                }
+            }
+            with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+                mock_health.return_value = mock_health_status
+                result = await health_check(mock_db_session)
+                # The monitoring section is a dict, we need to check individual components
+                assert result.monitoring["metrics_collector"]["status"] == obs_status
 
     @pytest.mark.asyncio
     async def test_get_metrics_empty_snapshots(self):
@@ -577,7 +595,7 @@ request_duration_seconds_bucket{le="1.0"} 800
         """Test that HTTPExceptions are passed through correctly."""
         mock_db_session.execute = AsyncMock()
 
-        with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
             # Simulate an HTTPException being raised internally
             test_http_exception = HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -607,18 +625,27 @@ request_duration_seconds_bucket{le="1.0"} 800
         ]
 
         for health_summary, expected_status in test_scenarios:
-            with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
-                mock_health.return_value = health_summary
-
-                with patch(
-                    "src.api.routers.health.observability_manager.get_component_status"
-                ) as mock_obs:
-                    mock_obs.return_value = {"status": "healthy"}
-
-                    if expected_status == "degraded":
-                        # Degraded status should still return 200, not 503
-                        result = await health_check(mock_db_session)
-                        assert result.status == expected_status
-                    else:
-                        result = await health_check(mock_db_session)
-                        assert result.status == expected_status
+            # Create complete mock health status data - use expected_status as the actual return value
+            mock_health_status = {
+                "status": expected_status,  # This is what the service should return
+                "timestamp": datetime.now(UTC),
+                "version": __version__,
+                "database": {"status": "healthy", "connected": True},
+                "cache": {"status": "healthy", "backend": "redis"},
+                "monitoring": {
+                    "metrics_collector": {"enabled": True, "status": "healthy"},
+                    "health_checker": {"enabled": True, "status": "healthy"},
+                    "alert_manager": {"enabled": True, "status": "healthy"},
+                    "performance_monitor": {"enabled": True, "status": "healthy"}
+                }
+            }
+            with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+                mock_health.return_value = mock_health_status
+                
+                if expected_status == "degraded":
+                    # Degraded status should still return 200, not 503
+                    result = await health_check(mock_db_session)
+                    assert result.status == expected_status
+                else:
+                    result = await health_check(mock_db_session)
+                    assert result.status == expected_status
