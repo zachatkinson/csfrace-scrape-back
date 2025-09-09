@@ -10,12 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from ...auth.models import StatusResponse
-from ...monitoring.health import health_checker
 from ...monitoring.metrics import metrics_collector
-from ...monitoring.observability import observability_manager
 from ..dependencies import DBSession
 from ..errors import APIErrorFactory
 from ..schemas import HealthCheckResponse, MetricsResponse
+from ..services.health_service import health_service
 from ..utils import handle_api_exceptions
 
 # Optional imports with graceful fallbacks
@@ -41,7 +40,7 @@ router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 @router.get("/", response_model=HealthCheckResponse)
 @handle_api_exceptions("Health check failed")
 async def health_check(db: DBSession) -> HealthCheckResponse:
-    """Comprehensive health check endpoint.
+    """Comprehensive health check endpoint using SOLID principles.
 
     Args:
         db: Database session
@@ -52,44 +51,13 @@ async def health_check(db: DBSession) -> HealthCheckResponse:
     Raises:
         HTTPException: If critical components are unhealthy
     """
-    # Check database connectivity
-    try:
-        await db.execute(text("SELECT 1"))
-        database_status = {"status": "healthy", "connected": True}
-    except Exception as db_error:
-        database_status = {"status": "unhealthy", "connected": False, "error": str(db_error)}
+    # Use the dedicated health service following SOLID principles
+    health_data = await health_service.get_comprehensive_health_status(db)
+    
+    response = HealthCheckResponse(**health_data)
 
-    # Get health checker status
-    health_summary = health_checker.get_health_summary()
-
-    # Get cache status (if available)
-    cache_status = await _get_cache_status()
-
-    # Get monitoring status
-    monitoring_status = observability_manager.get_component_status()
-
-    # Determine overall status
-    overall_status = "healthy"
-    if database_status["status"] != "healthy":
-        overall_status = "unhealthy"
-    elif (
-        health_summary.get("status") == "degraded"
-        or health_summary.get("status") not in ["healthy", "degraded"]
-        or cache_status["status"] == "error"
-    ):
-        overall_status = "degraded"
-
-    response = HealthCheckResponse(
-        status=overall_status,
-        timestamp=datetime.now(UTC),
-        version=__version__,
-        database=database_status,
-        cache=cache_status,
-        monitoring=monitoring_status,
-    )
-
-    # Return appropriate HTTP status
-    if overall_status == "unhealthy":
+    # Return appropriate HTTP status based on overall health
+    if health_data["status"] == "unhealthy":
         raise APIErrorFactory.service_unavailable(
             "Service is unhealthy", details=response.model_dump(mode="json")
         )

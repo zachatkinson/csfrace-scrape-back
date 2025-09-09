@@ -10,6 +10,7 @@ from typing import Any
 
 import asyncio
 import structlog
+from sqlalchemy import text
 
 logger = structlog.get_logger(__name__)
 
@@ -266,7 +267,7 @@ class HealthChecker:
             # Try to get a connection
             with db_service.get_session() as session:
                 # Simple query to test connectivity
-                result = session.execute("SELECT 1 as test").fetchone()
+                result = session.execute(text("SELECT 1 as test")).fetchone()
 
                 if result and result[0] == 1:
                     return HealthCheckResult(

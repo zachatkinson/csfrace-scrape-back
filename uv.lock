@@ -538,7 +538,7 @@ wheels = [
 
 [[package]]
 name = "csfrace-scraper"
-version = "3.1.1"
+version = "3.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -556,11 +556,13 @@ dependencies = [
     { name = "passlib", extra = ["bcrypt"] },
     { name = "playwright" },
     { name = "prometheus-client" },
+    { name = "psutil" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
     { name = "pyyaml" },
+    { name = "redis" },
     { name = "rich" },
     { name = "sentry-sdk" },
     { name = "slowapi" },
@@ -659,6 +661,7 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.1" },
     { name = "prometheus-client", specifier = ">=0.22.1" },
     { name = "prometheus-client", marker = "extra == 'monitoring'", specifier = ">=0.22.1" },
+    { name = "psutil", specifier = ">=6.1.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pydantic-settings", specifier = ">=2.10.0" },
@@ -672,6 +675,7 @@ requires-dist = [
     { name = "pytest-split", marker = "extra == 'test'", specifier = ">=0.9.0" },
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.6.5" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "redis", specifier = ">=5.2.1" },
     { name = "rich", specifier = ">=14.1.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.4" },
     { name = "sentry-sdk", specifier = ">=2.37.0" },
@@ -2231,6 +2235,15 @@ wheels = [
     { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/fe/0f/25911a9f080464c59fab9027482f822b86bf0608957a5fcc6eaac85aa515/PyYAML-6.0.2-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:68ccc6023a3400877818152ad9a1033e3db8625d899c72eacb5a668902e4d652", size = 751597, upload-time = "2024-08-06T20:32:56.985Z" },
     { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/14/0d/e2c3b43bbce3cf6bd97c840b46088a3031085179e596d4929729d8d68270/PyYAML-6.0.2-cp313-cp313-win32.whl", hash = "sha256:bc2fa7c6b47d6bc618dd7fb02ef6fdedb1090ec036abab80d4681424b84c1183", size = 140527, upload-time = "2024-08-06T20:33:03.001Z" },
     { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/fa/de/02b54f42487e3d3c6efb3f89428677074ca7bf43aae402517bc7cca949f3/PyYAML-6.0.2-cp313-cp313-win_amd64.whl", hash = "sha256:8388ee1976c416731879ac16da0aff3f63b286ffdd57cdeb95f3f2e085687563", size = 156446, upload-time = "2024-08-06T20:33:04.33Z" },
+]
+
+[[package]]
+name = "redis"
+version = "6.4.0"
+source = { registry = "https://pkgs.safetycli.com/repository/creative-branding/pypi/simple/" }
+sdist = { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/0d/d6/e8b92798a5bd67d659d51a18170e91c16ac3b59738d91894651ee255ed49/redis-6.4.0.tar.gz", hash = "sha256:b01bc7282b8444e28ec36b261df5375183bb47a07eb9c603f284e89cbc5ef010", size = 4647399, upload-time = "2025-08-07T08:10:11.441Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/creative-branding/pypi/packages/e8/02/89e2ed7e85db6c93dfa9e8f691c5087df4e3551ab39081a4d7c6d1f90e05/redis-6.4.0-py3-none-any.whl", hash = "sha256:f0544fa9604264e9464cdf4814e7d4830f74b165d52f2a330a760a88dd248b7f", size = 279847, upload-time = "2025-08-07T08:10:09.84Z" },
 ]
 
 [[package]]
