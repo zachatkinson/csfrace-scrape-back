@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v3.3.0 (2025-09-09)
+
+### Features
+
+- **cache**: Implement Redis backend type detection with server discovery
+  ([`26dc405`](https://github.com/zachatkinson/csfrace-scrape-back/commit/26dc405b4e1594afa1250a413243ac1c0f4d047d))
+
+🚀 Advanced Redis Integration: - Added Redis INFO command integration for server discovery -
+  Environment-based cache backend configuration (CACHE_BACKEND=redis) - Detailed backend reporting:
+  redis_standalone_7.4.0_64bit format - Enhanced health endpoint with Redis server information
+
+🔧 Technical Implementation: - CacheConfig.from_environment() factory method -
+  RedisCache.get_server_info() with Redis INFO command - Graceful fallbacks and error handling -
+  Best practices following Redis documentation patterns
+
+⚡ Performance & Reliability: - Proper connection management and health checks - Server introspection
+  (version, mode, arch, memory, clients) - 12-factor app compliance with environment configuration -
+  Maintains compatibility with file/memory cache backends
+
+🎯 Health Status Enhancement: - Dynamic backend type detection instead of hardcoded 'unknown' -
+  Detailed Redis server information in health responses - Better monitoring and observability
+  capabilities
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v3.2.0 (2025-09-09)
 
 ### Features
