@@ -2,6 +2,66 @@
 
 <!-- version list -->
 
+## v3.1.1 (2025-09-09)
+
+### Bug Fixes
+
+- **ci**: Resolve CodeQL Python package warnings and Semgrep parameter issues
+  ([`cbd19ce`](https://github.com/zachatkinson/csfrace-scrape-back/commit/cbd19ce5c306836a6d66a74b39daca3486fc0967))
+
+🔧 CodeQL Python Package Resolution: - Added Python-specific configuration to
+  .github/codeql/codeql-config.yml - Configured python packs with codeql/python-queries for better
+  module resolution - Set build-mode: none for automatic build detection - Should resolve warnings
+  about missing .batch, .config, .core, .utils modules
+
+⚡ Semgrep Action Parameter Fix: - Removed deprecated 'publishDeployment' parameter from
+  semgrep-action@v1 - Removed deprecated 'generateSarif' parameter from semgrep-action@v1 - SARIF
+  output is now automatic when publishToken is provided - Fixes: 'Unexpected input(s)
+  publishDeployment, generateSarif' warnings
+
+🎯 Benefits: - Cleaner CI logs without parameter warnings - Better static analysis with improved
+  Python package detection - Updated to modern Semgrep action usage patterns - Maintains full
+  security scanning functionality
+
+📋 Technical Details: - CodeQL will better understand relative imports in src/main.py - Semgrep v1
+  API changes reflected in configuration - No functionality lost, just cleaner configuration -
+  Follows latest GitHub Actions and security tool best practices
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+### Refactoring
+
+- **ci**: Move umbrella repository update to semantic release workflow
+  ([`f6cfa38`](https://github.com/zachatkinson/csfrace-scrape-back/commit/f6cfa38fc3dd6a2822afa287c14f4f5ed9a15556))
+
+🎯 Best Practice Implementation: - Moved umbrella repo update from CI pipeline to semantic release
+  workflow - CI now focuses purely on testing and quality validation - Umbrella updates only trigger
+  on actual releases (not every push)
+
+⚡ CI Pipeline Improvements: - Removed 'Update Umbrella Repository' job from ci.yml (faster CI) -
+  Eliminated noise from development commits in umbrella repo - Cleaner separation: CI validates,
+  Semantic Release publishes
+
+🚀 Semantic Release Enhancements: - Added umbrella update step with condition: if:
+  steps.semantic.outputs.released == 'true' - Enhanced payload with version, tag, and release URL
+  information - Changed event-type from 'backend-updated' to 'backend-released' for clarity - Added
+  comprehensive logging and step summary output
+
+🔗 Integration Benefits: - Umbrella repo only updated on successful releases - Version-aware updates
+  with proper metadata - Atomic updates: only after semantic release succeeds - Clear traceability
+  between backend versions and umbrella commits
+
+📋 Technical Details: - Repository dispatch now includes version, tag, release_url - Conditional
+  execution prevents updates on failed releases - Comprehensive logging for debugging and
+  transparency - Follows industry standard: CI tests, Release publishes, Coordination follows
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v3.1.0 (2025-09-08)
 
 ### Bug Fixes
