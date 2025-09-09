@@ -384,7 +384,7 @@ class TestHTMLSanitizerEdgeCases:
         # Test malformed URLs that cause urlparse to fail
         malformed_urls = ["ht!tp://malformed", "javascript\x00:alert(1)", ""]
         for url in malformed_urls:
-            result = sanitizer._sanitize_url(url)
+            _ = sanitizer._sanitize_url(url)
             # Should not crash and should be safe
 
     def test_css_empty_handling(self, sanitizer):
@@ -430,5 +430,5 @@ class TestHTMLSanitizerEdgeCases:
 
         # Test that backslash traversal isn't currently blocked (by design)
         windows_traversal = "..\\..\\windows\\system32"
-        result = sanitizer._sanitize_url(windows_traversal)
+        _ = sanitizer._sanitize_url(windows_traversal)
         # This will pass through since code only checks "../" not "..\\"

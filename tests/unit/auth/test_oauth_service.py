@@ -366,7 +366,7 @@ class TestOAuthService:
             mock_factory.return_value = mock_provider
 
             custom_redirect = "https://myapp.com/custom/callback"
-            response = self.oauth_service.initiate_oauth_login(
+            _ = self.oauth_service.initiate_oauth_login(
                 OAuthProvider.GITHUB, redirect_uri=custom_redirect
             )
 
@@ -386,7 +386,7 @@ class TestOAuthService:
             mock_provider.get_authorization_url.return_value = "https://default.auth.url"
             mock_factory.return_value = mock_provider
 
-            response = self.oauth_service.initiate_oauth_login(OAuthProvider.MICROSOFT)
+            _ = self.oauth_service.initiate_oauth_login(OAuthProvider.MICROSOFT)
 
             # Verify default redirect URI pattern is used
             expected_redirect = (
