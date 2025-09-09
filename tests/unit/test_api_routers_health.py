@@ -152,20 +152,30 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
         """Test health check when cache module is not available."""
         mock_db_session.execute = AsyncMock()
 
-        with patch("src.api.routers.health.health_checker.get_health_summary") as mock_health:
-            mock_health.return_value = {"status": "healthy"}
+        # Mock health service with proper structure (DRY and SOLID principles)
+        mock_health_status = {
+            "status": "healthy",
+            "timestamp": "2023-01-01T00:00:00Z",
+            "version": "1.0.0",
+            "database": {"status": "healthy", "connected": True},
+            "cache": {"status": "not_configured", "backend": "none"},
+            "monitoring": {
+                "metrics_collector": {"enabled": True, "status": "healthy"},
+                "health_checker": {"enabled": True, "status": "healthy"},
+                "alert_manager": {"enabled": True, "status": "healthy"},
+                "performance_monitor": {"enabled": True, "status": "healthy"}
+            }
+        }
 
-            with patch(
-                "src.api.routers.health.observability_manager.get_component_status"
-            ) as mock_obs:
-                mock_obs.return_value = {"status": "healthy"}
+        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            mock_health.return_value = mock_health_status
 
-                # Simulate cache manager not available (import error scenario)
-                with patch("src.api.routers.health.cache_manager", None):
-                    result = await health_check(mock_db_session)
+            # Simulate cache manager not available (import error scenario)
+            with patch("src.api.routers.health.cache_manager", None):
+                result = await health_check(mock_db_session)
 
-                    # Should handle missing cache manager gracefully
-                    assert result.cache["status"] == "not_configured"
+                # Should handle missing cache manager gracefully
+                assert result.cache["status"] == "not_configured"
 
     @pytest.mark.asyncio
     async def test_health_check_general_exception(self, mock_db_session):
