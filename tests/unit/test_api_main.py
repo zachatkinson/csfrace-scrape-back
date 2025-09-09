@@ -1,6 +1,6 @@
 """Unit tests for API main module."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from fastapi import Request
@@ -98,9 +98,13 @@ class TestLifespanManager:
                 async with lifespan(app):
                     pass
 
-                mock_print.assert_called_once_with(
-                    "Database initialization failed: Database connection failed"
-                )
+                # Verify all expected print calls occurred
+                expected_calls = [
+                    call("Database initialization failed: Database connection failed"),
+                    call("Observability system initialized successfully"),
+                    call("Observability system shutdown completed")
+                ]
+                mock_print.assert_has_calls(expected_calls, any_order=False)
 
     @pytest.mark.asyncio
     async def test_lifespan_shutdown(self):
