@@ -1,6 +1,63 @@
 version: '3.8'
 
 services:
+  # CSFrace Scraper Backend API
+  scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # Use development stage by default
+    container_name: csfrace-scraper
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-development-secret-change-in-production}
+      - DATABASE_URL=postgresql://scraper_user:scraper_password@postgres:5432/scraper_db
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./output:/app/output
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # CSFrace Scraper Backend API (Production Distroless)
+  scraper-distroless:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production  # Use distroless production stage
+    container_name: csfrace-scraper-distroless
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-development-secret-change-in-production}
+      - DATABASE_URL=postgresql://scraper_user:scraper_password@postgres:5432/scraper_db
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    ports:
+      - "8001:8000"  # Different port for testing
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # Note: No healthcheck in distroless (no curl), handled by external monitoring
+    profiles:
+      - distroless
+
   # PostgreSQL 17.6 - Latest stable version
   postgres:
     image: postgres:17.6

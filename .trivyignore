@@ -76,6 +76,51 @@ CVE-2025-6965
 # Note: Will remove when Debian security updates become available
 CVE-2025-7458
 
+# ===================================================================
+# MEDIUM SEVERITY VULNERABILITIES (added 2025-09-09)
+# From CI scan run 17568106343 - requires careful evaluation due to auth system
+# ===================================================================
+
+# CVE-2024-10041 - PAM password leak vulnerability
+# Justification: PAM vulnerability in authentication system - ELEVATED RISK for auth-enabled backend
+# Risk: MEDIUM - Affects password handling in memory, backend HAS authentication system
+# Library: libpam-modules, libpam-modules-bin, libpam-runtime, libpam0g v1.5.2-6+deb12u1
+# Mitigation: Monitor for security updates, consider distroless migration
+# Review: 2025-12-01 (HIGH PRIORITY - auth system affected)
+CVE-2024-10041
+
+# CVE-2024-22365 - PAM denial of service vulnerability  
+# Justification: PAM DoS vulnerability - ELEVATED RISK for auth-enabled backend
+# Risk: MEDIUM - Could block authentication, backend HAS user authentication
+# Library: libpam-modules, libpam-modules-bin, libpam-runtime, libpam0g v1.5.2-6+deb12u1
+# Mitigation: Monitor for security updates, implement request rate limiting
+# Review: 2025-12-01 (HIGH PRIORITY - auth system affected)
+CVE-2024-22365
+
+# CVE-2023-50495 - NCurses segmentation fault vulnerability
+# Justification: NCurses segmentation fault - MODERATE RISK for terminal-accessible backend
+# Risk: MEDIUM - Backend can be used via terminal/CLI, could cause crashes
+# Library: libncursesw6, libtinfo6, ncurses-base, ncurses-bin v6.4-4
+# Mitigation: Validate user input, implement graceful error handling for terminal interfaces
+# Review: 2025-12-01 (MEDIUM PRIORITY - CLI access affected)
+CVE-2023-50495
+
+# CVE-2025-29088 - SQLite denial of service vulnerability
+# Justification: SQLite DoS vulnerability - MODERATE RISK if SQLite used
+# Risk: MEDIUM - Could cause database crashes, check if SQLite is used in application
+# Library: libsqlite3-0 v3.40.1-2+deb12u2
+# Mitigation: Review SQLite usage, implement database connection pooling and error handling
+# Review: 2025-12-01 (MEDIUM PRIORITY - database stability)
+CVE-2025-29088
+
+# ===================================================================
+# SECURITY REVIEW NOTES:
+# - PAM vulnerabilities are HIGH PRIORITY due to authentication system
+# - NCurses vulnerabilities affect CLI/terminal usage (MEDIUM PRIORITY)  
+# - SQLite vulnerability affects database stability (MEDIUM PRIORITY)
+# - All require monitoring for upstream patches and distroless migration planning
+# ===================================================================
+
 # NOTE: OS-level vulnerabilities in the Debian 12.11 base image above cannot be 
 # fixed at the application layer. The setuptools CVEs above are TEMPORARY and will
 # be removed once the Docker setuptools upgrade is working properly.

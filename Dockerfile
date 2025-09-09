@@ -8,12 +8,13 @@ FROM python:3.13-slim-bookworm AS builder
 # Install UV from official image (production best practice)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Set environment variables for UV and Python
+# Set environment variables for UV and Python (Official UV best practices)
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_CACHE_DIR=/tmp/.uv-cache
+    UV_CACHE_DIR=/tmp/.uv-cache \
+    UV_PROJECT_ENVIRONMENT=/build/.venv
 
 # Install only essential build dependencies with security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -55,60 +56,38 @@ ENTRYPOINT ["uv", "run"]
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 #########################
-# Production stage
+# Production stage (Distroless for security - Official UV approach)
 #########################
-FROM python:3.13-slim-bookworm AS production
+FROM gcr.io/distroless/cc-debian12:latest AS production
 
-# Copy UV binary from official UV image
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Copy Python from builder stage (UV managed Python installation)
+COPY --from=builder --chown=65532:65532 /usr/local /usr/local
+
+# Set work directory
+WORKDIR /app
+
+# Copy the virtual environment from builder
+COPY --from=builder --chown=65532:65532 /build/.venv /app/.venv
+
+# Copy application code
+COPY --chown=65532:65532 . .
 
 # Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH="/app/src" \
-    UV_PROJECT_ENVIRONMENT=/usr/local
+    PATH="/app/.venv/bin:$PATH"
 
-# Install minimal runtime dependencies with version pinning and security updates
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl=7.* \
-    ca-certificates=2* \
-    && apt-get upgrade -y \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/*
-
-# Create non-root user
-RUN groupadd -r scraper && useradd -r -g scraper scraper
-
-# Copy the Python environment from builder (system Python installation)
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Set work directory
-WORKDIR /app
-
-# Copy application code
-COPY --chown=scraper:scraper . .
-
-# Create necessary directories
-RUN mkdir -p /app/output /app/logs && \
-    chown -R scraper:scraper /app
-
-# Health check for API mode
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Switch to non-root user
-USER scraper
+# Run as non-root user
+USER 65532
 
 # Expose port for API mode
 EXPOSE 8000
 
-# Set flexible entrypoint that supports both CLI and API modes
-ENTRYPOINT ["uv", "run"]
+# Note: No healthcheck in distroless (no curl), health checks handled by orchestrator
 
-# Default to API server mode in production
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default to API server mode in production (using venv binaries)
+ENTRYPOINT ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Labels for metadata
 LABEL org.opencontainers.image.title="CSFrace Scraper" \
