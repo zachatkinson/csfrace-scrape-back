@@ -15,6 +15,7 @@ from ..auth.router import router as auth_router
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
 from ..monitoring.metrics import metrics_collector
+from ..monitoring.observability import observability_manager
 from .errors import APIErrorFactory
 from .routers import batches, health, jobs
 
@@ -29,10 +30,23 @@ async def lifespan(_app: FastAPI):
         print(f"Database initialization failed: {e}")
         # Don't raise - allow app to start for health checks
 
+    # Initialize observability system
+    try:
+        await observability_manager.initialize()
+        print("Observability system initialized successfully")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Observability initialization failed: {e}")
+        # Don't raise - allow app to start for health checks
+
     yield
 
     # Shutdown
-    # Add cleanup logic here if needed
+    try:
+        await observability_manager.shutdown()
+        print("Observability system shutdown completed")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Observability shutdown failed: {e}")
+        # Continue shutdown even if observability fails
 
 
 # Rate limiter for global application endpoints with proper header injection
