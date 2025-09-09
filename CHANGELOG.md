@@ -2,6 +2,56 @@
 
 <!-- version list -->
 
+## v3.3.1 (2025-09-09)
+
+### Bug Fixes
+
+- **monitoring**: Initialize observability manager in FastAPI startup
+  ([`3960378`](https://github.com/zachatkinson/csfrace-scrape-back/commit/39603786b50538c5dd63a80bb58a67668ce83199))
+
+🔧 Root Cause Resolution: - Added missing observability_manager.initialize() in FastAPI lifespan -
+  Implemented proper startup/shutdown lifecycle management - Added comprehensive error handling for
+  observability failures
+
+🎯 Issue Analysis: - Database degradation was NOT related to PostgreSQL or auth - Health checker
+  showed 'monitoring: false' due to missing initialization - System status appeared degraded when
+  monitoring wasn't running
+
+⚡ Technical Implementation: - Observability manager now starts during FastAPI application startup -
+  Proper shutdown handling in application lifespan manager - Non-blocking initialization (allows app
+  start if monitoring fails) - Error logging for observability startup/shutdown failures
+
+🏥 Health Check Impact: - Health monitoring will now properly initialize and run checks - System
+  status should show 'healthy' instead of 'degraded' - All observability components (metrics,
+  health, alerts, tracing) operational
+
+🔍 Investigation Validated: - PostgreSQL connection pooling settings are optimal (20 base, 30
+  overflow) - Docker timeouts and health checks properly configured - Database service session
+  management follows best practices - PostgreSQL 17.6 configuration aligns with official
+  documentation
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **tests**: Update lifespan test for observability manager integration
+  ([`93fafe9`](https://github.com/zachatkinson/csfrace-scrape-back/commit/93fafe997dfb72cca30922fc8a2f4c0fbb53525e))
+
+🔧 Test Fix Details: - Updated TestLifespanManager::test_lifespan_startup_failure - Now expects 3
+  print calls instead of 1 due to observability manager - Added 'call' import for proper mock
+  assertion - Test validates all expected startup/shutdown messages
+
+🧪 Expected Print Calls: 1. 'Database initialization failed: Database connection failed' 2.
+  'Observability system initialized successfully' 3. 'Observability system shutdown completed'
+
+✅ Verification: - Test passes locally with new observability manager integration - Maintains test
+  coverage for failure scenarios - Properly validates lifespan error handling behavior
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v3.3.0 (2025-09-09)
 
 ### Features
