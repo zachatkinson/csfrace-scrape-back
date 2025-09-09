@@ -55,7 +55,7 @@ class AuthService:
         user_id = str(uuid4())
 
         # Hash password
-        _hashed_password = security_manager.get_password_hash(user_create.password)
+        _hashed_password = security_manager.get_password_hash(user_create.password)  # noqa: F841
 
         # Create user in database
         # Placeholder implementation - database integration pending

@@ -269,7 +269,7 @@ class TestCoreModuleIntegration:
 
             async with aiohttp.ClientSession() as session:
                 # Check robots.txt first
-                parser = await checker.get_robots_parser("https://example.com", session)
+                _ = await checker.get_robots_parser("https://example.com", session)
 
                 # If robots check passes, make HTTP request
                 response = await safe_http_get(session, "https://example.com/page")
