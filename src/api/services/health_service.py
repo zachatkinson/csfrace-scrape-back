@@ -77,31 +77,60 @@ class HealthService:
         return response
 
     async def _check_database_health(self, db_session: AsyncSession) -> dict[str, Any]:
-        """Check database connectivity and health.
+        """Check database connectivity and health with extended metrics.
 
         Args:
             db_session: Database session
 
         Returns:
-            Database health status
+            Database health status with size and connection metrics
         """
         try:
-            # Simple connectivity test
+            import time
+            start_time = time.time()
+            
+            # Basic connectivity test
             result = await db_session.execute(text("SELECT 1"))
             scalar_result = result.scalar()
-
-            if scalar_result == 1:
-                return {
-                    "status": "healthy",
-                    "connected": True,
-                    "response_time_ms": 0.0,  # Could add timing if needed
-                }
-            else:
+            
+            if scalar_result != 1:
                 return {
                     "status": "unhealthy",
                     "connected": False,
                     "error": "Unexpected query result",
                 }
+            
+            # Get database metrics with cache hit ratio
+            metrics_query = text("""
+                SELECT 
+                    pg_size_pretty(pg_database_size(current_database())) AS database_size,
+                    pg_database_size(current_database()) AS database_size_bytes,
+                    (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()) AS active_connections,
+                    COALESCE(
+                        CAST(
+                            ((sum(blks_hit)::float / NULLIF(sum(blks_hit + blks_read), 0)) * 100) 
+                            AS DECIMAL(5,2)
+                        ), 
+                        0
+                    ) AS cache_hit_ratio
+                FROM pg_stat_database 
+                WHERE datname = current_database()
+            """)
+            
+            metrics_result = await db_session.execute(metrics_query)
+            metrics_row = metrics_result.fetchone()
+            
+            response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+            
+            return {
+                "status": "healthy",
+                "connected": True,
+                "response_time_ms": round(response_time, 2),
+                "size": metrics_row[0] if metrics_row else "unknown",  # e.g., "8715 kB"
+                "size_bytes": metrics_row[1] if metrics_row else 0,   # e.g., 8731648
+                "active_connections": metrics_row[2] if metrics_row else 0,  # e.g., 15
+                "cache_hit_ratio": metrics_row[3] if metrics_row else 0,  # e.g., 98.7
+            }
 
         except Exception as db_error:
             self.logger.error("Database health check failed", error=str(db_error))

@@ -86,8 +86,8 @@ EXPOSE 8000
 
 # Note: No healthcheck in distroless (no curl), health checks handled by orchestrator
 
-# Default to API server mode in production (using venv binaries)
-ENTRYPOINT ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default to API server mode in production (using venv Python in distroless)
+ENTRYPOINT ["/app/.venv/bin/python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Labels for metadata
 LABEL org.opencontainers.image.title="CSFrace Scraper" \
