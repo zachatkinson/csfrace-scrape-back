@@ -44,11 +44,13 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
 
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
 
             result = await health_check(mock_db_session)
@@ -71,7 +73,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
 
         # Mock health service with unhealthy database
         mock_health_status = {
-            "status": "unhealthy", 
+            "status": "unhealthy",
             "timestamp": datetime.now(UTC),
             "version": __version__,
             "database": {"status": "unhealthy", "connected": False, "error": "Connection refused"},
@@ -80,11 +82,13 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
 
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
 
             with pytest.raises(HTTPException) as exc_info:
@@ -113,10 +117,12 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
             assert result.status == "degraded"
@@ -136,10 +142,12 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
             assert result.cache["status"] == "healthy"
@@ -159,10 +167,12 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
             assert result.status == "degraded"
@@ -185,11 +195,13 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
 
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
 
             # Simulate cache manager not available (import error scenario)
@@ -202,7 +214,9 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
     @pytest.mark.asyncio
     async def test_health_check_general_exception(self, mock_db_session):
         """Test health check with unexpected exception."""
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.side_effect = Exception("Unexpected error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -432,10 +446,12 @@ request_duration_seconds_bucket{le="1.0"} 800
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
             assert isinstance(result.timestamp, datetime)
@@ -455,10 +471,12 @@ request_duration_seconds_bucket{le="1.0"} 800
                 "metrics_collector": {"enabled": True, "status": "healthy"},
                 "health_checker": {"enabled": True, "status": "healthy"},
                 "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"}
-            }
+                "performance_monitor": {"enabled": True, "status": "healthy"},
+            },
         }
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
             assert result.cache["status"] == "not_configured"
@@ -468,7 +486,7 @@ request_duration_seconds_bucket{le="1.0"} 800
         """Test integration with observability manager status."""
         mock_db_session.execute = AsyncMock()
         test_obs_statuses = ["healthy", "degraded", "error", "unknown"]
-        
+
         for obs_status in test_obs_statuses:
             mock_health_status = {
                 "status": "healthy",
@@ -480,10 +498,12 @@ request_duration_seconds_bucket{le="1.0"} 800
                     "metrics_collector": {"enabled": True, "status": obs_status},
                     "health_checker": {"enabled": True, "status": obs_status},
                     "alert_manager": {"enabled": True, "status": obs_status},
-                    "performance_monitor": {"enabled": True, "status": obs_status}
-                }
+                    "performance_monitor": {"enabled": True, "status": obs_status},
+                },
             }
-            with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            with patch(
+                "src.api.routers.health.health_service.get_comprehensive_health_status"
+            ) as mock_health:
                 mock_health.return_value = mock_health_status
                 result = await health_check(mock_db_session)
                 # The monitoring section is a dict, we need to check individual components
@@ -595,7 +615,9 @@ request_duration_seconds_bucket{le="1.0"} 800
         """Test that HTTPExceptions are passed through correctly."""
         mock_db_session.execute = AsyncMock()
 
-        with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+        with patch(
+            "src.api.routers.health.health_service.get_comprehensive_health_status"
+        ) as mock_health:
             # Simulate an HTTPException being raised internally
             test_http_exception = HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -636,12 +658,14 @@ request_duration_seconds_bucket{le="1.0"} 800
                     "metrics_collector": {"enabled": True, "status": "healthy"},
                     "health_checker": {"enabled": True, "status": "healthy"},
                     "alert_manager": {"enabled": True, "status": "healthy"},
-                    "performance_monitor": {"enabled": True, "status": "healthy"}
-                }
+                    "performance_monitor": {"enabled": True, "status": "healthy"},
+                },
             }
-            with patch("src.api.routers.health.health_service.get_comprehensive_health_status") as mock_health:
+            with patch(
+                "src.api.routers.health.health_service.get_comprehensive_health_status"
+            ) as mock_health:
                 mock_health.return_value = mock_health_status
-                
+
                 if expected_status == "degraded":
                     # Degraded status should still return 200, not 503
                     result = await health_check(mock_db_session)

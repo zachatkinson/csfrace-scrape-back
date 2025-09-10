@@ -102,7 +102,7 @@ class TestLifespanManager:
                 expected_calls = [
                     call("Database initialization failed: Database connection failed"),
                     call("Observability system initialized successfully"),
-                    call("Observability system shutdown completed")
+                    call("Observability system shutdown completed"),
                 ]
                 mock_print.assert_has_calls(expected_calls, any_order=False)
 

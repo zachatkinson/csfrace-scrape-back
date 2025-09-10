@@ -88,47 +88,50 @@ class HealthService:
         """
         try:
             import time
+
             start_time = time.time()
-            
+
             # Basic connectivity test
             result = await db_session.execute(text("SELECT 1"))
             scalar_result = result.scalar()
-            
+
             if scalar_result != 1:
                 return {
                     "status": "unhealthy",
                     "connected": False,
                     "error": "Unexpected query result",
                 }
-            
+
             # Get database metrics with cache hit ratio
-            metrics_query = text("""
-                SELECT 
+            metrics_query = text(
+                """
+                SELECT
                     pg_size_pretty(pg_database_size(current_database())) AS database_size,
                     pg_database_size(current_database()) AS database_size_bytes,
                     (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()) AS active_connections,
                     COALESCE(
                         CAST(
-                            ((sum(blks_hit)::float / NULLIF(sum(blks_hit + blks_read), 0)) * 100) 
+                            ((sum(blks_hit)::float / NULLIF(sum(blks_hit + blks_read), 0)) * 100)
                             AS DECIMAL(5,2)
-                        ), 
+                        ),
                         0
                     ) AS cache_hit_ratio
-                FROM pg_stat_database 
+                FROM pg_stat_database
                 WHERE datname = current_database()
-            """)
-            
+            """
+            )
+
             metrics_result = await db_session.execute(metrics_query)
             metrics_row = metrics_result.fetchone()
-            
+
             response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
-            
+
             return {
                 "status": "healthy",
                 "connected": True,
                 "response_time_ms": round(response_time, 2),
                 "size": metrics_row[0] if metrics_row else "unknown",  # e.g., "8715 kB"
-                "size_bytes": metrics_row[1] if metrics_row else 0,   # e.g., 8731648
+                "size_bytes": metrics_row[1] if metrics_row else 0,  # e.g., 8731648
                 "active_connections": metrics_row[2] if metrics_row else 0,  # e.g., 15
                 "cache_hit_ratio": metrics_row[3] if metrics_row else 0,  # e.g., 98.7
             }
@@ -155,7 +158,7 @@ class HealthService:
 
             # Get comprehensive Redis metrics
             start_time = time.time()
-            
+
             try:
                 # Get backend type safely
                 backend_type = await cache_manager.get_detailed_backend_type()
@@ -163,9 +166,9 @@ class HealthService:
                 backend_type = getattr(cache_manager, "backend_type", "unknown")
 
             # Get detailed server info if Redis backend
-            server_info = {}
-            stats_info = {}
-            if hasattr(cache_manager.backend, 'get_server_info'):
+            server_info: dict[str, str | int] = {}
+            stats_info: dict[str, int] = {}
+            if cache_manager.backend and hasattr(cache_manager.backend, "get_server_info"):
                 try:
                     server_info = await cache_manager.backend.get_server_info()
                     stats_info = await cache_manager.backend.stats()
@@ -176,15 +179,17 @@ class HealthService:
 
             # Calculate hit rate from stats
             hit_rate = 0.0
-            if stats_info and 'hits' in stats_info and 'misses' in stats_info:
-                total_ops = stats_info['hits'] + stats_info['misses']
+            if stats_info and "hits" in stats_info and "misses" in stats_info:
+                hits = int(stats_info["hits"])
+                misses = int(stats_info["misses"])
+                total_ops = hits + misses
                 if total_ops > 0:
-                    hit_rate = round((stats_info['hits'] / total_ops) * 100, 2)
+                    hit_rate = round((hits / total_ops) * 100, 2)
 
             # Format uptime
             uptime_formatted = "Unknown"
-            if server_info.get('uptime_in_seconds'):
-                uptime_seconds = server_info['uptime_in_seconds']
+            if server_info.get("uptime_in_seconds"):
+                uptime_seconds = int(server_info["uptime_in_seconds"])
                 hours = uptime_seconds // 3600
                 minutes = (uptime_seconds % 3600) // 60
                 uptime_formatted = f"{hours}h {minutes}m"
@@ -194,22 +199,23 @@ class HealthService:
                 "connected": True,
                 "response_time_ms": response_time_ms,
                 "backend": backend_type,
-                "version": server_info.get('redis_version', 'unknown'),
-                "mode": server_info.get('redis_mode', 'standalone'),
-                "used_memory": server_info.get('used_memory_human', 'unknown'),
-                "connected_clients": server_info.get('connected_clients', 0),
+                "version": server_info.get("redis_version", "unknown"),
+                "mode": server_info.get("redis_mode", "standalone"),
+                "used_memory": server_info.get("used_memory_human", "unknown"),
+                "connected_clients": server_info.get("connected_clients", 0),
                 "hit_rate": hit_rate,
                 "uptime": uptime_formatted,
                 "architecture": f"{server_info.get('arch_bits', 'unknown')} bit",
-                "os": server_info.get('os', 'unknown'),
-                "total_entries": stats_info.get('total_entries', 0),
-                "total_operations": stats_info.get('hits', 0) + stats_info.get('misses', 0),
+                "os": server_info.get("os", "unknown"),
+                "total_entries": stats_info.get("total_entries", 0),
+                "total_operations": int(stats_info.get("hits", 0))
+                + int(stats_info.get("misses", 0)),
                 "monitoring": {
-                    "hits": stats_info.get('hits', 0),
-                    "misses": stats_info.get('misses', 0),
-                    "sets": stats_info.get('sets', 0),
-                    "deletes": stats_info.get('deletes', 0)
-                }
+                    "hits": stats_info.get("hits", 0),
+                    "misses": stats_info.get("misses", 0),
+                    "sets": stats_info.get("sets", 0),
+                    "deletes": stats_info.get("deletes", 0),
+                },
             }
 
         except (ConnectionError, TimeoutError) as cache_error:
@@ -230,7 +236,7 @@ class HealthService:
             # This avoids the blocking observability manager calls
             return {
                 "metricsCollector": "healthy",
-                "healthChecker": "healthy", 
+                "healthChecker": "healthy",
                 "alertManager": "healthy",
                 "performanceMonitor": "healthy",
                 "observabilityManager": "healthy",

@@ -315,8 +315,12 @@ class TestWebAuthnRouterEndpoints:
     ):
         """Test successful WebAuthn authentication completion."""
         with (
-            patch("src.auth.router.security_manager.create_access_token") as mock_create_access_token,
-            patch("src.auth.router.security_manager.create_refresh_token") as mock_create_refresh_token,
+            patch(
+                "src.auth.router.security_manager.create_access_token"
+            ) as mock_create_access_token,
+            patch(
+                "src.auth.router.security_manager.create_refresh_token"
+            ) as mock_create_refresh_token,
         ):
             # Mock successful verification using the dependency-injected service
             now = datetime.now(UTC)
