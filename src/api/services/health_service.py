@@ -151,10 +151,11 @@ class HealthService:
             # Simple static status for monitoring components
             # This avoids the blocking observability manager calls
             return {
-                "metrics_collector": {"enabled": True, "status": "healthy"},
-                "health_checker": {"enabled": True, "status": "healthy"},
-                "alert_manager": {"enabled": True, "status": "healthy"},
-                "performance_monitor": {"enabled": True, "status": "healthy"},
+                "metricsCollector": "healthy",
+                "healthChecker": "healthy", 
+                "alertManager": "healthy",
+                "performanceMonitor": "healthy",
+                "observabilityManager": "healthy",
             }
         except Exception as monitoring_error:
             self.logger.warning("Monitoring status check failed", error=str(monitoring_error))
