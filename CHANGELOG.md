@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v3.4.1 (2025-09-10)
+
+### Bug Fixes
+
+- **health**: Add missing observabilityManager component status
+  ([`0f60b02`](https://github.com/zachatkinson/csfrace-scrape-back/commit/0f60b02303a6198aab10858c99e271e83f411445))
+
+🔧 Frontend Fix: - Added missing 'observabilityManager' component to monitoring status - Changed
+  response format from nested objects to simple status strings - Used camelCase keys to match
+  frontend expectations
+
+🎯 Problem Solved: - Frontend was showing '⏳ Observability Manager (Checking...)' - Backend was
+  missing this component in health response - Now returns 'healthy' status for all 5 monitoring
+  components
+
+✅ Result: - All backend service components now show green checkmarks - Consistent status reporting
+  across all monitoring components - Frontend properly displays '✅ Observability Manager (Healthy)'
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v3.4.0 (2025-09-09)
 
 ### Bug Fixes
