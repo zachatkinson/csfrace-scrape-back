@@ -1,5 +1,6 @@
 """Health service following SOLID principles for comprehensive system health monitoring."""
 
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -137,10 +138,10 @@ class HealthService:
             return {"status": "unhealthy", "connected": False, "error": str(db_error)}
 
     async def _check_cache_health(self) -> dict[str, Any]:
-        """Check cache system health.
+        """Check cache system health with comprehensive Redis metrics.
 
         Returns:
-            Cache health status
+            Cache health status with detailed metrics
         """
         try:
             # Import cache manager with proper error handling
@@ -152,23 +153,71 @@ class HealthService:
             # Initialize if needed
             await cache_manager.initialize()
 
-            # Get backend type safely
+            # Get comprehensive Redis metrics
+            start_time = time.time()
+            
             try:
+                # Get backend type safely
                 backend_type = await cache_manager.get_detailed_backend_type()
             except (AttributeError, Exception):
                 backend_type = getattr(cache_manager, "backend_type", "unknown")
 
+            # Get detailed server info if Redis backend
+            server_info = {}
+            stats_info = {}
+            if hasattr(cache_manager.backend, 'get_server_info'):
+                try:
+                    server_info = await cache_manager.backend.get_server_info()
+                    stats_info = await cache_manager.backend.stats()
+                except Exception as info_error:
+                    self.logger.debug("Could not get Redis server info", error=str(info_error))
+
+            response_time_ms = round((time.time() - start_time) * 1000, 2)
+
+            # Calculate hit rate from stats
+            hit_rate = 0.0
+            if stats_info and 'hits' in stats_info and 'misses' in stats_info:
+                total_ops = stats_info['hits'] + stats_info['misses']
+                if total_ops > 0:
+                    hit_rate = round((stats_info['hits'] / total_ops) * 100, 2)
+
+            # Format uptime
+            uptime_formatted = "Unknown"
+            if server_info.get('uptime_in_seconds'):
+                uptime_seconds = server_info['uptime_in_seconds']
+                hours = uptime_seconds // 3600
+                minutes = (uptime_seconds % 3600) // 60
+                uptime_formatted = f"{hours}h {minutes}m"
+
             return {
                 "status": "healthy",
+                "connected": True,
+                "response_time_ms": response_time_ms,
                 "backend": backend_type,
+                "version": server_info.get('redis_version', 'unknown'),
+                "mode": server_info.get('redis_mode', 'standalone'),
+                "used_memory": server_info.get('used_memory_human', 'unknown'),
+                "connected_clients": server_info.get('connected_clients', 0),
+                "hit_rate": hit_rate,
+                "uptime": uptime_formatted,
+                "architecture": f"{server_info.get('arch_bits', 'unknown')} bit",
+                "os": server_info.get('os', 'unknown'),
+                "total_entries": stats_info.get('total_entries', 0),
+                "total_operations": stats_info.get('hits', 0) + stats_info.get('misses', 0),
+                "monitoring": {
+                    "hits": stats_info.get('hits', 0),
+                    "misses": stats_info.get('misses', 0),
+                    "sets": stats_info.get('sets', 0),
+                    "deletes": stats_info.get('deletes', 0)
+                }
             }
 
         except (ConnectionError, TimeoutError) as cache_error:
             self.logger.warning("Cache connection failed", error=str(cache_error))
-            return {"status": "error", "error": str(cache_error)}
+            return {"status": "error", "connected": False, "error": str(cache_error)}
         except Exception as general_error:
             self.logger.warning("Cache health check failed", error=str(general_error))
-            return {"status": "error", "error": str(general_error)}
+            return {"status": "error", "connected": False, "error": str(general_error)}
 
     def _get_monitoring_status(self) -> dict[str, Any]:
         """Get monitoring system status.
