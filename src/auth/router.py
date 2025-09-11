@@ -55,6 +55,7 @@ from .models import (
 from .oauth_service import OAuthService
 from .security import security_manager
 from .service import AuthService
+from .enum_utils import get_oauth_provider_value
 from .webauthn_service import PasskeyManager, WebAuthnService
 
 logger = structlog.get_logger(__name__)
@@ -343,7 +344,7 @@ def _validate_oauth_callback_parameters(
         error_detail = oauth_callback.error_description or oauth_callback.error
         logger.warning(
             "OAuth callback received error",
-            provider=provider.value,
+            provider=get_oauth_provider_value(provider),
             error=oauth_callback.error,
             error_description=oauth_callback.error_description,
         )
@@ -356,8 +357,8 @@ def _validate_oauth_callback_parameters(
     if provider != oauth_callback.provider:
         logger.warning(
             "OAuth callback provider mismatch",
-            url_provider=provider.value,
-            callback_provider=oauth_callback.provider.value,
+            url_provider=get_oauth_provider_value(provider),
+            callback_provider=get_oauth_provider_value(oauth_callback.provider),
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -366,14 +367,14 @@ def _validate_oauth_callback_parameters(
 
     # Step 3: Validate required OAuth callback parameters
     if not oauth_callback.code:
-        logger.warning("OAuth callback missing authorization code", provider=provider.value)
+        logger.warning("OAuth callback missing authorization code", provider=get_oauth_provider_value(provider))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing authorization code in OAuth callback",
         )
 
     if not oauth_callback.state:
-        logger.warning("OAuth callback missing state parameter", provider=provider.value)
+        logger.warning("OAuth callback missing state parameter", provider=get_oauth_provider_value(provider))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing state parameter in OAuth callback",
@@ -385,7 +386,7 @@ async def _process_oauth_token_exchange(
 ) -> tuple[str, bool]:
     """Process OAuth token exchange and return access token."""
     # Build redirect URI for token exchange (must match the one used in authorization)
-    redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider.value}/callback"
+    redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{get_oauth_provider_value(provider)}/callback"
 
     # Handle OAuth callback and get user information
     return await oauth_service.handle_oauth_callback(
@@ -451,7 +452,7 @@ async def handle_oauth_callback(
     try:
         logger.info(
             "Processing OAuth callback",
-            provider=provider.value,
+            provider=get_oauth_provider_value(provider),
             code_present=bool(oauth_callback.code),
             state_present=bool(oauth_callback.state),
         )
@@ -472,7 +473,7 @@ async def handle_oauth_callback(
         # Log successful OAuth authentication
         logger.info(
             "OAuth authentication successful",
-            provider=provider.value,
+            provider=get_oauth_provider_value(provider),
             user_id=user.id,
             email=user.email,
             is_new_user=is_new_user,
@@ -486,7 +487,7 @@ async def handle_oauth_callback(
         raise
     except ValueError as e:
         # Handle validation errors from OAuth service
-        logger.warning("OAuth callback validation error", provider=provider.value, error=str(e))
+        logger.warning("OAuth callback validation error", provider=get_oauth_provider_value(provider), error=str(e))
         raise APIErrorFactory.business_logic_error(
             f"OAuth validation failed: {str(e)}", "OAUTH_VALIDATION_FAILED"
         ) from e
@@ -494,7 +495,7 @@ async def handle_oauth_callback(
         # Handle unexpected errors with structured logging
         logger.error(
             "Unexpected error in OAuth callback",
-            provider=provider.value,
+            provider=get_oauth_provider_value(provider),
             error=str(e),
             error_type=type(e).__name__,
         )
@@ -506,7 +507,7 @@ async def handle_oauth_callback(
 @router.get("/oauth/providers", response_model=list[str])
 def list_oauth_providers() -> list[str]:
     """List available OAuth2 providers - Simple endpoint per REST principles."""
-    return [provider.value for provider in OAuthProvider]
+    return [get_oauth_provider_value(provider) for provider in OAuthProvider]
 
 
 # WebAuthn/Passkeys Endpoints - Passwordless Authentication

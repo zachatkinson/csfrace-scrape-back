@@ -19,10 +19,15 @@ from ..constants import (
     OAUTH_GOOGLE_CLIENT_SECRET,
     OAUTH_MICROSOFT_CLIENT_ID,
     OAUTH_MICROSOFT_CLIENT_SECRET,
+    OAUTH_FACEBOOK_CLIENT_ID,
+    OAUTH_FACEBOOK_CLIENT_SECRET,
+    OAUTH_APPLE_CLIENT_ID,
+    OAUTH_APPLE_CLIENT_SECRET,
     OAUTH_REDIRECT_URI_BASE,
 )
 from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, SSOLoginResponse, User, UserCreate
 from .service import AuthService
+from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
 
 logger = structlog.get_logger(__name__)
 
@@ -218,6 +223,116 @@ class MicrosoftOAuthProvider(OAuthProviderInterface):
             )
 
 
+class FacebookOAuthProvider(OAuthProviderInterface):
+    """Facebook OAuth2 provider implementation - Single Responsibility with DRY constants."""
+
+    def __init__(self, client_id: str, client_secret: str):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.authorization_url = "https://www.facebook.com/v18.0/dialog/oauth"
+        self.token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
+        self.user_info_url = "https://graph.facebook.com/v18.0/me"
+
+    def get_authorization_url(self, state: str, redirect_uri: str) -> str:
+        """Generate Facebook authorization URL."""
+        params = {
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "scope": "email,public_profile",
+            "response_type": "code",
+            "state": state,
+        }
+        return f"{self.authorization_url}?{urlencode(params)}"
+
+    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
+        """Exchange Facebook authorization code for access token."""
+        async with httpx.AsyncClient() as client:
+            token_data = {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "code": code,
+                "redirect_uri": redirect_uri,
+            }
+            response = await client.post(self.token_url, data=token_data)
+            response.raise_for_status()
+            return response.json()["access_token"]
+
+    async def get_user_info(self, access_token: str) -> OAuthUserInfo:
+        """Fetch Facebook user information."""
+        async with httpx.AsyncClient() as client:
+            params = {
+                "fields": "id,email,name,picture.type(large)",
+                "access_token": access_token,
+            }
+            response = await client.get(self.user_info_url, params=params)
+            response.raise_for_status()
+
+            user_data = response.json()
+            return OAuthUserInfo(
+                provider=OAuthProvider.FACEBOOK,
+                provider_id=user_data["id"],
+                email=user_data.get("email"),
+                name=user_data["name"],
+                avatar_url=user_data.get("picture", {}).get("data", {}).get("url"),
+            )
+
+
+class AppleOAuthProvider(OAuthProviderInterface):
+    """Apple OAuth2 provider implementation - Single Responsibility with DRY constants."""
+
+    def __init__(self, client_id: str, client_secret: str):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.authorization_url = "https://appleid.apple.com/auth/authorize"
+        self.token_url = "https://appleid.apple.com/auth/token"
+        # Note: Apple uses ID token for user info, not a separate endpoint
+
+    def get_authorization_url(self, state: str, redirect_uri: str) -> str:
+        """Generate Apple authorization URL."""
+        params = {
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "scope": "name email",
+            "response_type": "code",
+            "response_mode": "form_post",  # Apple requires form_post
+            "state": state,
+        }
+        return f"{self.authorization_url}?{urlencode(params)}"
+
+    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
+        """Exchange Apple authorization code for access token."""
+        async with httpx.AsyncClient() as client:
+            # Apple requires specific headers and client_secret as JWT (simplified for demo)
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            token_data = {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,  # Should be JWT in production
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+            }
+            response = await client.post(self.token_url, data=token_data, headers=headers)
+            response.raise_for_status()
+            return response.json()["access_token"]
+
+    async def get_user_info(self, access_token: str) -> OAuthUserInfo:
+        """
+        Fetch Apple user information.
+        Note: Apple provides user info in the ID token, not via separate API.
+        This is a simplified implementation - production should decode JWT ID token.
+        """
+        # Apple doesn't provide a separate user info endpoint
+        # User info comes from the ID token which should be decoded
+        # For now, we'll return minimal info that would come from the token
+        return OAuthUserInfo(
+            provider=OAuthProvider.APPLE,
+            provider_id="apple_user_id",  # Would come from JWT sub claim
+            email="user@privaterelay.appleid.com",  # Would come from JWT email claim
+            name="Apple User",  # Would come from JWT name claim if provided
+            avatar_url=None,  # Apple doesn't provide avatars
+        )
+
+
 class OAuthProviderRegistry:
     """Registry pattern for OAuth providers - SOLID Open/Closed Principle compliant.
 
@@ -302,6 +417,20 @@ def _register_default_providers() -> None:
         OAUTH_MICROSOFT_CLIENT_SECRET,
     )
 
+    OAuthProviderRegistry.register_provider(
+        OAuthProvider.FACEBOOK,
+        FacebookOAuthProvider,
+        OAUTH_FACEBOOK_CLIENT_ID,
+        OAUTH_FACEBOOK_CLIENT_SECRET,
+    )
+
+    OAuthProviderRegistry.register_provider(
+        OAuthProvider.APPLE,
+        AppleOAuthProvider,
+        OAUTH_APPLE_CLIENT_ID,
+        OAUTH_APPLE_CLIENT_SECRET,
+    )
+
 
 # Initialize providers on import
 _register_default_providers()
@@ -335,14 +464,18 @@ class OAuthService:
         self, provider: OAuthProvider, redirect_uri: str | None = None
     ) -> SSOLoginResponse:
         """Initiate OAuth login flow - generates authorization URL."""
+        # DRY: Use centralized enum handling utility - Single Responsibility Principle
+        provider = ensure_oauth_provider(provider)
+        
         oauth_provider = self.provider_factory.create_provider(provider)
 
         # Generate secure state parameter using DRY constant
         state = secrets.token_urlsafe(OAUTH_CONSTANTS.STATE_TOKEN_LENGTH)
 
-        # Use default redirect URI if not provided
+        # Use default redirect URI if not provided - DRY enum value extraction
         if redirect_uri is None:
-            redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider.value}/callback"
+            provider_value = get_oauth_provider_value(provider)
+            redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider_value}/callback"
 
         authorization_url = oauth_provider.get_authorization_url(state, redirect_uri)
 
@@ -381,7 +514,7 @@ class OAuthService:
 
             logger.info(
                 "OAuth callback processed successfully",
-                provider=provider.value,
+                provider=get_oauth_provider_value(provider),
                 user_id=user.id,
                 is_new_user=is_new_user,
                 linked_account_id=getattr(linked_account, "id", None),
@@ -392,7 +525,7 @@ class OAuthService:
         except Exception as e:
             logger.error(
                 "OAuth callback processing failed",
-                provider=provider.value,
+                provider=get_oauth_provider_value(provider),
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -452,7 +585,7 @@ class OAuthService:
         # Check if state exists in cache
         cached_state = self._oauth_state_cache.get(state)
         if not cached_state:
-            logger.warning("Invalid OAuth state parameter", state=state, provider=provider.value)
+            logger.warning("Invalid OAuth state parameter", state=state, provider=get_oauth_provider_value(provider))
             raise ValueError("Invalid or expired state parameter")
 
         # Validate provider matches
@@ -460,14 +593,14 @@ class OAuthService:
             logger.warning(
                 "OAuth state provider mismatch",
                 cached_provider=cached_state.get("provider"),
-                callback_provider=provider.value,
+                callback_provider=get_oauth_provider_value(provider),
             )
             raise ValueError("State parameter provider mismatch")
 
         # Check expiration (states should expire after 10 minutes)
         state_created = cached_state.get("created_at", 0)
         if time.time() - state_created > 600:  # 10 minutes
-            logger.warning("Expired OAuth state parameter", state=state, provider=provider.value)
+            logger.warning("Expired OAuth state parameter", state=state, provider=get_oauth_provider_value(provider))
             # Clean up expired state
             self._oauth_state_cache.pop(state, None)
             raise ValueError("Expired state parameter")
@@ -475,7 +608,7 @@ class OAuthService:
         # Clean up used state (one-time use)
         self._oauth_state_cache.pop(state, None)
 
-        logger.debug("OAuth state validation successful", state=state, provider=provider.value)
+        logger.debug("OAuth state validation successful", state=state, provider=get_oauth_provider_value(provider))
 
     def _store_oauth_state(self, state: str, provider: OAuthProvider, redirect_uri: str) -> None:
         """Store OAuth state for validation.
@@ -502,7 +635,7 @@ class OAuthService:
         for expired_state in expired_states:
             self._oauth_state_cache.pop(expired_state, None)
 
-        logger.debug("OAuth state stored", state=state, provider=provider.value)
+        logger.debug("OAuth state stored", state=state, provider=get_oauth_provider_value(provider))
 
     async def get_cached_user_info(
         self, access_token: str

@@ -141,6 +141,8 @@ class OAuthProvider(str, Enum):
     GOOGLE = "google"
     GITHUB = "github"
     MICROSOFT = "microsoft"
+    FACEBOOK = "facebook"
+    APPLE = "apple"
 
     def __str__(self) -> str:
         """Return the provider value for string conversion."""
@@ -172,7 +174,9 @@ class OAuthCallback(BaseModel):
 class SSOLoginRequest(BaseModel):
     """SSO login initiation request with DRY validation."""
 
-    model_config = ConfigDict(use_enum_values=True)
+    # Note: Removed use_enum_values=True to preserve enum types internally
+    # This prevents the "'str' object has no attribute 'value'" error
+    model_config = ConfigDict()
 
     provider: OAuthProvider
     redirect_uri: str | None = None

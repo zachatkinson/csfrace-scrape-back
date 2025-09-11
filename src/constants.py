@@ -136,7 +136,7 @@ ERROR_TYPE_INTERNAL: str = "internal_error"
 LOCALHOST_IP: str = "127.0.0.1"
 DEFAULT_API_PORT: int = EnvironmentLoader.get_int("API_PORT", 8000, min_value=1024, max_value=65535)
 ALLOWED_ORIGINS_DEFAULT: str = EnvironmentLoader.get_optional(
-    "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4321"
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:3010"
 )
 
 # Timeout configurations
@@ -253,6 +253,10 @@ OAUTH_MICROSOFT_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_MICROSOFT
 OAUTH_MICROSOFT_CLIENT_SECRET: str = EnvironmentLoader.get_optional(
     "OAUTH_MICROSOFT_CLIENT_SECRET", ""
 )
+OAUTH_FACEBOOK_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_FACEBOOK_CLIENT_ID", "")
+OAUTH_FACEBOOK_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_FACEBOOK_CLIENT_SECRET", "")
+OAUTH_APPLE_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_APPLE_CLIENT_ID", "")
+OAUTH_APPLE_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_APPLE_CLIENT_SECRET", "")
 
 # OAuth2 Redirect URIs - Centralized Configuration
 OAUTH_REDIRECT_URI_BASE: str = EnvironmentLoader.get_url(
@@ -381,6 +385,10 @@ class OAuthConstants:  # pylint: disable=too-few-public-methods
     OAUTH_GITHUB_CLIENT_SECRET = OAUTH_GITHUB_CLIENT_SECRET
     OAUTH_MICROSOFT_CLIENT_ID = OAUTH_MICROSOFT_CLIENT_ID
     OAUTH_MICROSOFT_CLIENT_SECRET = OAUTH_MICROSOFT_CLIENT_SECRET
+    OAUTH_FACEBOOK_CLIENT_ID = OAUTH_FACEBOOK_CLIENT_ID
+    OAUTH_FACEBOOK_CLIENT_SECRET = OAUTH_FACEBOOK_CLIENT_SECRET
+    OAUTH_APPLE_CLIENT_ID = OAUTH_APPLE_CLIENT_ID
+    OAUTH_APPLE_CLIENT_SECRET = OAUTH_APPLE_CLIENT_SECRET
     OAUTH_REDIRECT_URI_BASE = OAUTH_REDIRECT_URI_BASE
 
     # Google OAuth2 Configuration
