@@ -2,6 +2,40 @@
 
 <!-- version list -->
 
+## v3.7.0 (2025-09-11)
+
+### Features
+
+- **auth**: Implement Facebook and Apple OAuth providers with enum handling fix
+  ([`f2bb007`](https://github.com/zachatkinson/csfrace-scrape-back/commit/f2bb007a27fd2dda6fc3a4f48fecbeca45e3f9ba))
+
+🎯 OAuth Provider Expansion: - Added Facebook and Apple OAuth providers to OAuthProvider enum -
+  Implemented FacebookOAuthProvider and AppleOAuthProvider classes - Added provider configuration
+  constants for new OAuth providers - Created enum_utils.py module for centralized enum handling
+  (DRY principle)
+
+🐛 Critical Enum Serialization Fix: - Fixed "'str' object has no attribute 'value'" error in OAuth
+  login endpoint - Added enum type checking and conversion in initiate_oauth_login method - Handles
+  Pydantic use_enum_values=True serialization correctly - Ensures compatibility between frontend
+  enum strings and backend enum objects
+
+⚡ SOLID Architecture Improvements: - EnumHandler class follows Single Responsibility Principle -
+  OAuth provider factory supports Open/Closed Principle for extensibility - Centralized enum
+  utilities eliminate code duplication (DRY) - Proper interface segregation with specialized enum
+  methods
+
+🔧 Configuration Updates: - Updated constants.py with Facebook/Apple OAuth client credentials -
+  Environment variable configuration for all OAuth providers - Backward compatible enum handling
+  with convenience functions - Enhanced SSOLoginRequest model validation
+
+✅ Testing Status: - OAuth login endpoint now returns 200 status code - Google OAuth authorization
+  URL generation working correctly - Ready for integration with real OAuth credentials
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v3.6.0 (2025-09-10)
 
 ### Features
