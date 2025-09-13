@@ -13,7 +13,7 @@ from ..constants import (
     API_MAX_URLS_PER_BATCH,
     API_MIN_TIMEOUT_SECONDS,
 )
-from ..database.models import JobPriority, JobStatus
+from ..common.status import JobPriority, JobStatus
 
 
 # Base schemas

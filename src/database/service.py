@@ -14,7 +14,6 @@ from sqlalchemy import and_, case, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from ..common.status import JobStatus
 from ..constants import API_DEFAULT_LIMIT
 from ..core.exceptions import DatabaseError
 from .models import (
@@ -22,7 +21,6 @@ from .models import (
     Batch,
     ContentResult,
     JobLog,
-    JobPriority,
     ScrapingJob,
     create_database_engine,
 )
@@ -330,7 +328,7 @@ class DatabaseService:
     def update_job_status(
         self,
         job_id: int,
-        status: JobStatus,
+        status: str,
         error_message: str | None = None,
         duration: float | None = None,
     ) -> bool:
@@ -350,9 +348,9 @@ class DatabaseService:
                 now = datetime.now(UTC)
                 update_data: dict[str, Any] = {"status": status}
 
-                if status == JobStatus.RUNNING:
+                if status == "running":
                     update_data["started_at"] = now
-                elif status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
+                elif status in {"completed", "failed", "cancelled"}:
                     update_data["completed_at"] = now
                     if duration is not None:
                         update_data["duration_seconds"] = duration
@@ -397,7 +395,7 @@ class DatabaseService:
 
                 stmt = (
                     select(ScrapingJob)
-                    .where(ScrapingJob.status == JobStatus.PENDING)
+                    .where(ScrapingJob.status == "pending")
                     .order_by(
                         desc(
                             case(
@@ -423,7 +421,7 @@ class DatabaseService:
             raise DatabaseError(f"Pending jobs retrieval failed: {e}") from e
 
     def get_jobs_by_status(
-        self, status: JobStatus, limit: int = API_DEFAULT_LIMIT, offset: int = 0
+        self, status: str, limit: int = API_DEFAULT_LIMIT, offset: int = 0
     ) -> list[ScrapingJob]:
         """Retrieve jobs by status with pagination.
 
@@ -469,7 +467,7 @@ class DatabaseService:
                     select(ScrapingJob)
                     .where(
                         and_(
-                            ScrapingJob.status == JobStatus.FAILED,
+                            ScrapingJob.status == "failed",
                             ScrapingJob.retry_count < ScrapingJob.max_retries,
                             or_(
                                 ScrapingJob.next_retry_at.is_(None),
@@ -584,13 +582,13 @@ class DatabaseService:
                 # Get current job counts using case statements for conditional counting
                 counts_stmt = select(
                     func.count(ScrapingJob.id).label("total"),  # pylint: disable=not-callable
-                    func.sum(case((ScrapingJob.status == JobStatus.COMPLETED, 1), else_=0)).label(
+                    func.sum(case((ScrapingJob.status == "completed", 1), else_=0)).label(
                         "completed"
                     ),
-                    func.sum(case((ScrapingJob.status == JobStatus.FAILED, 1), else_=0)).label(
+                    func.sum(case((ScrapingJob.status == "failed", 1), else_=0)).label(
                         "failed"
                     ),
-                    func.sum(case((ScrapingJob.status == JobStatus.SKIPPED, 1), else_=0)).label(
+                    func.sum(case((ScrapingJob.status == "skipped", 1), else_=0)).label(
                         "skipped"
                     ),
                 ).where(ScrapingJob.batch_id == batch_id)
@@ -751,13 +749,13 @@ class DatabaseService:
                 stats_stmt = select(
                     func.count(ScrapingJob.id).label("total_jobs"),  # pylint: disable=not-callable
                     func.count(ScrapingJob.id)  # pylint: disable=not-callable
-                    .filter(ScrapingJob.status == JobStatus.COMPLETED)
+                    .filter(ScrapingJob.status == "completed")
                     .label("completed_jobs"),
                     func.count(ScrapingJob.id)  # pylint: disable=not-callable
-                    .filter(ScrapingJob.status == JobStatus.FAILED)
+                    .filter(ScrapingJob.status == "failed")
                     .label("failed_jobs"),
                     func.count(ScrapingJob.id)  # pylint: disable=not-callable
-                    .filter(ScrapingJob.status == JobStatus.PENDING)
+                    .filter(ScrapingJob.status == "pending")
                     .label("pending_jobs"),
                     func.avg(ScrapingJob.duration_seconds).label("avg_duration"),
                     func.sum(ScrapingJob.content_size_bytes).label("total_content_size"),
@@ -804,7 +802,7 @@ class DatabaseService:
                 deleted_count = session.execute(
                     select(func.count(ScrapingJob.id)).where(  # pylint: disable=not-callable
                         and_(
-                            ScrapingJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
+                            ScrapingJob.status.in_(["completed", "failed"]),
                             ScrapingJob.completed_at < cutoff_date,
                         )
                     )
@@ -814,11 +812,11 @@ class DatabaseService:
                     update(ScrapingJob)
                     .where(
                         and_(
-                            ScrapingJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
+                            ScrapingJob.status.in_(["completed", "failed"]),
                             ScrapingJob.completed_at < cutoff_date,
                         )
                     )
-                    .values(status=JobStatus.CANCELLED)  # Soft delete by changing status
+                    .values(status="cancelled")  # Soft delete by changing status
                 )
 
                 logger.info("Cleaned up old jobs", deleted_count=deleted_count, days=days)

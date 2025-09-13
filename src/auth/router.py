@@ -431,12 +431,15 @@ def initiate_oauth_login(
     )
 
 
-@router.post("/oauth/{provider}/callback", response_model=Token)
+@router.get("/oauth/{provider}/callback", response_model=Token)
 @limiter.limit(rate_limits.AUTH_OAUTH)
 async def handle_oauth_callback(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting and query params
     provider: OAuthProvider,
-    oauth_callback: OAuthCallback,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
     oauth_service: OAuthService = Depends(get_oauth_service),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> Token:
@@ -445,6 +448,15 @@ async def handle_oauth_callback(
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
     according to RFC 6749 and FastAPI security best practices.
     """
+    # Create OAuthCallback object from query parameters
+    oauth_callback = OAuthCallback(
+        code=code or "",
+        state=state or "",
+        provider=provider,
+        error=error,
+        error_description=error_description,
+    )
+    
     # Validate OAuth callback parameters
     _validate_oauth_callback_parameters(provider, oauth_callback)
 

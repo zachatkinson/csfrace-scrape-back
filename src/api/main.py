@@ -14,10 +14,14 @@ from ..auth.models import MessageResponse
 from ..auth.router import router as auth_router
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
+from ..monitoring.background_health_monitor import (
+    start_background_monitoring,
+    stop_background_monitoring,
+)
 from ..monitoring.metrics import metrics_collector
 from ..monitoring.observability import observability_manager
 from .errors import APIErrorFactory
-from .routers import batches, health, jobs
+from .routers import batches, health, health_stream, jobs
 
 
 @asynccontextmanager
@@ -38,9 +42,23 @@ async def lifespan(_app: FastAPI):
         print(f"Observability initialization failed: {e}")
         # Don't raise - allow app to start for health checks
 
+    # Start background health monitoring for real-time events
+    try:
+        await start_background_monitoring(check_interval=30)
+        print("Background health monitoring started successfully")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Background health monitoring failed to start: {e}")
+        # Don't raise - allow app to start without background monitoring
+
     yield
 
     # Shutdown
+    try:
+        await stop_background_monitoring()
+        print("Background health monitoring stopped")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Background health monitoring shutdown failed: {e}")
+
     try:
         await observability_manager.shutdown()
         print("Observability system shutdown completed")
@@ -56,8 +74,6 @@ app = FastAPI(
     title="CSFrace Scraper API",
     description="API for managing WordPress to Shopify content conversion jobs",
     version=__version__,
-    docs_url="/docs",
-    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
@@ -97,14 +113,14 @@ async def add_security_headers(request: Request, call_next):
     # X-Permitted-Cross-Domain-Policies: Control Flash/PDF cross-domain policies
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
 
-    # Content-Security-Policy: Comprehensive CSP for API
+    # Content-Security-Policy: API CSP with Swagger UI support
     csp_directives = [
         "default-src 'none'",  # Deny all by default
-        "script-src 'none'",  # No scripts allowed
-        "style-src 'unsafe-inline'",  # Allow inline styles for docs
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",  # Allow Swagger UI scripts
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",  # Allow Swagger UI styles
         "img-src 'self' data: https:",  # Allow images from same origin, data URLs, HTTPS
-        "font-src 'self' https:",  # Allow fonts from same origin and HTTPS
-        "connect-src 'self'",  # API calls to same origin only
+        "font-src 'self' https: https://cdn.jsdelivr.net",  # Allow fonts including CDN
+        "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000",  # API calls to same origin and localhost
         "frame-ancestors 'none'",  # Prevent framing (redundant with X-Frame-Options)
         "base-uri 'none'",  # Prevent base tag injection
         "form-action 'none'",  # No form submissions (API only)
@@ -114,7 +130,6 @@ async def add_security_headers(request: Request, call_next):
         "manifest-src 'none'",  # No web app manifests
         "worker-src 'none'",  # No web workers
         "child-src 'none'",  # No child browsing contexts
-        "upgrade-insecure-requests",  # Upgrade HTTP to HTTPS
     ]
     response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
 
@@ -178,8 +193,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return JSONResponse(status_code=http_exc.status_code, content=http_exc.detail)
 
 
+# Note: Using built-in nord theme instead of external library
+
 # Include routers
 app.include_router(health.router)
+app.include_router(health_stream.router)  # Real-time health events via SSE
 app.include_router(auth_router)  # Authentication endpoints
 app.include_router(jobs.router)
 app.include_router(batches.router)

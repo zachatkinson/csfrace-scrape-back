@@ -110,3 +110,31 @@ def get_database_url() -> str:
     username = os.getenv("DATABASE_USER", "scraper_user")
     password = os.getenv("DATABASE_PASSWORD", "scraper_password")
     return f"postgresql+psycopg://{username}:{password}@{host}:{port}/{database}"
+
+
+def test_database_connection() -> bool:
+    """Test database connection for startup scripts.
+    
+    Returns:
+        True if database connection is successful
+        
+    Raises:
+        Exception: If database connection fails
+    """
+    from sqlalchemy import create_engine
+    
+    try:
+        database_url = get_database_url()
+        logger.info("Testing database connection", database_url=database_url.split('@')[0] + '@***')
+        
+        engine = create_engine(database_url)
+        with engine.connect() as connection:
+            # Simple test query
+            connection.execute(text("SELECT 1"))
+        
+        logger.info("Database connection successful")
+        return True
+        
+    except Exception as e:
+        logger.error("Database connection failed", error=str(e))
+        raise

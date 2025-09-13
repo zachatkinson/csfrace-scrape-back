@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ...config.rate_limits import rate_limits
 from ...core.config import config as default_config
 from ...core.converter import AsyncWordPressConverter
-from ...database.models import JobStatus
+from ...common.status import JobStatus
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
 from ..errors import APIErrorFactory

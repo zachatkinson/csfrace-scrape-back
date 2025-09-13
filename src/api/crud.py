@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..constants import API_DEFAULT_LIMIT
-from ..database.models import Batch, ContentResult, JobPriority, JobStatus, ScrapingJob
+from ..common.status import JobPriority, JobStatus
+from ..database.models import Batch, ContentResult, ScrapingJob
 from .schemas import BatchCreate, JobCreate, JobUpdate
 
 

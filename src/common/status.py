@@ -29,5 +29,13 @@ class BatchStatus(Enum):
     SKIPPED = "skipped"
 
 
+class JobPriority(Enum):
+    """Priority enumeration for jobs (1-10 scale)."""
+
+    LOW = 1
+    NORMAL = 5
+    HIGH = 10
+
+
 # For backward compatibility, alias the most commonly used status
 CommonStatus = JobStatus

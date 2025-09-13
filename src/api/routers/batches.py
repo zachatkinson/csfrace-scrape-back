@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ...batch.processor import BatchConfig, BatchProcessor
 from ...config.rate_limits import rate_limits
-from ...database.models import JobStatus
+from ...common.status import JobStatus
 from ..crud import BatchCRUD, JobCRUD
 from ..dependencies import DBSession, async_session
 from ..errors import APIErrorFactory

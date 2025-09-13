@@ -5,7 +5,6 @@ following CLAUDE.md standards with proper relationships and constraints.
 """
 
 from datetime import UTC, datetime, timedelta
-from enum import Enum
 from typing import Any, Optional
 
 from sqlalchemy import (
@@ -19,11 +18,7 @@ from sqlalchemy import (
     create_engine,
     event,
 )
-from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
-from ..common.status import JobStatus
-from ..constants import CONSTANTS
 
 # pylint: disable=too-few-public-methods  # SQLAlchemy models often have minimal methods
 # pylint: disable=too-many-instance-attributes  # Database models need many fields
@@ -38,14 +33,6 @@ class Base(DeclarativeBase):
     """Base class for all database models."""
 
 
-class JobPriority(Enum):
-    """Priority levels for job scheduling."""
-
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    URGENT = "urgent"
-
 
 class ScrapingJob(Base):
     """Model for individual scraping jobs.
@@ -54,69 +41,56 @@ class ScrapingJob(Base):
     configuration, and status tracking.
     """
 
-    __tablename__ = "scraping_jobs"
+    __tablename__ = "jobs"
 
     # Primary identification
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    url: Mapped[str] = mapped_column(String(2048), nullable=False, index=True)
-    domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    slug: Mapped[str | None] = mapped_column(String(255), index=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default="uuid_generate_v4()")
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
+    target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
 
     # Job management - Using PostgreSQL native enums for better concurrent handling
-    status: Mapped[JobStatus] = mapped_column(
-        PostgreSQLEnum(JobStatus, name="jobstatus", create_type=False),
-        default=JobStatus.PENDING,
+    status: Mapped[str] = mapped_column(
+        String,
+        default="pending",
         nullable=False,
         index=True,
     )
-    priority: Mapped[JobPriority] = mapped_column(
-        PostgreSQLEnum(JobPriority, name="jobpriority", create_type=False),
-        default=JobPriority.NORMAL,
+    priority: Mapped[int] = mapped_column(
+        Integer,
+        default=5,
         nullable=False,
     )
 
     # Timing information
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), server_default="CURRENT_TIMESTAMP", nullable=False
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default="CURRENT_TIMESTAMP", nullable=False
+    )
 
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    max_retries: Mapped[int] = mapped_column(Integer, default=CONSTANTS.MAX_RETRIES, nullable=False)
-    timeout_seconds: Mapped[int] = mapped_column(
-        Integer, default=CONSTANTS.DEFAULT_TIMEOUT, nullable=False
-    )
+    max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
 
-    # Output configuration
-    output_directory: Mapped[str] = mapped_column(String(1024), nullable=False)
-    custom_slug: Mapped[str | None] = mapped_column(String(255))
-    skip_existing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Configuration and metadata
+    options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
+    job_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, server_default="{}")
 
     # Results and errors
     error_message: Mapped[str | None] = mapped_column(Text)
-    error_type: Mapped[str | None] = mapped_column(String(255))
-    success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # Performance metrics (Unix timestamps)
-    start_time: Mapped[float | None] = mapped_column()
-    end_time: Mapped[float | None] = mapped_column()
-    duration_seconds: Mapped[float | None] = mapped_column()
-    content_size_bytes: Mapped[int | None] = mapped_column(Integer)
-    images_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Performance metrics
+    processing_time_ms: Mapped[int | None] = mapped_column(Integer)
+    download_size_bytes: Mapped[int | None] = mapped_column(Integer)
+    output_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
-    # Configuration (JSON field for flexibility)
-    converter_config: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    processing_options: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-
-    # Archive information
-    archive_path: Mapped[str | None] = mapped_column(String(1024))
-    archive_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
     # Relationships
-    batch_id: Mapped[int | None] = mapped_column(
+    batch_id: Mapped[str | None] = mapped_column(
         ForeignKey("batches.id", ondelete="CASCADE"), index=True
     )
     batch: Mapped[Optional["Batch"]] = relationship("Batch", back_populates="jobs")
@@ -130,24 +104,17 @@ class ScrapingJob(Base):
 
     def __repr__(self) -> str:
         """String representation of the job."""
-        return f"<ScrapingJob(id={self.id}, url='{self.url}', status='{self.status.value}')>"
+        return f"<ScrapingJob(id={self.id}, source_url='{self.source_url}', status='{self.status}')>"
 
     @property
     def is_finished(self) -> bool:
         """Check if job is in a finished state."""
-        return self.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}
+        return self.status in {"completed", "failed", "cancelled"}
 
     @property
     def can_retry(self) -> bool:
         """Check if job can be retried."""
-        return self.status == JobStatus.FAILED and self.retry_count < self.max_retries
-
-    @property
-    def duration(self) -> float | None:
-        """Calculate job duration in seconds."""
-        if self.start_time is None or self.end_time is None:
-            return None
-        return self.end_time - self.start_time
+        return self.status == "failed" and self.retry_count < self.max_retries
 
 
 class Batch(Base):
@@ -160,39 +127,38 @@ class Batch(Base):
     __tablename__ = "batches"
 
     # Primary identification
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default="uuid_generate_v4()")
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
 
-    # Batch status and timing - Using PostgreSQL native enum for consistency
-    status: Mapped[JobStatus] = mapped_column(
-        PostgreSQLEnum(JobStatus, name="jobstatus", create_type=False),
-        default=JobStatus.PENDING,
+    # Batch status and timing
+    status: Mapped[str] = mapped_column(
+        String,
+        default="pending",
         nullable=False,
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True), server_default="CURRENT_TIMESTAMP", nullable=False
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default="CURRENT_TIMESTAMP", nullable=False
+    )
 
     # Configuration
-    max_concurrent: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
-    continue_on_error: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    output_base_directory: Mapped[str] = mapped_column(String(1024), nullable=False)
-    create_archives: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    cleanup_after_archive: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    concurrent_limit: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    rate_limit_per_second: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
 
     # Progress tracking
     total_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     completed_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failed_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    skipped_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # Summary data (JSON for flexibility)
-    summary_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    batch_config: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Statistics
+    statistics: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
 
     # Relationships
     jobs: Mapped[list[ScrapingJob]] = relationship(
@@ -201,7 +167,7 @@ class Batch(Base):
 
     def __repr__(self) -> str:
         """String representation of the batch."""
-        return f"<Batch(id={self.id}, name='{self.name}', status='{self.status.value}')>"
+        return f"<Batch(id={self.id}, name='{self.name}', status='{self.status}')>"
 
     @property
     def success_rate(self) -> float:
@@ -224,8 +190,8 @@ class ContentResult(Base):
 
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[int] = mapped_column(
-        ForeignKey("scraping_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Content storage
@@ -292,8 +258,8 @@ class JobLog(Base):
 
     # Primary identification
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[int] = mapped_column(
-        ForeignKey("scraping_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Log entry details
