@@ -1,27 +1,27 @@
 """create_complete_database_schema
 
-Revision ID: 7d414c5072e9  
+Revision ID: 7d414c5072e9
 Revises: 6a017959a425
 Create Date: 2025-09-12 16:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+
+import sqlalchemy as sa
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "7d414c5072e9"
-down_revision: Union[str, Sequence[str], None] = "6a017959a425"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "6a017959a425"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create all database tables following PostgreSQL best practices."""
-    
+
     # Create batches table first (no foreign key dependencies)
     op.create_table(
         'batches',
@@ -43,7 +43,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_batches_status'), 'batches', ['status'], unique=False)
-    
+
     # Create jobs table with foreign key to batches
     op.create_table(
         'jobs',
@@ -71,7 +71,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_jobs_status'), 'jobs', ['status'], unique=False)
     op.create_index(op.f('ix_jobs_batch_id'), 'jobs', ['batch_id'], unique=False)
-    
+
     # Create content_results table with foreign key to jobs
     op.create_table(
         'content_results',
@@ -105,7 +105,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_content_results_job_id'), 'content_results', ['job_id'], unique=False)
-    
+
     # Create job_logs table with foreign key to jobs
     op.create_table(
         'job_logs',
@@ -124,7 +124,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_job_logs_job_id'), 'job_logs', ['job_id'], unique=False)
     op.create_index(op.f('ix_job_logs_level'), 'job_logs', ['level'], unique=False)
-    
+
     # Create system_metrics table
     op.create_table(
         'system_metrics',
@@ -143,7 +143,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_system_metrics_timestamp'), 'system_metrics', ['timestamp'], unique=False)
     op.create_index(op.f('ix_system_metrics_metric_type'), 'system_metrics', ['metric_type'], unique=False)
     op.create_index(op.f('ix_system_metrics_component'), 'system_metrics', ['component'], unique=False)
-    
+
     # Create webauthn_credentials table
     op.create_table(
         'webauthn_credentials',
@@ -176,7 +176,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_webauthn_credentials_user_id'), 'webauthn_credentials', ['user_id'], unique=False)
     op.create_index(op.f('ix_webauthn_credentials_is_active'), 'webauthn_credentials', ['is_active'], unique=False)
     op.create_index(op.f('ix_webauthn_credentials_last_used_at'), 'webauthn_credentials', ['last_used_at'], unique=False)
-    
+
     # Create webauthn_challenges table
     op.create_table(
         'webauthn_challenges',
@@ -201,7 +201,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_webauthn_challenges_challenge_type'), 'webauthn_challenges', ['challenge_type'], unique=False)
     op.create_index(op.f('ix_webauthn_challenges_created_at'), 'webauthn_challenges', ['created_at'], unique=False)
     op.create_index(op.f('ix_webauthn_challenges_expires_at'), 'webauthn_challenges', ['expires_at'], unique=False)
-    
+
     # Create account_lockouts table
     op.create_table(
         'account_lockouts',
@@ -227,7 +227,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_account_lockouts_username'), 'account_lockouts', ['username'], unique=False)
     op.create_index(op.f('ix_account_lockouts_is_locked'), 'account_lockouts', ['is_locked'], unique=False)
     op.create_index(op.f('ix_account_lockouts_locked_until'), 'account_lockouts', ['locked_until'], unique=False)
-    
+
     # Create revoked_tokens table
     op.create_table(
         'revoked_tokens',

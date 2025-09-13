@@ -8,8 +8,9 @@ Prerequisites:
 3. Install Redis Python client: pip install redis>=5.0.0
 """
 
-import asyncio
 from pathlib import Path
+
+import asyncio
 
 from src.caching.base import CacheBackend, CacheConfig
 from src.caching.manager import CacheManager

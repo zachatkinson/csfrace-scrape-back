@@ -4,9 +4,9 @@ This example shows how to properly initialize and use the enhanced observability
 system with distributed tracing in a FastAPI application.
 """
 
-import asyncio
 from contextlib import asynccontextmanager
 
+import asyncio
 import uvicorn
 from fastapi import FastAPI, HTTPException
 
