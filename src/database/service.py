@@ -14,6 +14,7 @@ from sqlalchemy import and_, case, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
+from ..common.status import JobPriority
 from ..constants import API_DEFAULT_LIMIT
 from ..core.exceptions import DatabaseError
 from .models import (

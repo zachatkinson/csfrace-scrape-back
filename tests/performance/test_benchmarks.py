@@ -4,11 +4,11 @@ This module implements comprehensive performance testing following CLAUDE.md sta
 to ensure optimal performance across all scraping operations and identify bottlenecks.
 """
 
-import asyncio
 import gc
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from unittest.mock import Mock
 
+import asyncio
 import memory_profiler
 import psutil
 import pytest
@@ -98,7 +98,6 @@ class TestConcurrencyPerformance:
                 # Create synchronous wrapper for async process method
                 def sync_process(html):
                     import asyncio
-
                     from bs4 import BeautifulSoup
 
                     soup = BeautifulSoup(html, "html.parser")
@@ -367,7 +366,6 @@ class TestPerformanceRegression:
     def test_html_processor_baseline_performance(self, benchmark):
         """Baseline performance test for HTML processing."""
         import asyncio
-
         import pytest
         from bs4 import BeautifulSoup
 

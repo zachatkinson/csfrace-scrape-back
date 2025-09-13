@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from ..common.status import JobPriority, JobStatus
 from ..constants import (
     API_MAX_CONCURRENT_JOBS,
     API_MAX_NAME_LENGTH,
@@ -13,7 +14,6 @@ from ..constants import (
     API_MAX_URLS_PER_BATCH,
     API_MIN_TIMEOUT_SECONDS,
 )
-from ..common.status import JobPriority, JobStatus
 
 
 # Base schemas

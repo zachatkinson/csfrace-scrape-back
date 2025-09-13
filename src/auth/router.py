@@ -26,6 +26,7 @@ from .dependencies import (
     get_passkey_manager,
     get_webauthn_service,
 )
+from .enum_utils import get_oauth_provider_value
 from .models import (
     AccountLockoutStatusResponse,
     BulkTokenRevocationRequest,
@@ -55,7 +56,6 @@ from .models import (
 from .oauth_service import OAuthService
 from .security import security_manager
 from .service import AuthService
-from .enum_utils import get_oauth_provider_value
 from .webauthn_service import PasskeyManager, WebAuthnService
 
 logger = structlog.get_logger(__name__)
@@ -456,7 +456,7 @@ async def handle_oauth_callback(
         error=error,
         error_description=error_description,
     )
-    
+
     # Validate OAuth callback parameters
     _validate_oauth_callback_parameters(provider, oauth_callback)
 

@@ -42,7 +42,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
         try:
             if health_event_subscriber is None:
                 await cache_manager.initialize()
-                redis_client = await cache_manager._ensure_backend()._get_client()
+                redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
                 await initialize_health_events(redis_client)
 
         except Exception as e:

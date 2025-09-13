@@ -193,6 +193,7 @@ ignore = [
 "src/auth/router.py" = ["ARG001"]  # SlowAPI request parameters required but not used in function body
 "src/api/routers/jobs.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting job creation
 "src/api/routers/batches.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting batch creation
+"src/auth/oauth_service.py" = ["S105"]  # OAuth endpoint URLs are not passwords
 "fix_docstrings.py" = ["S105"]  # Test key for development script
 "docs/examples/tracing_integration_example.py" = ["S104"]  # Example server binding for documentation
 

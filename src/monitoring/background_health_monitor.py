@@ -5,7 +5,7 @@ import asyncio
 import structlog
 
 from ..caching.manager import cache_manager
-from ..database.service import database_service
+from ..database.service import DatabaseService
 from .health_events import (
     initialize_health_events,
 )
@@ -91,6 +91,8 @@ class BackgroundHealthMonitor:
 
         while self._running:
             try:
+                # Create database service instance
+                database_service = DatabaseService()
                 # Get database session
                 with database_service.get_session() as db_session:
                     # Perform health check
@@ -117,6 +119,8 @@ class BackgroundHealthMonitor:
         try:
             from ..api.services.health_service import health_service
 
+            # Create database service instance
+            database_service = DatabaseService()
             with database_service.get_session() as db_session:
                 current_health = await health_service.get_comprehensive_health_status(db_session)
                 logger.info("Immediate health check triggered", status=current_health.get("status"))

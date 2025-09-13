@@ -2,24 +2,15 @@
 
 import os
 from enum import Enum
-from typing import TYPE_CHECKING
 
 import sqlalchemy.exc
 import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
-from ..common.status import JobStatus
+from ..common.status import JobPriority, JobStatus
 
 # Import for type checking only to avoid circular dependencies
-if TYPE_CHECKING:
-    from ..database.models import JobPriority
-else:
-    # Runtime import with error handling
-    try:
-        from ..database.models import JobPriority
-    except ImportError:
-        JobPriority = None
 
 logger = structlog.get_logger(__name__)
 
@@ -114,27 +105,27 @@ def get_database_url() -> str:
 
 def test_database_connection() -> bool:
     """Test database connection for startup scripts.
-    
+
     Returns:
         True if database connection is successful
-        
+
     Raises:
         Exception: If database connection fails
     """
     from sqlalchemy import create_engine
-    
+
     try:
         database_url = get_database_url()
         logger.info("Testing database connection", database_url=database_url.split('@')[0] + '@***')
-        
+
         engine = create_engine(database_url)
         with engine.connect() as connection:
             # Simple test query
             connection.execute(text("SELECT 1"))
-        
+
         logger.info("Database connection successful")
         return True
-        
+
     except Exception as e:
         logger.error("Database connection failed", error=str(e))
         raise

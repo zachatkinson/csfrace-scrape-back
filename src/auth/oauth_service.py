@@ -12,22 +12,22 @@ import structlog
 from sqlalchemy.orm import Session
 
 from ..constants import (
+    OAUTH_APPLE_CLIENT_ID,
+    OAUTH_APPLE_CLIENT_SECRET,
     OAUTH_CONSTANTS,
+    OAUTH_FACEBOOK_CLIENT_ID,
+    OAUTH_FACEBOOK_CLIENT_SECRET,
     OAUTH_GITHUB_CLIENT_ID,
     OAUTH_GITHUB_CLIENT_SECRET,
     OAUTH_GOOGLE_CLIENT_ID,
     OAUTH_GOOGLE_CLIENT_SECRET,
     OAUTH_MICROSOFT_CLIENT_ID,
     OAUTH_MICROSOFT_CLIENT_SECRET,
-    OAUTH_FACEBOOK_CLIENT_ID,
-    OAUTH_FACEBOOK_CLIENT_SECRET,
-    OAUTH_APPLE_CLIENT_ID,
-    OAUTH_APPLE_CLIENT_SECRET,
     OAUTH_REDIRECT_URI_BASE,
 )
+from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
 from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, SSOLoginResponse, User, UserCreate
 from .service import AuthService
-from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
 
 logger = structlog.get_logger(__name__)
 
@@ -466,7 +466,7 @@ class OAuthService:
         """Initiate OAuth login flow - generates authorization URL."""
         # DRY: Use centralized enum handling utility - Single Responsibility Principle
         provider = ensure_oauth_provider(provider)
-        
+
         oauth_provider = self.provider_factory.create_provider(provider)
 
         # Generate secure state parameter using DRY constant
