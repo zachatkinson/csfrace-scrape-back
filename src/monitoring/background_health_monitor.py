@@ -1,8 +1,10 @@
 """Background health monitoring service for continuous health tracking."""
 
+from __future__ import annotations
 
 import asyncio
 import structlog
+from typing import Any
 
 from ..caching.manager import cache_manager
 from ..database.service import DatabaseService
@@ -24,11 +26,11 @@ class BackgroundHealthMonitor:
         """
         self.check_interval = check_interval
         self._running = False
-        self._monitor_task: asyncio.Task | None = None
+        self._monitor_task: asyncio.Task[None] | None = None
         self._health_service = None
         self._initialized = False
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the background health monitoring service."""
         if self._running:
             logger.warning("Background health monitor is already running")
@@ -43,7 +45,7 @@ class BackgroundHealthMonitor:
         # Start monitoring loop
         self._monitor_task = asyncio.create_task(self._monitoring_loop())
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the background health monitoring service."""
         if not self._running:
             return
@@ -60,7 +62,7 @@ class BackgroundHealthMonitor:
 
         logger.info("Background health monitor stopped")
 
-    async def _initialize_event_system(self):
+    async def _initialize_event_system(self) -> None:
         """Initialize the health event system with Redis connection."""
         if self._initialized:
             return
@@ -70,7 +72,7 @@ class BackgroundHealthMonitor:
             await cache_manager.initialize()
 
             # Get Redis client from cache backend
-            if hasattr(cache_manager.backend, '_get_client'):
+            if cache_manager.backend is not None and hasattr(cache_manager.backend, '_get_client'):
                 redis_client = await cache_manager.backend._get_client()
                 await initialize_health_events(redis_client)
                 self._initialized = True
@@ -83,7 +85,7 @@ class BackgroundHealthMonitor:
             logger.error("Failed to initialize health event system", error=str(e))
             # Continue without events rather than failing completely
 
-    async def _monitoring_loop(self):
+    async def _monitoring_loop(self) -> None:
         """Main monitoring loop that runs health checks periodically."""
         from ..api.services.health_service import health_service
 
@@ -114,7 +116,7 @@ class BackgroundHealthMonitor:
 
         logger.info("Background health monitoring loop ended")
 
-    async def trigger_immediate_check(self):
+    async def trigger_immediate_check(self) -> dict[str, Any] | None:
         """Trigger an immediate health check outside the normal schedule."""
         try:
             from ..api.services.health_service import health_service
@@ -135,7 +137,7 @@ class BackgroundHealthMonitor:
 background_health_monitor = BackgroundHealthMonitor()
 
 
-async def start_background_monitoring(check_interval: int = 30):
+async def start_background_monitoring(check_interval: int = 30) -> None:
     """Start background health monitoring with specified interval.
 
     Args:
@@ -149,7 +151,7 @@ async def start_background_monitoring(check_interval: int = 30):
     await background_health_monitor.start()
 
 
-async def stop_background_monitoring():
+async def stop_background_monitoring() -> None:
     """Stop background health monitoring."""
     await background_health_monitor.stop()
 

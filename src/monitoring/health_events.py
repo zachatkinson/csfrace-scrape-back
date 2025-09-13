@@ -1,11 +1,13 @@
 """Health event system for real-time health monitoring using Redis pub/sub."""
 
+from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 import asyncio
 import structlog
@@ -34,7 +36,7 @@ class HealthEvent:
     event_id: str | None = None
     correlation_id: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Generate event ID if not provided."""
         if self.event_id is None:
             self.event_id = f"{self.service_name}_{int(time.time() * 1000)}"
@@ -70,7 +72,7 @@ class HealthEvent:
 class HealthStateManager:
     """Manages health state tracking to detect changes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._previous_states: dict[str, dict[str, Any]] = {}
         self._logger = logger.bind(component="health_state_manager")
 
@@ -261,7 +263,7 @@ class HealthEventSubscriber:
         self._running = False
         self._subscribers: set[Any] = set()
 
-    async def subscribe(self, callback):
+    async def subscribe(self, callback: Callable[[HealthEvent], None]) -> None:
         """Subscribe to health events with a callback function.
 
         Args:
@@ -272,11 +274,11 @@ class HealthEventSubscriber:
         if not self._running:
             asyncio.create_task(self._listen_loop())
 
-    def unsubscribe(self, callback):
+    def unsubscribe(self, callback: Callable[[HealthEvent], None]) -> None:
         """Unsubscribe a callback from health events."""
         self._subscribers.discard(callback)
 
-    async def _listen_loop(self):
+    async def _listen_loop(self) -> None:
         """Main listening loop for Redis pub/sub."""
         if self._running:
             return
@@ -298,7 +300,7 @@ class HealthEventSubscriber:
             self._running = False
             self._logger.info("Health event subscription stopped")
 
-    async def _handle_message(self, message_data):
+    async def _handle_message(self, message_data: bytes) -> None:
         """Handle incoming health event message."""
         try:
             event_dict = json.loads(message_data.decode('utf-8'))
@@ -325,7 +327,7 @@ health_event_publisher: HealthEventPublisher | None = None
 health_event_subscriber: HealthEventSubscriber | None = None
 
 
-async def initialize_health_events(redis_client: Redis):
+async def initialize_health_events(redis_client: Redis) -> None:
     """Initialize health event system with Redis client."""
     global health_event_publisher, health_event_subscriber
 
@@ -335,7 +337,7 @@ async def initialize_health_events(redis_client: Redis):
     logger.info("Health event system initialized")
 
 
-async def publish_health_change_events(current_health: dict[str, Any]):
+async def publish_health_change_events(current_health: dict[str, Any]) -> None:
     """Detect and publish health change events."""
     if health_event_publisher is None:
         logger.warning("Health event publisher not initialized")

@@ -1,6 +1,9 @@
 """Main FastAPI application for the CSFrace scraper API."""
 
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +28,7 @@ from .routers import batches, health, health_stream, jobs
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     # Startup
     try:
@@ -94,7 +97,7 @@ app.state.limiter = limiter
 
 # Security Headers Middleware
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def add_security_headers(request: Request, call_next: Any) -> Any:
     """Add comprehensive security headers to all responses."""
     response = await call_next(request)
 
@@ -170,7 +173,7 @@ def _is_https_request(request: Request) -> bool:
 
 # Exception handlers
 @app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
+async def rate_limit_handler(_request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """Handle rate limit exceeded exceptions with proper headers using APIErrorFactory."""
     http_exc = APIErrorFactory.rate_limit_exceeded(f"Rate limit exceeded: {exc.detail}")
 

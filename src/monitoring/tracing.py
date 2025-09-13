@@ -4,10 +4,12 @@ This module provides OpenTelemetry-compliant distributed tracing that integrates
 with the existing monitoring infrastructure while following industry standards.
 """
 
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 import structlog
 
@@ -220,7 +222,7 @@ class DistributedTracer:
                 )
                 raise
 
-    def trace_function(self, operation_name: str, attributes: dict[str, Any] | None = None):
+    def trace_function(self, operation_name: str, attributes: dict[str, Any] | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Decorator for tracing synchronous functions.
 
         Args:
@@ -231,8 +233,8 @@ class DistributedTracer:
             Decorated function
         """
 
-        def decorator(func):
-            def wrapper(*args, **kwargs):
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 if not self._initialized or not self.tracer:
                     return func(*args, **kwargs)
 
@@ -262,7 +264,7 @@ class DistributedTracer:
 
         return decorator
 
-    def trace_async_function(self, operation_name: str, attributes: dict[str, Any] | None = None):
+    def trace_async_function(self, operation_name: str, attributes: dict[str, Any] | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Decorator for tracing asynchronous functions.
 
         Args:
@@ -273,8 +275,8 @@ class DistributedTracer:
             Decorated async function
         """
 
-        def decorator(func):
-            async def wrapper(*args, **kwargs):
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            async def wrapper(*args: Any, **kwargs: Any) -> Any:
                 if not self._initialized:
                     return await func(*args, **kwargs)
 

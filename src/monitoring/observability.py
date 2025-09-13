@@ -425,12 +425,12 @@ class ObservabilityManager:
 
         return self.metrics_collector.export_prometheus_metrics()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> ObservabilityManager:
         """Async context manager entry."""
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.shutdown()
 

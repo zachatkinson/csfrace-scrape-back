@@ -1,5 +1,7 @@
 """Alerting system with configurable thresholds and notification channels."""
 
+from __future__ import annotations
+
 import smtplib
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -154,7 +156,7 @@ class AlertManager:
         self.rule_cooldowns: dict[str, datetime] = {}
         self.rule_alert_counts: dict[str, list[datetime]] = {}
 
-        self._evaluation_task: asyncio.Task | None = None
+        self._evaluation_task: asyncio.Task[None] | None = None
         self._evaluating = False
 
         # Load default rules

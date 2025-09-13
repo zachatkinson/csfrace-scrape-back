@@ -1,5 +1,7 @@
 """Common utilities for API endpoints."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar
@@ -31,7 +33,7 @@ def handle_database_error(operation: str) -> Callable[[SQLAlchemyError], HTTPExc
     return error_handler
 
 
-def create_paginated_response(items: list, total: int, page: int, page_size: int) -> dict:
+def create_paginated_response(items: list[Any], total: int, page: int, page_size: int) -> dict[str, Any]:
     """Create a standardized paginated response structure.
 
     Args:
@@ -80,7 +82,7 @@ def create_response_dict(
     }
 
 
-def rate_limited_endpoint(rate_limit: str):  # pylint: disable=unused-argument  # noqa: ARG001
+def rate_limited_endpoint(rate_limit: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:  # pylint: disable=unused-argument  # noqa: ARG001
     """Decorator factory for rate-limited endpoints that properly handles SlowAPI requirements.
 
     This decorator provides documentation for rate-limited endpoints and ensures proper
@@ -101,7 +103,7 @@ def rate_limited_endpoint(rate_limit: str):  # pylint: disable=unused-argument  
         This decorator is purely for documentation and convention enforcement.
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         # This decorator is primarily for documentation and doesn't modify behavior
         # SlowAPI handles the actual rate limiting via @limiter.limit() decorator
         return func
@@ -144,7 +146,7 @@ def validation_error(detail: str) -> HTTPException:
 
 
 # Assignment-from-none wrapper (DRY principle)
-def maybe_none(func: Callable[..., Any], *args, **kwargs) -> Any:
+def maybe_none(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """Wrapper for functions that may return None - eliminates pylint warnings.
 
     This utility centralizes the pylint disable logic for functions that legitimately
@@ -158,7 +160,7 @@ def maybe_none(func: Callable[..., Any], *args, **kwargs) -> Any:
 
 
 # HTTPException re-raise pattern (DRY principle)
-def handle_api_exceptions(error_message: str):
+def handle_api_exceptions(error_message: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to handle HTTPException re-raising pattern consistently.
 
     This eliminates the common DRY violation of:
@@ -177,9 +179,9 @@ def handle_api_exceptions(error_message: str):
             pass
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await func(*args, **kwargs)
             except HTTPException:
@@ -191,7 +193,7 @@ def handle_api_exceptions(error_message: str):
                 ) from e
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except HTTPException:
@@ -211,7 +213,7 @@ def handle_api_exceptions(error_message: str):
 
 
 # Service error handling decorator (DRY principle)
-def handle_service_errors(operation: str):
+def handle_service_errors(operation: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to handle common service errors with standardized HTTP responses.
 
     This eliminates repetitive try/catch blocks across API endpoints and provides
@@ -226,9 +228,9 @@ def handle_service_errors(operation: str):
             return await service.create_batch(batch_data)
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await func(*args, **kwargs)
             except ValidationError as e:
@@ -248,7 +250,7 @@ def handle_service_errors(operation: str):
                 ) from e
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except ValidationError as e:

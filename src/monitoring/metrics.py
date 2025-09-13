@@ -1,5 +1,7 @@
 """System and application metrics collection with Prometheus integration."""
 
+from __future__ import annotations
+
 import threading
 import time
 from contextlib import suppress
@@ -14,7 +16,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 try:
-    from prometheus_client import (  # type: ignore[import-not-found]
+    from prometheus_client import (
         CollectorRegistry,
         Counter,
         Gauge,
@@ -58,7 +60,7 @@ class MetricsCollector:
         self.metrics: dict[str, Any] = {}
         self.system_metrics: dict[str, float] = {}
         self.application_metrics: dict[str, float] = {}
-        self._collection_task: asyncio.Task | None = None
+        self._collection_task: asyncio.Task[None] | None = None
         self._collecting = False
         self._lock = threading.Lock()
 

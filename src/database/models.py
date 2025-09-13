@@ -20,6 +20,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+# Import enums from common status module
+from ..common.status import JobStatus, JobPriority, BatchStatus
+
 # pylint: disable=too-few-public-methods  # SQLAlchemy models often have minimal methods
 # pylint: disable=too-many-instance-attributes  # Database models need many fields
 # pylint: disable=broad-exception-caught  # Acceptable for database event handlers
@@ -27,6 +30,25 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 # pylint: disable=import-outside-toplevel  # Conditional imports for database setup
 # pylint: disable=redefined-outer-name  # SQLAlchemy events pattern
 # pylint: disable=reimported  # Event module reimport for database functions
+
+
+# Re-export enums for convenience (allows importing from models module)
+__all__ = [
+    "Base",
+    "ScrapingJob",
+    "Batch",
+    "ContentResult",
+    "JobLog",
+    "SystemMetrics",
+    "WebAuthnCredential",
+    "WebAuthnChallenge",
+    "AccountLockout",
+    "RevokedToken",
+    "JobStatus",
+    "JobPriority",
+    "BatchStatus",
+    "create_database_engine",
+]
 
 
 class Base(DeclarativeBase):
@@ -48,6 +70,12 @@ class ScrapingJob(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
+
+    # Additional identification fields expected by tests
+    url: Mapped[str] = mapped_column(Text, nullable=False)  # Alias for source_url for tests
+    domain: Mapped[str | None] = mapped_column(String(255))
+    slug: Mapped[str | None] = mapped_column(String(255))
+    output_directory: Mapped[str | None] = mapped_column(String(1024))
 
     # Job management - Using PostgreSQL native enums for better concurrent handling
     status: Mapped[str] = mapped_column(
@@ -72,6 +100,10 @@ class ScrapingJob(Base):
         DateTime(timezone=True), server_default="CURRENT_TIMESTAMP", nullable=False
     )
 
+    # Additional timing fields expected by tests
+    start_time: Mapped[float | None] = mapped_column()  # Unix timestamp
+    end_time: Mapped[float | None] = mapped_column()    # Unix timestamp
+
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
@@ -82,6 +114,9 @@ class ScrapingJob(Base):
 
     # Results and errors
     error_message: Mapped[str | None] = mapped_column(Text)
+    success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    error_type: Mapped[str | None] = mapped_column(String(100))
+    images_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Performance metrics
     processing_time_ms: Mapped[int | None] = mapped_column(Integer)

@@ -215,63 +215,43 @@ known-third-party = [
 split-on-trailing-comma = true
 combine-as-imports = true
 
-# MyPy configuration (practical settings for existing codebase)
+# MyPy configuration (strict CI-matching standards)
 [tool.mypy]
 python_version = "3.13"
 warn_unused_configs = true
 show_error_codes = true
 namespace_packages = true  # Required for OpenTelemetry (per official docs)
 
-# Practical settings for existing large codebase
-disallow_untyped_defs = false
-disallow_incomplete_defs = false 
-no_implicit_optional = false  # Allow None defaults without explicit Optional
-warn_return_any = false
-check_untyped_defs = false   # Don't check bodies of untyped functions
+# Strict settings to match CI standards - no shortcuts
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_return_any = true
+check_untyped_defs = true
 
-# Still catch serious issues
+# Comprehensive error detection
 warn_no_return = true
-warn_unreachable = false     # BeautifulSoup causes many false positives
-allow_redefinition = true    # Allow variable redefinition for optional imports
+warn_unreachable = true
+allow_redefinition = false
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
 
-# Focus on new code quality rather than retrofitting entire codebase
-follow_imports = "silent"    # Don't follow imports to reduce noise
+# Follow all imports for complete type checking
+follow_imports = "normal"
 
+# Only ignore missing imports for third-party libraries without stubs
 [[tool.mypy.overrides]]
 module = [
     "beautifulsoup4.*",
-    "bleach.*", 
+    "bleach.*",
     "memory_profiler.*",
     "aioresponses.*",
     "aiofiles.*",
     "redis.*",
+    "opentelemetry.*",
 ]
 ignore_missing_imports = true
-
-# Ignore BeautifulSoup-heavy modules until we add proper type guards
-[[tool.mypy.overrides]]
-module = [
-    "src.processors.html_processor",
-    "src.processors.metadata_extractor",
-    "src.plugins.examples.seo_metadata_plugin",
-]
-ignore_errors = true
-
-# Ignore complex caching modules that need significant refactoring
-[[tool.mypy.overrides]]
-module = [
-    "src.caching.*",
-    "src.batch.processor",
-    "src.utils.robots",
-    "src.utils.retry", 
-    "src.plugins.base",
-    "src.plugins.registry",
-    "src.plugins.manager",
-    "src.processors.image_downloader",
-    "src.core.config",
-    "src.api.*",
-]
-ignore_errors = true
 
 # Pytest configuration
 [tool.pytest.ini_options]

@@ -1,5 +1,7 @@
 """Health check system with dependency validation and status monitoring."""
 
+from __future__ import annotations
+
 import time
 from collections.abc import Callable
 from contextlib import suppress
@@ -59,9 +61,9 @@ class HealthChecker:
             config: Health check configuration
         """
         self.config = config or HealthConfig()
-        self._checks: dict[str, Callable] = {}
+        self._checks: dict[str, Callable[[], Any]] = {}
         self._results: dict[str, HealthCheckResult] = {}
-        self._check_task: asyncio.Task | None = None
+        self._check_task: asyncio.Task[None] | None = None
         self._checking = False
 
         # Register built-in health checks
@@ -77,7 +79,7 @@ class HealthChecker:
         self.register_check("disk_space", self._check_disk_space)
         self.register_check("memory_usage", self._check_memory_usage)
 
-    def register_check(self, name: str, check_func: Callable) -> None:
+    def register_check(self, name: str, check_func: Callable[[], Any]) -> None:
         """Register a health check function.
 
         Args:
@@ -163,7 +165,7 @@ class HealthChecker:
 
         return results
 
-    async def _run_single_check(self, name: str, check_func: Callable) -> HealthCheckResult:
+    async def _run_single_check(self, name: str, check_func: Callable[[], Any]) -> HealthCheckResult:
         """Run a single health check with timeout.
 
         Args:

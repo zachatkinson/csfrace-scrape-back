@@ -5,10 +5,12 @@ consistent error handling patterns across all API endpoints.
 """
 
 import traceback
+from collections.abc import Callable
 from typing import Any
 
 import structlog
 from fastapi import HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.environment import EnvironmentLoader
@@ -366,14 +368,14 @@ def business_logic_error(message: str, error_code: str | None = None) -> HTTPExc
 
 
 # Error handler for uncaught exceptions
-def create_global_exception_handler():
+def create_global_exception_handler() -> Callable[[Any, Exception], Any]:
     """Create global exception handler for FastAPI application.
 
     Returns:
         Exception handler function
     """
 
-    async def global_exception_handler(request, exc: Exception):
+    async def global_exception_handler(request: Any, exc: Exception) -> JSONResponse:
         """Global exception handler for uncaught exceptions."""
         logger.error(
             "Uncaught exception in API",
@@ -382,8 +384,12 @@ def create_global_exception_handler():
             error=str(exc),
         )
 
-        return APIErrorFactory.internal_server_error(
+        http_exception = APIErrorFactory.internal_server_error(
             "An unexpected error occurred", original_error=exc
+        )
+        return JSONResponse(
+            status_code=http_exception.status_code,
+            content=http_exception.detail
         )
 
     return global_exception_handler
