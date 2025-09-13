@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +25,9 @@ from ..monitoring.metrics import metrics_collector
 from ..monitoring.observability import observability_manager
 from .errors import APIErrorFactory
 from .routers import batches, health, health_stream, jobs
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 @asynccontextmanager

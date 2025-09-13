@@ -7,11 +7,15 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import asyncio
 import structlog
-from redis.asyncio import Redis
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
+    from redis.asyncio import Redis
 
 logger = structlog.get_logger(__name__)
 
@@ -55,7 +59,7 @@ class HealthEvent:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "HealthEvent":
+    def from_dict(cls, data: dict[str, Any]) -> HealthEvent:
         """Create event from dictionary."""
         return cls(
             event_type=HealthEventType(data["event_type"]),
@@ -263,7 +267,7 @@ class HealthEventSubscriber:
         self._running = False
         self._subscribers: set[Any] = set()
 
-    async def subscribe(self, callback: Callable[[HealthEvent], None]) -> None:
+    async def subscribe(self, callback: Callable[[HealthEvent], Coroutine[Any, Any, Any]]) -> None:
         """Subscribe to health events with a callback function.
 
         Args:
@@ -274,7 +278,7 @@ class HealthEventSubscriber:
         if not self._running:
             asyncio.create_task(self._listen_loop())
 
-    def unsubscribe(self, callback: Callable[[HealthEvent], None]) -> None:
+    def unsubscribe(self, callback: Callable[[HealthEvent], Coroutine[Any, Any, Any]]) -> None:
         """Unsubscribe a callback from health events."""
         self._subscribers.discard(callback)
 

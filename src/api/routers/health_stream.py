@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import asyncio
 import structlog
@@ -108,7 +109,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             yield f"event: error\ndata: {json.dumps({'error': 'Failed to get initial health status'})}\n\n"
 
         # Set up event listener for Redis pub/sub health events
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         async def health_event_callback(event: HealthEvent):
             """Callback for health events from Redis pub/sub."""

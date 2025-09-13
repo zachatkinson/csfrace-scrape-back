@@ -61,7 +61,7 @@ class JobCRUD:
         return job
 
     @staticmethod
-    async def get_job(db: AsyncSession, job_id: int) -> ScrapingJob | None:
+    async def get_job(db: AsyncSession, job_id: str) -> ScrapingJob | None:
         """Get a job by ID.
 
         Args:
@@ -123,7 +123,7 @@ class JobCRUD:
         return list(jobs), total
 
     @staticmethod
-    async def update_job(db: AsyncSession, job_id: int, job_data: JobUpdate) -> ScrapingJob | None:
+    async def update_job(db: AsyncSession, job_id: str, job_data: JobUpdate) -> ScrapingJob | None:
         """Update a job.
 
         Args:
@@ -148,7 +148,7 @@ class JobCRUD:
         return job
 
     @staticmethod
-    async def delete_job(db: AsyncSession, job_id: int) -> bool:
+    async def delete_job(db: AsyncSession, job_id: str) -> bool:
         """Delete a job.
 
         Args:
@@ -168,7 +168,7 @@ class JobCRUD:
     @staticmethod
     async def update_job_status(
         db: AsyncSession,
-        job_id: int,
+        job_id: str,
         status: JobStatus,
         error_message: str | None = None,
         error_type: str | None = None,
@@ -189,7 +189,7 @@ class JobCRUD:
         if not job:
             return None
 
-        job.status = status
+        job.status = status.value if hasattr(status, 'value') else str(status)
         if error_message:
             job.error_message = error_message
         if error_type:
@@ -256,7 +256,7 @@ class BatchCRUD:
         return batch
 
     @staticmethod
-    async def get_batch(db: AsyncSession, batch_id: int) -> Batch | None:
+    async def get_batch(db: AsyncSession, batch_id: str) -> Batch | None:
         """Get a batch by ID.
 
         Args:

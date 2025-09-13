@@ -6,12 +6,14 @@ with the existing monitoring infrastructure while following industry standards.
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import structlog
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable
 
 logger = structlog.get_logger(__name__)
 

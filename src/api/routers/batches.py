@@ -20,7 +20,7 @@ router = APIRouter(prefix="/batches", tags=["Batches"])
 limiter = Limiter(key_func=get_remote_address)
 
 
-async def execute_batch_processing(batch_id: int, output_base_dir: str, max_concurrent: int = 5):
+async def execute_batch_processing(batch_id: str, output_base_dir: str, max_concurrent: int = 5):
     """Background task to execute batch processing.
 
     Args:
@@ -36,7 +36,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
                 return
 
             # Update batch status to running
-            batch.status = JobStatus.RUNNING
+            batch.status = JobStatus.RUNNING.value
             await db.commit()
 
             # Configure batch processor
@@ -51,7 +51,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
             # Add all jobs to the processor
             for job in batch.jobs:
-                processor.add_job(job.url, output_dir=Path(job.output_directory))
+                processor.add_job(job.url, output_dir=Path(job.output_directory or ""))
                 # Update individual job status
                 await JobCRUD.update_job_status(db, job.id, JobStatus.RUNNING)
 
@@ -64,7 +64,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
 
             for job in batch.jobs:
                 # Check if job output exists to determine success
-                job_output = Path(job.output_directory)
+                job_output = Path(job.output_directory or "")
                 if job_output.exists() and any(job_output.iterdir()):
                     await JobCRUD.update_job_status(db, job.id, JobStatus.COMPLETED)
                     completed_jobs += 1
@@ -81,7 +81,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
             # Update batch statistics
             batch.completed_jobs = completed_jobs
             batch.failed_jobs = failed_jobs
-            batch.status = JobStatus.COMPLETED
+            batch.status = JobStatus.COMPLETED.value
 
             await db.commit()
 
@@ -89,7 +89,7 @@ async def execute_batch_processing(batch_id: int, output_base_dir: str, max_conc
             # Mark batch as failed
             batch = await BatchCRUD.get_batch(db, batch_id)
             if batch:
-                batch.status = JobStatus.FAILED
+                batch.status = JobStatus.FAILED.value
                 await db.commit()
             raise
 
@@ -126,7 +126,7 @@ async def create_batch(
             background_tasks.add_task(
                 execute_batch_processing,
                 batch.id,
-                batch.output_base_directory,
+                batch.output_base_directory or "",
                 batch.max_concurrent,
             )
 
@@ -169,7 +169,7 @@ async def list_batches(
 
 
 @router.get("/{batch_id}", response_model=BatchWithJobsResponse)
-async def get_batch(batch_id: int, db: DBSession) -> BatchWithJobsResponse:
+async def get_batch(batch_id: str, db: DBSession) -> BatchWithJobsResponse:
     """Get a specific batch by ID.
 
     Args:

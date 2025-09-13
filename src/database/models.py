@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Import enums from common status module
-from ..common.status import JobStatus, JobPriority, BatchStatus
+from ..common.status import BatchStatus, JobPriority, JobStatus
 
 # pylint: disable=too-few-public-methods  # SQLAlchemy models often have minimal methods
 # pylint: disable=too-many-instance-attributes  # Database models need many fields
@@ -107,6 +107,7 @@ class ScrapingJob(Base):
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Configuration and metadata
     options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
@@ -120,8 +121,10 @@ class ScrapingJob(Base):
 
     # Performance metrics
     processing_time_ms: Mapped[int | None] = mapped_column(Integer)
+    duration_seconds: Mapped[float | None] = mapped_column()
     download_size_bytes: Mapped[int | None] = mapped_column(Integer)
     output_size_bytes: Mapped[int | None] = mapped_column(Integer)
+    content_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
 
     # Relationships
@@ -184,7 +187,10 @@ class Batch(Base):
 
     # Configuration
     concurrent_limit: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    max_concurrent: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     rate_limit_per_second: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    continue_on_error: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    output_base_directory: Mapped[str | None] = mapped_column(String(1024))
     options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
 
     # Progress tracking

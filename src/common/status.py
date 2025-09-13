@@ -35,6 +35,7 @@ class JobPriority(Enum):
     LOW = 1
     NORMAL = 5
     HIGH = 10
+    URGENT = 15
 
 
 # For backward compatibility, alias the most commonly used status

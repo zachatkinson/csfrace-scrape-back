@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import asyncio
 import structlog
-from typing import Any
 
 from ..caching.manager import cache_manager
 from ..database.service import DatabaseService

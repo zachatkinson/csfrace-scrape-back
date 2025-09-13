@@ -339,7 +339,7 @@ class BatchProcessor:
         return urls
 
     def _create_processing_tasks(
-        self, urls: list[str], batch_id: int, priorities: dict[str, Priority] | None
+        self, urls: list[str], batch_id: str, priorities: dict[str, Priority] | None
     ) -> list[asyncio.Task]:
         """Create processing tasks for URLs."""
         tasks = []
@@ -386,7 +386,7 @@ class BatchProcessor:
         return results
 
     async def _process_with_tracking(
-        self, url: str, batch_id: int, priority: Priority
+        self, url: str, batch_id: str, priority: Priority
     ) -> ProcessingResult:
         """Process a URL with progress tracking.
 
@@ -408,7 +408,7 @@ class BatchProcessor:
         job = self.database_service.create_job(request)
 
         # Update job status to running
-        self.database_service.update_job_status(job.id, JobStatus.RUNNING)
+        self.database_service.update_job_status(job.id, JobStatus.RUNNING.value)
 
         # Process the URL
         result = await self.process_single_url(url, priority)
@@ -417,12 +417,12 @@ class BatchProcessor:
         if result.success:
             self.state.completed_count += 1
             self.database_service.update_job_status(
-                job.id, JobStatus.COMPLETED, duration=result.duration
+                job.id, JobStatus.COMPLETED.value, duration=result.duration
             )
         else:
             self.state.failed_count += 1
             self.database_service.update_job_status(
-                job.id, JobStatus.FAILED, error_message=result.error
+                job.id, JobStatus.FAILED.value, error_message=result.error
             )
 
         # Update batch progress
@@ -476,7 +476,7 @@ class BatchProcessor:
 
         return results
 
-    async def _save_checkpoint(self, batch_id: int):
+    async def _save_checkpoint(self, batch_id: str):
         """Save processing checkpoint for recovery.
 
         Args:

@@ -23,7 +23,7 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 limiter = Limiter(key_func=get_remote_address)
 
 
-async def execute_conversion_job(job_id: int, url: str, output_dir: str):
+async def execute_conversion_job(job_id: str, url: str, output_dir: str):
     """Background task to execute the actual WordPress to Shopify conversion.
 
     Args:
@@ -110,7 +110,7 @@ async def create_job(
 
         # Add background task to execute the conversion
         background_tasks.add_task(
-            execute_conversion_job, job.id, str(job_data.url), job.output_directory
+            execute_conversion_job, job.id, str(job_data.url), job.output_directory or ""
         )
 
         return JobResponse.model_validate(job)
@@ -158,7 +158,7 @@ async def list_jobs(
 
 
 @router.get("/{job_id}", response_model=JobResponse)
-async def get_job(job_id: int, db: DBSession) -> JobResponse:
+async def get_job(job_id: str, db: DBSession) -> JobResponse:
     """Get a specific job by ID.
 
     Args:
@@ -181,7 +181,7 @@ async def get_job(job_id: int, db: DBSession) -> JobResponse:
 
 
 @router.put("/{job_id}", response_model=JobResponse)
-async def update_job(job_id: int, job_data: JobUpdate, db: DBSession) -> JobResponse:
+async def update_job(job_id: str, job_data: JobUpdate, db: DBSession) -> JobResponse:
     """Update a job.
 
     Args:
@@ -205,7 +205,7 @@ async def update_job(job_id: int, job_data: JobUpdate, db: DBSession) -> JobResp
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_job(job_id: int, db: DBSession) -> None:
+async def delete_job(job_id: str, db: DBSession) -> None:
     """Delete a job.
 
     Args:
@@ -224,7 +224,7 @@ async def delete_job(job_id: int, db: DBSession) -> None:
 
 
 @router.post("/{job_id}/start", response_model=JobResponse)
-async def start_job(job_id: int, db: DBSession) -> JobResponse:
+async def start_job(job_id: str, db: DBSession) -> JobResponse:
     """Start a job (change status to RUNNING).
 
     Args:
@@ -242,9 +242,9 @@ async def start_job(job_id: int, db: DBSession) -> JobResponse:
         if not job:
             raise APIErrorFactory.not_found("Job", job_id)
 
-        if job.status != JobStatus.PENDING:
+        if job.status != JobStatus.PENDING.value:
             raise APIErrorFactory.business_logic_error(
-                f"Job {job_id} cannot be started (current status: {job.status.value})",
+                f"Job {job_id} cannot be started (current status: {job.status})",
                 "INVALID_STATUS_TRANSITION",
             )
 
@@ -255,7 +255,7 @@ async def start_job(job_id: int, db: DBSession) -> JobResponse:
 
 
 @router.post("/{job_id}/cancel", response_model=JobResponse)
-async def cancel_job(job_id: int, db: DBSession) -> JobResponse:
+async def cancel_job(job_id: str, db: DBSession) -> JobResponse:
     """Cancel a job (change status to CANCELLED).
 
     Args:
@@ -273,9 +273,9 @@ async def cancel_job(job_id: int, db: DBSession) -> JobResponse:
         if not job:
             raise APIErrorFactory.not_found("Job", job_id)
 
-        if job.status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
+        if job.status in {JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}:
             raise APIErrorFactory.business_logic_error(
-                f"Job {job_id} cannot be cancelled (current status: {job.status.value})",
+                f"Job {job_id} cannot be cancelled (current status: {job.status})",
                 "INVALID_STATUS_TRANSITION",
             )
 
@@ -286,7 +286,7 @@ async def cancel_job(job_id: int, db: DBSession) -> JobResponse:
 
 
 @router.post("/{job_id}/retry", response_model=JobResponse)
-async def retry_job(job_id: int, db: DBSession) -> JobResponse:
+async def retry_job(job_id: str, db: DBSession) -> JobResponse:
     """Retry a failed job.
 
     Args:
@@ -306,13 +306,13 @@ async def retry_job(job_id: int, db: DBSession) -> JobResponse:
 
         if not job.can_retry:
             raise APIErrorFactory.business_logic_error(
-                f"Job {job_id} cannot be retried (status: {job.status.value}, "
+                f"Job {job_id} cannot be retried (status: {job.status}, "
                 f"retries: {job.retry_count}/{job.max_retries})",
                 "RETRY_LIMIT_EXCEEDED",
             )
 
         # Reset job for retry
-        job.status = JobStatus.PENDING
+        job.status = JobStatus.PENDING.value
         job.retry_count += 1
         job.error_message = None
         job.error_type = None

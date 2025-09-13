@@ -425,7 +425,7 @@ class ObservabilityManager:
 
         return self.metrics_collector.export_prometheus_metrics()
 
-    async def __aenter__(self) -> ObservabilityManager:
+    async def __aenter__(self) -> "ObservabilityManager":
         """Async context manager entry."""
         await self.initialize()
         return self

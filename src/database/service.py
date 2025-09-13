@@ -328,7 +328,7 @@ class DatabaseService:
 
     def update_job_status(
         self,
-        job_id: int,
+        job_id: str,
         status: str,
         error_message: str | None = None,
         duration: float | None = None,
@@ -364,7 +364,8 @@ class DatabaseService:
 
                 success = result.rowcount > 0
                 if success:
-                    logger.debug("Updated job status", job_id=job_id, status=status.value)
+                    status_value = status.value if hasattr(status, 'value') else str(status)
+                    logger.debug("Updated job status", job_id=job_id, status=status_value)
                 else:
                     logger.warning("Job not found for status update", job_id=job_id)
 
@@ -448,7 +449,8 @@ class DatabaseService:
                 return list(jobs)
 
         except SQLAlchemyError as e:
-            logger.error("Failed to retrieve jobs by status", status=status.value, error=str(e))
+            status_value = status.value if hasattr(status, 'value') else str(status)
+            logger.error("Failed to retrieve jobs by status", status=status_value, error=str(e))
             raise DatabaseError(f"Jobs retrieval failed: {e}") from e
 
     def get_retry_jobs(self, max_jobs: int = 50) -> list[ScrapingJob]:
@@ -569,7 +571,7 @@ class DatabaseService:
             logger.error("Failed to retrieve batch", batch_id=batch_id, error=str(e))
             raise DatabaseError(f"Batch retrieval failed: {e}") from e
 
-    def update_batch_progress(self, batch_id: int) -> bool:
+    def update_batch_progress(self, batch_id: str) -> bool:
         """Update batch progress counters based on current job statuses.
 
         Args:

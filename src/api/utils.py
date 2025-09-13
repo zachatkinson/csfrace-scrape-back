@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import asyncio
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 T = TypeVar("T", bound=BaseModel)
 

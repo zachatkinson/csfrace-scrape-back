@@ -58,7 +58,7 @@ class DatabaseError(Exception):
 class BatchProcessingError(Exception):
     """Exception raised during batch processing operations."""
 
-    def __init__(self, message: str, batch_id: int | None = None, cause: Exception | None = None):
+    def __init__(self, message: str, batch_id: str | None = None, cause: Exception | None = None):
         super().__init__(message)
         self.batch_id = batch_id
         self.cause = cause
