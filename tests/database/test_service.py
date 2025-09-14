@@ -1091,9 +1091,9 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         stats = db_service_with_session.get_job_statistics(days=7)
 
         # Verify we added exactly 2 jobs (account for concurrent test jobs)
-        assert stats["total_jobs"] == initial_count + 2, (
-            f"Expected {initial_count + 2} total jobs, got {stats['total_jobs']}"
-        )
+        assert (
+            stats["total_jobs"] == initial_count + 2
+        ), f"Expected {initial_count + 2} total jobs, got {stats['total_jobs']}"
         assert stats["avg_duration_seconds"] == 0.0  # Null average becomes 0
         assert stats["total_content_size_bytes"] == 0
         assert stats["total_images_downloaded"] == 0

@@ -71,9 +71,11 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     service_data = {
                         "service": "frontend",
                         "status": "healthy",
-                        "timestamp": current_health["timestamp"].isoformat()
-                        if hasattr(current_health["timestamp"], "isoformat")
-                        else str(current_health["timestamp"]),
+                        "timestamp": (
+                            current_health["timestamp"].isoformat()
+                            if hasattr(current_health["timestamp"], "isoformat")
+                            else str(current_health["timestamp"])
+                        ),
                         "data": {
                             "version": "5.13.7",
                             "port": "3000",
@@ -85,9 +87,11 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     service_data = {
                         "service": "backend",
                         "status": current_health["status"],
-                        "timestamp": current_health["timestamp"].isoformat()
-                        if hasattr(current_health["timestamp"], "isoformat")
-                        else str(current_health["timestamp"]),
+                        "timestamp": (
+                            current_health["timestamp"].isoformat()
+                            if hasattr(current_health["timestamp"], "isoformat")
+                            else str(current_health["timestamp"])
+                        ),
                         "data": {
                             "version": current_health["version"],
                             "framework": "FastAPI + Python 3.13",
@@ -100,9 +104,11 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     service_data = {
                         "service": service_name,
                         "status": service_info.get("status", "unknown"),
-                        "timestamp": current_health["timestamp"].isoformat()
-                        if hasattr(current_health["timestamp"], "isoformat")
-                        else str(current_health["timestamp"]),
+                        "timestamp": (
+                            current_health["timestamp"].isoformat()
+                            if hasattr(current_health["timestamp"], "isoformat")
+                            else str(current_health["timestamp"])
+                        ),
                         "data": service_info,
                     }
                 else:

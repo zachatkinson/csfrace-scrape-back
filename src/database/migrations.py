@@ -79,7 +79,9 @@ class MigrationManager:
             logger.error("Failed to create migration: %s", e)
             raise
 
-    def upgrade_database(self, revision: str = "head") -> None:  # pylint: disable=redefined-outer-name
+    def upgrade_database(
+        self, revision: str = "head"
+    ) -> None:  # pylint: disable=redefined-outer-name
         """Upgrade database to specified revision.
 
         Args:

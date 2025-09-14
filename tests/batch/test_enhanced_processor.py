@@ -26,8 +26,12 @@ from src.database.service import DatabaseService
 def mock_db_service():
     """Create mock database service."""
     service = MagicMock(spec=DatabaseService)
-    service.get_session.return_value.__enter__ = Mock(return_value=MagicMock())  # pylint: disable=protected-access
-    service.get_session.return_value.__exit__ = Mock(return_value=None)  # pylint: disable=protected-access
+    service.get_session.return_value.__enter__ = Mock(
+        return_value=MagicMock()
+    )  # pylint: disable=protected-access
+    service.get_session.return_value.__exit__ = Mock(
+        return_value=None
+    )  # pylint: disable=protected-access
 
     # Mock database operations
     service.create_batch = Mock(return_value=Mock(id=1))
@@ -61,7 +65,9 @@ def batch_config():
 
 
 @pytest.fixture
-def batch_processor(batch_config, mock_db_service, mock_converter):  # pylint: disable=redefined-outer-name
+def batch_processor(
+    batch_config, mock_db_service, mock_converter
+):  # pylint: disable=redefined-outer-name
     """Create batch processor instance."""
     return BatchProcessor(
         config=batch_config, database_service=mock_db_service, converter=mock_converter
@@ -411,7 +417,9 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
 
         mock_converter.process_url.return_value = {"data": "test"}
 
-        result = await batch_processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
+        result = await batch_processor._process_with_tracking(
+            url, batch_id, priority
+        )  # pylint: disable=protected-access
 
         assert result.success is True
         assert result.url == url
@@ -435,7 +443,9 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
 
         mock_converter.process_url.side_effect = Exception("Processing error")
 
-        result = await batch_processor._process_with_tracking(url, batch_id, priority)  # pylint: disable=protected-access
+        result = await batch_processor._process_with_tracking(
+            url, batch_id, priority
+        )  # pylint: disable=protected-access
 
         assert result.success is False
         assert batch_processor.state.completed_count == 0
@@ -459,7 +469,9 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
         mock_converter.process_url.return_value = {"data": "test"}
 
         with patch.object(batch_processor, "_save_checkpoint", new_callable=AsyncMock) as mock_save:
-            await batch_processor._process_with_tracking(url, batch_id, Priority.NORMAL)  # pylint: disable=protected-access
+            await batch_processor._process_with_tracking(
+                url, batch_id, Priority.NORMAL
+            )  # pylint: disable=protected-access
             mock_save.assert_called_once_with(batch_id)
 
     @pytest.mark.asyncio

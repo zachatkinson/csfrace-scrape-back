@@ -256,9 +256,9 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     service_info = current_health[service_name]
                     service_data = {
                         "service": service_name,
-                        "status": "healthy"
-                        if service_info.get("status") == "healthy"
-                        else "unhealthy",
+                        "status": (
+                            "healthy" if service_info.get("status") == "healthy" else "unhealthy"
+                        ),
                         "timestamp": datetime.now(UTC).isoformat(),
                         "data": service_info,
                     }
