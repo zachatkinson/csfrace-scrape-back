@@ -81,9 +81,9 @@ class TestRenderingPerformanceBenchmarks:
         memory_increase_mb = memory_increase / (1024 * 1024)
 
         # Memory increase should be reasonable (< 50MB for 100 renders)
-        assert (
-            memory_increase_mb < 50
-        ), f"Memory increased by {memory_increase_mb:.2f}MB - potential memory leak"
+        assert memory_increase_mb < 50, (
+            f"Memory increased by {memory_increase_mb:.2f}MB - potential memory leak"
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.benchmark(group="concurrency")
@@ -305,9 +305,9 @@ class TestRenderingPerformanceBenchmarks:
             # Memory growth should not exceed 100x the content size growth
             # Note: Memory tests can be flaky due to GC timing and system factors
             if prev_memory > 0:  # Only check if we have a baseline
-                assert memory_ratio < (
-                    size_ratio * 100
-                ), f"Excessive memory growth: {memory_ratio} vs {size_ratio}"
+                assert memory_ratio < (size_ratio * 100), (
+                    f"Excessive memory growth: {memory_ratio} vs {size_ratio}"
+                )
 
 
 @pytest.mark.benchmark
@@ -432,9 +432,9 @@ class TestConcurrencyPerformance:
                     successful_renders += 1
 
         # All renders should be successful since we're using mocks
-        assert (
-            successful_renders == num_urls
-        ), f"Only {successful_renders}/{num_urls} renders succeeded"
+        assert successful_renders == num_urls, (
+            f"Only {successful_renders}/{num_urls} renders succeeded"
+        )
 
         # Performance and reliability assertions
         success_rate = successful_renders / num_urls

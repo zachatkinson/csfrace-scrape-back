@@ -59,14 +59,15 @@ dependencies = [
     "opentelemetry-sdk>=1.36.0",
     "psutil>=6.1.1", # Latest system resource monitoring library
     "redis>=5.2.1", # Latest Redis client for caching
+    "ruff>=0.13.0",
+    "mypy>=1.18.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     # Modern Python linting stack (2025 best practices)
-    "ruff>=0.12.4",      # Latest Ruff with performance improvements
-    "black>=25.1.0",     # Latest Black formatter
-    "mypy>=1.17.1",      # Latest available MyPy
+    "ruff>=0.13.0",      # Latest Ruff with linting AND formatting (replaces Black)
+    "mypy>=1.18.1",      # Latest available MyPy
     
     # Development tools  
     "autoflake>=2.3.1", # Latest available unused import detection
@@ -125,22 +126,7 @@ index-url = "https://pypi.org/simple"
 [project.scripts]
 csfrace-scraper = "src.main:main"
 
-# Black configuration
-[tool.black]
-line-length = 100
-target-version = ["py313"]
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-    \.git
-    | \.venv
-    | \.tox
-    | \.pytest_cache
-    | __pycache__
-    | build
-    | dist
-)/
-'''
+# Ruff handles both linting and formatting (replaces Black)
 
 # Import sorting handled by Ruff (no separate isort config needed)
 

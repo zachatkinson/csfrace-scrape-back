@@ -301,26 +301,25 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable --extra=test --extra=monitoring
 
-      - name: Run Super-Linter (Official GitHub Action)
-        uses: github/super-linter@v7
-        env:
-          DEFAULT_BRANCH: master
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Modern Python linting stack (2025 best practices) - Only validate enabled tools
-          VALIDATE_PYTHON_RUFF: true     # Comprehensive linting (replaces flake8, isort, many pylint rules)
-          VALIDATE_PYTHON_BLACK: true    # Code formatting
-          VALIDATE_PYTHON_MYPY: true     # Type checking
-          
-          # Only scan Python files
-          VALIDATE_ALL_CODEBASE: false
-          FILTER_REGEX_INCLUDE: ".*\\.(py)$"
-          
-          # Auto-fix capable linters (modern stack only)
-          FIX_PYTHON_BLACK: true
-          FIX_PYTHON_RUFF: true
-          
-          # Performance optimization
-          SUPPRESS_POSSUM: true
+      - name: Run Ruff Linting (Check Mode)
+        run: |
+          echo "::group::Ruff Linting Check"
+          # Check for linting issues without auto-fixing
+          uv run ruff check src/ tests/ --output-format=github
+          echo "::endgroup::"
+
+      - name: Run Ruff Formatting (Check Mode)
+        run: |
+          echo "::group::Ruff Formatting Check"
+          # Check formatting without auto-fixing
+          uv run ruff format src/ tests/ --check --diff
+          echo "::endgroup::"
+
+      - name: Run MyPy Type Checking
+        run: |
+          echo "::group::MyPy Type Checking"
+          uv run mypy src/
+          echo "::endgroup::"
 
 
       - name: Run Safety Dependency Vulnerability Scanning (Enhanced)

@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 
 # Runtime imports with proper error handling
 try:
-    from alembic import command  # type: ignore[import-untyped,attr-defined]
     from alembic.config import Config as AlembicConfig  # type: ignore[import-untyped,attr-defined]
+
+    from alembic import command  # type: ignore[import-untyped,attr-defined]
 
     ALEMBIC_AVAILABLE = True
 except ImportError:

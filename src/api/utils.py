@@ -87,10 +87,8 @@ def create_response_dict(
 
 
 def rate_limited_endpoint(
-    rate_limit: str,
-) -> Callable[
-    [Callable[..., Any]], Callable[..., Any]
-]:  # pylint: disable=unused-argument  # noqa: ARG001
+    rate_limit: str,  # noqa: ARG001
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator factory for rate-limited endpoints that properly handles SlowAPI requirements.
 
     This decorator provides documentation for rate-limited endpoints and ensures proper

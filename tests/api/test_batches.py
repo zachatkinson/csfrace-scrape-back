@@ -73,9 +73,9 @@ class TestBatchEndpoints:
         }
 
         for field, expected_value in defaults.items():
-            assert (
-                data[field] == expected_value
-            ), f"Expected {field}={expected_value}, got {data[field]}"
+            assert data[field] == expected_value, (
+                f"Expected {field}={expected_value}, got {data[field]}"
+            )
 
     @pytest.mark.asyncio
     async def test_create_batch_success(self, async_client: AsyncClient, batch_create_data: dict):

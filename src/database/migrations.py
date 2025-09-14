@@ -3,12 +3,12 @@
 import logging
 from pathlib import Path
 
-from sqlalchemy import create_engine
-
-from alembic import command  # type: ignore[attr-defined]  # pylint: disable=no-name-in-module
 from alembic.config import Config  # pylint: disable=no-name-in-module
 from alembic.runtime.migration import MigrationContext  # pylint: disable=no-name-in-module
 from alembic.script import ScriptDirectory  # pylint: disable=no-name-in-module
+from sqlalchemy import create_engine
+
+from alembic import command  # type: ignore[attr-defined]  # pylint: disable=no-name-in-module
 
 from .utils import get_database_url
 
@@ -79,9 +79,7 @@ class MigrationManager:
             logger.error("Failed to create migration: %s", e)
             raise
 
-    def upgrade_database(
-        self, revision: str = "head"
-    ) -> None:  # pylint: disable=redefined-outer-name
+    def upgrade_database(self, revision: str = "head") -> None:  # pylint: disable=redefined-outer-name
         """Upgrade database to specified revision.
 
         Args:
