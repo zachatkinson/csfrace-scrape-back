@@ -1,12 +1,12 @@
 """Health check and monitoring API endpoints."""
 
-import asyncio
 import importlib.metadata
 import json
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
+import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import text
@@ -206,7 +206,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
         StreamingResponse: SSE stream of health events
     """
 
-    async def event_generator() -> AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str]:
         """Generate SSE events with health updates."""
 
         # Send initial connection message
@@ -256,7 +256,9 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     service_info = current_health[service_name]
                     service_data = {
                         "service": service_name,
-                        "status": "healthy" if service_info.get("status") == "healthy" else "unhealthy",
+                        "status": "healthy"
+                        if service_info.get("status") == "healthy"
+                        else "unhealthy",
                         "timestamp": datetime.now(UTC).isoformat(),
                         "data": service_info,
                     }

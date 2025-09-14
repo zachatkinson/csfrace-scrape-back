@@ -79,7 +79,7 @@ class TestBatchRouterEndpoints:
         job1 = ScrapingJob(
             id=1,
             source_url="https://example.com/page1",  # Required field
-        url="https://example.com/page1",
+            url="https://example.com/page1",
             domain="example.com",
             slug="page1",
             batch_id=sample_batch.id,
@@ -97,7 +97,7 @@ class TestBatchRouterEndpoints:
         job2 = ScrapingJob(
             id=2,
             source_url="https://example.com/page2",  # Required field
-        url="https://example.com/page2",
+            url="https://example.com/page2",
             domain="example.com",
             slug="page2",
             batch_id=sample_batch.id,
