@@ -186,7 +186,7 @@ class TestDatabaseServiceJobOperations:
 
         assert job.domain == "custom.com"
         assert job.slug == "custom-slug"
-        assert job.priority == 10  # JobPriority.HIGH.value = 10 (integer value)
+        assert job.priority_enum == JobPriority.HIGH  # JobPriority.HIGH enum object
         assert job.max_retries == 5
 
     def test_create_job_with_batch(self, db_service_with_session):
@@ -264,7 +264,7 @@ class TestDatabaseServiceJobOperations:
             output_directory="/tmp/output",
             priority="urgent",
         )
-        assert job.priority == JobPriority.URGENT
+        assert job.priority_enum == JobPriority.URGENT
 
     def test_create_job_with_invalid_priority_string(self, db_service_with_session):
         """Test job creation with invalid priority string defaults to NORMAL."""
@@ -273,7 +273,7 @@ class TestDatabaseServiceJobOperations:
             output_directory="/tmp/output",
             priority="invalid_priority",
         )
-        assert job.priority == JobPriority.NORMAL
+        assert job.priority_enum == JobPriority.NORMAL
 
     def test_create_job_with_priority_enum(self, db_service_with_session):
         """Test job creation with JobPriority enum directly."""
@@ -282,7 +282,7 @@ class TestDatabaseServiceJobOperations:
             output_directory="/tmp/output",
             priority=JobPriority.URGENT,
         )
-        assert job.priority == JobPriority.URGENT
+        assert job.priority_enum == JobPriority.URGENT
 
     def test_create_job_with_custom_slug_kwarg(self, db_service_with_session):
         """Test job creation with custom_slug in kwargs."""
@@ -396,7 +396,7 @@ class TestDatabaseServiceJobStatusUpdates:
 
     def test_update_job_status_nonexistent(self, db_service_with_session):
         """Test updating status of non-existent job."""
-        success = db_service_with_session.update_job_status(99999, JobStatus.COMPLETED)
+        success = db_service_with_session.update_job_status("nonexistent-job-id", JobStatus.COMPLETED)
         assert success is False
 
 
@@ -728,7 +728,7 @@ class TestDatabaseServiceRetryOperations:
             created_job_ids.append(job.id)
             with db_service_with_session.get_session() as session:
                 db_job = session.get(ScrapingJob, job.id)
-                db_job.status = JobStatus.FAILED
+                db_job.status = JobStatus.FAILED.value  # Use string value
                 db_job.retry_count = 1
                 db_job.max_retries = 3
                 session.commit()
@@ -781,7 +781,7 @@ class TestDatabaseServiceBatchOperations:
 
     def test_get_batch_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent batch."""
-        batch = db_service_with_session.get_batch(99999)
+        batch = db_service_with_session.get_batch("nonexistent-batch-id")
         assert batch is None
 
     def test_update_batch_progress(self, db_service_with_session):
@@ -818,7 +818,7 @@ class TestDatabaseServiceBatchOperations:
 
     def test_update_batch_progress_nonexistent_batch(self, db_service_with_session):
         """Test updating progress for non-existent batch."""
-        success = db_service_with_session.update_batch_progress(99999)
+        success = db_service_with_session.update_batch_progress("nonexistent-batch-id")
         assert success is False
 
     def test_update_batch_progress_with_all_job_states(

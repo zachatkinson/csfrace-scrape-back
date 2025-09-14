@@ -14,7 +14,7 @@ from sqlalchemy import and_, case, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from ..common.status import JobPriority
+from ..common.status import JobPriority, JobStatus
 from ..constants import API_DEFAULT_LIMIT
 from ..core.exceptions import DatabaseError
 from .models import (
@@ -336,7 +336,7 @@ class DatabaseService:
     def update_job_status(
         self,
         job_id: str,
-        status: str,
+        status: str | JobStatus,  # Accept both str and JobStatus enum
         error_message: str | None = None,
         duration: float | None = None,
     ) -> bool:
@@ -354,11 +354,13 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 now = datetime.now(UTC)
-                update_data: dict[str, Any] = {"status": status}
+                # Convert enum to string value if needed
+                status_value = status.value if hasattr(status, "value") else str(status)
+                update_data: dict[str, Any] = {"status": status_value}
 
-                if status == "running":
+                if status_value == "running":
                     update_data["started_at"] = now
-                elif status in {"completed", "failed", "cancelled"}:
+                elif status_value in {"completed", "failed", "cancelled"}:
                     update_data["completed_at"] = now
                     if duration is not None:
                         update_data["duration_seconds"] = duration
@@ -371,7 +373,6 @@ class DatabaseService:
 
                 success = result.rowcount > 0
                 if success:
-                    status_value = status.value if hasattr(status, "value") else str(status)
                     logger.debug("Updated job status", job_id=job_id, status=status_value)
                 else:
                     logger.warning("Job not found for status update", job_id=job_id)
@@ -430,7 +431,7 @@ class DatabaseService:
             raise DatabaseError(f"Pending jobs retrieval failed: {e}") from e
 
     def get_jobs_by_status(
-        self, status: str, limit: int = API_DEFAULT_LIMIT, offset: int = 0
+        self, status: str | JobStatus, limit: int = API_DEFAULT_LIMIT, offset: int = 0
     ) -> list[ScrapingJob]:
         """Retrieve jobs by status with pagination.
 
@@ -444,9 +445,11 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
+                # Convert enum to string value if needed
+                status_value = status.value if hasattr(status, "value") else str(status)
                 stmt = (
                     select(ScrapingJob)
-                    .where(ScrapingJob.status == status)
+                    .where(ScrapingJob.status == status_value)
                     .order_by(desc(ScrapingJob.created_at))
                     .limit(limit)
                     .offset(offset)
