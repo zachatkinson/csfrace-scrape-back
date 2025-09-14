@@ -299,7 +299,7 @@ jobs:
           cache-suffix: quality-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies with UV
-        run: uv sync --frozen --no-editable --extra=test --extra=monitoring
+        run: uv sync --frozen --no-editable --extra=test --extra=monitoring --extra=dev
 
       - name: Run Ruff Linting (Check Mode)
         run: |
