@@ -190,15 +190,19 @@ class DatabaseService:
         path_parts = parsed.path.strip("/").split("/")
         return path_parts[-1] if path_parts and path_parts[-1] else "homepage"
 
-    def _normalize_priority(self, priority: str | object) -> object:
-        """Convert string priority to enum."""
+    def _normalize_priority(self, priority: str | object) -> int:
+        """Convert string priority to integer value for database storage."""
 
         if isinstance(priority, str):
             try:
-                return JobPriority(priority.lower())
+                return JobPriority(priority.lower()).value  # Return integer value, not enum
             except ValueError:
-                return JobPriority.NORMAL
-        return priority
+                return JobPriority.NORMAL.value  # Return default integer value
+        if isinstance(priority, JobPriority):
+            return priority.value  # Convert enum to integer value
+        if isinstance(priority, int):
+            return priority  # Already an integer
+        return JobPriority.NORMAL.value  # Default fallback
 
     @overload
     def create_job(
@@ -531,7 +535,7 @@ class DatabaseService:
                     name=name,
                     description=description,
                     output_base_directory=output_base_directory,
-                    batch_config=config,  # Store all config parameters in JSON field
+                    options=config,  # Store all config parameters in JSON field (correct field name)
                     **batch_model_params,  # Only pass valid model fields directly
                 )
 

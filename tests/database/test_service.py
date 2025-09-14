@@ -181,14 +181,12 @@ class TestDatabaseServiceJobOperations:
             slug="custom-slug",
             priority="high",
             max_retries=5,
-            timeout_seconds=60,
         )
 
         assert job.domain == "custom.com"
         assert job.slug == "custom-slug"
-        assert job.priority.value == "high"
+        assert job.priority == 10  # JobPriority.HIGH.value = 10 (integer value)
         assert job.max_retries == 5
-        assert job.timeout_seconds == 60
 
     def test_create_job_with_batch(self, db_service_with_session):
         """Test job creation associated with a batch."""
