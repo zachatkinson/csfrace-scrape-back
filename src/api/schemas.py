@@ -55,30 +55,25 @@ class JobUpdate(BaseModel):
 class JobResponse(BaseSchema):
     """Schema for job responses."""
 
-    id: int
+    id: str  # String ID in database model
+    source_url: str  # Required field in model
     url: str
-    domain: str
+    domain: str | None = None
     slug: str | None = None
-    status: JobStatus
-    priority: JobPriority
+    status: str  # String status in database model
+    priority: str  # String priority in database model
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
     retry_count: int
     max_retries: int
-    timeout_seconds: int
-    output_directory: str
-    custom_slug: str | None = None
-    skip_existing: bool
+    output_directory: str | None = None
     error_message: str | None = None
     error_type: str | None = None
-    success: bool
     duration_seconds: float | None = None
     content_size_bytes: int | None = None
-    images_downloaded: int
-    batch_id: int | None = None
+    batch_id: str | None = None  # String ID in database model
     options: dict[str, Any] | None = None
-    processing_options: dict[str, Any] | None = None
 
 
 class JobListResponse(BaseModel):
@@ -101,32 +96,26 @@ class BatchCreate(BaseModel):
     max_concurrent: int = Field(default=5, ge=1, le=API_MAX_CONCURRENT_JOBS)
     continue_on_error: bool = True
     output_base_directory: str | None = None
-    create_archives: bool = False
-    cleanup_after_archive: bool = False
-    batch_config: dict[str, Any] | None = None
 
 
 class BatchResponse(BaseSchema):
     """Schema for batch responses."""
 
-    id: int
+    id: str  # String ID in database model
     name: str
     description: str | None = None
-    status: JobStatus
+    status: str  # String status in database model
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
     max_concurrent: int
     continue_on_error: bool
-    output_base_directory: str
-    create_archives: bool
-    cleanup_after_archive: bool
+    output_base_directory: str | None = None
     total_jobs: int
     completed_jobs: int
     failed_jobs: int
     skipped_jobs: int
-    success_rate: float
-    batch_config: dict[str, Any] | None = None
+    success_rate: float  # Computed property
 
 
 class BatchWithJobsResponse(BatchResponse):

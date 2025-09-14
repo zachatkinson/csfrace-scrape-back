@@ -42,9 +42,6 @@ class TestBatchRouterEndpoints:
             urls=["https://example.com/page1", "https://example.com/page2"],
             max_concurrent=5,
             continue_on_error=True,
-            create_archives=False,
-            cleanup_after_archive=False,
-            batch_config={"retry_failed": True},
         )
 
     @pytest.fixture
@@ -53,16 +50,14 @@ class TestBatchRouterEndpoints:
         from datetime import datetime
 
         return Batch(
-            id=1,
+            id="batch_1",
             name="Sample Batch",
             description="A sample batch",
-            status=JobStatus.PENDING,
+            status=JobStatus.PENDING.value,
             created_at=datetime.now(UTC),
             max_concurrent=10,
             continue_on_error=True,
             output_base_directory="batch_output/sample",
-            create_archives=False,
-            cleanup_after_archive=False,
             total_jobs=2,
             completed_jobs=0,
             failed_jobs=0,
@@ -77,40 +72,32 @@ class TestBatchRouterEndpoints:
         from src.database.models import JobPriority
 
         job1 = ScrapingJob(
-            id=1,
+            id="job_1",
             source_url="https://example.com/page1",  # Required field
             url="https://example.com/page1",
             domain="example.com",
             slug="page1",
             batch_id=sample_batch.id,
-            status=JobStatus.PENDING,
-            priority=JobPriority.NORMAL,
+            status=JobStatus.PENDING.value,
+            priority=JobPriority.NORMAL.value,
             created_at=datetime.now(UTC),
             retry_count=0,
             max_retries=3,
-            timeout_seconds=30,
             output_directory="converted_content/page1",
-            skip_existing=False,
-            success=False,
-            images_downloaded=0,
         )
         job2 = ScrapingJob(
-            id=2,
+            id="job_2",
             source_url="https://example.com/page2",  # Required field
             url="https://example.com/page2",
             domain="example.com",
             slug="page2",
             batch_id=sample_batch.id,
-            status=JobStatus.PENDING,
-            priority=JobPriority.NORMAL,
+            status=JobStatus.PENDING.value,
+            priority=JobPriority.NORMAL.value,
             created_at=datetime.now(UTC),
             retry_count=0,
             max_retries=3,
-            timeout_seconds=30,
             output_directory="converted_content/page2",
-            skip_existing=False,
-            success=False,
-            images_downloaded=0,
         )
         sample_batch.jobs = [job1, job2]
         return sample_batch
@@ -165,30 +152,26 @@ class TestBatchRouterEndpoints:
 
         batches = [
             Batch(
-                id=1,
+                id="batch_1",
                 name="Batch 1",
-                status=JobStatus.PENDING,
+                status=JobStatus.PENDING.value,
                 created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
-                create_archives=False,
-                cleanup_after_archive=False,
                 total_jobs=5,
                 completed_jobs=0,
                 failed_jobs=0,
                 skipped_jobs=0,
             ),
             Batch(
-                id=2,
+                id="batch_2",
                 name="Batch 2",
-                status=JobStatus.RUNNING,
+                status=JobStatus.RUNNING.value,
                 created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
-                create_archives=False,
-                cleanup_after_archive=False,
                 total_jobs=3,
                 completed_jobs=0,
                 failed_jobs=0,
@@ -217,15 +200,13 @@ class TestBatchRouterEndpoints:
 
         batches = [
             Batch(
-                id=1,
+                id="batch_1",
                 name="Batch 1",
-                status=JobStatus.PENDING,
+                status=JobStatus.PENDING.value,
                 created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
-                create_archives=False,
-                cleanup_after_archive=False,
                 total_jobs=1,
                 completed_jobs=0,
                 failed_jobs=0,
@@ -276,21 +257,21 @@ class TestBatchRouterEndpoints:
         with patch(
             "src.api.routers.batches.BatchCRUD.get_batch", return_value=sample_batch_with_jobs
         ) as mock_get:
-            result = await get_batch(1, mock_db_session)
+            result = await get_batch("batch_1", mock_db_session)
 
             assert isinstance(result, BatchWithJobsResponse)
             assert result.id == sample_batch_with_jobs.id
             assert result.name == sample_batch_with_jobs.name
             assert len(result.jobs) == 2
 
-            mock_get.assert_called_once_with(mock_db_session, 1)
+            mock_get.assert_called_once_with(mock_db_session, "batch_1")
 
     @pytest.mark.asyncio
     async def test_get_batch_not_found(self, mock_db_session):
         """Test batch retrieval when batch doesn't exist using APIErrorFactory."""
         with patch("src.api.routers.batches.BatchCRUD.get_batch", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                await get_batch(999, mock_db_session)
+                await get_batch("batch_999", mock_db_session)
 
             # APIErrorFactory.not_found returns structured error
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
@@ -308,7 +289,7 @@ class TestBatchRouterEndpoints:
             mock_get.side_effect = SQLAlchemyError("Query execution failed")
 
             with pytest.raises(HTTPException) as exc_info:
-                await get_batch(1, mock_db_session)
+                await get_batch("batch_1", mock_db_session)
 
             # APIErrorFactory.from_sqlalchemy_error returns structured error
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -335,15 +316,13 @@ class TestBatchRouterEndpoints:
 
         batches = [
             Batch(
-                id=1,
+                id="batch_1",
                 name="Single Batch",
-                status=JobStatus.PENDING,
+                status=JobStatus.PENDING.value,
                 created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
-                create_archives=False,
-                cleanup_after_archive=False,
                 total_jobs=1,
                 completed_jobs=0,
                 failed_jobs=0,
@@ -388,7 +367,7 @@ class TestBatchRouterEndpoints:
         with patch(
             "src.api.routers.batches.BatchCRUD.get_batch", return_value=sample_batch_with_jobs
         ):
-            result = await get_batch(1, mock_db_session)
+            result = await get_batch("batch_1", mock_db_session)
 
             # Should include jobs field
             assert hasattr(result, "jobs")
@@ -402,15 +381,13 @@ class TestBatchRouterEndpoints:
 
         batches = [
             Batch(
-                id=1,
+                id="batch_1",
                 name="Test",
-                status=JobStatus.PENDING,
+                status=JobStatus.PENDING.value,
                 created_at=datetime.now(UTC),
                 max_concurrent=10,
                 continue_on_error=True,
                 output_base_directory="test_output",
-                create_archives=False,
-                cleanup_after_archive=False,
                 total_jobs=1,
                 completed_jobs=0,
                 failed_jobs=0,
@@ -440,9 +417,6 @@ class TestBatchRouterEndpoints:
             max_concurrent=7,
             continue_on_error=False,
             output_base_directory="/custom/path",
-            create_archives=True,
-            cleanup_after_archive=True,
-            batch_config={"test_setting": "value"},
         )
 
         with patch(
@@ -515,7 +489,7 @@ class TestBatchRouterEndpoints:
         sample_batch.jobs = []
 
         with patch("src.api.routers.batches.BatchCRUD.get_batch", return_value=sample_batch):
-            result = await get_batch(1, mock_db_session)
+            result = await get_batch("batch_1", mock_db_session)
 
             assert isinstance(result, BatchWithJobsResponse)
             assert result.jobs == []
@@ -545,8 +519,6 @@ class TestBatchRouterEndpoints:
                 "max_concurrent",
                 "continue_on_error",
                 "output_base_directory",
-                "create_archives",
-                "cleanup_after_archive",
                 "total_jobs",
                 "completed_jobs",
                 "failed_jobs",
@@ -565,7 +537,7 @@ class TestBatchRouterEndpoints:
         with patch(
             "src.api.routers.batches.BatchCRUD.get_batch", return_value=sample_batch_with_jobs
         ):
-            result = await get_batch(1, mock_db_session)
+            result = await get_batch("batch_1", mock_db_session)
 
             assert len(result.jobs) == 2
 
@@ -618,22 +590,19 @@ class TestBatchRouterEndpoints:
         from datetime import datetime
 
         batch_with_none_values = Batch(
-            id=1,
+            id="batch_1",
             name="Test Batch",
-            status=JobStatus.PENDING,
+            status=JobStatus.PENDING.value,
             created_at=datetime.now(UTC),
             max_concurrent=10,
             continue_on_error=True,
             output_base_directory="test_output",
-            create_archives=False,
-            cleanup_after_archive=False,
             total_jobs=1,
             completed_jobs=0,
             failed_jobs=0,
             skipped_jobs=0,
             # Some fields might be None
             description=None,
-            batch_config=None,
         )
 
         with patch(
@@ -713,9 +682,9 @@ class TestBatchRouterEndpoints:
         with patch(
             "src.api.routers.batches.BatchCRUD.get_batch", return_value=sample_batch
         ) as mock_get:
-            await get_batch(42, mock_db_session)
+            await get_batch("batch_42", mock_db_session)
 
-            mock_get.assert_called_once_with(mock_db_session, 42)
+            mock_get.assert_called_once_with(mock_db_session, "batch_42")
 
         with patch(
             "src.api.routers.batches.BatchCRUD.get_batches", return_value=([], 0)
