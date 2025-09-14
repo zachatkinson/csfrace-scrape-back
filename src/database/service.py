@@ -190,18 +190,20 @@ class DatabaseService:
         path_parts = parsed.path.strip("/").split("/")
         return path_parts[-1] if path_parts and path_parts[-1] else "homepage"
 
-    def _normalize_priority(self, priority: str | object) -> int:
-        """Convert string priority to integer value for database storage."""
+    def _normalize_priority(self, priority: str | object) -> str:
+        """Convert priority to string value for database storage."""
 
         if isinstance(priority, str):
             try:
-                return JobPriority(priority.lower()).value  # Return integer value, not enum
+                return JobPriority(priority.lower()).value  # Return string value
             except ValueError:
-                return JobPriority.NORMAL.value  # Return default integer value
+                return JobPriority.NORMAL.value  # Return default string value
         if isinstance(priority, JobPriority):
-            return priority.value  # Convert enum to integer value
+            return priority.value  # Convert enum to string value
         if isinstance(priority, int):
-            return priority  # Already an integer
+            # Convert old integer priorities to string equivalents
+            priority_map = {1: "low", 5: "normal", 10: "high", 15: "urgent"}
+            return priority_map.get(priority, "normal")  # Default to normal
         return JobPriority.NORMAL.value  # Default fallback
 
     @overload
