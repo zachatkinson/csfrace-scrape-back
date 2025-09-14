@@ -323,6 +323,7 @@ class TestDatabaseModels:
             session.flush()
 
             job = ScrapingJob(
+                source_url="https://example.com/test",  # Required field
                 url="https://example.com/test",
                 domain="example.com",
                 output_directory="/tmp/output",
@@ -445,6 +446,7 @@ class TestModelConstraintsAndValidation:
     def test_datetime_defaults(self, testcontainers_db_service):
         """Test that datetime fields have proper defaults."""
         job = ScrapingJob(
+            source_url="https://example.com/test",  # Required field
             url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",

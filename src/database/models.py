@@ -85,9 +85,9 @@ class ScrapingJob(Base):
         nullable=False,
         index=True,
     )
-    priority: Mapped[int] = mapped_column(
-        Integer,
-        default=5,  # JobPriority.NORMAL
+    priority: Mapped[str] = mapped_column(
+        String,
+        default="normal",  # JobPriority.NORMAL.value
         nullable=False,
     )
 

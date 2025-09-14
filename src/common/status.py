@@ -30,12 +30,12 @@ class BatchStatus(Enum):
 
 
 class JobPriority(Enum):
-    """Priority enumeration for jobs (1-10 scale)."""
+    """Priority enumeration for jobs."""
 
-    LOW = 1
-    NORMAL = 5
-    HIGH = 10
-    URGENT = 15
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
 
 
 # For backward compatibility, alias the most commonly used status
