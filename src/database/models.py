@@ -66,7 +66,7 @@ class ScrapingJob(Base):
     __tablename__ = "jobs"
 
     # Primary identification
-    id: Mapped[str] = mapped_column(String, primary_key=True, default="uuid_generate_v4()")
+    id: Mapped[str] = mapped_column(String, primary_key=True, server_default=text("uuid_generate_v4()"))
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
@@ -84,9 +84,9 @@ class ScrapingJob(Base):
         nullable=False,
         index=True,
     )
-    priority: Mapped[str] = mapped_column(
-        String,
-        default="normal",
+    priority: Mapped[int] = mapped_column(
+        Integer,
+        default=5,  # JobPriority.NORMAL
         nullable=False,
     )
 
@@ -185,7 +185,7 @@ class Batch(Base):
     __tablename__ = "batches"
 
     # Primary identification
-    id: Mapped[str] = mapped_column(String, primary_key=True, default="uuid_generate_v4()")
+    id: Mapped[str] = mapped_column(String, primary_key=True, server_default=text("uuid_generate_v4()"))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
 
@@ -217,6 +217,7 @@ class Batch(Base):
     total_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     completed_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failed_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    skipped_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Statistics
     statistics: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
