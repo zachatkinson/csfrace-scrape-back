@@ -84,7 +84,8 @@ def setup_manager_with_plugins(manager: PluginManager, plugins: dict[str, MockPl
     """Helper to set up manager with plugins - reduces test setup duplication."""
     # Direct access needed for test setup - this is the only place we do this
     manager._initialized = True
-    manager._plugins = plugins.copy()
+    # Convert to dict[str, BasePlugin] to match expected type
+    manager._plugins = dict(plugins.items())
 
     # Build pipeline for the plugins - need to clear first
     manager._pipeline.clear()

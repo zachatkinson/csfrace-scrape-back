@@ -85,7 +85,7 @@ class TestOAuthProviderRegistry:
 
             async def get_user_info(self, access_token: str) -> OAuthUserInfo:
                 return OAuthUserInfo(
-                    provider=None,
+                    provider=OAuthProvider.GITHUB,
                     provider_id="test123",
                     email="test@example.com",
                     name="Test User",

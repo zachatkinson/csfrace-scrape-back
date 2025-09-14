@@ -1,15 +1,14 @@
 """API test configuration and fixtures."""
 
 import os
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
 import asyncio
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.api.dependencies import get_db_session
 from src.api.main import app
@@ -42,7 +41,7 @@ async def test_db_session(postgres_container) -> AsyncGenerator[AsyncSession]:
         await conn.run_sync(Base.metadata.create_all)
 
     # Create session
-    TestSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+    TestSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 
     async with TestSessionLocal() as session:
         yield session
@@ -84,7 +83,7 @@ async def override_get_db(test_db_session):
 
 
 @pytest.fixture
-def client(override_get_db) -> TestClient:
+def client(override_get_db) -> Generator[TestClient]:
     """Create a test client."""
     # TestClient handles async endpoints automatically
     with TestClient(app) as client:

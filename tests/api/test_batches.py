@@ -47,7 +47,7 @@ class TestBatchEndpoints:
             assert data["name"] == expected_batch.name
             assert data["description"] == expected_batch.description
             assert data["total_jobs"] == expected_batch.total_jobs
-            assert data["status"] == expected_batch.status.value
+            assert data["status"] == expected_batch.status
 
     async def _assert_validation_errors(
         self, async_client: AsyncClient, endpoint: str, invalid_params: list[str]

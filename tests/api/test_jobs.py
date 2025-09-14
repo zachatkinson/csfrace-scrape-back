@@ -49,7 +49,7 @@ class TestJobEndpoints:
         assert data["url"] == sample_job.url
         assert data["domain"] == sample_job.domain
         assert data["slug"] == sample_job.slug
-        assert data["status"] == sample_job.status.value
+        assert data["status"] == sample_job.status
 
     def test_get_job_not_found(self, client: TestClient):
         """Test job retrieval with non-existent ID."""

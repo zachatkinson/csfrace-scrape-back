@@ -13,6 +13,8 @@ from typing import Any, Protocol
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import patch
 
+from pydantic import HttpUrl
+
 from src.api.crud import BatchCRUD, JobCRUD
 from src.api.schemas import BatchCreate, JobCreate, JobUpdate
 from src.database.models import Batch, ContentResult, JobPriority, JobStatus, ScrapingJob
@@ -90,30 +92,42 @@ class TestDataFactory:
     @staticmethod
     def create_job_create_data(**overrides) -> JobCreate:
         """Create JobCreate test data with optional overrides."""
-        defaults = {
-            "url": "https://example.com/test-page",
-            "priority": JobPriority.HIGH,
-            "custom_slug": "test-page-slug",
-            "max_retries": 5,
-            "timeout_seconds": 60,
-            "skip_existing": True,
-            "converter_config": {"preserve_images": True},
-            "processing_options": {"clean_html": True},
-        }
-        defaults.update(overrides)
-        return JobCreate(**defaults)
+        # Create base data with correct types
+        data = JobCreate(
+            url=HttpUrl("https://example.com/test-page"),
+            priority=JobPriority.HIGH,
+            custom_slug="test-page-slug",
+            max_retries=5,
+            timeout_seconds=60,
+            skip_existing=True,
+            converter_config={"preserve_images": True},
+            processing_options={"clean_html": True},
+        )
+
+        # Apply overrides if any
+        if overrides:
+            data_dict = data.model_dump()
+            data_dict.update(overrides)
+            return JobCreate(**data_dict)
+        return data
 
     @staticmethod
     def create_job_update_data(**overrides) -> JobUpdate:
         """Create JobUpdate test data with optional overrides."""
-        defaults = {
-            "priority": JobPriority.LOW,
-            "max_retries": 2,
-            "timeout_seconds": 45,
-            "converter_config": {"new_setting": True},
-        }
-        defaults.update(overrides)
-        return JobUpdate(**defaults)
+        # Create base data with correct types
+        data = JobUpdate(
+            priority=JobPriority.LOW,
+            max_retries=2,
+            timeout_seconds=45,
+            converter_config={"new_setting": True},
+        )
+
+        # Apply overrides if any
+        if overrides:
+            data_dict = data.model_dump()
+            data_dict.update(overrides)
+            return JobUpdate(**data_dict)
+        return data
 
     @staticmethod
     def create_sample_job(**overrides) -> ScrapingJob:
@@ -142,13 +156,24 @@ class TestDataFactory:
     @staticmethod
     def create_batch_create_data(**overrides) -> BatchCreate:
         """Create BatchCreate test data with optional overrides."""
-        defaults = {
-            "name": "Test Batch",
-            "urls": ["https://example.com/1", "https://example.com/2"],
-            "output_base_directory": "/test/output",
-        }
-        defaults.update(overrides)
-        return BatchCreate(**defaults)
+        # Create base data with correct types
+        data = BatchCreate(
+            name="Test Batch",
+            urls=[HttpUrl("https://example.com/1"), HttpUrl("https://example.com/2")],
+            max_concurrent=5,
+            continue_on_error=True,
+            output_base_directory="/test/output",
+            create_archives=False,
+            cleanup_after_archive=False,
+            batch_config=None,
+        )
+
+        # Apply overrides if any
+        if overrides:
+            data_dict = data.model_dump()
+            data_dict.update(overrides)
+            return BatchCreate(**data_dict)
+        return data
 
 
 # STEP 4: Refactored tests using real async behavior

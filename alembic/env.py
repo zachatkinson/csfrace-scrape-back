@@ -69,15 +69,14 @@ def run_migrations_online() -> None:
     # Use PostgreSQL-optimized connection configuration
     configuration = config.get_section(config.config_ini_section, {})
 
-    # Add PostgreSQL-specific connection arguments for migrations
-    configuration["sqlalchemy.connect_args"] = {
-        "connect_timeout": 10,
-        "application_name": "csfrace-scraper-migrations",
-    }
-
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
+        # PostgreSQL-specific connection arguments for migrations
+        connect_args={
+            "connect_timeout": 10,
+            "application_name": "csfrace-scraper-migrations",
+        },
         # Use standard connection pooling for PostgreSQL migrations
         pool_pre_ping=True,
         pool_recycle=3600,

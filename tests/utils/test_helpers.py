@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import aiohttp
 import asyncio
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from src.constants import TEST_CONSTANTS
 
@@ -377,10 +377,11 @@ def compare_html_structure(html1: str, html2: str, ignore_whitespace: bool = Tru
         # Remove extra whitespace
         for soup in [soup1, soup2]:
             for text in soup.find_all(string=True):
-                if text.strip():
-                    text.replace_with(text.strip())
-                else:
-                    text.extract()
+                if isinstance(text, NavigableString):
+                    if text.strip():
+                        text.replace_with(text.strip())
+                    else:
+                        text.extract()
 
     return str(soup1) == str(soup2)
 
@@ -399,9 +400,16 @@ def extract_urls_from_html(html: str) -> list[str]:
 
     # Extract from various elements
     for element in soup.find_all(["a", "img", "iframe", "script", "link"]):
-        for attr in ["href", "src", "data-src"]:
-            if element.get(attr):
-                urls.append(element[attr])
+        if isinstance(element, Tag):  # Only Tags have .get() method
+            for attr in ["href", "src", "data-src"]:
+                attr_value = element.get(attr)
+                if attr_value and isinstance(attr_value, str):
+                    urls.append(attr_value)
+                elif attr_value and hasattr(attr_value, '__iter__'):
+                    # Handle lists of values
+                    for val in attr_value:
+                        if isinstance(val, str):
+                            urls.append(val)
 
     return urls
 

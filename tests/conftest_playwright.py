@@ -40,7 +40,9 @@ def browser_config() -> dict[str, Any]:
 
     # CI-specific optimizations
     if os.getenv("CI"):
-        config["args"].extend(
+        args_list = config["args"]
+        assert isinstance(args_list, list)  # Type narrowing for mypy
+        args_list.extend(
             [
                 "--no-zygote",  # Disable zygote process (CI safety)
                 "--single-process",  # Use single process (CI stability)
