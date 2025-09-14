@@ -47,18 +47,19 @@ class TestJobRouterEndpoints:
         from datetime import datetime
 
         return ScrapingJob(
-            id=1,
+            id="test-job-id-123",  # String UUID instead of integer
             source_url="https://example.com/test",  # Required field
             url="https://example.com/test",
             domain="example.com",
             slug="test",
-            status=JobStatus.PENDING,
-            priority=JobPriority.NORMAL,
+            status=JobStatus.PENDING.value,  # Use string value
+            priority=JobPriority.NORMAL.value,  # Use string value
             output_directory="converted_content/test",
             max_retries=3,
             retry_count=0,
-            timeout_seconds=30,
-            skip_existing=False,
+            # Remove fields that don't exist in the model:
+            # timeout_seconds=30,  # Not a model field
+            # skip_existing=False,  # Not a model field
             success=False,
             images_downloaded=0,
             created_at=datetime.now(UTC),
@@ -118,9 +119,9 @@ class TestJobRouterEndpoints:
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                timeout_seconds=30,
+                # timeout_seconds=30,  # Field not in model
                 output_directory="converted_content/test1",
-                skip_existing=False,
+                # skip_existing=False,  # Field not in model
                 success=False,
                 images_downloaded=0,
             ),
@@ -135,9 +136,9 @@ class TestJobRouterEndpoints:
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                timeout_seconds=30,
+                # timeout_seconds=30,  # Field not in model
                 output_directory="converted_content/test2",
-                skip_existing=False,
+                # skip_existing=False,  # Field not in model
                 success=False,
                 images_downloaded=0,
             ),
@@ -182,9 +183,9 @@ class TestJobRouterEndpoints:
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                timeout_seconds=30,
+                # timeout_seconds=30,  # Field not in model
                 output_directory="converted_content/test",
-                skip_existing=False,
+                # skip_existing=False,  # Field not in model
                 success=False,
                 images_downloaded=0,
             )
@@ -325,9 +326,9 @@ class TestJobRouterEndpoints:
             created_at=sample_job.created_at,
             retry_count=sample_job.retry_count,
             max_retries=sample_job.max_retries,
-            timeout_seconds=sample_job.timeout_seconds,
+            # timeout_seconds=30,  # Field not in sample_job
             output_directory=sample_job.output_directory,
-            skip_existing=sample_job.skip_existing,
+            # skip_existing=False,  # Field not in sample_job
             success=sample_job.success,
             images_downloaded=sample_job.images_downloaded,
         )
@@ -394,9 +395,9 @@ class TestJobRouterEndpoints:
             created_at=sample_job.created_at,
             retry_count=sample_job.retry_count,
             max_retries=sample_job.max_retries,
-            timeout_seconds=sample_job.timeout_seconds,
+            # timeout_seconds=30,  # Field not in sample_job
             output_directory=sample_job.output_directory,
-            skip_existing=sample_job.skip_existing,
+            # skip_existing=False,  # Field not in sample_job
             success=sample_job.success,
             images_downloaded=sample_job.images_downloaded,
         )
@@ -580,9 +581,9 @@ class TestJobRouterEndpoints:
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                timeout_seconds=30,
+                # timeout_seconds=30,  # Field not in model
                 output_directory="converted_content/test",
-                skip_existing=False,
+                # skip_existing=False,  # Field not in model
                 success=False,
                 images_downloaded=0,
             )
@@ -624,9 +625,9 @@ class TestJobRouterEndpoints:
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                timeout_seconds=30,
+                # timeout_seconds=30,  # Field not in model
                 output_directory="converted_content/test",
-                skip_existing=False,
+                # skip_existing=False,  # Field not in model
                 success=False,
                 images_downloaded=0,
             )
