@@ -10,9 +10,11 @@ import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-# CRITICAL: Set required environment variables before any imports
-# This prevents auth config validation errors during test module imports
-os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-purposes-32-chars-long")
+# CRITICAL: Load .env file before any imports to prevent auth config validation errors
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+
+# Set testing environment flag
 os.environ.setdefault("TESTING", "true")
 
 import aiohttp
