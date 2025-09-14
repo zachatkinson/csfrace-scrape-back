@@ -20,7 +20,7 @@ class TestBatchEndpoints:
         expected_total: int,
         expected_page: int = 1,
         expected_page_size: int = 50,
-        expected_batches_count: int = None,
+        expected_batches_count: int | None = None,
     ) -> None:
         """DRY utility: Assert pagination response structure."""
         assert data["total"] == expected_total
@@ -35,7 +35,7 @@ class TestBatchEndpoints:
 
         assert "batches" in data
 
-    def _assert_batch_response(self, data: dict, expected_batch: Batch = None) -> None:
+    def _assert_batch_response(self, data: dict, expected_batch: Batch | None = None) -> None:
         """DRY utility: Assert batch response structure."""
         required_fields = ["id", "name", "description", "total_jobs", "status", "created_at"]
 

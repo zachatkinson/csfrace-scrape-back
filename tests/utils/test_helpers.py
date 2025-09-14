@@ -15,7 +15,7 @@ from src.constants import TEST_CONSTANTS
 class MockHTTPResponse:
     """Mock HTTP response for testing."""
 
-    def __init__(self, status: int = 200, content: str = "", headers: dict[str, str] = None):
+    def __init__(self, status: int = 200, content: str = "", headers: dict[str, str] | None = None):
         self.status = status
         self.content = content
         self.headers = headers or {}
@@ -70,7 +70,7 @@ def create_mock_session(responses: dict[str, MockHTTPResponse]) -> AsyncMock:
     return session
 
 
-def create_sample_soup(content: str = None) -> BeautifulSoup:
+def create_sample_soup(content: str | None = None) -> BeautifulSoup:
     """Create BeautifulSoup object from sample or provided content.
 
     Args:
@@ -342,7 +342,7 @@ class PluginTestHelper:
         }
 
     @staticmethod
-    def create_processing_context(url: str = None) -> dict[str, Any]:
+    def create_processing_context(url: str | None = None) -> dict[str, Any]:
         """Create processing context for plugin testing.
 
         Args:
