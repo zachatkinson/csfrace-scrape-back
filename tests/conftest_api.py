@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import BatchCreate, JobCreate
-from src.database.models import Batch, JobPriority, JobStatus, ScrapingJob
+from src.database.models import Batch, BatchStatus, JobPriority, JobStatus, ScrapingJob
 
 
 @pytest.fixture
@@ -45,13 +45,13 @@ def sample_batch():
         id="sample-batch-id-1",  # String UUID instead of integer
         name="Sample Batch",
         description="A sample batch",
-        status=JobStatus.PENDING.value,  # Use string value
+        status=BatchStatus.PENDING.value,  # Use string value
         created_at=datetime.now(UTC),
         max_concurrent=10,
         continue_on_error=True,
         output_base_directory="batch_output/sample",
-        create_archives=False,
-        cleanup_after_archive=False,
+        # create_archives=False,  # Not a Batch model field
+        # cleanup_after_archive=False,  # Not a Batch model field
         total_jobs=2,
         completed_jobs=0,
         failed_jobs=0,
@@ -64,7 +64,7 @@ def job_create_data():
     """Sample job creation data."""
     return JobCreate(
         url="https://example.com/test-page",
-        priority=JobPriority.HIGH,
+        priority=JobPriority.HIGH.value,
         custom_slug="test-page-slug",
         max_retries=5,
         # timeout_seconds=60,  # Not a model field

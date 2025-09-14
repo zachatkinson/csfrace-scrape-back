@@ -30,8 +30,8 @@ def mock_db_service():
     service.get_session.return_value.__exit__ = Mock(return_value=None)  # pylint: disable=protected-access
 
     # Mock database operations
-    service.create_batch = Mock(return_value=Mock(id=1))
-    service.create_job = Mock(return_value=Mock(id=1))
+    service.create_batch = Mock(return_value=Mock(id="test-batch-1"))
+    service.create_job = Mock(return_value=Mock(id="test-job-1"))
     service.update_job_status = Mock()
     service.update_batch_progress = Mock()
     service.get_batch = Mock()
@@ -402,11 +402,11 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
     async def test_process_with_tracking(self, batch_processor, mock_converter):
         """Test _process_with_tracking method."""
         url = "https://example.com/track"
-        batch_id = 1
+        batch_id = "test-batch-1"
         priority = Priority.NORMAL
 
         # Mock job creation
-        mock_job = Mock(id=123)
+        mock_job = Mock(id="test-job-123")
         batch_processor.database_service.create_job.return_value = mock_job
 
         mock_converter.process_url.return_value = {"data": "test"}
@@ -427,10 +427,10 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
     async def test_process_with_tracking_failure(self, batch_processor, mock_converter):
         """Test _process_with_tracking with processing failure."""
         url = "https://example.com/fail"
-        batch_id = 1
+        batch_id = "test-batch-1"
         priority = Priority.NORMAL
 
-        mock_job = Mock(id=123)
+        mock_job = Mock(id="test-job-123")
         batch_processor.database_service.create_job.return_value = mock_job
 
         mock_converter.process_url.side_effect = Exception("Processing error")
@@ -452,9 +452,9 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
         batch_processor.config.processing.checkpoint_interval = 1  # Save every job
 
         url = "https://example.com/checkpoint"
-        batch_id = 1
+        batch_id = "test-batch-1"
 
-        mock_job = Mock(id=123)
+        mock_job = Mock(id="test-job-123")
         batch_processor.database_service.create_job.return_value = mock_job
         mock_converter.process_url.return_value = {"data": "test"}
 
@@ -465,7 +465,7 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
     @pytest.mark.asyncio
     async def test_resume_batch(self, batch_processor):
         """Test resuming an interrupted batch."""
-        batch_id = 1
+        batch_id = "test-batch-1"
 
         # Mock batch
         mock_batch = Mock()
@@ -510,8 +510,8 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
         """Test resuming non-existent batch."""
         batch_processor.database_service.get_batch.return_value = None
 
-        with pytest.raises(ValueError, match="Batch 999 not found"):
-            await batch_processor.resume_batch(999)
+        with pytest.raises(ValueError, match="Batch nonexistent-batch not found"):
+            await batch_processor.resume_batch("nonexistent-batch")
 
     @pytest.mark.asyncio
     async def test_save_checkpoint(self, batch_processor, tmp_path):
@@ -520,15 +520,15 @@ class TestBatchProcessor:  # pylint: disable=too-many-public-methods,redefined-o
         batch_processor.state.completed_count = 5
         batch_processor.state.failed_count = 2
 
-        await batch_processor._save_checkpoint(123)  # pylint: disable=protected-access
+        await batch_processor._save_checkpoint("test-batch-123")  # pylint: disable=protected-access
 
-        checkpoint_file = tmp_path / "checkpoint_123.json"
+        checkpoint_file = tmp_path / "checkpoint_test-batch-123.json"
         assert checkpoint_file.exists()
 
         with open(checkpoint_file, encoding="utf-8") as f:
             data = json.load(f)
 
-        assert data["batch_id"] == 123
+        assert data["batch_id"] == "test-batch-123"
         assert data["completed"] == 5
         assert data["failed"] == 2
         assert "timestamp" in data
@@ -607,8 +607,8 @@ async def test_processor_integration(tmp_path):  # pylint: disable=redefined-out
     )
 
     mock_db = MagicMock(spec=DatabaseService)
-    mock_db.create_batch.return_value = Mock(id=1)
-    mock_db.create_job.return_value = Mock(id=1)
+    mock_db.create_batch.return_value = Mock(id="integration-test-batch-1")
+    mock_db.create_job.return_value = Mock(id="integration-test-job-1")
     mock_db.update_batch_status = Mock()
     mock_db.update_job_status = Mock()
     mock_db.update_batch_progress = Mock()

@@ -10,9 +10,7 @@ from ..constants import (
     API_MAX_CONCURRENT_JOBS,
     API_MAX_NAME_LENGTH,
     API_MAX_RETRIES_LIMIT,
-    API_MAX_TIMEOUT_SECONDS,
     API_MAX_URLS_PER_BATCH,
-    API_MIN_TIMEOUT_SECONDS,
 )
 
 
@@ -33,9 +31,10 @@ class JobCreate(BaseModel):
     priority: JobPriority = JobPriority.NORMAL
     output_directory: str | None = None
     max_retries: int = Field(default=3, ge=0, le=API_MAX_RETRIES_LIMIT)
-    timeout_seconds: int = Field(default=30, ge=API_MIN_TIMEOUT_SECONDS, le=API_MAX_TIMEOUT_SECONDS)
-    skip_existing: bool = False
+    # timeout_seconds: removed - not in database model
+    # skip_existing: removed - not in database model
     options: dict[str, Any] | None = None
+    # processing_options: alias for options to maintain compatibility
     processing_options: dict[str, Any] | None = None
 
 
@@ -44,11 +43,10 @@ class JobUpdate(BaseModel):
 
     priority: JobPriority | None = None
     max_retries: int | None = Field(None, ge=0, le=API_MAX_RETRIES_LIMIT)
-    timeout_seconds: int | None = Field(
-        None, ge=API_MIN_TIMEOUT_SECONDS, le=API_MAX_TIMEOUT_SECONDS
-    )
-    skip_existing: bool | None = None
+    # timeout_seconds: removed - not in database model
+    # skip_existing: removed - not in database model
     options: dict[str, Any] | None = None
+    # processing_options: alias for options to maintain compatibility
     processing_options: dict[str, Any] | None = None
 
 
@@ -139,7 +137,7 @@ class ContentResultResponse(BaseSchema):
     """Schema for content result responses."""
 
     id: int
-    job_id: int
+    job_id: str  # Fixed: Database model uses string job_id
     title: str | None = None
     meta_description: str | None = None
     published_date: datetime | None = None

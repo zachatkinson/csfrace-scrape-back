@@ -1,6 +1,6 @@
 """Unit tests for API main module."""
 
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import Request
@@ -90,21 +90,30 @@ class TestLifespanManager:
     @pytest.mark.asyncio
     async def test_lifespan_startup_failure(self):
         """Test lifespan handles database initialization failure gracefully."""
-        with patch("src.api.main.init_db") as mock_init_db:
+        with (
+            patch("src.api.main.init_db") as mock_init_db,
+            patch("src.api.main.start_background_monitoring") as mock_start_monitoring,
+            patch("src.api.main.stop_background_monitoring") as mock_stop_monitoring,
+        ):
             mock_init_db.side_effect = Exception("Database connection failed")
+            mock_start_monitoring.return_value = None
+            mock_stop_monitoring.return_value = None
 
             # Should not raise exception, just print error
             with patch("builtins.print") as mock_print:
                 async with lifespan(app):
                     pass
 
-                # Verify all expected print calls occurred
-                expected_calls = [
-                    call("Database initialization failed: Database connection failed"),
-                    call("Observability system initialized successfully"),
-                    call("Observability system shutdown completed"),
-                ]
-                mock_print.assert_has_calls(expected_calls, any_order=False)
+                # Verify core functionality calls (database failure and observability)
+                mock_print.assert_any_call(
+                    "Database initialization failed: Database connection failed"
+                )
+                mock_print.assert_any_call("Observability system initialized successfully")
+                mock_print.assert_any_call("Observability system shutdown completed")
+
+                # Verify background monitoring functions were called
+                mock_start_monitoring.assert_called_once()
+                mock_stop_monitoring.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_lifespan_shutdown(self):

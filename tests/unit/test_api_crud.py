@@ -95,10 +95,9 @@ class TestDataFactory:
         # Create base data with correct types
         data = JobCreate(
             url=HttpUrl("https://example.com/test-page"),
-            priority=JobPriority.HIGH,
+            priority=JobPriority.HIGH.value,
             custom_slug="test-page-slug",
             max_retries=5,
-            skip_existing=True,
             options={"preserve_images": True},
             processing_options={"clean_html": True},
         )
@@ -115,7 +114,7 @@ class TestDataFactory:
         """Create JobUpdate test data with optional overrides."""
         # Create base data with correct types
         data = JobUpdate(
-            priority=JobPriority.LOW,
+            priority=JobPriority.LOW.value,
             max_retries=2,
             options={"new_setting": True},
         )
@@ -186,7 +185,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         # Verify job creation
         self.assertIsInstance(result, ScrapingJob)
         self.assertEqual(result.url, str(job_data.url))
-        self.assertEqual(result.priority, job_data.priority)
+        self.assertEqual(result.priority, job_data.priority.value)  # Fixed: Compare string value
         # Status is None because it's not explicitly set in the constructor
         # (database defaults only apply when inserted to DB)
         self.assertIsNone(result.status)
@@ -228,7 +227,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
 
             # Verify updates applied
             self.assertEqual(result, sample_job)
-            self.assertEqual(sample_job.priority, JobPriority.LOW)
+            self.assertEqual(sample_job.priority, JobPriority.LOW.value)
             self.assertEqual(sample_job.max_retries, 2)
             # timeout_seconds is not a model field
 
@@ -239,7 +238,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
     async def test_update_job_partial_update(self):
         """Test partial job update with only some fields."""
         db_session = FakeDatabaseSession()
-        sample_job = TestDataFactory.create_sample_job(priority=JobPriority.HIGH)
+        sample_job = TestDataFactory.create_sample_job(priority=JobPriority.HIGH.value)
         partial_update = JobUpdate(max_retries=10)  # Only update retries
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
@@ -247,7 +246,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
 
             # Verify only specified fields updated
             self.assertEqual(result.max_retries, 10)
-            self.assertEqual(result.priority, JobPriority.HIGH)  # Unchanged
+            self.assertEqual(result.priority, JobPriority.HIGH.value)  # Unchanged
 
     async def test_delete_job_success(self):
         """Test successful job deletion."""
@@ -333,14 +332,14 @@ class TestBatchCRUDRefactored(IsolatedAsyncioTestCase):
         with patch.object(JobCRUD, "create_job") as mock_create_job:
             # Setup mock jobs
             mock_job1 = ScrapingJob(
-                id=1,
+                id="test-job-1",
                 source_url="https://example.com/1",  # Required field
                 url="https://example.com/1",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
             mock_job2 = ScrapingJob(
-                id=2,
+                id="test-job-2",
                 source_url="https://example.com/2",  # Required field
                 url="https://example.com/2",
                 domain="example.com",
@@ -403,10 +402,10 @@ class TestContentResultCRUDRefactored(IsolatedAsyncioTestCase):
         """Create sample ContentResult for testing."""
         return ContentResult(
             id=1,
-            job_id=1,
+            job_id="test-job-1",
             original_html="<html>Original</html>",
             converted_html="<div>Converted</div>",
-            metadata={"title": "Test Page"},
+            extra_metadata={"title": "Test Page"},
             conversion_stats={"processing_time": 1.5},
             created_at=datetime.now(UTC),
         )
@@ -419,7 +418,7 @@ class TestContentResultCRUDRefactored(IsolatedAsyncioTestCase):
         # Test would call ContentResultCRUD.create_result
         # For now, verify the test structure works
         self.assertIsInstance(content_result, ContentResult)
-        self.assertEqual(content_result.job_id, 1)
+        self.assertEqual(content_result.job_id, "test-job-1")
         self.assertEqual(content_result.original_html, "<html>Original</html>")
 
 
@@ -434,14 +433,14 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
         with patch.object(JobCRUD, "create_job") as mock_create_job:
             # Setup mock jobs with batch relationship
             mock_job1 = ScrapingJob(
-                id=1,
+                id="test-batch-job-1",
                 source_url="https://example.com/1",  # Required field
                 url="https://example.com/1",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
             mock_job2 = ScrapingJob(
-                id=2,
+                id="test-batch-job-2",
                 source_url="https://example.com/2",  # Required field
                 url="https://example.com/2",
                 domain="example.com",
@@ -464,7 +463,13 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
 
         with patch.object(JobCRUD, "create_job") as mock_create_job:
             mock_jobs = [
-                ScrapingJob(id=i + 1, url=url, domain="example.com", output_directory="/tmp/output")
+                ScrapingJob(
+                    id=f"test-job-{i + 1}",
+                    url=url,
+                    source_url=url,
+                    domain="example.com",
+                    output_directory="/tmp/output",
+                )
                 for i, url in enumerate(urls)
             ]
             mock_create_job.side_effect = mock_jobs
@@ -481,13 +486,13 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
         original_job = TestDataFactory.create_sample_job(priority=JobPriority.HIGH, max_retries=5)
 
         # Update only priority, keep other fields unchanged
-        update_data = JobUpdate(priority=JobPriority.LOW)
+        update_data = JobUpdate(priority=JobPriority.LOW.value)
 
         with patch.object(JobCRUD, "get_job", return_value=original_job):
-            result = await JobCRUD.update_job(db_session, 1, update_data)
+            result = await JobCRUD.update_job(db_session, "test-job-1", update_data)
 
             # Verify selective update
-            self.assertEqual(result.priority, JobPriority.LOW)
+            self.assertEqual(result.priority, JobPriority.LOW.value)
             self.assertEqual(result.max_retries, 5)  # Unchanged
             # timeout_seconds is not a model field
 

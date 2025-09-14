@@ -52,7 +52,7 @@ class JobCreateRequest:  # pylint: disable=too-few-public-methods
 class JobLogRequest:
     """Request object for adding job logs."""
 
-    job_id: int
+    job_id: str  # Fixed: Database model uses string job_id
     level: str
     message: str
     component: str | None = None
@@ -316,7 +316,7 @@ class DatabaseService:
             logger.error("Job creation failed - database error", url=request.url, error=str(e))
             raise DatabaseError(f"Job creation failed: {e}") from e
 
-    def get_job(self, job_id: int) -> ScrapingJob | None:
+    def get_job(self, job_id: str) -> ScrapingJob | None:
         """Retrieve a job by ID.
 
         Args:
@@ -639,7 +639,7 @@ class DatabaseService:
 
     def save_content_result(
         self,
-        job_id: int,
+        job_id: str,  # Fixed: Database model uses string job_id
         html_content: str | None = None,
         metadata: dict[str, Any] | None = None,
         file_paths: dict[str, str] | None = None,

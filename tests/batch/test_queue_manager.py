@@ -32,7 +32,7 @@ def sample_queue_item():
         priority=Priority.NORMAL.value,
         timestamp=datetime.now(UTC),
         url="https://example.com/test",
-        batch_id=1,
+        batch_id="test-batch-1",
         metadata={"test": "data"},
     )
 
@@ -46,13 +46,13 @@ class TestQueueItem:
             priority=Priority.HIGH.value,
             timestamp=datetime.now(UTC),
             url="https://example.com",
-            batch_id=123,
+            batch_id="test-batch-123",
             metadata={"key": "value"},
         )
 
         assert item.priority == Priority.HIGH.value
         assert item.url == "https://example.com"
-        assert item.batch_id == 123
+        assert item.batch_id == "test-batch-123"
         assert item.metadata == {"key": "value"}
         assert item.retry_count == 0
 
@@ -98,7 +98,7 @@ class TestBatchQueueManager:
         result = await queue_manager.add_item(
             url="https://example.com/test",
             priority=Priority.HIGH,
-            batch_id=1,
+            batch_id="test-batch-1",
             metadata={"test": "data"},
         )
 
@@ -124,7 +124,7 @@ class TestBatchQueueManager:
         """Test adding multiple URLs to the queue."""
         urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
 
-        added = await queue_manager.add_batch(urls, Priority.NORMAL, batch_id=1)
+        added = await queue_manager.add_batch(urls, Priority.NORMAL, batch_id="test-batch-1")
 
         assert added == 3
         assert queue_manager.get_queue_size() == 3
@@ -317,9 +317,13 @@ class TestBatchQueueManager:
         assert queue_manager.is_empty() is True
 
         # Add items to different priority queues
-        queue_manager.urgent_queue.append(QueueItem(1, datetime.now(UTC), "url1"))
-        queue_manager.normal_queue.append(QueueItem(3, datetime.now(UTC), "url2"))
-        queue_manager.low_queue.append(QueueItem(4, datetime.now(UTC), "url3"))
+        queue_manager.urgent_queue.append(
+            QueueItem(Priority.URGENT.value, datetime.now(UTC), "url1")
+        )
+        queue_manager.normal_queue.append(
+            QueueItem(Priority.NORMAL.value, datetime.now(UTC), "url2")
+        )
+        queue_manager.low_queue.append(QueueItem(Priority.LOW.value, datetime.now(UTC), "url3"))
 
         assert queue_manager.get_queue_size() == 3
         assert queue_manager.is_empty() is False
@@ -331,8 +335,10 @@ class TestBatchQueueManager:
         queue_manager.processing_items.add("processing_url")
 
         # Add some items to queues
-        queue_manager.urgent_queue.append(QueueItem(1, datetime.now(UTC), "url1"))
-        queue_manager.high_queue.append(QueueItem(2, datetime.now(UTC), "url2"))
+        queue_manager.urgent_queue.append(
+            QueueItem(Priority.URGENT.value, datetime.now(UTC), "url1")
+        )
+        queue_manager.high_queue.append(QueueItem(Priority.HIGH.value, datetime.now(UTC), "url2"))
 
         stats = queue_manager.get_statistics()
 
@@ -381,8 +387,8 @@ class TestBatchQueueManager:
     async def test_persist_and_restore_queue_state(self, queue_manager, tmp_path):
         """Test persisting and restoring queue state."""
         # Add items to queues
-        await queue_manager.add_item("urgent_url", Priority.URGENT, batch_id=1)
-        await queue_manager.add_item("normal_url", Priority.NORMAL, batch_id=2)
+        await queue_manager.add_item("urgent_url", Priority.URGENT, batch_id="test-batch-1")
+        await queue_manager.add_item("normal_url", Priority.NORMAL, batch_id="test-batch-2")
 
         queue_manager.total_processed = 5
         queue_manager.total_failed = 1

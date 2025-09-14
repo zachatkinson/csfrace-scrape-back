@@ -310,7 +310,7 @@ class TestDatabaseServiceJobOperations:
 
     def test_get_job_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent job."""
-        job = db_service_with_session.get_job(99999)
+        job = db_service_with_session.get_job("nonexistent-job-id")
         assert job is None
 
 
@@ -397,7 +397,7 @@ class TestDatabaseServiceJobStatusUpdates:
     def test_update_job_status_nonexistent(self, db_service_with_session):
         """Test updating status of non-existent job."""
         success = db_service_with_session.update_job_status(
-            "nonexistent-job-id", JobStatus.COMPLETED
+            "nonexistent-job-uuid", JobStatus.COMPLETED
         )
         assert success is False
 
@@ -783,7 +783,7 @@ class TestDatabaseServiceBatchOperations:
 
     def test_get_batch_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent batch."""
-        batch = db_service_with_session.get_batch("nonexistent-batch-id")
+        batch = db_service_with_session.get_batch("nonexistent-batch-uuid")
         assert batch is None
 
     def test_update_batch_progress(self, db_service_with_session):
@@ -820,7 +820,7 @@ class TestDatabaseServiceBatchOperations:
 
     def test_update_batch_progress_nonexistent_batch(self, db_service_with_session):
         """Test updating progress for non-existent batch."""
-        success = db_service_with_session.update_batch_progress("nonexistent-batch-id")
+        success = db_service_with_session.update_batch_progress("nonexistent-batch-uuid")
         assert success is False
 
     def test_update_batch_progress_with_all_job_states(
@@ -1318,7 +1318,7 @@ class TestDatabaseServiceErrorHandling:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Job retrieval failed"):
-                db_service_with_session.get_job(1)
+                db_service_with_session.get_job("test-job-id")
 
     def test_update_job_status_database_error(self, db_service_with_session):
         """Test job status update with database error."""
@@ -1326,7 +1326,7 @@ class TestDatabaseServiceErrorHandling:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Job status update failed"):
-                db_service_with_session.update_job_status(1, JobStatus.COMPLETED)
+                db_service_with_session.update_job_status("test-job-id", JobStatus.COMPLETED)
 
     def test_get_pending_jobs_database_error(self, db_service_with_session):
         """Test pending jobs retrieval with database error."""
@@ -1366,7 +1366,7 @@ class TestDatabaseServiceErrorHandling:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Batch retrieval failed"):
-                db_service_with_session.get_batch(1)
+                db_service_with_session.get_batch("test-batch-id")
 
     def test_update_batch_progress_database_error(self, db_service_with_session):
         """Test batch progress update with database error."""
@@ -1374,7 +1374,7 @@ class TestDatabaseServiceErrorHandling:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Batch progress update failed"):
-                db_service_with_session.update_batch_progress(1)
+                db_service_with_session.update_batch_progress("test-batch-id")
 
     def test_save_content_result_database_error(self, db_service_with_session):
         """Test content result save with database error."""
@@ -1382,7 +1382,7 @@ class TestDatabaseServiceErrorHandling:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(DatabaseError, match="Content result save failed"):
-                db_service_with_session.save_content_result(job_id=1)
+                db_service_with_session.save_content_result(job_id="test-job-id")
 
     def test_add_job_log_exception_handling(self, db_service_with_session):
         """Test job log addition with various exceptions."""
@@ -1392,7 +1392,7 @@ class TestDatabaseServiceErrorHandling:
 
             # Should not raise, returns None
             log_entry = db_service_with_session.add_job_log(
-                job_id=1,
+                job_id="test-job-id",
                 level="ERROR",
                 message="Test",
             )

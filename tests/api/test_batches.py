@@ -160,7 +160,7 @@ class TestBatchEndpoints:
     @pytest.mark.asyncio
     async def test_get_batch_not_found(self, async_client: AsyncClient):
         """Test batch retrieval with non-existent ID."""
-        response = await async_client.get("/batches/99999")
+        response = await async_client.get("/batches/nonexistent-batch-id")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.asyncio

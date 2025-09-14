@@ -49,7 +49,7 @@ class JobCRUD:
             url=str(job_data.url),
             domain=domain,
             slug=slug,
-            priority=job_data.priority,
+            priority=job_data.priority.value,  # Fixed: Use enum string value
             output_directory=output_directory,
             max_retries=job_data.max_retries,
             options=job_data.options,
@@ -141,6 +141,9 @@ class JobCRUD:
         # Update fields
         update_data = job_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
+            # Handle enum values properly - convert to string for database storage
+            if field == "priority" and hasattr(value, "value"):
+                value = value.value
             setattr(job, field, value)
 
         await db.flush()
@@ -318,7 +321,7 @@ class ContentResultCRUD:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_content_results_by_job(db: AsyncSession, job_id: int) -> list[ContentResult]:
+    async def get_content_results_by_job(db: AsyncSession, job_id: str) -> list[ContentResult]:
         """Get all content results for a job.
 
         Args:

@@ -33,13 +33,15 @@ class TestJobRouterEndpoints:
     def job_create_data(self):
         """Sample job creation data."""
         return JobCreate(
-            url="https://example.com/test-page", priority=JobPriority.HIGH, custom_slug="test-slug"
+            url="https://example.com/test-page",
+            priority=JobPriority.HIGH.value,
+            custom_slug="test-slug",
         )
 
     @pytest.fixture
     def job_update_data(self):
         """Sample job update data."""
-        return JobUpdate(priority=JobPriority.LOW, max_retries=5)
+        return JobUpdate(priority=JobPriority.LOW.value, max_retries=5)
 
     @pytest.fixture
     def sample_job(self):
@@ -109,13 +111,13 @@ class TestJobRouterEndpoints:
 
         jobs = [
             ScrapingJob(
-                id=1,
+                id="test-job-1",  # String UUID instead of integer
                 source_url="https://test1.com",  # Required field
                 url="https://test1.com",
                 domain="test1.com",
                 slug="test1",
-                status=JobStatus.PENDING,
-                priority=JobPriority.NORMAL,
+                status=JobStatus.PENDING.value,  # Use string value
+                priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
@@ -126,13 +128,13 @@ class TestJobRouterEndpoints:
                 images_downloaded=0,
             ),
             ScrapingJob(
-                id=2,
+                id="test-job-2",  # String UUID instead of integer
                 source_url="https://test2.com",  # Required field
                 url="https://test2.com",
                 domain="test2.com",
                 slug="test2",
-                status=JobStatus.PENDING,
-                priority=JobPriority.NORMAL,
+                status=JobStatus.PENDING.value,  # Use string value
+                priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
@@ -173,13 +175,13 @@ class TestJobRouterEndpoints:
 
         jobs = [
             ScrapingJob(
-                id=1,
+                id="test-pagination-job",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
                 url="https://test.com",
                 domain="test.com",
                 slug="test",
-                status=JobStatus.PENDING,
-                priority=JobPriority.NORMAL,
+                status=JobStatus.PENDING.value,  # Use string value
+                priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
@@ -215,20 +217,20 @@ class TestJobRouterEndpoints:
     async def test_get_job_success(self, mock_db_session, sample_job):
         """Test successful job retrieval."""
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job) as mock_get:
-            result = await get_job(1, mock_db_session)
+            result = await get_job("test-job-id-123", mock_db_session)
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
             assert result.url == sample_job.url
 
-            mock_get.assert_called_once_with(mock_db_session, 1)
+            mock_get.assert_called_once_with(mock_db_session, "test-job-id-123")
 
     @pytest.mark.asyncio
     async def test_get_job_not_found(self, mock_db_session):
         """Test job retrieval when job doesn't exist."""
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                await get_job(999, mock_db_session)
+                await get_job("nonexistent-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
             assert "not found" in str(exc_info.value.detail)
@@ -240,7 +242,7 @@ class TestJobRouterEndpoints:
             mock_get.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
-                await get_job(1, mock_db_session)
+                await get_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Database operation failed" in str(exc_info.value.detail)
@@ -251,19 +253,19 @@ class TestJobRouterEndpoints:
         with patch(
             "src.api.routers.jobs.JobCRUD.update_job", return_value=sample_job
         ) as mock_update:
-            result = await update_job(1, job_update_data, mock_db_session)
+            result = await update_job("test-job-id-123", job_update_data, mock_db_session)
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
 
-            mock_update.assert_called_once_with(mock_db_session, 1, job_update_data)
+            mock_update.assert_called_once_with(mock_db_session, "test-job-id-123", job_update_data)
 
     @pytest.mark.asyncio
     async def test_update_job_not_found(self, mock_db_session, job_update_data):
         """Test job update when job doesn't exist."""
         with patch("src.api.routers.jobs.JobCRUD.update_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                await update_job(999, job_update_data, mock_db_session)
+                await update_job("nonexistent-job-id", job_update_data, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
             assert "not found" in str(exc_info.value.detail)
@@ -275,7 +277,7 @@ class TestJobRouterEndpoints:
             mock_update.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
-                await update_job(1, job_update_data, mock_db_session)
+                await update_job("test-job-id", job_update_data, mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Database operation failed" in str(exc_info.value.detail)
@@ -284,17 +286,17 @@ class TestJobRouterEndpoints:
     async def test_delete_job_success(self, mock_db_session):
         """Test successful job deletion."""
         with patch("src.api.routers.jobs.JobCRUD.delete_job", return_value=True) as mock_delete:
-            result = await delete_job(1, mock_db_session)
+            result = await delete_job("test-job-id-123", mock_db_session)
 
             assert result is None  # Endpoint returns None on success
-            mock_delete.assert_called_once_with(mock_db_session, 1)
+            mock_delete.assert_called_once_with(mock_db_session, "test-job-id-123")
 
     @pytest.mark.asyncio
     async def test_delete_job_not_found(self, mock_db_session):
         """Test job deletion when job doesn't exist."""
         with patch("src.api.routers.jobs.JobCRUD.delete_job", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
-                await delete_job(999, mock_db_session)
+                await delete_job("nonexistent-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
             assert "not found" in str(exc_info.value.detail)
@@ -306,7 +308,7 @@ class TestJobRouterEndpoints:
             mock_delete.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
-                await delete_job(1, mock_db_session)
+                await delete_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Database operation failed" in str(exc_info.value.detail)
@@ -314,14 +316,15 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_start_job_success(self, mock_db_session, sample_job):
         """Test successful job start."""
-        sample_job.status = JobStatus.PENDING
+        sample_job.status = JobStatus.PENDING.value
         # Create a copy of the job with updated status
         updated_job = ScrapingJob(
             id=sample_job.id,
+            source_url=sample_job.source_url,  # Required field
             url=sample_job.url,
             domain=sample_job.domain,
             slug=sample_job.slug,
-            status=JobStatus.RUNNING,  # Updated status
+            status=JobStatus.RUNNING.value,  # Updated status
             priority=sample_job.priority,
             created_at=sample_job.created_at,
             retry_count=sample_job.retry_count,
@@ -337,19 +340,21 @@ class TestJobRouterEndpoints:
             with patch(
                 "src.api.routers.jobs.JobCRUD.update_job_status", return_value=updated_job
             ) as mock_update:
-                result = await start_job(1, mock_db_session)
+                result = await start_job("test-job-id", mock_db_session)
 
                 assert isinstance(result, JobResponse)
-                assert result.status == JobStatus.RUNNING
+                assert result.status == JobStatus.RUNNING.value
 
-                mock_update.assert_called_once_with(mock_db_session, 1, JobStatus.RUNNING)
+                mock_update.assert_called_once_with(
+                    mock_db_session, "test-job-id", JobStatus.RUNNING
+                )
 
     @pytest.mark.asyncio
     async def test_start_job_not_found(self, mock_db_session):
         """Test starting non-existent job."""
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                await start_job(999, mock_db_session)
+                await start_job("nonexistent-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
             assert "not found" in str(exc_info.value.detail)
@@ -357,11 +362,11 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_start_job_invalid_status(self, mock_db_session, sample_job):
         """Test starting job with invalid status."""
-        sample_job.status = JobStatus.RUNNING  # Already running
+        sample_job.status = JobStatus.RUNNING.value  # Already running
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
-                await start_job(1, mock_db_session)
+                await start_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
             assert "cannot be started" in str(exc_info.value.detail)
@@ -375,7 +380,7 @@ class TestJobRouterEndpoints:
                 mock_update.side_effect = SQLAlchemyError("Database error")
 
                 with pytest.raises(HTTPException) as exc_info:
-                    await start_job(1, mock_db_session)
+                    await start_job("test-job-id", mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
                 assert "Database operation failed" in str(exc_info.value.detail)
@@ -383,14 +388,15 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_cancel_job_success(self, mock_db_session, sample_job):
         """Test successful job cancellation."""
-        sample_job.status = JobStatus.PENDING
+        sample_job.status = JobStatus.PENDING.value
         # Create a copy of the job with updated status
         updated_job = ScrapingJob(
             id=sample_job.id,
+            source_url=sample_job.source_url,  # Required field
             url=sample_job.url,
             domain=sample_job.domain,
             slug=sample_job.slug,
-            status=JobStatus.CANCELLED,  # Updated status
+            status=JobStatus.CANCELLED.value,  # Updated status
             priority=sample_job.priority,
             created_at=sample_job.created_at,
             retry_count=sample_job.retry_count,
@@ -406,30 +412,32 @@ class TestJobRouterEndpoints:
             with patch(
                 "src.api.routers.jobs.JobCRUD.update_job_status", return_value=updated_job
             ) as mock_update:
-                result = await cancel_job(1, mock_db_session)
+                result = await cancel_job("test-job-id", mock_db_session)
 
                 assert isinstance(result, JobResponse)
-                assert result.status == JobStatus.CANCELLED
+                assert result.status == JobStatus.CANCELLED.value
 
-                mock_update.assert_called_once_with(mock_db_session, 1, JobStatus.CANCELLED)
+                mock_update.assert_called_once_with(
+                    mock_db_session, "test-job-id", JobStatus.CANCELLED
+                )
 
     @pytest.mark.asyncio
     async def test_cancel_job_not_found(self, mock_db_session):
         """Test cancelling non-existent job."""
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                await cancel_job(999, mock_db_session)
+                await cancel_job("nonexistent-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_cancel_job_invalid_status_completed(self, mock_db_session, sample_job):
         """Test cancelling completed job."""
-        sample_job.status = JobStatus.COMPLETED
+        sample_job.status = JobStatus.COMPLETED.value
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
-                await cancel_job(1, mock_db_session)
+                await cancel_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
             assert "cannot be cancelled" in str(exc_info.value.detail)
@@ -437,11 +445,11 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_cancel_job_invalid_status_failed(self, mock_db_session, sample_job):
         """Test cancelling failed job."""
-        sample_job.status = JobStatus.FAILED
+        sample_job.status = JobStatus.FAILED.value
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
-                await cancel_job(1, mock_db_session)
+                await cancel_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
             assert "cannot be cancelled" in str(exc_info.value.detail)
@@ -449,11 +457,11 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_cancel_job_invalid_status_cancelled(self, mock_db_session, sample_job):
         """Test cancelling already cancelled job."""
-        sample_job.status = JobStatus.CANCELLED
+        sample_job.status = JobStatus.CANCELLED.value
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
-                await cancel_job(1, mock_db_session)
+                await cancel_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
             assert "cannot be cancelled" in str(exc_info.value.detail)
@@ -462,7 +470,7 @@ class TestJobRouterEndpoints:
     async def test_retry_job_success(self, mock_db_session, sample_job):
         """Test successful job retry."""
         # Setup job that can be retried
-        sample_job.status = JobStatus.FAILED
+        sample_job.status = JobStatus.FAILED.value
         sample_job.retry_count = 1
         sample_job.max_retries = 3
         # can_retry is computed from status and retry counts
@@ -471,10 +479,10 @@ class TestJobRouterEndpoints:
             mock_db_session.flush = AsyncMock()
             mock_db_session.refresh = AsyncMock()
 
-            result = await retry_job(1, mock_db_session)
+            result = await retry_job("test-job-id", mock_db_session)
 
             assert isinstance(result, JobResponse)
-            assert sample_job.status == JobStatus.PENDING
+            assert sample_job.status == JobStatus.PENDING.value
             assert sample_job.retry_count == 2
             assert sample_job.error_message is None
             assert sample_job.error_type is None
@@ -486,7 +494,7 @@ class TestJobRouterEndpoints:
         """Test retrying non-existent job."""
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                await retry_job(999, mock_db_session)
+                await retry_job("nonexistent-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
@@ -496,11 +504,11 @@ class TestJobRouterEndpoints:
         # Set up job that cannot be retried (retry_count >= max_retries)
         sample_job.retry_count = 3
         sample_job.max_retries = 3
-        sample_job.status = JobStatus.FAILED
+        sample_job.status = JobStatus.FAILED.value
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
-                await retry_job(1, mock_db_session)
+                await retry_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
             assert "cannot be retried" in str(exc_info.value.detail)
@@ -510,7 +518,7 @@ class TestJobRouterEndpoints:
     async def test_retry_job_database_error(self, mock_db_session, sample_job):
         """Test retrying job with database error."""
         # Set up job that can be retried
-        sample_job.status = JobStatus.FAILED
+        sample_job.status = JobStatus.FAILED.value
         sample_job.retry_count = 1
         sample_job.max_retries = 3
 
@@ -518,7 +526,7 @@ class TestJobRouterEndpoints:
             mock_db_session.flush.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
-                await retry_job(1, mock_db_session)
+                await retry_job("test-job-id", mock_db_session)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Database operation failed" in str(exc_info.value.detail)
@@ -539,45 +547,45 @@ class TestJobRouterEndpoints:
     async def test_start_job_status_validation_scenarios(self, mock_db_session):
         """Test start job status validation for different statuses."""
         invalid_statuses = [
-            JobStatus.RUNNING,
-            JobStatus.COMPLETED,
-            JobStatus.FAILED,
-            JobStatus.CANCELLED,
+            JobStatus.RUNNING.value,
+            JobStatus.COMPLETED.value,
+            JobStatus.FAILED.value,
+            JobStatus.CANCELLED.value,
         ]
 
         for invalid_status in invalid_statuses:
             job = ScrapingJob(
-                id=1,
+                id="test-job-status-validation",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
                 url="https://test.com",
                 domain="test.com",
                 slug="test",
-                status=invalid_status,
+                status=invalid_status,  # Already using .value
             )
 
             with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
                 with pytest.raises(HTTPException) as exc_info:
-                    await start_job(1, mock_db_session)
+                    await start_job("test-job-id", mock_db_session)
 
                 assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-                assert invalid_status.value in str(exc_info.value.detail)
+                assert invalid_status in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_cancel_job_valid_statuses(self, mock_db_session):
         """Test that jobs in valid statuses can be cancelled."""
         from datetime import datetime
 
-        valid_statuses = [JobStatus.PENDING, JobStatus.RUNNING]
+        valid_statuses = [JobStatus.PENDING.value, JobStatus.RUNNING.value]
 
         for valid_status in valid_statuses:
             job = ScrapingJob(
-                id=1,
+                id="test-job-valid-status",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
                 url="https://test.com",
                 domain="test.com",
                 slug="test",
-                status=valid_status,
-                priority=JobPriority.NORMAL,
+                status=valid_status,  # Already using .value
+                priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
@@ -590,7 +598,7 @@ class TestJobRouterEndpoints:
 
             with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
                 with patch("src.api.routers.jobs.JobCRUD.update_job_status", return_value=job):
-                    result = await cancel_job(1, mock_db_session)
+                    result = await cancel_job("test-job-id", mock_db_session)
 
                     assert isinstance(result, JobResponse)
 
@@ -598,7 +606,7 @@ class TestJobRouterEndpoints:
     async def test_job_response_validation(self, mock_db_session, sample_job):
         """Test that JobResponse validation works correctly."""
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
-            result = await get_job(1, mock_db_session)
+            result = await get_job("test-job-id", mock_db_session)
 
             # Verify all required fields are present
             assert hasattr(result, "id")
@@ -615,13 +623,13 @@ class TestJobRouterEndpoints:
 
         jobs = [
             ScrapingJob(
-                id=1,
+                id="test-job-1",
                 source_url="https://test.com",  # Required field
                 url="https://test.com",
                 domain="test.com",
                 slug="test",
-                status=JobStatus.PENDING,
-                priority=JobPriority.NORMAL,
+                status=JobStatus.PENDING.value,
+                priority=JobPriority.NORMAL.value,
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
