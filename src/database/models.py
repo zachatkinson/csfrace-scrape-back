@@ -153,6 +153,13 @@ class ScrapingJob(Base):
         return self.status in {"completed", "failed", "cancelled"}
 
     @property
+    def duration(self) -> float | None:
+        """Calculate job duration from start and end times."""
+        if self.start_time is not None and self.end_time is not None:
+            return self.end_time - self.start_time
+        return None
+
+    @property
     def can_retry(self) -> bool:
         """Check if job can be retried."""
         return self.status == "failed" and self.retry_count < self.max_retries

@@ -97,7 +97,8 @@ class HealthStateManager:
         services = ["backend", "database", "cache"]
 
         for service in services:
-            if service in current_health:
+            # Handle backend specially - its data is at top level, not nested
+            if service == "backend" or service in current_health:
                 current_status = self._extract_service_status(current_health, service)
                 previous_status = self._previous_states.get(service, {})
 

@@ -29,6 +29,7 @@ class TestDatabaseModels:
     def test_scraping_job_model_creation(self, testcontainers_db_service):
         """Test ScrapingJob model creation with required fields."""
         job = ScrapingJob(
+            source_url="https://example.com/test-post",  # Required field
             url="https://example.com/test-post",
             domain="example.com",
             slug="test-post",
@@ -52,6 +53,7 @@ class TestDatabaseModels:
     def test_scraping_job_properties(self, testcontainers_db_service):
         """Test ScrapingJob computed properties."""
         job = ScrapingJob(
+            source_url="https://example.com/test",  # Required field
             url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
@@ -79,13 +81,14 @@ class TestDatabaseModels:
     def test_scraping_job_can_retry_property(self, testcontainers_db_service):
         """Test ScrapingJob can_retry property logic."""
         job = ScrapingJob(
+            source_url="https://example.com/test",  # Required field
             url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
             max_retries=3,
         )
 
-        # Cannot retry when not failed
+        # Cannot retry when not failed (starts as PENDING)
         assert not job.can_retry
 
         # Can retry when failed and under limit
@@ -145,12 +148,14 @@ class TestDatabaseModels:
 
             # Create jobs in batch
             job1 = ScrapingJob(
+                source_url="https://example.com/post1",  # Required field
                 url="https://example.com/post1",
                 domain="example.com",
                 output_directory="/tmp/output/post1",
                 batch_id=batch.id,
             )
             job2 = ScrapingJob(
+                source_url="https://example.com/post2",  # Required field
                 url="https://example.com/post2",
                 domain="example.com",
                 output_directory="/tmp/output/post2",
@@ -171,6 +176,7 @@ class TestDatabaseModels:
         with testcontainers_db_service.get_session() as session:
             # Create job first
             job = ScrapingJob(
+                source_url="https://example.com/test",  # Required field
                 url="https://example.com/test",
                 domain="example.com",
                 output_directory="/tmp/output",
@@ -206,6 +212,7 @@ class TestDatabaseModels:
         with testcontainers_db_service.get_session() as session:
             # Create job first
             job = ScrapingJob(
+                source_url="https://example.com/test",  # Required field
                 url="https://example.com/test",
                 domain="example.com",
                 output_directory="/tmp/output",
@@ -423,6 +430,7 @@ class TestModelConstraintsAndValidation:
         # Test very long URL (should work up to 2048 chars)
         long_url = "https://example.com/" + "a" * 2000
         job = ScrapingJob(
+            source_url=long_url,  # Required field
             url=long_url,
             domain="example.com",
             output_directory="/tmp/output",
@@ -466,6 +474,7 @@ class TestModelConstraintsAndValidation:
         }
 
         job = ScrapingJob(
+            source_url="https://example.com/test",  # Required field
             url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
@@ -486,6 +495,7 @@ class TestModelConstraintsAndValidation:
         with testcontainers_db_service.get_session() as session:
             # Create job without batch (should work)
             job1 = ScrapingJob(
+                source_url="https://example.com/test1",  # Required field
                 url="https://example.com/test1",
                 domain="example.com",
                 output_directory="/tmp/output",
@@ -500,6 +510,7 @@ class TestModelConstraintsAndValidation:
             session.flush()
 
             job2 = ScrapingJob(
+                source_url="https://example.com/test2",  # Required field
                 url="https://example.com/test2",
                 domain="example.com",
                 output_directory="/tmp/output",
