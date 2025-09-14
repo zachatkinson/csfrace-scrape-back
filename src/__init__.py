@@ -3,6 +3,6 @@
 A modern Python application for converting WordPress content to Shopify-compatible format.
 """
 
-__version__ = "3.7.0"
+__version__ = "4.0.0"
 __author__ = "CSFrace Development Team"
 __email__ = "dev@csfrace.com"
