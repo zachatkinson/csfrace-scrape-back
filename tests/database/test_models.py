@@ -42,8 +42,8 @@ class TestDatabaseModels:
 
         # Verify job was created with correct defaults
         assert job.id is not None
-        assert job.status == JobStatus.PENDING
-        assert job.priority == JobPriority.NORMAL
+        assert job.status_enum == JobStatus.PENDING
+        assert job.priority_enum == JobPriority.NORMAL
         assert job.retry_count == 0
         assert job.success is False
         assert job.images_downloaded == 0
@@ -69,13 +69,13 @@ class TestDatabaseModels:
         # Test is_finished property
         assert not job.is_finished  # PENDING status
 
-        job.status = JobStatus.COMPLETED
+        job.status = "completed"
         assert job.is_finished
 
-        job.status = JobStatus.FAILED
+        job.status = "failed"
         assert job.is_finished
 
-        job.status = JobStatus.RUNNING
+        job.status = "running"
         assert not job.is_finished
 
     def test_scraping_job_can_retry_property(self, testcontainers_db_service):
@@ -92,7 +92,7 @@ class TestDatabaseModels:
         assert not job.can_retry
 
         # Can retry when failed and under limit
-        job.status = JobStatus.FAILED
+        job.status = "failed"
         job.retry_count = 1
         assert job.can_retry
 
@@ -113,7 +113,7 @@ class TestDatabaseModels:
             session.commit()
 
         assert batch.id is not None
-        assert batch.status == JobStatus.PENDING
+        assert batch.status == "pending"
         assert batch.max_concurrent == 5
         assert batch.continue_on_error is True
         assert batch.total_jobs == 0

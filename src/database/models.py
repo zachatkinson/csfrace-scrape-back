@@ -84,9 +84,9 @@ class ScrapingJob(Base):
         nullable=False,
         index=True,
     )
-    priority: Mapped[int] = mapped_column(
-        Integer,
-        default=5,
+    priority: Mapped[str] = mapped_column(
+        String,
+        default="normal",
         nullable=False,
     )
 
@@ -146,6 +146,16 @@ class ScrapingJob(Base):
         return (
             f"<ScrapingJob(id={self.id}, source_url='{self.source_url}', status='{self.status}')>"
         )
+
+    @property
+    def status_enum(self) -> JobStatus:
+        """Return status as enum instance."""
+        return JobStatus(self.status)
+
+    @property
+    def priority_enum(self) -> JobPriority:
+        """Return priority as enum instance."""
+        return JobPriority(self.priority)
 
     @property
     def is_finished(self) -> bool:
