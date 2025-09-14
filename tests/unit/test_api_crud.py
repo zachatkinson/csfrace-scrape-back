@@ -287,7 +287,9 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         sample_job = TestDataFactory.create_sample_job()
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.update_job_status(db_session, "test-job-id-1", JobStatus.COMPLETED)
+            result = await JobCRUD.update_job_status(
+                db_session, "test-job-id-1", JobStatus.COMPLETED
+            )
 
             self.assertEqual(result.status, JobStatus.COMPLETED.value)
             self.assertIsNotNone(result.completed_at)
