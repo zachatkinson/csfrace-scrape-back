@@ -6,6 +6,7 @@ following CLAUDE.md standards with proper relationships and constraints.
 
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
+from uuid import uuid4
 
 from sqlalchemy import (
     JSON,
@@ -66,7 +67,7 @@ class ScrapingJob(Base):
     __tablename__ = "jobs"
 
     # Primary identification
-    id: Mapped[str] = mapped_column(String, primary_key=True, server_default=text("uuid_generate_v4()"))
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
@@ -185,7 +186,7 @@ class Batch(Base):
     __tablename__ = "batches"
 
     # Primary identification
-    id: Mapped[str] = mapped_column(String, primary_key=True, server_default=text("uuid_generate_v4()"))
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
 
