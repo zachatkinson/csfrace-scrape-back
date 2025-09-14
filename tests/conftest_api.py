@@ -20,19 +20,19 @@ def mock_db_session():
 def sample_job():
     """Sample ScrapingJob instance with all required fields."""
     return ScrapingJob(
-        id=1,
+        id="sample-job-id-1",  # String UUID instead of integer
         source_url="https://example.com/test",  # Required field
         url="https://example.com/test",
         domain="example.com",
         slug="test",
-        status=JobStatus.PENDING,
-        priority=JobPriority.NORMAL,
+        status=JobStatus.PENDING.value,  # Use string value
+        priority=JobPriority.NORMAL.value,  # Use string value
         created_at=datetime.now(UTC),
         retry_count=0,
         max_retries=3,
-        timeout_seconds=30,
+        # timeout_seconds=30,  # Not a model field
         output_directory="converted_content/test",
-        skip_existing=False,
+        # skip_existing=False,  # Not a model field
         success=False,
         images_downloaded=0,
     )
@@ -42,10 +42,10 @@ def sample_job():
 def sample_batch():
     """Sample Batch instance with all required fields."""
     return Batch(
-        id=1,
+        id="sample-batch-id-1",  # String UUID instead of integer
         name="Sample Batch",
         description="A sample batch",
-        status=JobStatus.PENDING,
+        status=JobStatus.PENDING.value,  # Use string value
         created_at=datetime.now(UTC),
         max_concurrent=10,
         continue_on_error=True,
@@ -67,10 +67,10 @@ def job_create_data():
         priority=JobPriority.HIGH,
         custom_slug="test-page-slug",
         max_retries=5,
-        timeout_seconds=60,
-        skip_existing=True,
-        converter_config={"preserve_images": True},
-        processing_options={"clean_html": True},
+        # timeout_seconds=60,  # Not a model field
+        # skip_existing=True,  # Not a model field
+        # converter_config={"preserve_images": True},  # Should be 'options'
+        # processing_options={"clean_html": True},  # Not a model field
     )
 
 

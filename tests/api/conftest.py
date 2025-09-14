@@ -107,11 +107,11 @@ async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
         url="https://example.com/test-page",
         domain="example.com",
         slug="test-page",
-        priority=JobPriority.NORMAL,
-        status=JobStatus.PENDING,
+        priority=JobPriority.NORMAL.value,  # Use string value
+        status=JobStatus.PENDING.value,  # Use string value
         max_retries=3,
-        timeout_seconds=30,
-        skip_existing=False,
+        # timeout_seconds=30,  # Not a model field
+        # skip_existing=False,  # Not a model field
         output_directory="converted_content/example.com_test-page",
     )
     test_db_session.add(job)
@@ -147,10 +147,10 @@ def job_create_data():
         "priority": "normal",
         "custom_slug": "new-test-page",
         "max_retries": 5,
-        "timeout_seconds": 45,
-        "skip_existing": True,
-        "converter_config": {"preserve_images": True},
-        "processing_options": {"clean_html": True},
+        # "timeout_seconds": 45,  # Not a model field
+        # "skip_existing": True,  # Not a model field
+        "options": {"preserve_images": True},  # Use 'options' not 'converter_config'
+        # "processing_options": {"clean_html": True},  # Not a model field
     }
 
 

@@ -131,12 +131,12 @@ class TestDataFactory:
     def create_sample_job(**overrides) -> ScrapingJob:
         """Create ScrapingJob test data with optional overrides."""
         defaults = {
-            "id": 1,
+            "id": "test-job-id-1",  # String UUID instead of integer
             "source_url": "https://example.com/test",
             "url": "https://example.com/test",
             "domain": "example.com",
-            "priority": JobPriority.HIGH,
-            "status": JobStatus.PENDING,
+            "priority": JobPriority.HIGH.value,  # Use string value
+            "status": JobStatus.PENDING.value,  # Use string value
             "max_retries": 5,
             "output_directory": "/tmp/test_output",
             "slug": "test-slug",
@@ -224,7 +224,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
 
         # Mock get_job to return our sample job
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.update_job(db_session, 1, update_data)
+            result = await JobCRUD.update_job(db_session, "test-job-id-1", update_data)
 
             # Verify updates applied
             self.assertEqual(result, sample_job)
@@ -243,7 +243,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         partial_update = JobUpdate(max_retries=10)  # Only update retries
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.update_job(db_session, 1, partial_update)
+            result = await JobCRUD.update_job(db_session, "test-job-id-1", partial_update)
 
             # Verify only specified fields updated
             self.assertEqual(result.max_retries, 10)
@@ -255,7 +255,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         sample_job = TestDataFactory.create_sample_job()
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.delete_job(db_session, 1)
+            result = await JobCRUD.delete_job(db_session, "test-job-id-1")
 
             self.assertTrue(result)
             self.assertIn(sample_job, db_session.deleted_objects)
@@ -265,7 +265,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         db_session = FakeDatabaseSession()
 
         with patch.object(JobCRUD, "get_job", return_value=None):
-            result = await JobCRUD.delete_job(db_session, 999)
+            result = await JobCRUD.delete_job(db_session, "nonexistent-job-id")
 
             self.assertFalse(result)
             self.assertEqual(len(db_session.deleted_objects), 0)
@@ -276,7 +276,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         sample_job = TestDataFactory.create_sample_job()
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.update_job_status(db_session, 1, JobStatus.RUNNING)
+            result = await JobCRUD.update_job_status(db_session, "test-job-id-1", JobStatus.RUNNING)
 
             self.assertEqual(result.status, JobStatus.RUNNING.value)
             self.assertIsNotNone(result.started_at)
@@ -287,7 +287,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         sample_job = TestDataFactory.create_sample_job()
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.update_job_status(db_session, 1, JobStatus.COMPLETED)
+            result = await JobCRUD.update_job_status(db_session, "test-job-id-1", JobStatus.COMPLETED)
 
             self.assertEqual(result.status, JobStatus.COMPLETED.value)
             self.assertIsNotNone(result.completed_at)
@@ -300,7 +300,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
             result = await JobCRUD.update_job_status(
-                db_session, 1, JobStatus.FAILED, error_message=error_msg
+                db_session, "test-job-id-1", JobStatus.FAILED, error_message=error_msg
             )
 
             self.assertEqual(result.status, JobStatus.FAILED.value)
@@ -314,7 +314,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         db_session = FakeDatabaseSession()
 
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
-            result = await JobCRUD.update_job_status(db_session, 1, JobStatus.RUNNING)
+            result = await JobCRUD.update_job_status(db_session, "test-job-id-1", JobStatus.RUNNING)
 
             # Should not overwrite existing started_at
             self.assertEqual(result.started_at, existing_time)

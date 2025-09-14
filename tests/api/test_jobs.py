@@ -53,7 +53,7 @@ class TestJobEndpoints:
 
     def test_get_job_not_found(self, client: TestClient):
         """Test job retrieval with non-existent ID."""
-        response = client.get("/jobs/99999")
+        response = client.get("/jobs/nonexistent-job-id")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_list_jobs_empty(self, client: TestClient):
@@ -128,7 +128,7 @@ class TestJobEndpoints:
         update_data = {
             "priority": "high",
             "max_retries": 5,
-            "converter_config": {"new_setting": True},
+            "options": {"new_setting": True},  # Use 'options' not 'converter_config'
         }
 
         response = client.put(f"/jobs/{sample_job.id}", json=update_data)
@@ -138,13 +138,13 @@ class TestJobEndpoints:
 
         assert data["priority"] == "high"
         assert data["max_retries"] == 5
-        assert data["converter_config"] == {"new_setting": True}
+        assert data["options"] == {"new_setting": True}
 
     def test_update_job_not_found(self, client: TestClient):
         """Test job update with non-existent ID."""
         update_data = {"priority": "high"}
 
-        response = client.put("/jobs/99999", json=update_data)
+        response = client.put("/jobs/nonexistent-job-id", json=update_data)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_delete_job_success(self, client: TestClient, sample_job: ScrapingJob):
@@ -158,7 +158,7 @@ class TestJobEndpoints:
 
     def test_delete_job_not_found(self, client: TestClient):
         """Test job deletion with non-existent ID."""
-        response = client.delete("/jobs/99999")
+        response = client.delete("/jobs/nonexistent-job-id")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_start_job_success(self, client: TestClient, sample_job: ScrapingJob):
@@ -208,7 +208,7 @@ class TestJobEndpoints:
             url="https://example.com/failed-page",
             domain="example.com",
             slug="failed-page",
-            status=JobStatus.FAILED,
+            status=JobStatus.FAILED.value,  # Use string value
             retry_count=0,
             max_retries=3,
             error_message="Test error",
