@@ -21,6 +21,7 @@ def sample_job():
     """Sample ScrapingJob instance with all required fields."""
     return ScrapingJob(
         id=1,
+        source_url="https://example.com/test",  # Required field
         url="https://example.com/test",
         domain="example.com",
         slug="test",

@@ -42,6 +42,7 @@ class JobCRUD:
             output_directory = f"converted_content/{domain}_{slug}"
 
         job = ScrapingJob(
+            source_url=str(job_data.url),  # Required field
             url=str(job_data.url),
             domain=domain,
             slug=slug,

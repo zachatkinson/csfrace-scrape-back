@@ -103,6 +103,7 @@ async def async_client(override_get_db) -> AsyncGenerator[AsyncClient]:
 async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
     """Create a sample scraping job for testing."""
     job = ScrapingJob(
+        source_url="https://example.com/test-page",  # Required field
         url="https://example.com/test-page",
         domain="example.com",
         slug="test-page",
@@ -111,7 +112,7 @@ async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
         max_retries=3,
         timeout_seconds=30,
         skip_existing=False,
-        output_directory="converted_content/example.com_test-page",  # Required field
+        output_directory="converted_content/example.com_test-page",
     )
     test_db_session.add(job)
     await test_db_session.commit()
