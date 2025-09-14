@@ -97,9 +97,18 @@ def get_database_url() -> str:
     # Fallback: build from individual environment variables
     host = os.getenv("DATABASE_HOST", "localhost")
     port = os.getenv("DATABASE_PORT", "5432")
-    database = os.getenv("DATABASE_NAME", "scraper_db")
-    username = os.getenv("DATABASE_USER", "scraper_user")
-    password = os.getenv("DATABASE_PASSWORD", "scraper_password")
+
+    # Use test-appropriate defaults when in test environment
+    is_testing = os.getenv("TESTING", "false").lower() == "true"
+    if is_testing:
+        database = os.getenv("DATABASE_NAME", "scraper_db")  # Match testcontainer
+        username = os.getenv("DATABASE_USER", "scraper_user")  # Match testcontainer
+        password = os.getenv("DATABASE_PASSWORD", "scraper_password")  # Match testcontainer
+    else:
+        database = os.getenv("DATABASE_NAME", "scraper_db")
+        username = os.getenv("DATABASE_USER", "scraper_user")
+        password = os.getenv("DATABASE_PASSWORD", "scraper_password")
+
     return f"postgresql+psycopg://{username}:{password}@{host}:{port}/{database}"
 
 

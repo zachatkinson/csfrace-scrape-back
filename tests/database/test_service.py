@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from src.common.status import BatchStatus
 from src.core.exceptions import DatabaseError
 from src.database.models import (
     JobPriority,
@@ -64,7 +65,7 @@ class TestDatabaseServiceCore:
         inspector = inspect(db_service_with_session.engine)
         table_names = inspector.get_table_names()
         expected_tables = {
-            "scraping_jobs",
+            "jobs",
             "batches",
             "content_results",
             "job_logs",
@@ -84,7 +85,7 @@ class TestDatabaseServiceCore:
 
         inspector = inspect(db_service_with_session.engine)
         table_names = inspector.get_table_names()
-        assert "scraping_jobs" in table_names
+        assert "jobs" in table_names
 
 
 @pytest.mark.unit
@@ -170,7 +171,7 @@ class TestDatabaseServiceJobOperations:
         assert job.domain == "example.com"
         assert job.slug == "test-post"
         assert job.output_directory == "/tmp/output"
-        assert job.status == JobStatus.PENDING
+        assert job.status_enum == JobStatus.PENDING
 
     def test_create_job_with_custom_fields(self, db_service_with_session):
         """Test job creation with custom domain, slug, and additional fields."""
@@ -329,7 +330,7 @@ class TestDatabaseServiceJobStatusUpdates:
 
         # Verify update
         updated_job = db_service_with_session.get_job(job.id)
-        assert updated_job.status == JobStatus.RUNNING
+        assert updated_job.status_enum == JobStatus.RUNNING
         assert updated_job.started_at is not None
 
     def test_update_job_status_to_completed(self, db_service_with_session):
@@ -346,7 +347,7 @@ class TestDatabaseServiceJobStatusUpdates:
 
         # Verify update
         updated_job = db_service_with_session.get_job(job.id)
-        assert updated_job.status == JobStatus.COMPLETED
+        assert updated_job.status_enum == JobStatus.COMPLETED
         assert updated_job.completed_at is not None
         assert updated_job.duration_seconds == 5.5
 
@@ -367,7 +368,7 @@ class TestDatabaseServiceJobStatusUpdates:
 
         # Verify update
         updated_job = db_service_with_session.get_job(job.id)
-        assert updated_job.status == JobStatus.FAILED
+        assert updated_job.status_enum == JobStatus.FAILED
         assert updated_job.error_message == error_msg
         assert updated_job.completed_at is not None
 
@@ -381,7 +382,7 @@ class TestDatabaseServiceJobStatusUpdates:
         # Verify job exists before updating
         retrieved_job = db_service_with_session.get_job(job.id)
         assert retrieved_job is not None
-        assert retrieved_job.status == JobStatus.PENDING
+        assert retrieved_job.status_enum == JobStatus.PENDING
 
         # Update status
         success = db_service_with_session.update_job_status(job.id, JobStatus.CANCELLED)
@@ -390,7 +391,7 @@ class TestDatabaseServiceJobStatusUpdates:
         # Verify the update
         updated_job = db_service_with_session.get_job(job.id)
         assert updated_job is not None
-        assert updated_job.status == JobStatus.CANCELLED
+        assert updated_job.status_enum == JobStatus.CANCELLED
         assert updated_job.completed_at is not None
 
     def test_update_job_status_nonexistent(self, db_service_with_session):
@@ -765,7 +766,7 @@ class TestDatabaseServiceBatchOperations:
         assert batch.name == "Test Batch"
         assert batch.description == "A comprehensive test batch"
         assert batch.output_base_directory == "/tmp/batch_output"
-        assert batch.status == JobStatus.PENDING
+        assert batch.status == BatchStatus.PENDING.value
         assert batch.max_concurrent == 5
         assert batch.continue_on_error is False
 
@@ -1170,11 +1171,11 @@ class TestDatabaseServiceCleanupOperations:
 
         # Verify old job was marked as cancelled (soft delete)
         updated_old_job = db_service_with_session.get_job(old_job.id)
-        assert updated_old_job.status == JobStatus.CANCELLED
+        assert updated_old_job.status_enum == JobStatus.CANCELLED
 
         # Recent job should remain completed
         updated_recent_job = db_service_with_session.get_job(recent_job.id)
-        assert updated_recent_job.status == JobStatus.COMPLETED
+        assert updated_recent_job.status_enum == JobStatus.COMPLETED
 
     def test_cleanup_old_jobs_mixed_statuses(self, db_service_with_session):
         """Test cleanup with various job statuses."""
@@ -1216,10 +1217,10 @@ class TestDatabaseServiceCleanupOperations:
         assert deleted_count == 2
 
         # Verify statuses
-        assert db_service_with_session.get_job(old_completed.id).status == JobStatus.CANCELLED
-        assert db_service_with_session.get_job(old_failed.id).status == JobStatus.CANCELLED
+        assert db_service_with_session.get_job(old_completed.id).status_enum == JobStatus.CANCELLED
+        assert db_service_with_session.get_job(old_failed.id).status_enum == JobStatus.CANCELLED
         assert (
-            db_service_with_session.get_job(old_pending.id).status == JobStatus.PENDING
+            db_service_with_session.get_job(old_pending.id).status_enum == JobStatus.PENDING
         )  # Unchanged
 
     def test_cleanup_old_jobs_no_old_jobs(self, db_service_with_session):
@@ -1235,7 +1236,7 @@ class TestDatabaseServiceCleanupOperations:
         assert deleted_count == 0
 
         # Job should remain unchanged
-        assert db_service_with_session.get_job(job.id).status == JobStatus.COMPLETED
+        assert db_service_with_session.get_job(job.id).status_enum == JobStatus.COMPLETED
 
 
 @pytest.mark.unit

@@ -480,7 +480,7 @@ class TestModelConstraintsAndValidation:
             url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
-            converter_config=test_config,
+            options=test_config,  # Use the correct field name from the model
         )
         with testcontainers_db_service.get_session() as session:
             session.add(job)
@@ -488,9 +488,9 @@ class TestModelConstraintsAndValidation:
 
             # Retrieve and verify JSON data
             session.refresh(job)
-            assert job.converter_config == test_config
-            assert job.converter_config["max_concurrent_downloads"] == 10
-            assert job.converter_config["custom_settings"]["nested"]["value"] is True
+            assert job.options == test_config
+            assert job.options["max_concurrent_downloads"] == 10
+            assert job.options["custom_settings"]["nested"]["value"] is True
 
     def test_foreign_key_constraints(self, testcontainers_db_service):
         """Test foreign key relationships and constraints."""

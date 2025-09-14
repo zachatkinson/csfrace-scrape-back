@@ -5,10 +5,10 @@ from datetime import UTC
 
 import pytest
 from sqlalchemy import Column, DateTime, Integer, String, text
-from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.decl_api import DeclarativeAttributeIntercept
 
-from src.database.base import Base
+from src.database.models import Base
 
 
 class TestDatabaseBase:
@@ -29,8 +29,8 @@ class TestDatabaseBase:
 
     def test_base_is_declarative_base(self):
         """Test that Base is a declarative base."""
-        # Check that Base is created by declarative_base
-        assert isinstance(Base, DeclarativeMeta)
+        # Check that Base is created by DeclarativeBase (SQLAlchemy 2.0)
+        assert isinstance(Base, DeclarativeAttributeIntercept)
 
     def test_base_has_metadata(self):
         """Test that Base has metadata attribute."""
@@ -334,14 +334,18 @@ class TestDatabaseBaseModule:
         # Should have Base attribute
         assert hasattr(base_module, "Base")
 
-        # Should be able to import declarative_base
-        assert hasattr(base_module, "declarative_base")
+        # Base should be the modern SQLAlchemy 2.0 DeclarativeBase
+        from sqlalchemy.orm.decl_api import DeclarativeAttributeIntercept
+
+        from src.database.base import Base
+
+        assert isinstance(Base, DeclarativeAttributeIntercept)
 
     def test_base_is_singleton(self):
         """Test that Base behaves as a singleton across imports."""
         # Import again
         import src.database.base
-        from src.database.base import Base as Base1
+        from src.database.models import Base as Base1
 
         Base2 = src.database.base.Base
 
@@ -358,7 +362,7 @@ class TestDatabaseBaseModule:
     def test_base_import_path(self):
         """Test that Base can be imported from expected path."""
         # Should be able to import Base directly
-        from src.database.base import Base
+        from src.database.models import Base
 
         assert Base is not None
 

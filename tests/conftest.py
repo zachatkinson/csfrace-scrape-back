@@ -102,9 +102,16 @@ def postgres_container():
     Uses GitHub Actions service container in CI, testcontainers locally.
     """
     # Check if running in CI with service container
-    if all(
+    # When running tests locally, prefer testcontainers even if .env has DATABASE vars set
+    is_ci = (
+        os.environ.get("CI", "").lower() == "true"
+        or os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+    )
+    has_database_vars = all(
         env_var in os.environ for env_var in ["DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME"]
-    ):
+    )
+
+    if is_ci and has_database_vars:
         # Use CI service container
         class CIPostgresContainer:
             """Mock container class for CI environment using service containers."""
@@ -130,9 +137,9 @@ def postgres_container():
         # Use testcontainers for local development
         with PostgresContainer(
             image="postgres:17.6",
-            dbname="test_db",
-            username="test_user",
-            password="test_password",
+            dbname="scraper_db",
+            username="scraper_user",
+            password="scraper_password",
             port=5432,
         ) as postgres:
             # Use connection retry instead of sleep for container readiness
@@ -196,13 +203,13 @@ def testcontainers_db_service(
             f"{postgres_container.host}:{postgres_container.port}/{postgres_container.dbname}"
         )
     else:
-        # Testcontainer
-        host = postgres_container.get_container_host_ip()
-        port = postgres_container.get_exposed_port(5432)
-        username = postgres_container.username or "test"
-        password = postgres_container.password or "test"
-        dbname = postgres_container.dbname or "test"
-        db_url = f"postgresql+psycopg://{username}:{password}@{host}:{port}/{dbname}"
+        # Testcontainer - use get_connection_url() which is the official testcontainers API
+        # This automatically handles all credential and connection details
+        raw_url = postgres_container.get_connection_url()
+        # Replace psycopg2 with psycopg (modern driver)
+        db_url = raw_url.replace("postgresql+psycopg2://", "postgresql+psycopg://")
+        if "postgresql://" in db_url and "postgresql+psycopg://" not in db_url:
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg://")
 
     # Clean and initialize schema following SQLAlchemy test suite best practices
     init_engine = create_engine(db_url, echo=False)

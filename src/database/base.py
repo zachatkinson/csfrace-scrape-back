@@ -1,6 +1,7 @@
 """Database base classes and configuration."""
 
-from sqlalchemy.orm import declarative_base
+# Import the modern SQLAlchemy 2.0 DeclarativeBase from models
+# This ensures consistency across the codebase
+from .models import Base
 
-# Base class for all database models
-Base = declarative_base()
+__all__ = ["Base"]
