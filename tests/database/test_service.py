@@ -396,7 +396,9 @@ class TestDatabaseServiceJobStatusUpdates:
 
     def test_update_job_status_nonexistent(self, db_service_with_session):
         """Test updating status of non-existent job."""
-        success = db_service_with_session.update_job_status("nonexistent-job-id", JobStatus.COMPLETED)
+        success = db_service_with_session.update_job_status(
+            "nonexistent-job-id", JobStatus.COMPLETED
+        )
         assert success is False
 
 
