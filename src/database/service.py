@@ -364,7 +364,7 @@ class DatabaseService:
 
                 success = result.rowcount > 0
                 if success:
-                    status_value = status.value if hasattr(status, 'value') else str(status)
+                    status_value = status.value if hasattr(status, "value") else str(status)
                     logger.debug("Updated job status", job_id=job_id, status=status_value)
                 else:
                     logger.warning("Job not found for status update", job_id=job_id)
@@ -449,7 +449,7 @@ class DatabaseService:
                 return list(jobs)
 
         except SQLAlchemyError as e:
-            status_value = status.value if hasattr(status, 'value') else str(status)
+            status_value = status.value if hasattr(status, "value") else str(status)
             logger.error("Failed to retrieve jobs by status", status=status_value, error=str(e))
             raise DatabaseError(f"Jobs retrieval failed: {e}") from e
 
@@ -588,12 +588,8 @@ class DatabaseService:
                     func.sum(case((ScrapingJob.status == "completed", 1), else_=0)).label(
                         "completed"
                     ),
-                    func.sum(case((ScrapingJob.status == "failed", 1), else_=0)).label(
-                        "failed"
-                    ),
-                    func.sum(case((ScrapingJob.status == "skipped", 1), else_=0)).label(
-                        "skipped"
-                    ),
+                    func.sum(case((ScrapingJob.status == "failed", 1), else_=0)).label("failed"),
+                    func.sum(case((ScrapingJob.status == "skipped", 1), else_=0)).label("skipped"),
                 ).where(ScrapingJob.batch_id == batch_id)
 
                 counts = session.execute(counts_stmt).one()

@@ -68,9 +68,9 @@ class TestRenderingPerformanceBenchmarks:
         memory_increase_mb = memory_increase / (1024 * 1024)
 
         # Memory increase should be reasonable for 200 analyses
-        assert (
-            memory_increase_mb < 100
-        ), f"Memory increased by {memory_increase_mb:.2f}MB - potential leak"
+        assert memory_increase_mb < 100, (
+            f"Memory increased by {memory_increase_mb:.2f}MB - potential leak"
+        )
 
     @pytest.mark.benchmark(group="pool_exhaustion")
     def test_browser_pool_exhaustion_scenarios(self):
@@ -476,9 +476,9 @@ class TestMemoryLeakDetection:
         memory_after_cleanup = (final_memory - initial_memory) / (1024 * 1024)  # MB
 
         # Relaxed memory increase check - just ensure it doesn't explode
-        assert (
-            memory_increase < 200
-        ), f"Memory increased by {memory_increase:.2f}MB for 100 detections - possible leak"
+        assert memory_increase < 200, (
+            f"Memory increased by {memory_increase:.2f}MB for 100 detections - possible leak"
+        )
         # Skip cleanup assertion as it's too flaky - just log the values
         print(
             f"Memory usage: {memory_increase:.2f}MB peak, {memory_after_cleanup:.2f}MB after cleanup"

@@ -8,8 +8,11 @@ import asyncio
 from sqlalchemy import text
 
 # Set required environment variables
-os.environ.setdefault('SECRET_KEY', 'b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900')
-os.environ.setdefault('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/csfrace_dev')
+os.environ.setdefault(
+    "SECRET_KEY", "b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900"
+)
+os.environ.setdefault("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/csfrace_dev")
+
 
 async def debug_health():
     """Debug health check components."""
@@ -47,6 +50,7 @@ async def debug_health():
         print("\n💾 Testing cache status...")
         try:
             from src.caching.manager import cache_manager
+
             if cache_manager:
                 await cache_manager.initialize()
                 print("✅ Cache manager initialized")
@@ -70,6 +74,7 @@ async def debug_health():
     except Exception as e:
         print(f"💥 Debug failed: {e}")
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(debug_health())

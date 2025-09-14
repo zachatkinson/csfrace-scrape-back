@@ -28,7 +28,7 @@ class TestHealthEvent:
             status="healthy",
             timestamp=datetime.now(UTC),
             message="Database is healthy",
-            data={"response_time_ms": 5}
+            data={"response_time_ms": 5},
         )
 
         assert event.service_name == "database"
@@ -46,7 +46,7 @@ class TestHealthEvent:
             status="healthy",
             timestamp=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             message="Cache recovered",
-            data={"recovery_time": 30}
+            data={"recovery_time": 30},
         )
 
         # Convert to dict
@@ -74,16 +74,8 @@ class TestHealthStateManager:
             "status": "healthy",
             "timestamp": datetime.now(UTC),
             "version": "1.0.0",
-            "database": {
-                "status": "healthy",
-                "connected": True,
-                "response_time_ms": 5
-            },
-            "cache": {
-                "status": "healthy",
-                "connected": True,
-                "response_time_ms": 2
-            }
+            "database": {"status": "healthy", "connected": True, "response_time_ms": 5},
+            "cache": {"status": "healthy", "connected": True, "response_time_ms": 2},
         }
 
         events = manager.detect_changes(health_data)
@@ -103,7 +95,7 @@ class TestHealthStateManager:
         initial_health = {
             "status": "healthy",
             "timestamp": datetime.now(UTC),
-            "database": {"status": "healthy", "connected": True}
+            "database": {"status": "healthy", "connected": True},
         }
         manager.detect_changes(initial_health)
 
@@ -111,7 +103,7 @@ class TestHealthStateManager:
         changed_health = {
             "status": "healthy",
             "timestamp": datetime.now(UTC),
-            "database": {"status": "unhealthy", "connected": False}
+            "database": {"status": "unhealthy", "connected": False},
         }
         events = manager.detect_changes(changed_health)
 
@@ -128,7 +120,7 @@ class TestHealthStateManager:
         health_data = {
             "status": "healthy",
             "timestamp": datetime.now(UTC),
-            "database": {"status": "healthy", "connected": True}
+            "database": {"status": "healthy", "connected": True},
         }
 
         # First call - should generate events
@@ -147,7 +139,7 @@ class TestHealthStateManager:
         unhealthy_health = {
             "status": "unhealthy",
             "timestamp": datetime.now(UTC),
-            "database": {"status": "unhealthy", "connected": False}
+            "database": {"status": "unhealthy", "connected": False},
         }
         manager.detect_changes(unhealthy_health)
 
@@ -155,7 +147,7 @@ class TestHealthStateManager:
         healthy_health = {
             "status": "healthy",
             "timestamp": datetime.now(UTC),
-            "database": {"status": "healthy", "connected": True}
+            "database": {"status": "healthy", "connected": True},
         }
         events = manager.detect_changes(healthy_health)
 
@@ -186,7 +178,7 @@ class TestHealthEventPublisher:
             service_name="test",
             status="healthy",
             timestamp=datetime.now(UTC),
-            message="Test event"
+            message="Test event",
         )
 
         result = await publisher.publish_event(event)
@@ -215,15 +207,15 @@ class TestHealthEventPublisher:
                 service_name="service1",
                 status="healthy",
                 timestamp=datetime.now(UTC),
-                message="Service 1 event"
+                message="Service 1 event",
             ),
             HealthEvent(
                 event_type=HealthEventType.SERVICE_STATUS_CHANGE,
                 service_name="service2",
                 status="unhealthy",
                 timestamp=datetime.now(UTC),
-                message="Service 2 event"
-            )
+                message="Service 2 event",
+            ),
         ]
 
         result = await publisher.publish_multiple(events)
@@ -248,13 +240,10 @@ class TestHealthEventSubscriber:
             service_name="test",
             status="healthy",
             timestamp=datetime.now(UTC),
-            message="Test message"
+            message="Test message",
         )
 
-        mock_message = {
-            "type": "message",
-            "data": json.dumps(test_event.to_dict()).encode('utf-8')
-        }
+        mock_message = {"type": "message", "data": json.dumps(test_event.to_dict()).encode("utf-8")}
 
         async def mock_listen():
             yield mock_message
@@ -285,9 +274,10 @@ async def test_initialize_health_events():
     """Test health event system initialization."""
     mock_redis = AsyncMock()
 
-    with patch('src.monitoring.health_events.health_event_publisher') as mock_publisher, \
-         patch('src.monitoring.health_events.health_event_subscriber') as mock_subscriber:
-
+    with (
+        patch("src.monitoring.health_events.health_event_publisher") as mock_publisher,
+        patch("src.monitoring.health_events.health_event_subscriber") as mock_subscriber,
+    ):
         await initialize_health_events(mock_redis)
 
         # Verify initialization was called
@@ -302,16 +292,17 @@ async def test_publish_health_change_events_integration():
         "status": "healthy",
         "timestamp": datetime.now(UTC),
         "database": {"status": "healthy", "connected": True},
-        "cache": {"status": "healthy", "connected": True}
+        "cache": {"status": "healthy", "connected": True},
     }
 
-    with patch('src.monitoring.health_events.health_event_publisher') as mock_publisher:
+    with patch("src.monitoring.health_events.health_event_publisher") as mock_publisher:
         mock_publisher_instance = AsyncMock()
         mock_publisher_instance.publish_multiple.return_value = 2
         mock_publisher.return_value = mock_publisher_instance
 
         # Mock the global publisher
         import src.monitoring.health_events
+
         src.monitoring.health_events.health_event_publisher = mock_publisher_instance
 
         await publish_health_change_events(health_data)

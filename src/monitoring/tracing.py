@@ -224,7 +224,9 @@ class DistributedTracer:
                 )
                 raise
 
-    def trace_function(self, operation_name: str, attributes: dict[str, Any] | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def trace_function(
+        self, operation_name: str, attributes: dict[str, Any] | None = None
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Decorator for tracing synchronous functions.
 
         Args:
@@ -266,7 +268,9 @@ class DistributedTracer:
 
         return decorator
 
-    def trace_async_function(self, operation_name: str, attributes: dict[str, Any] | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def trace_async_function(
+        self, operation_name: str, attributes: dict[str, Any] | None = None
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Decorator for tracing asynchronous functions.
 
         Args:

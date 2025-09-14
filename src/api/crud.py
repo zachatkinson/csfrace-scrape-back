@@ -189,7 +189,7 @@ class JobCRUD:
         if not job:
             return None
 
-        job.status = status.value if hasattr(status, 'value') else str(status)
+        job.status = status.value if hasattr(status, "value") else str(status)
         if error_message:
             job.error_message = error_message
         if error_type:

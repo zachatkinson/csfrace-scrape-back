@@ -167,7 +167,9 @@ class HealthChecker:
 
         return results
 
-    async def _run_single_check(self, name: str, check_func: Callable[[], Any]) -> HealthCheckResult:
+    async def _run_single_check(
+        self, name: str, check_func: Callable[[], Any]
+    ) -> HealthCheckResult:
         """Run a single health check with timeout.
 
         Args:

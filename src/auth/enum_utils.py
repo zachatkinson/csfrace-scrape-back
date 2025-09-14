@@ -10,7 +10,7 @@ from typing import TypeVar
 from .models import OAuthProvider
 
 # Generic type for enum handling - Interface Segregation Principle
-T = TypeVar('T', bound=Enum)
+T = TypeVar("T", bound=Enum)
 
 
 class EnumHandler:
@@ -53,7 +53,7 @@ class EnumHandler:
         Returns:
             String representation of the enum value
         """
-        if hasattr(enum_or_string, 'value'):
+        if hasattr(enum_or_string, "value"):
             return enum_or_string.value
         return str(enum_or_string)
 

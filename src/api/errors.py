@@ -387,9 +387,6 @@ def create_global_exception_handler() -> Callable[[Any, Exception], Any]:
         http_exception = APIErrorFactory.internal_server_error(
             "An unexpected error occurred", original_error=exc
         )
-        return JSONResponse(
-            status_code=http_exception.status_code,
-            content=http_exception.detail
-        )
+        return JSONResponse(status_code=http_exception.status_code, content=http_exception.detail)
 
     return global_exception_handler

@@ -367,14 +367,18 @@ def _validate_oauth_callback_parameters(
 
     # Step 3: Validate required OAuth callback parameters
     if not oauth_callback.code:
-        logger.warning("OAuth callback missing authorization code", provider=get_oauth_provider_value(provider))
+        logger.warning(
+            "OAuth callback missing authorization code", provider=get_oauth_provider_value(provider)
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing authorization code in OAuth callback",
         )
 
     if not oauth_callback.state:
-        logger.warning("OAuth callback missing state parameter", provider=get_oauth_provider_value(provider))
+        logger.warning(
+            "OAuth callback missing state parameter", provider=get_oauth_provider_value(provider)
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing state parameter in OAuth callback",
@@ -386,7 +390,9 @@ async def _process_oauth_token_exchange(
 ) -> tuple[str, bool]:
     """Process OAuth token exchange and return access token."""
     # Build redirect URI for token exchange (must match the one used in authorization)
-    redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{get_oauth_provider_value(provider)}/callback"
+    redirect_uri = (
+        f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{get_oauth_provider_value(provider)}/callback"
+    )
 
     # Handle OAuth callback and get user information
     return await oauth_service.handle_oauth_callback(
@@ -499,7 +505,11 @@ async def handle_oauth_callback(
         raise
     except ValueError as e:
         # Handle validation errors from OAuth service
-        logger.warning("OAuth callback validation error", provider=get_oauth_provider_value(provider), error=str(e))
+        logger.warning(
+            "OAuth callback validation error",
+            provider=get_oauth_provider_value(provider),
+            error=str(e),
+        )
         raise APIErrorFactory.business_logic_error(
             f"OAuth validation failed: {str(e)}", "OAUTH_VALIDATION_FAILED"
         ) from e

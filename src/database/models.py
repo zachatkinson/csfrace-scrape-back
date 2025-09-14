@@ -56,7 +56,6 @@ class Base(DeclarativeBase):
     """Base class for all database models."""
 
 
-
 class ScrapingJob(Base):
     """Model for individual scraping jobs.
 
@@ -103,7 +102,7 @@ class ScrapingJob(Base):
 
     # Additional timing fields expected by tests
     start_time: Mapped[float | None] = mapped_column()  # Unix timestamp
-    end_time: Mapped[float | None] = mapped_column()    # Unix timestamp
+    end_time: Mapped[float | None] = mapped_column()  # Unix timestamp
 
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -112,7 +111,9 @@ class ScrapingJob(Base):
 
     # Configuration and metadata
     options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
-    job_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, server_default="{}")
+    job_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata", JSON, server_default="{}"
+    )
 
     # Results and errors
     error_message: Mapped[str | None] = mapped_column(Text)
@@ -126,7 +127,6 @@ class ScrapingJob(Base):
     download_size_bytes: Mapped[int | None] = mapped_column(Integer)
     output_size_bytes: Mapped[int | None] = mapped_column(Integer)
     content_size_bytes: Mapped[int | None] = mapped_column(Integer)
-
 
     # Relationships
     batch_id: Mapped[str | None] = mapped_column(
@@ -143,7 +143,9 @@ class ScrapingJob(Base):
 
     def __repr__(self) -> str:
         """String representation of the job."""
-        return f"<ScrapingJob(id={self.id}, source_url='{self.source_url}', status='{self.status}')>"
+        return (
+            f"<ScrapingJob(id={self.id}, source_url='{self.source_url}', status='{self.status}')>"
+        )
 
     @property
     def is_finished(self) -> bool:

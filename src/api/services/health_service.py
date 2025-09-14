@@ -78,6 +78,7 @@ class HealthService:
         # Publish health change events to Redis pub/sub for real-time monitoring
         try:
             from ...monitoring.health_events import publish_health_change_events
+
             await publish_health_change_events(response)
         except Exception as e:
             self.logger.warning("Failed to publish health change events", error=str(e))

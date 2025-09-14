@@ -22,6 +22,7 @@ logger = structlog.get_logger(__name__)
 
 class HealthEventType(Enum):
     """Health event types."""
+
     SERVICE_STATUS_CHANGE = "service_status_change"
     SERVICE_ERROR = "service_error"
     SERVICE_RECOVERY = "service_recovery"
@@ -31,6 +32,7 @@ class HealthEventType(Enum):
 @dataclass
 class HealthEvent:
     """Health event data structure."""
+
     event_type: HealthEventType
     service_name: str
     status: str
@@ -101,7 +103,9 @@ class HealthStateManager:
 
                 # Detect status changes
                 if self._has_status_changed(previous_status, current_status):
-                    event = self._create_status_change_event(service, previous_status, current_status)
+                    event = self._create_status_change_event(
+                        service, previous_status, current_status
+                    )
                     events.append(event)
                     self._logger.info(
                         "Health status change detected",
@@ -141,8 +145,11 @@ class HealthStateManager:
             return True
 
         # Check connection status change (for database/cache)
-        if ("connected" in previous and "connected" in current and
-            previous["connected"] != current["connected"]):
+        if (
+            "connected" in previous
+            and "connected" in current
+            and previous["connected"] != current["connected"]
+        ):
             return True
 
         # Check significant response time changes (>50% increase/decrease)
@@ -156,10 +163,7 @@ class HealthStateManager:
         return False
 
     def _create_status_change_event(
-        self,
-        service: str,
-        previous: dict[str, Any],
-        current: dict[str, Any]
+        self, service: str, previous: dict[str, Any], current: dict[str, Any]
     ) -> HealthEvent:
         """Create a health event for status change."""
         old_status = previous.get("status", "unknown")
@@ -186,7 +190,7 @@ class HealthStateManager:
                 "previous_status": previous,
                 "current_status": current,
                 "change_detected_at": datetime.now(UTC).isoformat(),
-            }
+            },
         )
 
 
@@ -307,7 +311,7 @@ class HealthEventSubscriber:
     async def _handle_message(self, message_data: bytes) -> None:
         """Handle incoming health event message."""
         try:
-            event_dict = json.loads(message_data.decode('utf-8'))
+            event_dict = json.loads(message_data.decode("utf-8"))
             event = HealthEvent.from_dict(event_dict)
 
             # Notify all subscribers
@@ -353,4 +357,3 @@ async def publish_health_change_events(current_health: dict[str, Any]) -> None:
     # Publish events
     if events:
         await health_event_publisher.publish_multiple(events)
-

@@ -273,7 +273,11 @@ async def cancel_job(job_id: str, db: DBSession) -> JobResponse:
         if not job:
             raise APIErrorFactory.not_found("Job", job_id)
 
-        if job.status in {JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}:
+        if job.status in {
+            JobStatus.COMPLETED.value,
+            JobStatus.FAILED.value,
+            JobStatus.CANCELLED.value,
+        }:
             raise APIErrorFactory.business_logic_error(
                 f"Job {job_id} cannot be cancelled (current status: {job.status})",
                 "INVALID_STATUS_TRANSITION",

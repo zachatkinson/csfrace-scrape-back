@@ -1,5 +1,6 @@
 """Shared fixtures and test configuration for pytest."""
 
+# Standard library imports
 import importlib.util
 import logging
 import os
@@ -10,13 +11,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-# CRITICAL: Load .env file before any imports to prevent auth config validation errors
-from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
-
-# Set testing environment flag
-os.environ.setdefault("TESTING", "true")
-
+# Third-party imports
 import aiohttp
 import asyncio
 import psycopg
@@ -25,11 +20,13 @@ import pytest_asyncio
 import structlog
 from aioresponses import aioresponses
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
 
+# Local imports
 from src import __version__
 from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
@@ -38,6 +35,11 @@ from src.constants import TEST_CONSTANTS
 from src.database.models import Base, JobPriority, JobStatus
 from src.database.service import DatabaseService
 from src.plugins.base import PluginConfig, PluginType
+
+# CRITICAL: Load .env file and configure environment AFTER imports to satisfy ruff E402
+# but BEFORE any module initialization that depends on environment variables
+load_dotenv()  # Load environment variables from .env file
+os.environ.setdefault("TESTING", "true")
 
 # CRITICAL: Configure structlog IMMEDIATELY after imports to prevent warnings
 # This prevents modules from caching loggers with default configuration
@@ -263,32 +265,24 @@ def testcontainers_db_service(
 
 
 @pytest.fixture
-def db_service_with_session(
-    testcontainers_db_service, db_session
-):  # pylint: disable=redefined-outer-name
+def db_service_with_session(testcontainers_db_service, db_session):  # pylint: disable=redefined-outer-name
     """DatabaseService that uses the transactional test session.
 
     This ensures that all database operations through the service
     are rolled back after each test, preventing data bleeding.
     """
     # Replace the service's session factory to use our test session
-    original_factory = (
-        testcontainers_db_service._session_factory
-    )  # pylint: disable=protected-access
+    original_factory = testcontainers_db_service._session_factory  # pylint: disable=protected-access
 
     def test_session_factory():
         return db_session
 
-    testcontainers_db_service._session_factory = (
-        test_session_factory  # pylint: disable=protected-access
-    )
+    testcontainers_db_service._session_factory = test_session_factory  # pylint: disable=protected-access
 
     yield testcontainers_db_service
 
     # Restore original factory (though fixture cleanup will handle it)
-    testcontainers_db_service._session_factory = (
-        original_factory  # pylint: disable=protected-access
-    )
+    testcontainers_db_service._session_factory = original_factory  # pylint: disable=protected-access
 
 
 @pytest.fixture
@@ -543,9 +537,9 @@ def assert_enum_values(enum_class, expected_values):
     """
     for member_name, expected_value in expected_values.items():
         enum_member = getattr(enum_class, member_name)
-        assert (
-            enum_member.value == expected_value
-        ), f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
+        assert enum_member.value == expected_value, (
+            f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
+        )
 
 
 # Skip tests if dependencies not available

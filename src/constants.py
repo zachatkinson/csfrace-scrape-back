@@ -254,7 +254,9 @@ OAUTH_MICROSOFT_CLIENT_SECRET: str = EnvironmentLoader.get_optional(
     "OAUTH_MICROSOFT_CLIENT_SECRET", ""
 )
 OAUTH_FACEBOOK_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_FACEBOOK_CLIENT_ID", "")
-OAUTH_FACEBOOK_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_FACEBOOK_CLIENT_SECRET", "")
+OAUTH_FACEBOOK_CLIENT_SECRET: str = EnvironmentLoader.get_optional(
+    "OAUTH_FACEBOOK_CLIENT_SECRET", ""
+)
 OAUTH_APPLE_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_APPLE_CLIENT_ID", "")
 OAUTH_APPLE_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_APPLE_CLIENT_SECRET", "")
 
@@ -278,9 +280,7 @@ GITHUB_SCOPES: list[str] = ["user:email"]
 
 # Microsoft OAuth2 Configuration
 MICROSOFT_AUTHORIZATION_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-MICROSOFT_TOKEN_URL: str = (
-    "https://login.microsoftonline.com/common/oauth2/v2.0/token"  # noqa: S105
-)
+MICROSOFT_TOKEN_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0/token"  # noqa: S105
 MICROSOFT_USER_INFO_URL: str = "https://graph.microsoft.com/v1.0/me"
 MICROSOFT_SCOPES: list[str] = ["openid", "profile", "email", "User.Read"]
 

@@ -116,7 +116,7 @@ def test_database_connection() -> bool:
 
     try:
         database_url = get_database_url()
-        logger.info("Testing database connection", database_url=database_url.split('@')[0] + '@***')
+        logger.info("Testing database connection", database_url=database_url.split("@")[0] + "@***")
 
         engine = create_engine(database_url)
         with engine.connect() as connection:

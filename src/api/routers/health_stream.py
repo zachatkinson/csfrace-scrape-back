@@ -53,9 +53,9 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
 
         # Send initial connection message
         connection_data = {
-            'type': 'connection',
-            'message': 'Real-time health monitoring connected',
-            'timestamp': '2023-01-01T00:00:00Z'
+            "type": "connection",
+            "message": "Real-time health monitoring connected",
+            "timestamp": "2023-01-01T00:00:00Z",
         }
         yield f"event: connection\ndata: {json.dumps(connection_data)}\n\n"
 
@@ -64,40 +64,46 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             current_health = await health_service.get_comprehensive_health_status(db)
 
             # Send initial service status events
-            services = ['frontend', 'backend', 'database', 'cache']
+            services = ["frontend", "backend", "database", "cache"]
 
             for service_name in services:
-                if service_name == 'frontend':
+                if service_name == "frontend":
                     service_data = {
-                        'service': 'frontend',
-                        'status': 'healthy',
-                        'timestamp': current_health['timestamp'].isoformat() if hasattr(current_health['timestamp'], 'isoformat') else str(current_health['timestamp']),
-                        'data': {
-                            'version': '5.13.7',
-                            'port': '3000',
-                            'framework': 'Astro + React + TypeScript',
-                            'response_time_ms': 0,
-                        }
+                        "service": "frontend",
+                        "status": "healthy",
+                        "timestamp": current_health["timestamp"].isoformat()
+                        if hasattr(current_health["timestamp"], "isoformat")
+                        else str(current_health["timestamp"]),
+                        "data": {
+                            "version": "5.13.7",
+                            "port": "3000",
+                            "framework": "Astro + React + TypeScript",
+                            "response_time_ms": 0,
+                        },
                     }
-                elif service_name == 'backend':
+                elif service_name == "backend":
                     service_data = {
-                        'service': 'backend',
-                        'status': current_health['status'],
-                        'timestamp': current_health['timestamp'].isoformat() if hasattr(current_health['timestamp'], 'isoformat') else str(current_health['timestamp']),
-                        'data': {
-                            'version': current_health['version'],
-                            'framework': 'FastAPI + Python 3.13',
-                            'port': '8000',
-                            'response_time_ms': 1,
-                        }
+                        "service": "backend",
+                        "status": current_health["status"],
+                        "timestamp": current_health["timestamp"].isoformat()
+                        if hasattr(current_health["timestamp"], "isoformat")
+                        else str(current_health["timestamp"]),
+                        "data": {
+                            "version": current_health["version"],
+                            "framework": "FastAPI + Python 3.13",
+                            "port": "8000",
+                            "response_time_ms": 1,
+                        },
                     }
                 elif service_name in current_health:
                     service_info = current_health[service_name]
                     service_data = {
-                        'service': service_name,
-                        'status': service_info.get('status', 'unknown'),
-                        'timestamp': current_health['timestamp'].isoformat() if hasattr(current_health['timestamp'], 'isoformat') else str(current_health['timestamp']),
-                        'data': service_info
+                        "service": service_name,
+                        "status": service_info.get("status", "unknown"),
+                        "timestamp": current_health["timestamp"].isoformat()
+                        if hasattr(current_health["timestamp"], "isoformat")
+                        else str(current_health["timestamp"]),
+                        "data": service_info,
                     }
                 else:
                     continue
@@ -116,17 +122,21 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             try:
                 # Convert health event to service update format
                 service_update = {
-                    'service': event.service_name,
-                    'status': event.status,
-                    'timestamp': event.timestamp.isoformat(),
-                    'data': event.data.get('current_status', {}),
-                    'message': event.message,
-                    'event_type': event.event_type.value,
+                    "service": event.service_name,
+                    "status": event.status,
+                    "timestamp": event.timestamp.isoformat(),
+                    "data": event.data.get("current_status", {}),
+                    "message": event.message,
+                    "event_type": event.event_type.value,
                 }
                 await event_queue.put(service_update)
 
             except Exception as e:
-                logger.error("Failed to process health event", event_id=getattr(event, 'event_id', 'unknown'), error=str(e))
+                logger.error(
+                    "Failed to process health event",
+                    event_id=getattr(event, "event_id", "unknown"),
+                    error=str(e),
+                )
 
         # Subscribe to health events
         if health_event_subscriber:
@@ -169,7 +179,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             "Connection": "keep-alive",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "Cache-Control",
-        }
+        },
     )
 
 
@@ -195,12 +205,9 @@ async def trigger_health_check(db: DBSession):
         return {
             "message": "Health check triggered successfully",
             "health": current_health,
-            "timestamp": current_health.get('timestamp')
+            "timestamp": current_health.get("timestamp"),
         }
 
     except Exception as e:
         logger.error("Failed to trigger health check", error=str(e))
-        return {
-            "error": str(e),
-            "message": "Failed to trigger health check"
-        }
+        return {"error": str(e), "message": "Failed to trigger health check"}

@@ -585,7 +585,11 @@ class OAuthService:
         # Check if state exists in cache
         cached_state = self._oauth_state_cache.get(state)
         if not cached_state:
-            logger.warning("Invalid OAuth state parameter", state=state, provider=get_oauth_provider_value(provider))
+            logger.warning(
+                "Invalid OAuth state parameter",
+                state=state,
+                provider=get_oauth_provider_value(provider),
+            )
             raise ValueError("Invalid or expired state parameter")
 
         # Validate provider matches
@@ -600,7 +604,11 @@ class OAuthService:
         # Check expiration (states should expire after 10 minutes)
         state_created = cached_state.get("created_at", 0)
         if time.time() - state_created > 600:  # 10 minutes
-            logger.warning("Expired OAuth state parameter", state=state, provider=get_oauth_provider_value(provider))
+            logger.warning(
+                "Expired OAuth state parameter",
+                state=state,
+                provider=get_oauth_provider_value(provider),
+            )
             # Clean up expired state
             self._oauth_state_cache.pop(state, None)
             raise ValueError("Expired state parameter")
@@ -608,7 +616,11 @@ class OAuthService:
         # Clean up used state (one-time use)
         self._oauth_state_cache.pop(state, None)
 
-        logger.debug("OAuth state validation successful", state=state, provider=get_oauth_provider_value(provider))
+        logger.debug(
+            "OAuth state validation successful",
+            state=state,
+            provider=get_oauth_provider_value(provider),
+        )
 
     def _store_oauth_state(self, state: str, provider: OAuthProvider, redirect_uri: str) -> None:
         """Store OAuth state for validation.
@@ -637,9 +649,7 @@ class OAuthService:
 
         logger.debug("OAuth state stored", state=state, provider=get_oauth_provider_value(provider))
 
-    async def get_cached_user_info(
-        self, access_token: str
-    ) -> OAuthUserInfo:  # pylint: disable=unused-argument
+    async def get_cached_user_info(self, access_token: str) -> OAuthUserInfo:  # pylint: disable=unused-argument
         """Get OAuth user information using the access token.
 
         This method fetches fresh user information from the OAuth provider

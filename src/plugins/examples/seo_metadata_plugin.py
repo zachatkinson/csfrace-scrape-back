@@ -89,9 +89,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         return metadata
 
-    def _extract_open_graph(
-        self, soup: BeautifulSoup, url: str
-    ) -> dict[str, Any]:  # pylint: disable=unused-argument
+    def _extract_open_graph(self, soup: BeautifulSoup, url: str) -> dict[str, Any]:  # pylint: disable=unused-argument
         """Extract Open Graph metadata."""
         og_metadata = {}
 
@@ -160,9 +158,7 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         return {"schema_org": schema_data} if schema_data else {}
 
-    def _extract_seo_signals(
-        self, soup: BeautifulSoup
-    ) -> dict[str, Any]:  # pylint: disable=too-many-locals
+    def _extract_seo_signals(self, soup: BeautifulSoup) -> dict[str, Any]:  # pylint: disable=too-many-locals
         """Extract additional SEO signals."""
         signals: dict[str, Any] = {}
 

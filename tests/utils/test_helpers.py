@@ -405,7 +405,7 @@ def extract_urls_from_html(html: str) -> list[str]:
                 attr_value = element.get(attr)
                 if attr_value and isinstance(attr_value, str):
                     urls.append(attr_value)
-                elif attr_value and hasattr(attr_value, '__iter__'):
+                elif attr_value and hasattr(attr_value, "__iter__"):
                     # Handle lists of values
                     for val in attr_value:
                         if isinstance(val, str):

@@ -67,10 +67,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="CSFrace Scraper API", version="2.2.2", lifespan=lifespan)
 
 # Add enhanced tracing middleware
-app.add_middleware(
-    EnhancedTracingMiddleware,
-    correlation_header="X-Correlation-ID"
-)
+app.add_middleware(EnhancedTracingMiddleware, correlation_header="X-Correlation-ID")
 
 
 # Example endpoints demonstrating tracing usage
@@ -107,11 +104,7 @@ async def scrape_content(request: dict):
 
     # Add completion event
     add_trace_event(
-        "scraping_completed",
-        {
-            "pages_scraped": result.get("page_count", 0),
-            "success": True
-        }
+        "scraping_completed", {"pages_scraped": result.get("page_count", 0), "success": True}
     )
 
     return result
@@ -135,10 +128,7 @@ async def save_scraped_content(content: dict) -> bool:
 
     if not content.get("title"):
         set_trace_attribute("validation.error", "missing_title")
-        add_trace_event(
-            "validation_failed",
-            {"reason": "missing_title"}
-        )
+        add_trace_event("validation_failed", {"reason": "missing_title"})
         return False
 
     # Simulate database insertion
@@ -180,10 +170,7 @@ async def perform_scraping(url: str) -> dict:
 
     if not save_success:
         set_trace_attribute("error", True)
-        add_trace_event(
-            "scraping_failed",
-            {"reason": "save_failed"}
-        )
+        add_trace_event("scraping_failed", {"reason": "save_failed"})
         raise HTTPException(status_code=500, detail="Failed to save content")
 
     return {

@@ -35,7 +35,9 @@ def handle_database_error(operation: str) -> Callable[[SQLAlchemyError], HTTPExc
     return error_handler
 
 
-def create_paginated_response(items: list[Any], total: int, page: int, page_size: int) -> dict[str, Any]:
+def create_paginated_response(
+    items: list[Any], total: int, page: int, page_size: int
+) -> dict[str, Any]:
     """Create a standardized paginated response structure.
 
     Args:

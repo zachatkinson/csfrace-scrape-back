@@ -73,7 +73,7 @@ class BackgroundHealthMonitor:
             await cache_manager.initialize()
 
             # Get Redis client from cache backend
-            if cache_manager.backend is not None and hasattr(cache_manager.backend, '_get_client'):
+            if cache_manager.backend is not None and hasattr(cache_manager.backend, "_get_client"):
                 redis_client = await cache_manager.backend._get_client()
                 await initialize_health_events(redis_client)
                 self._initialized = True
@@ -100,7 +100,9 @@ class BackgroundHealthMonitor:
                 with database_service.get_session() as db_session:
                     # Perform health check
                     logger.debug("Performing scheduled health check")
-                    current_health = await health_service.get_comprehensive_health_status(db_session)
+                    current_health = await health_service.get_comprehensive_health_status(
+                        db_session
+                    )
 
                     # Health service automatically publishes events now
                     logger.debug("Health check completed", status=current_health.get("status"))
@@ -155,4 +157,3 @@ async def start_background_monitoring(check_interval: int = 30) -> None:
 async def stop_background_monitoring() -> None:
     """Stop background health monitoring."""
     await background_health_monitor.stop()
-
