@@ -336,13 +336,15 @@ class TestBatchCRUDRefactored(IsolatedAsyncioTestCase):
             # Setup mock jobs
             mock_job1 = ScrapingJob(
                 id=1,
-                url="https://example.com/1",
+                source_url="https://example.com/1",  # Required field
+        url="https://example.com/1",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
             mock_job2 = ScrapingJob(
                 id=2,
-                url="https://example.com/2",
+                source_url="https://example.com/2",  # Required field
+        url="https://example.com/2",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
@@ -435,13 +437,15 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
             # Setup mock jobs with batch relationship
             mock_job1 = ScrapingJob(
                 id=1,
-                url="https://example.com/1",
+                source_url="https://example.com/1",  # Required field
+        url="https://example.com/1",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
             mock_job2 = ScrapingJob(
                 id=2,
-                url="https://example.com/2",
+                source_url="https://example.com/2",  # Required field
+        url="https://example.com/2",
                 domain="example.com",
                 output_directory="/tmp/output",
             )

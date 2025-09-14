@@ -48,7 +48,8 @@ class TestJobRouterEndpoints:
 
         return ScrapingJob(
             id=1,
-            url="https://example.com/test",
+            source_url="https://example.com/test",  # Required field
+        url="https://example.com/test",
             domain="example.com",
             slug="test",
             status=JobStatus.PENDING,
@@ -108,7 +109,8 @@ class TestJobRouterEndpoints:
         jobs = [
             ScrapingJob(
                 id=1,
-                url="https://test1.com",
+                source_url="https://test1.com",  # Required field
+        url="https://test1.com",
                 domain="test1.com",
                 slug="test1",
                 status=JobStatus.PENDING,
@@ -124,7 +126,8 @@ class TestJobRouterEndpoints:
             ),
             ScrapingJob(
                 id=2,
-                url="https://test2.com",
+                source_url="https://test2.com",  # Required field
+        url="https://test2.com",
                 domain="test2.com",
                 slug="test2",
                 status=JobStatus.PENDING,
@@ -170,7 +173,8 @@ class TestJobRouterEndpoints:
         jobs = [
             ScrapingJob(
                 id=1,
-                url="https://test.com",
+                source_url="https://test.com",  # Required field
+        url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=JobStatus.PENDING,
@@ -542,7 +546,8 @@ class TestJobRouterEndpoints:
 
         for invalid_status in invalid_statuses:
             job = ScrapingJob(
-                id=1, url="https://test.com", domain="test.com", slug="test", status=invalid_status
+                id=1, source_url="https://test.com",  # Required field
+        url="https://test.com", domain="test.com", slug="test", status=invalid_status
             )
 
             with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
@@ -562,7 +567,8 @@ class TestJobRouterEndpoints:
         for valid_status in valid_statuses:
             job = ScrapingJob(
                 id=1,
-                url="https://test.com",
+                source_url="https://test.com",  # Required field
+        url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=valid_status,
@@ -605,7 +611,8 @@ class TestJobRouterEndpoints:
         jobs = [
             ScrapingJob(
                 id=1,
-                url="https://test.com",
+                source_url="https://test.com",  # Required field
+        url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=JobStatus.PENDING,

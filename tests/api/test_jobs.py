@@ -204,7 +204,8 @@ class TestJobEndpoints:
         """Test retrying a failed job."""
         # Create a failed job
         job = ScrapingJob(
-            url="https://example.com/failed-page",
+            source_url="https://example.com/failed-page",  # Required field
+        url="https://example.com/failed-page",
             domain="example.com",
             slug="failed-page",
             status=JobStatus.FAILED,
