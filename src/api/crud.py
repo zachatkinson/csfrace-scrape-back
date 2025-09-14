@@ -32,9 +32,12 @@ class JobCRUD:
         parsed_url = urlparse(str(job_data.url))
         domain = parsed_url.netloc
 
-        # Generate slug from URL (always auto-generated)
-        path = parsed_url.path.strip("/")
-        slug = path.split("/")[-1] if path else "index"
+        # Generate slug: use custom_slug if provided, otherwise auto-generate from URL
+        if job_data.custom_slug:
+            slug = job_data.custom_slug
+        else:
+            path = parsed_url.path.strip("/")
+            slug = path.split("/")[-1] if path else "index"
 
         # Generate output directory if not provided
         output_directory = job_data.output_directory
@@ -47,13 +50,9 @@ class JobCRUD:
             domain=domain,
             slug=slug,
             priority=job_data.priority,
-            custom_slug=job_data.custom_slug,
             output_directory=output_directory,
             max_retries=job_data.max_retries,
-            timeout_seconds=job_data.timeout_seconds,
-            skip_existing=job_data.skip_existing,
-            converter_config=job_data.converter_config,
-            processing_options=job_data.processing_options,
+            options=job_data.options,
         )
 
         db.add(job)
@@ -232,9 +231,6 @@ class BatchCRUD:
             continue_on_error=batch_data.continue_on_error,
             output_base_directory=batch_data.output_base_directory
             or f"batch_output/{batch_data.name}",
-            create_archives=batch_data.create_archives,
-            cleanup_after_archive=batch_data.cleanup_after_archive,
-            batch_config=batch_data.batch_config,
             total_jobs=len(batch_data.urls),
         )
 

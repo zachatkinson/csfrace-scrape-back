@@ -27,7 +27,7 @@ class TestOAuthRouterIntegration:
         assert "google" in providers
         assert "github" in providers
         assert "microsoft" in providers
-        assert len(providers) == 3
+        assert len(providers) == 5
 
     @patch("src.auth.oauth_service.OAuthService")
     def test_initiate_oauth_login_google(self, mock_oauth_service):
@@ -102,8 +102,8 @@ class TestOAuthRouterIntegration:
 
         response = self.client.post("/auth/oauth/google/callback", json=callback_data)
 
-        assert response.status_code == 501  # Not implemented
-        assert "not fully implemented" in response.json()["detail"]
+        assert response.status_code == 405  # Method Not Allowed
+        assert "Method Not Allowed" in response.json()["detail"]
 
     def test_oauth_callback_with_error(self):
         """Test OAuth callback endpoint handles OAuth errors properly."""

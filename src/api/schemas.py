@@ -35,7 +35,7 @@ class JobCreate(BaseModel):
     max_retries: int = Field(default=3, ge=0, le=API_MAX_RETRIES_LIMIT)
     timeout_seconds: int = Field(default=30, ge=API_MIN_TIMEOUT_SECONDS, le=API_MAX_TIMEOUT_SECONDS)
     skip_existing: bool = False
-    converter_config: dict[str, Any] | None = None
+    options: dict[str, Any] | None = None
     processing_options: dict[str, Any] | None = None
 
 
@@ -48,7 +48,7 @@ class JobUpdate(BaseModel):
         None, ge=API_MIN_TIMEOUT_SECONDS, le=API_MAX_TIMEOUT_SECONDS
     )
     skip_existing: bool | None = None
-    converter_config: dict[str, Any] | None = None
+    options: dict[str, Any] | None = None
     processing_options: dict[str, Any] | None = None
 
 
@@ -77,7 +77,7 @@ class JobResponse(BaseSchema):
     content_size_bytes: int | None = None
     images_downloaded: int
     batch_id: int | None = None
-    converter_config: dict[str, Any] | None = None
+    options: dict[str, Any] | None = None
     processing_options: dict[str, Any] | None = None
 
 

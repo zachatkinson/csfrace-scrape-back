@@ -98,9 +98,8 @@ class TestDataFactory:
             priority=JobPriority.HIGH,
             custom_slug="test-page-slug",
             max_retries=5,
-            timeout_seconds=60,
             skip_existing=True,
-            converter_config={"preserve_images": True},
+            options={"preserve_images": True},
             processing_options={"clean_html": True},
         )
 
@@ -118,8 +117,7 @@ class TestDataFactory:
         data = JobUpdate(
             priority=JobPriority.LOW,
             max_retries=2,
-            timeout_seconds=45,
-            converter_config={"new_setting": True},
+            options={"new_setting": True},
         )
 
         # Apply overrides if any
@@ -134,19 +132,17 @@ class TestDataFactory:
         """Create ScrapingJob test data with optional overrides."""
         defaults = {
             "id": 1,
+            "source_url": "https://example.com/test",
             "url": "https://example.com/test",
             "domain": "example.com",
             "priority": JobPriority.HIGH,
             "status": JobStatus.PENDING,
             "max_retries": 5,
-            "timeout_seconds": 60,
             "output_directory": "/tmp/test_output",
-            "custom_slug": "test-slug",
-            "converter_config": {"setting": True},
-            "processing_options": {"option": True},
+            "slug": "test-slug",
+            "options": {"setting": True},
             "created_at": datetime.now(UTC),
             "retry_count": 0,
-            "skip_existing": False,
             "success": False,
             "images_downloaded": 0,
         }
@@ -195,7 +191,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         # (database defaults only apply when inserted to DB)
         self.assertIsNone(result.status)
         self.assertEqual(result.domain, "example.com")
-        self.assertEqual(result.custom_slug, job_data.custom_slug)
+        self.assertEqual(result.slug, job_data.custom_slug)
 
         # Verify database interactions
         self.assertTrue(db_session.flushed)
@@ -208,7 +204,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
 
         result = await JobCRUD.create_job(db_session, job_data)
 
-        self.assertEqual(result.custom_slug, "my-custom-slug")
+        self.assertEqual(result.slug, "my-custom-slug")
 
     async def test_create_job_database_error(self):
         """Test job creation with database error."""
@@ -234,7 +230,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
             self.assertEqual(result, sample_job)
             self.assertEqual(sample_job.priority, JobPriority.LOW)
             self.assertEqual(sample_job.max_retries, 2)
-            self.assertEqual(sample_job.timeout_seconds, 45)
+            # timeout_seconds is not a model field
 
             # Verify database interactions
             self.assertTrue(db_session.flushed)
@@ -282,7 +278,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
             result = await JobCRUD.update_job_status(db_session, 1, JobStatus.RUNNING)
 
-            self.assertEqual(result.status, JobStatus.RUNNING)
+            self.assertEqual(result.status, JobStatus.RUNNING.value)
             self.assertIsNotNone(result.started_at)
 
     async def test_update_job_status_to_completed(self):
@@ -293,7 +289,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
         with patch.object(JobCRUD, "get_job", return_value=sample_job):
             result = await JobCRUD.update_job_status(db_session, 1, JobStatus.COMPLETED)
 
-            self.assertEqual(result.status, JobStatus.COMPLETED)
+            self.assertEqual(result.status, JobStatus.COMPLETED.value)
             self.assertIsNotNone(result.completed_at)
 
     async def test_update_job_status_to_failed_with_error(self):
@@ -307,7 +303,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
                 db_session, 1, JobStatus.FAILED, error_message=error_msg
             )
 
-            self.assertEqual(result.status, JobStatus.FAILED)
+            self.assertEqual(result.status, JobStatus.FAILED.value)
             self.assertEqual(result.error_message, error_msg)
             self.assertIsNotNone(result.completed_at)
 
@@ -480,9 +476,7 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
     async def test_partial_job_update_workflow(self):
         """Test partial update workflow maintaining data integrity."""
         db_session = FakeDatabaseSession()
-        original_job = TestDataFactory.create_sample_job(
-            priority=JobPriority.HIGH, max_retries=5, timeout_seconds=60
-        )
+        original_job = TestDataFactory.create_sample_job(priority=JobPriority.HIGH, max_retries=5)
 
         # Update only priority, keep other fields unchanged
         update_data = JobUpdate(priority=JobPriority.LOW)
@@ -493,7 +487,7 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
             # Verify selective update
             self.assertEqual(result.priority, JobPriority.LOW)
             self.assertEqual(result.max_retries, 5)  # Unchanged
-            self.assertEqual(result.timeout_seconds, 60)  # Unchanged
+            # timeout_seconds is not a model field
 
 
 # Benefits of this CRUD test refactor:
