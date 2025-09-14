@@ -18,10 +18,8 @@ class TestHealthEndpoints:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
 
-        assert data["message"] == "CSFrace Scraper API"
-        assert data["version"] == __version__
-        assert data["docs"] == "/docs"
-        assert data["health"] == "/health"
+        assert data["message"] == f"CSFrace Scraper API v{__version__} - Docs: /docs, Health: /health"
+        assert data["status"] == "success"
 
     def test_liveness_check(self, client: TestClient):
         """Test liveness check endpoint."""
