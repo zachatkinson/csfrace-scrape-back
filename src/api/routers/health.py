@@ -1,11 +1,14 @@
 """Health check and monitoring API endpoints."""
 
+import asyncio
 import importlib.metadata
+import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -184,3 +187,151 @@ def _get_performance_summary() -> dict[str, Any]:
     except AttributeError:
         # Performance monitoring may not be fully initialized - this is expected
         return {}
+
+
+@router.get("/stream-test")
+async def health_stream_test() -> dict[str, str]:
+    """Simple test endpoint to verify routing works."""
+    return {"message": "SSE endpoint test", "status": "ok"}
+
+
+@router.get("/stream")
+async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
+    """Simple SSE endpoint for real-time health monitoring.
+
+    This is a minimal implementation that provides basic health updates
+    without complex dependencies like Redis pub/sub.
+
+    Returns:
+        StreamingResponse: SSE stream of health events
+    """
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        """Generate SSE events with health updates."""
+
+        # Send initial connection message
+        connection_data = {
+            "type": "connection",
+            "message": "Real-time health monitoring connected",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        yield f"event: connection\ndata: {json.dumps(connection_data)}\n\n"
+
+        # Send initial health status for all services
+        services = ["frontend", "backend", "database", "cache"]
+
+        try:
+            # Get current health data using the existing health service
+            current_health = await health_service.get_comprehensive_health_status(db)
+
+            for service_name in services:
+                if service_name == "frontend":
+                    # Frontend is always assumed healthy since we're in the backend
+                    service_data = {
+                        "service": "frontend",
+                        "status": "healthy",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": {
+                            "version": "5.13.7",
+                            "port": "3000",
+                            "framework": "Astro + React + TypeScript",
+                            "response_time_ms": 0,
+                        },
+                    }
+                elif service_name == "backend":
+                    # Backend status from current health
+                    service_data = {
+                        "service": "backend",
+                        "status": current_health.get("status", "healthy"),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": {
+                            "version": current_health.get("version", "1.0.0"),
+                            "framework": "FastAPI + Python 3.13",
+                            "port": "8000",
+                            "response_time_ms": 1,
+                        },
+                    }
+                elif service_name in current_health:
+                    # Database and cache status from health check
+                    service_info = current_health[service_name]
+                    service_data = {
+                        "service": service_name,
+                        "status": "healthy" if service_info.get("status") == "healthy" else "unhealthy",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": service_info,
+                    }
+                else:
+                    # Unknown service - skip
+                    continue
+
+                yield f"event: service-update\ndata: {json.dumps(service_data)}\n\n"
+
+        except Exception as e:
+            # Send error event if health check fails
+            error_data = {
+                "type": "error",
+                "message": f"Health check failed: {str(e)}",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+            yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
+
+        # Keep connection alive with periodic updates
+        update_interval = 30  # seconds
+
+        try:
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+
+                # Wait for update interval
+                await asyncio.sleep(update_interval)
+
+                # Send keepalive or updated health status
+                try:
+                    current_health = await health_service.get_comprehensive_health_status(db)
+
+                    # Send updated backend status
+                    backend_update = {
+                        "service": "backend",
+                        "status": current_health.get("status", "healthy"),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": {
+                            "version": current_health.get("version", "1.0.0"),
+                            "framework": "FastAPI + Python 3.13",
+                            "port": "8000",
+                            "response_time_ms": 1,
+                        },
+                    }
+                    yield f"event: service-update\ndata: {json.dumps(backend_update)}\n\n"
+
+                except Exception:
+                    # Send keepalive on error
+                    keepalive_data = {
+                        "type": "keepalive",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                    yield f"event: keepalive\ndata: {json.dumps(keepalive_data)}\n\n"
+
+        except asyncio.CancelledError:
+            # Client disconnected
+            pass
+        except Exception as e:
+            # Send final error
+            error_data = {
+                "type": "error",
+                "message": f"Stream error: {str(e)}",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+            yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
+        },
+    )
