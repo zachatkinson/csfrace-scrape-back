@@ -38,7 +38,7 @@ class TestBatchProcessor:
         job = batch_processor.add_job("https://example.com/post1")
 
         assert len(batch_processor.jobs) == 1
-        assert job.source_url == "https://example.com/post1"
+        assert job.url == "https://example.com/post1"
         assert job.status.value == "pending"
         assert job.output_dir is not None
 
@@ -116,7 +116,7 @@ class TestBatchJob:
         """Test BatchJob creation with default values."""
         job = BatchJob(url="https://example.com/test", output_dir=Path("/tmp/test"))
 
-        assert job.source_url == "https://example.com/test"
+        assert job.url == "https://example.com/test"
         assert job.output_dir == Path("/tmp/test")
         assert job.status == BatchStatus.PENDING
         assert job.error is None
