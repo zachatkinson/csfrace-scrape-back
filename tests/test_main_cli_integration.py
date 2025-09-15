@@ -6,16 +6,14 @@ instead of mocking everything. Tests focus on entry points, argument parsing,
 and error handling while ensuring actual main.py functions are executed.
 """
 
-import asyncio
 import os
 import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.main import main, main_async, run_single_conversion, run_batch_processing
+from src.main import main, main_async, run_batch_processing, run_single_conversion
 
 
 class TestMainCLIIntegration(IsolatedAsyncioTestCase):
@@ -29,6 +27,7 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
     def tearDown(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     async def test_main_async_no_url_actual_execution(self):
@@ -41,17 +40,15 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
         """Test main_async single URL mode with mocked converter to exercise CLI logic."""
         mock_converter = MagicMock()
         mock_converter.convert = MagicMock()
-        
+
         with patch("src.main.AsyncWordPressConverter") as mock_conv_class:
             with patch("src.main.run_single_conversion") as mock_run_single:
                 mock_conv_class.return_value = mock_converter
-                
+
                 await main_async(
-                    url="https://example.com",
-                    output_dir=self.test_output_dir,
-                    verbose=True
+                    url="https://example.com", output_dir=self.test_output_dir, verbose=True
                 )
-                
+
                 # Verify run_single_conversion was called
                 mock_run_single.assert_called_once_with(
                     "https://example.com", self.test_output_dir, None
@@ -63,9 +60,9 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
             await main_async(
                 url="https://example1.com,https://example2.com",
                 output_dir=self.test_output_dir,
-                batch_size=5
+                batch_size=5,
             )
-            
+
             # Verify run_batch_processing was called
             mock_run_batch.assert_called_once()
             call_args = mock_run_batch.call_args[1]
@@ -79,14 +76,10 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
         urls_file = os.path.join(self.temp_dir, "test_urls.txt")
         with open(urls_file, "w") as f:
             f.write("https://example1.com\nhttps://example2.com\n")
-        
+
         with patch("src.main.run_batch_processing") as mock_run_batch:
-            await main_async(
-                urls_file=urls_file,
-                output_dir=self.test_output_dir,
-                batch_size=3
-            )
-            
+            await main_async(urls_file=urls_file, output_dir=self.test_output_dir, batch_size=3)
+
             # Verify run_batch_processing was called
             mock_run_batch.assert_called_once()
             call_args = mock_run_batch.call_args[1]
@@ -97,52 +90,45 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
     async def test_main_async_conversion_error_propagation(self):
         """Test main_async properly propagates ConversionError."""
         from src.core.exceptions import ConversionError
-        
+
         mock_converter = MagicMock()
         mock_converter.convert.side_effect = ConversionError("Test conversion error")
-        
+
         with patch("src.main.AsyncWordPressConverter") as mock_conv_class:
             mock_conv_class.return_value = mock_converter
-            
+
             with self.assertRaises(ConversionError):
-                await main_async(
-                    url="https://example.com",
-                    output_dir=self.test_output_dir
-                )
+                await main_async(url="https://example.com", output_dir=self.test_output_dir)
 
     async def test_main_async_unexpected_error_propagation(self):
         """Test main_async properly propagates unexpected errors."""
         mock_converter = MagicMock()
         mock_converter.convert.side_effect = RuntimeError("Unexpected error")
-        
+
         with patch("src.main.AsyncWordPressConverter") as mock_conv_class:
             mock_conv_class.return_value = mock_converter
-            
+
             with self.assertRaises(RuntimeError):
-                await main_async(
-                    url="https://example.com",
-                    output_dir=self.test_output_dir
-                )
+                await main_async(url="https://example.com", output_dir=self.test_output_dir)
 
     async def test_run_single_conversion_actual_function(self):
         """Test run_single_conversion function directly for coverage."""
         # Create an async mock for the convert method
         mock_converter = MagicMock()
         mock_converter.convert = AsyncMock()
-        
+
         with patch("src.main.AsyncWordPressConverter") as mock_conv_class:
             with patch("src.main.Progress") as mock_progress:
                 mock_progress_instance = MagicMock()
                 mock_progress.return_value.__enter__.return_value = mock_progress_instance
                 mock_progress_instance.add_task.return_value = "task_id"
-                
+
                 mock_conv_class.return_value = mock_converter
-                
+
                 await run_single_conversion(
-                    url="https://example.com",
-                    output_dir=self.test_output_dir
+                    url="https://example.com", output_dir=self.test_output_dir
                 )
-                
+
                 # Verify progress tracking was set up
                 mock_progress_instance.add_task.assert_called_once()
                 # Verify converter was called
@@ -152,16 +138,16 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
         """Test run_batch_processing when no jobs are found."""
         mock_processor = MagicMock()
         mock_processor.jobs = []  # No jobs
-        
+
         with patch("src.main.BatchProcessor") as mock_proc_class:
             mock_proc_class.return_value = mock_processor
-            
+
             # Should return early without processing
             await run_batch_processing(
                 url="",  # Empty URL
-                output_dir=self.test_output_dir
+                output_dir=self.test_output_dir,
             )
-            
+
             # Process all should not be called since no jobs
             mock_processor.process_all.assert_not_called()
 
@@ -172,23 +158,23 @@ class TestMainCLIIntegration(IsolatedAsyncioTestCase):
             {"successful": 3, "failed": 2},  # Mixed results
             {"successful": 0, "failed": 3},  # All failures
         ]
-        
+
         for scenario in test_scenarios:
             with self.subTest(scenario=scenario):
                 mock_processor = MagicMock()
                 mock_processor.jobs = ["url1", "url2", "url3"]  # Some jobs
                 mock_processor.add_job = MagicMock()
                 mock_processor.process_all = AsyncMock(return_value=scenario)
-                
+
                 with patch("src.main.BatchProcessor") as mock_proc_class:
                     with patch("src.main.BatchConfig") as mock_config_class:
                         mock_proc_class.return_value = mock_processor
-                        
+
                         await run_batch_processing(
                             url="https://example1.com,https://example2.com,https://example3.com",
-                            output_dir=self.test_output_dir
+                            output_dir=self.test_output_dir,
                         )
-                        
+
                         # Verify processing was called
                         mock_processor.process_all.assert_called_once()
 
@@ -201,7 +187,7 @@ class TestMainCLIEntryPoint:
         with patch("sys.argv", ["main.py", "--help"]):
             with patch("argparse.ArgumentParser.parse_args") as mock_parse:
                 mock_parse.side_effect = SystemExit(0)  # Help exits with 0
-                
+
                 with pytest.raises(SystemExit):
                     main()
 
@@ -215,7 +201,7 @@ class TestMainCLIEntryPoint:
                 mock_args.url = None
                 mock_args.urls_file = None
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.ConfigLoader.save_example_config") as mock_save:
                     main()
                     mock_save.assert_called_once_with("wp-shopify-config.yaml", "yaml")
@@ -230,7 +216,7 @@ class TestMainCLIEntryPoint:
                 mock_args.url = None
                 mock_args.urls_file = None
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.ConfigLoader.save_example_config") as mock_save:
                     main()
                     mock_save.assert_called_once_with("wp-shopify-config.json", "json")
@@ -248,10 +234,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.load_config_from_file") as mock_load:
                     mock_load.return_value = (MagicMock(), MagicMock())
-                    
+
                     with patch("asyncio.run") as mock_asyncio_run:
                         main()
                         mock_load.assert_called_once_with("test.yaml")
@@ -270,10 +256,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.load_config_from_file") as mock_load:
                     mock_load.side_effect = Exception("Config loading failed")
-                    
+
                     with patch("sys.exit") as mock_exit:
                         main()
                         mock_exit.assert_called_once_with(1)
@@ -291,10 +277,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.console.input") as mock_input:
                     mock_input.side_effect = ["1", "https://example.com"]
-                    
+
                     with patch("asyncio.run") as mock_asyncio_run:
                         main()
                         # Should have prompted for mode and URL
@@ -314,10 +300,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.console.input") as mock_input:
                     mock_input.side_effect = ["2", "https://example1.com,https://example2.com"]
-                    
+
                     with patch("asyncio.run") as mock_asyncio_run:
                         main()
                         mock_asyncio_run.assert_called_once()
@@ -335,10 +321,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.console.input") as mock_input:
                     mock_input.side_effect = ["3", "urls.txt"]
-                    
+
                     with patch("asyncio.run") as mock_asyncio_run:
                         main()
                         mock_asyncio_run.assert_called_once()
@@ -356,10 +342,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.console.input") as mock_input:
                     mock_input.return_value = "4"  # Invalid choice
-                    
+
                     with patch("sys.exit") as mock_exit:
                         main()
                         # May be called multiple times, just verify it was called
@@ -378,10 +364,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.console.input") as mock_input:
                     mock_input.side_effect = ["1", ""]  # Choose single URL but provide empty URL
-                    
+
                     with patch("sys.exit") as mock_exit:
                         main()
                         # Interactive mode might call exit multiple times
@@ -400,10 +386,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("asyncio.run") as mock_asyncio_run:
                     mock_asyncio_run.side_effect = KeyboardInterrupt()
-                    
+
                     with patch("sys.exit") as mock_exit:
                         main()
                         # Should exit with CLI_CONSTANTS.EXIT_CODE_KEYBOARD_INTERRUPT
@@ -413,7 +399,7 @@ class TestMainCLIEntryPoint:
     def test_main_conversion_error_handling(self):
         """Test main() handles ConversionError correctly."""
         from src.core.exceptions import ConversionError
-        
+
         with patch("sys.argv", ["main.py", "https://example.com"]):
             with patch("argparse.ArgumentParser.parse_args") as mock_parse:
                 mock_args = MagicMock()
@@ -425,10 +411,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("asyncio.run") as mock_asyncio_run:
                     mock_asyncio_run.side_effect = ConversionError("Test error")
-                    
+
                     with patch("sys.exit") as mock_exit:
                         main()
                         mock_exit.assert_called_once_with(1)
@@ -446,10 +432,10 @@ class TestMainCLIEntryPoint:
                 mock_args.batch_size = 3
                 mock_args.verbose = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("asyncio.run") as mock_asyncio_run:
                     mock_asyncio_run.side_effect = RuntimeError("Unexpected error")
-                    
+
                     with patch("sys.exit") as mock_exit:
                         main()
                         mock_exit.assert_called_once_with(1)
@@ -462,10 +448,10 @@ class TestMainModuleExecution:
         """Test the module execution block is covered."""
         # This is tricky to test directly, but we can import and check the structure
         import src.main
-        
+
         # Verify the main function exists and is callable
         assert hasattr(src.main, "main")
         assert callable(src.main.main)
-        
+
         # The actual if __name__ == '__main__' block can only be tested
         # by running the module directly, which is done by the CLI tests above

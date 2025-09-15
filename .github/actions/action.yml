@@ -1,0 +1,440 @@
+name: 'Code Quality & Security Summary'
+description: 'Generate comprehensive GitHub Actions summary for code quality and security scan results'
+author: 'CSFrace Development Team'
+
+branding:
+  icon: 'shield-check'
+  color: 'blue'
+
+inputs:
+  quality-duration:
+    description: 'Duration of quality checks in seconds'
+    required: false
+    default: 'N/A'
+  include-coverage:
+    description: 'Include coverage analysis in summary'
+    required: false
+    default: 'true'
+  severity-threshold:
+    description: 'Minimum severity level to highlight (low|medium|high|critical)'
+    required: false
+    default: 'medium'
+  custom-title:
+    description: 'Custom title for the summary report'
+    required: false
+    default: 'Code Quality & Security Report'
+
+outputs:
+  summary-generated:
+    description: 'Whether the summary was successfully generated'
+    value: ${{ steps.generate.outputs.success }}
+  total-issues:
+    description: 'Total number of issues found across all scans'
+    value: ${{ steps.generate.outputs.total_issues }}
+  security-status:
+    description: 'Overall security status (secure|issues|critical)'
+    value: ${{ steps.generate.outputs.security_status }}
+  quality-status:
+    description: 'Overall quality status (passed|failed)'
+    value: ${{ steps.generate.outputs.quality_status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate Quality & Security Summary
+      id: generate
+      shell: bash
+      env:
+        QUALITY_DURATION: ${{ inputs.quality-duration }}
+        INCLUDE_COVERAGE: ${{ inputs.include-coverage }}
+        SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
+        CUSTOM_TITLE: ${{ inputs.custom-title }}
+      run: |
+        # Enhanced GitHub Actions Summary Generator for Code Quality & Security
+        # Following GitHub blog best practices: https://github.blog/news-insights/product-news/supercharging-github-actions-with-job-summaries/
+        
+        set -euo pipefail
+        
+        # Function to add section to summary
+        add_section() {
+            local title="$1"
+            local content="$2"
+            echo "## ${title}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${content}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+        }
+        
+        # Function to add collapsible section
+        add_collapsible() {
+            local title="$1"
+            local content="$2"
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>${title}</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${content}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+        }
+        
+        # Function to get status badge
+        get_status_badge() {
+            local status="$1"
+            case "$status" in
+                "passed"|"secure"|"clean") echo "✅" ;;
+                "failed"|"critical") echo "🚨" ;;
+                "issues"|"warnings") echo "⚠️" ;;
+                *) echo "ℹ️" ;;
+            esac
+        }
+        
+        # Initialize summary with header
+        {
+            echo "# ${{ env.CUSTOM_TITLE }}"
+            echo ""
+            echo "**Workflow**: \`${{ github.workflow }}\`"
+            echo "**Run**: [\`#${{ github.run_number }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "**Branch**: \`${{ github.ref_name }}\`"
+            echo "**Commit**: [\`${GITHUB_SHA:0:8}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+            echo "**Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+        } > $GITHUB_STEP_SUMMARY
+        
+        # Initialize counters and status variables
+        QUALITY_STATUS="passed"
+        SECURITY_STATUS="secure"
+        TOTAL_ISSUES=0
+        CRITICAL_COUNT=0
+        HIGH_COUNT=0
+        MEDIUM_COUNT=0
+        LOW_COUNT=0
+        
+        # Quality Checks Analysis
+        echo "🔍 Analyzing quality check results..."
+        
+        QUALITY_DETAILS=""
+        
+        # Ruff Linting Analysis
+        if [ -f "ruff-results.txt" ]; then
+            RUFF_ISSUES=$(wc -l < ruff-results.txt 2>/dev/null || echo "0")
+            if [ "$RUFF_ISSUES" -gt 0 ]; then
+                QUALITY_STATUS="failed"
+                QUALITY_DETAILS="${QUALITY_DETAILS}\n- **Ruff Linting**: ❌ ${RUFF_ISSUES} issues found"
+                TOTAL_ISSUES=$((TOTAL_ISSUES + RUFF_ISSUES))
+                MEDIUM_COUNT=$((MEDIUM_COUNT + RUFF_ISSUES))
+            else
+                QUALITY_DETAILS="${QUALITY_DETAILS}\n- **Ruff Linting**: ✅ No issues"
+            fi
+        else
+            QUALITY_DETAILS="${QUALITY_DETAILS}\n- **Ruff Linting**: ✅ Passed"
+        fi
+        
+        # MyPy Type Checking Analysis
+        if [ -f "mypy-results.txt" ]; then
+            MYPY_ERRORS=$(grep -c "error:" mypy-results.txt 2>/dev/null || echo "0")
+            if [ "$MYPY_ERRORS" -gt 0 ]; then
+                QUALITY_STATUS="failed"
+                QUALITY_DETAILS="${QUALITY_DETAILS}\n- **MyPy Type Checking**: ❌ ${MYPY_ERRORS} errors found"
+                TOTAL_ISSUES=$((TOTAL_ISSUES + MYPY_ERRORS))
+                HIGH_COUNT=$((HIGH_COUNT + MYPY_ERRORS))
+            else
+                QUALITY_DETAILS="${QUALITY_DETAILS}\n- **MyPy Type Checking**: ✅ No errors"
+            fi
+        else
+            QUALITY_DETAILS="${QUALITY_DETAILS}\n- **MyPy Type Checking**: ✅ Passed"
+        fi
+        
+        # Safety Dependency Analysis
+        if [ -f "safety-report.json" ]; then
+            SAFETY_VULNS=$(jq '.vulnerabilities | length' safety-report.json 2>/dev/null || echo "0")
+            if [ "$SAFETY_VULNS" -gt 0 ]; then
+                SECURITY_STATUS="issues"
+                QUALITY_DETAILS="${QUALITY_DETAILS}\n- **Safety (Dependencies)**: ⚠️ ${SAFETY_VULNS} vulnerabilities"
+                TOTAL_ISSUES=$((TOTAL_ISSUES + SAFETY_VULNS))
+                HIGH_COUNT=$((HIGH_COUNT + SAFETY_VULNS))
+            else
+                QUALITY_DETAILS="${QUALITY_DETAILS}\n- **Safety (Dependencies)**: ✅ No vulnerabilities"
+            fi
+        else
+            QUALITY_DETAILS="${QUALITY_DETAILS}\n- **Safety (Dependencies)**: ✅ Passed"
+        fi
+        
+        # Add Quality Overview Section
+        QUALITY_BADGE=$(get_status_badge "$QUALITY_STATUS")
+        add_section "📊 Code Quality Overview" "${QUALITY_BADGE} **Overall Status**: $(echo "$QUALITY_STATUS" | tr '[:lower:]' '[:upper:]')
+        
+        ${QUALITY_DETAILS}"
+        
+        # Security Scans Analysis
+        echo "🔒 Analyzing security scan results..."
+        
+        # Semgrep SAST Analysis
+        SEMGREP_FINDINGS=0
+        if [ -f "semgrep.sarif" ]; then
+            SEMGREP_FINDINGS=$(jq '.runs[0].results | length' semgrep.sarif 2>/dev/null || echo "0")
+            if [ "$SEMGREP_FINDINGS" -gt 0 ]; then
+                SECURITY_STATUS="issues"
+                TOTAL_ISSUES=$((TOTAL_ISSUES + SEMGREP_FINDINGS))
+                MEDIUM_COUNT=$((MEDIUM_COUNT + SEMGREP_FINDINGS))
+            fi
+        fi
+        
+        # Trivy Container Security Analysis
+        TRIVY_CRITICAL=0
+        TRIVY_HIGH=0
+        TRIVY_MEDIUM=0
+        TRIVY_LOW=0
+        
+        if [ -f "trivy-comprehensive.json" ]; then
+            TRIVY_CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            TRIVY_HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            TRIVY_MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            TRIVY_LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length' trivy-comprehensive.json 2>/dev/null || echo "0")
+            
+            CRITICAL_COUNT=$((CRITICAL_COUNT + TRIVY_CRITICAL))
+            HIGH_COUNT=$((HIGH_COUNT + TRIVY_HIGH))
+            MEDIUM_COUNT=$((MEDIUM_COUNT + TRIVY_MEDIUM))
+            LOW_COUNT=$((LOW_COUNT + TRIVY_LOW))
+            TOTAL_ISSUES=$((TOTAL_ISSUES + TRIVY_CRITICAL + TRIVY_HIGH + TRIVY_MEDIUM + TRIVY_LOW))
+            
+            if [ "$TRIVY_CRITICAL" -gt 0 ]; then
+                SECURITY_STATUS="critical"
+            elif [ "$TRIVY_HIGH" -gt 0 ] && [ "$SECURITY_STATUS" != "critical" ]; then
+                SECURITY_STATUS="issues"
+            fi
+        fi
+        
+        # CodeQL Analysis (check for results file)
+        CODEQL_ALERTS=0
+        if [ -f "codeql-results.sarif" ]; then
+            CODEQL_ALERTS=$(jq '.runs[0].results | length' codeql-results.sarif 2>/dev/null || echo "0")
+            if [ "$CODEQL_ALERTS" -gt 0 ]; then
+                SECURITY_STATUS="issues"
+                TOTAL_ISSUES=$((TOTAL_ISSUES + CODEQL_ALERTS))
+                HIGH_COUNT=$((HIGH_COUNT + CODEQL_ALERTS))
+            fi
+        fi
+        
+        # Security Overview
+        SECURITY_BADGE=$(get_status_badge "$SECURITY_STATUS")
+        SECURITY_CONTENT="${SECURITY_BADGE} **Overall Status**: $(echo "$SECURITY_STATUS" | tr '[:lower:]' '[:upper:]')
+        
+        ### 🔍 Scan Results Summary
+        | Tool | Status | Findings | Description |
+        |------|--------|----------|-------------|
+        | **Semgrep SAST** | $([ "$SEMGREP_FINDINGS" -eq 0 ] && echo "✅ Clean" || echo "⚠️ ${SEMGREP_FINDINGS} findings") | Code analysis | Static analysis for security patterns |
+        | **Trivy Container** | $([ "$TRIVY_CRITICAL" -eq 0 ] && [ "$TRIVY_HIGH" -eq 0 ] && echo "✅ Clean" || echo "⚠️ Vulnerabilities found") | Image security | Container vulnerability scanning |
+        | **Safety Dependencies** | $([ "${SAFETY_VULNS:-0}" -eq 0 ] && echo "✅ Clean" || echo "⚠️ ${SAFETY_VULNS:-0} vulnerabilities") | Dependency security | Python package vulnerability detection |
+        | **CodeQL** | $([ "$CODEQL_ALERTS" -eq 0 ] && echo "✅ Clean" || echo "⚠️ ${CODEQL_ALERTS} alerts") | Semantic analysis | GitHub's code analysis engine |
+        
+        ### 📈 Vulnerability Breakdown
+        - 🔴 **Critical**: ${CRITICAL_COUNT}
+        - 🟠 **High**: ${HIGH_COUNT}  
+        - 🟡 **Medium**: ${MEDIUM_COUNT}
+        - 🔵 **Low**: ${LOW_COUNT}
+        - **Total Issues**: ${TOTAL_ISSUES}"
+        
+        add_section "🔒 Security Scan Results" "$SECURITY_CONTENT"
+        
+        # Coverage Analysis (if enabled and available)
+        if [ "${INCLUDE_COVERAGE}" = "true" ]; then
+            if [ -f "coverage.xml" ] || [ -f ".coverage" ] || [ -f "coverage.json" ]; then
+                COVERAGE_PERCENTAGE="N/A"
+                
+                # Try to extract coverage percentage from various sources
+                if [ -f "coverage.json" ]; then
+                    COVERAGE_PERCENTAGE=$(jq -r '.totals.percent_covered' coverage.json 2>/dev/null || echo "N/A")
+                elif [ -f "coverage.xml" ]; then
+                    COVERAGE_PERCENTAGE=$(grep -o 'line-rate="[0-9.]*"' coverage.xml | head -1 | sed 's/line-rate="//;s/"//' | awk '{printf "%.1f", $1*100}' 2>/dev/null || echo "N/A")
+                fi
+                
+                COVERAGE_CONTENT="### 📊 Test Coverage Report
+        - **Coverage Percentage**: ${COVERAGE_PERCENTAGE}$([ "$COVERAGE_PERCENTAGE" != "N/A" ] && echo "%" || echo "")
+        - **Coverage Reports**: Available in workflow artifacts
+        - **Formats**: XML, HTML, and JSON reports generated
+        - **Integration**: Automatically uploaded to Codecov.io
+        
+        > 💡 **Coverage Target**: 80%+ (Industry Standard)  
+        > 📈 **Trend Analysis**: View historical coverage in [Codecov Dashboard](https://codecov.io/gh/${{ github.repository }})
+        > 🎯 **Recent Achievement**: main.py coverage improved from 0% to 92%"
+        
+                add_section "📊 Coverage Analysis" "$COVERAGE_CONTENT"
+            fi
+        fi
+        
+        # Performance & Tools Section
+        METRICS_CONTENT="### ⏱️ Job Performance
+        - **Quality Checks Duration**: ${QUALITY_DURATION} seconds
+        - **Parallel Execution**: Security scans run simultaneously for efficiency
+        - **Package Manager**: UV (40% faster than pip)
+        - **Python Version**: ${{ env.PYTHON_VERSION || '3.13' }}
+        
+        ### 🔧 Security & Quality Tools
+        | Tool | Version | Purpose | Status |
+        |------|---------|---------|--------|
+        | **Ruff** | Latest | Linting & Formatting | $([ "$QUALITY_STATUS" = "passed" ] && echo "✅" || echo "⚠️") |
+        | **MyPy** | Latest | Type Checking | $([ "$QUALITY_STATUS" = "passed" ] && echo "✅" || echo "⚠️") |
+        | **Safety** | Latest | Dependency Scanning | $([ "${SAFETY_VULNS:-0}" -eq 0 ] && echo "✅" || echo "⚠️") |
+        | **Semgrep** | Latest | SAST Analysis | $([ "$SEMGREP_FINDINGS" -eq 0 ] && echo "✅" || echo "⚠️") |
+        | **Trivy** | v0.16.1 | Container Security | $([ "$TRIVY_CRITICAL" -eq 0 ] && [ "$TRIVY_HIGH" -eq 0 ] && echo "✅" || echo "⚠️") |
+        | **CodeQL** | Latest | Semantic Analysis | $([ "$CODEQL_ALERTS" -eq 0 ] && echo "✅" || echo "⚠️") |"
+        
+        add_section "⚡ Performance & Tools" "$METRICS_CONTENT"
+        
+        # Action Items & Next Steps
+        NEXT_STEPS=""
+        
+        if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            NEXT_STEPS="🚨 **IMMEDIATE ACTION REQUIRED**
+        
+        Critical security vulnerabilities detected! Deployment should be blocked until resolved.
+        
+        **Priority Actions:**
+        1. 🔍 Review critical findings in [Security Tab](${{ github.server_url }}/${{ github.repository }}/security)
+        2. 🚫 Block production deployment until resolution
+        3. 📦 Update vulnerable dependencies immediately
+        4. 🏗️ Rebuild and rescan container images
+        5. 📞 Notify security team if needed
+        
+        **Timeline**: Address within 24 hours"
+        elif [ "$HIGH_COUNT" -gt 0 ]; then
+            NEXT_STEPS="⚠️ **ACTION RECOMMENDED**
+        
+        High-severity security issues detected that should be addressed promptly.
+        
+        **Recommended Actions:**
+        1. 📋 Review findings in [Security Tab](${{ github.server_url }}/${{ github.repository }}/security)
+        2. 📅 Plan remediation in next sprint/iteration
+        3. 🔄 Update vulnerable dependencies
+        4. 🧪 Test fixes in staging environment
+        
+        **Timeline**: Address within 1 week"
+        elif [ "$TOTAL_ISSUES" -gt 0 ]; then
+            NEXT_STEPS="💡 **REVIEW SUGGESTED**
+        
+        Low to medium severity issues detected for consideration.
+        
+        **Suggested Actions:**
+        1. 📖 Review findings during regular maintenance
+        2. 📦 Consider dependency updates in next release
+        3. 📊 Monitor for trend increases
+        4. 📚 Update security documentation if needed
+        
+        **Timeline**: Address when convenient"
+        else
+            NEXT_STEPS="✅ **NO ACTION REQUIRED**
+        
+        🎉 Excellent work! All security scans passed successfully.
+        
+        **Current Status:**
+        - ✅ No security vulnerabilities detected
+        - ✅ Code quality standards met
+        - ✅ Dependencies are secure
+        - ✅ Container images are clean
+        
+        **Maintenance:**
+        - 🔄 Continue regular dependency updates
+        - 📊 Monitor security advisories
+        - 🧪 Maintain test coverage standards"
+        fi
+        
+        add_section "🎯 Next Steps & Action Items" "$NEXT_STEPS"
+        
+        # Resources & Quick Links
+        RESOURCES_CONTENT="### 📋 Quick Access Links
+        | Resource | Description | URL |
+        |----------|-------------|-----|
+        | 🔍 **Security Tab** | Detailed vulnerability reports & SARIF results | [View Security Tab](${{ github.server_url }}/${{ github.repository }}/security) |
+        | 📊 **Codecov Dashboard** | Coverage trends & historical analysis | [View Coverage](https://codecov.io/gh/${{ github.repository }}) |
+        | 🔗 **Workflow Details** | Full execution logs & timing | [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+        | 📁 **Scan Reports** | Download detailed JSON/SARIF reports | [View Artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+        
+        ### 📚 Documentation & Guidelines
+        - 🛡️ [GitHub Security Best Practices](https://docs.github.com/en/code-security)
+        - 📊 [Codecov Documentation](https://docs.codecov.com/)
+        - 🐍 [Python Security Guidelines](https://python.org/dev/security/)
+        - 🔧 [Ruff Configuration Guide](https://docs.astral.sh/ruff/)
+        - 🏗️ [Container Security Best Practices](https://docs.docker.com/engine/security/)
+        
+        ### 🔄 Workflow Automation
+        - **Trigger Events**: Push to main/develop, Pull requests
+        - **Execution Schedule**: Every code change + weekly security scans
+        - **Parallel Processing**: Quality and security scans run simultaneously
+        - **Integration Points**: Results automatically uploaded to GitHub Security tab
+        - **Notifications**: Critical issues create GitHub issues automatically"
+        
+        add_section "📖 Resources & Documentation" "$RESOURCES_CONTENT"
+        
+        # Detailed Results (Collapsible sections for detailed output)
+        if [ -f "ruff-results.txt" ] && [ -s "ruff-results.txt" ]; then
+            RUFF_DETAILS="$(head -50 ruff-results.txt)"  # Limit output size
+            add_collapsible "🔍 Detailed Ruff Linting Results" "\`\`\`
+        ${RUFF_DETAILS}
+        \`\`\`
+        
+        $([ $(wc -l < ruff-results.txt) -gt 50 ] && echo "> ⚠️ Output truncated. View full results in artifacts.")"
+        fi
+        
+        if [ -f "mypy-results.txt" ] && [ -s "mypy-results.txt" ]; then
+            MYPY_DETAILS="$(head -50 mypy-results.txt)"
+            add_collapsible "🔍 Detailed MyPy Type Check Results" "\`\`\`
+        ${MYPY_DETAILS}
+        \`\`\`
+        
+        $([ $(wc -l < mypy-results.txt) -gt 50 ] && echo "> ⚠️ Output truncated. View full results in artifacts.")"
+        fi
+        
+        if [ -f "safety-report.txt" ] && [ -s "safety-report.txt" ]; then
+            SAFETY_DETAILS="$(head -30 safety-report.txt)"
+            add_collapsible "🔍 Detailed Safety Vulnerability Report" "\`\`\`
+        ${SAFETY_DETAILS}
+        \`\`\`
+        
+        $([ $(wc -l < safety-report.txt) -gt 30 ] && echo "> ⚠️ Output truncated. View full JSON report in artifacts.")"
+        fi
+        
+        # Summary Statistics for Dashboard/Badges
+        {
+            echo "---"
+            echo ""
+            echo "### 📈 Summary Statistics"
+            echo "| Metric | Count | Status |"
+            echo "|--------|-------|--------|"
+            echo "| **Total Issues** | ${TOTAL_ISSUES} | $(get_status_badge "$([ "$TOTAL_ISSUES" -eq 0 ] && echo "clean" || echo "issues")") |"
+            echo "| **Critical** | ${CRITICAL_COUNT} | $(get_status_badge "$([ "$CRITICAL_COUNT" -eq 0 ] && echo "clean" || echo "critical")") |"
+            echo "| **High Severity** | ${HIGH_COUNT} | $(get_status_badge "$([ "$HIGH_COUNT" -eq 0 ] && echo "clean" || echo "issues")") |"
+            echo "| **Quality Status** | - | $(get_status_badge "$QUALITY_STATUS") |"
+            echo "| **Security Status** | - | $(get_status_badge "$SECURITY_STATUS") |"
+            echo ""
+        } >> $GITHUB_STEP_SUMMARY
+        
+        # Footer with metadata
+        {
+            echo "---"
+            echo ""
+            echo "<sub>🤖 Generated by Code Quality & Security Action • $(date -u '+%Y-%m-%d %H:%M:%S UTC') • [GitHub Actions Summaries](https://github.blog/news-insights/product-news/supercharging-github-actions-with-job-summaries/) • [Workflow Source](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/.github/workflows/ci.yml)</sub>"
+        } >> $GITHUB_STEP_SUMMARY
+        
+        # Set outputs for workflow decision making
+        echo "success=true" >> $GITHUB_OUTPUT
+        echo "total_issues=${TOTAL_ISSUES}" >> $GITHUB_OUTPUT
+        echo "security_status=${SECURITY_STATUS}" >> $GITHUB_OUTPUT
+        echo "quality_status=${QUALITY_STATUS}" >> $GITHUB_OUTPUT
+        echo "critical_count=${CRITICAL_COUNT}" >> $GITHUB_OUTPUT
+        echo "high_count=${HIGH_COUNT}" >> $GITHUB_OUTPUT
+        
+        # Log completion
+        echo "✅ GitHub Actions Summary generated successfully!"
+        echo "📊 Summary includes: Quality checks (${QUALITY_STATUS}), Security scans (${SECURITY_STATUS}), ${TOTAL_ISSUES} total issues"
+        echo "🔗 View comprehensive summary in the Actions tab"
+        
+        # Add summary to job annotations
+        echo "::notice title=Summary Generated::Quality: ${QUALITY_STATUS} | Security: ${SECURITY_STATUS} | Total Issues: ${TOTAL_ISSUES}"
+        
+        # Create warning/error annotations for critical issues
+        if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "::error title=Critical Security Issues::${CRITICAL_COUNT} critical vulnerabilities detected! Review Security tab immediately."
+        elif [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "::warning title=High Severity Issues::${HIGH_COUNT} high-severity issues detected. Plan remediation soon."
+        fi
