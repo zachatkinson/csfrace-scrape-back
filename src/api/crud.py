@@ -9,6 +9,11 @@ from sqlalchemy.orm import selectinload
 from ..common.status import JobPriority, JobStatus
 from ..constants import API_DEFAULT_LIMIT
 from ..database.models import Batch, ContentResult, ScrapingJob
+from ..monitoring.job_events import (
+    publish_job_created,
+    publish_job_deleted,
+    publish_job_status_update,
+)
 from .schemas import BatchCreate, JobCreate, JobUpdate
 
 
@@ -46,7 +51,6 @@ class JobCRUD:
 
         job = ScrapingJob(
             source_url=str(job_data.url),  # Required field
-            url=str(job_data.url),
             domain=domain,
             slug=slug,
             priority=job_data.priority.value,  # Fixed: Use enum string value
@@ -58,6 +62,12 @@ class JobCRUD:
         db.add(job)
         # Session dependency handles commit - just refresh to get ID
         await db.flush()
+
+        # Publish job created event
+        await publish_job_created(
+            job_id=job.id, url=str(job_data.url), domain=domain, status=job.status
+        )
+
         return job
 
     @staticmethod
@@ -165,7 +175,15 @@ class JobCRUD:
         if not job:
             return False
 
+        # Store job data for event publishing before deletion
+        job_url = job.source_url
+        job_domain = job.domain or ""
+
         await db.delete(job)
+
+        # Publish job deleted event
+        await publish_job_deleted(job_id=job_id, url=job_url, domain=job_domain)
+
         return True
 
     @staticmethod
@@ -192,7 +210,11 @@ class JobCRUD:
         if not job:
             return None
 
-        job.status = status.value if hasattr(status, "value") else str(status)
+        # Store old status for event publishing
+        old_status = job.status
+        new_status = status.value if hasattr(status, "value") else str(status)
+
+        job.status = new_status
         if error_message:
             job.error_message = error_message
         if error_type:
@@ -209,6 +231,19 @@ class JobCRUD:
 
         await db.flush()
         await db.refresh(job)
+
+        # Publish status update event (only if status actually changed)
+        if old_status != new_status:
+            await publish_job_status_update(
+                job_id=job.id,
+                old_status=old_status,
+                new_status=new_status,
+                url=job.source_url,
+                domain=job.domain or "",
+                error_message=error_message,
+                processing_time_ms=job.processing_time_ms,
+            )
+
         return job
 
 

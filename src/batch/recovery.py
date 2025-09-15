@@ -348,7 +348,7 @@ class BatchRecoveryManager:
                     job.error_type = None
                     job.retry_count += 1
 
-                urls_to_retry.append(job.url)
+                urls_to_retry.append(job.source_url)
 
             session.commit()
 

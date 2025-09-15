@@ -73,7 +73,6 @@ class ScrapingJob(Base):
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
 
     # Additional identification fields expected by tests
-    url: Mapped[str] = mapped_column(Text, nullable=False)  # Alias for source_url for tests
     domain: Mapped[str | None] = mapped_column(String(255))
     slug: Mapped[str | None] = mapped_column(String(255))
     output_directory: Mapped[str | None] = mapped_column(String(1024))

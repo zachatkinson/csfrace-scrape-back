@@ -51,7 +51,7 @@ async def execute_batch_processing(batch_id: str, output_base_dir: str, max_conc
 
             # Add all jobs to the processor
             for job in batch.jobs:
-                processor.add_job(job.url, output_dir=Path(job.output_directory or ""))
+                processor.add_job(job.source_url, output_dir=Path(job.output_directory or ""))
                 # Update individual job status
                 await JobCRUD.update_job_status(db, job.id, JobStatus.RUNNING)
 
