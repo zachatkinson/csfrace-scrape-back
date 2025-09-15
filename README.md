@@ -6,7 +6,7 @@
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-A high-performance, async Python application that converts WordPress blog content to Shopify-compatible HTML format. Built with modern async/await patterns, comprehensive monitoring, and a web-based frontend for easy content migration.
+A high-performance, async Python application that converts WordPress blog content to Shopify-compatible HTML format. Built with modern async/await patterns, comprehensive monitoring, automated CI/CD with semantic release, and a web-based frontend for easy content migration.
 
 ## ✨ Features
 
