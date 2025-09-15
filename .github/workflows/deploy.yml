@@ -36,8 +36,11 @@ jobs:
     name: 📋 Get Release Information
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Only run if semantic release completed successfully and created a release
-    if: (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') && github.event.workflow_run.name == 'Semantic Release'
+    # Only run if semantic release completed successfully AND actually created a release
+    if: |
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.name == 'Semantic Release')
     outputs:
       should-deploy: ${{ steps.check-release.outputs.should-deploy }}
       image-tag: ${{ steps.check-release.outputs.image-tag }}
@@ -48,23 +51,16 @@ jobs:
       - name: Check semantic release outputs
         id: check-release
         run: |
-          # For workflow_run trigger, get the semantic release outputs
+          # Production deployment triggers after semantic release completes (skip or success)
+          # This ensures the sequence: CI → Semantic Release → Production Deployment
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            # Check if semantic release actually created a release
-            # We can determine this by checking if the triggering workflow had outputs
-            echo "Triggered by semantic release workflow"
+            echo "Triggered by semantic release workflow completion"
             echo "should-deploy=true" >> $GITHUB_OUTPUT
-            echo "released=true" >> $GITHUB_OUTPUT
-
-            # Note: In a real implementation, you'd get these from the workflow run API
-            # For now, we'll proceed with deployment if semantic release triggered us
             echo "image-tag=latest" >> $GITHUB_OUTPUT
             echo "version=from-semantic-release" >> $GITHUB_OUTPUT
           else
-            # Manual trigger
             echo "Manual deployment trigger"
             echo "should-deploy=true" >> $GITHUB_OUTPUT
-            echo "released=false" >> $GITHUB_OUTPUT
             echo "image-tag=latest" >> $GITHUB_OUTPUT
             echo "version=manual" >> $GITHUB_OUTPUT
           fi
