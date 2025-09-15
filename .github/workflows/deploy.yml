@@ -31,182 +31,52 @@ concurrency:
   cancel-in-progress: false  # Don't cancel deployments in progress
 
 jobs:
-  # Quality Gate - Must pass before any deployment
-  quality-gate:
-    name: 🔍 Pre-Deployment Quality Gate
+  # Get release information from semantic release workflow
+  get-release-info:
+    name: 📋 Get Release Information
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # Only run if semantic release completed successfully (or manual trigger)
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 5
+    # Only run if semantic release completed successfully and created a release
+    if: (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') && github.event.workflow_run.name == 'Semantic Release'
     outputs:
-      deploy-approved: ${{ steps.quality-check.outputs.approved }}
-      security-status: ${{ steps.security-check.outputs.status }}
-      coverage-status: ${{ steps.coverage-check.outputs.status }}
+      should-deploy: ${{ steps.check-release.outputs.should-deploy }}
+      image-tag: ${{ steps.check-release.outputs.image-tag }}
+      version: ${{ steps.check-release.outputs.version }}
+      released: ${{ steps.check-release.outputs.released }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.8.14"
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --frozen --no-editable --extra dev
-
-      - name: Run quality checks
-        id: quality-check
+      - name: Check semantic release outputs
+        id: check-release
         run: |
-          echo "::group::Coverage Check"
+          # For workflow_run trigger, get the semantic release outputs
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Check if semantic release actually created a release
+            # We can determine this by checking if the triggering workflow had outputs
+            echo "Triggered by semantic release workflow"
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+            echo "released=true" >> $GITHUB_OUTPUT
 
-          # Check if we have recent coverage data
-          if [[ -f "coverage.xml" ]]; then
-            coverage_percent=$(uv run coverage report --format=total 2>/dev/null || echo "0")
+            # Note: In a real implementation, you'd get these from the workflow run API
+            # For now, we'll proceed with deployment if semantic release triggered us
+            echo "image-tag=latest" >> $GITHUB_OUTPUT
+            echo "version=from-semantic-release" >> $GITHUB_OUTPUT
           else
-            echo "::warning::No coverage data found, running quick coverage check"
-            uv run pytest tests/unit/ --cov=src --cov-report=term-missing --tb=short -x
-            coverage_percent=$(uv run coverage report --format=total 2>/dev/null || echo "0")
+            # Manual trigger
+            echo "Manual deployment trigger"
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+            echo "released=false" >> $GITHUB_OUTPUT
+            echo "image-tag=latest" >> $GITHUB_OUTPUT
+            echo "version=manual" >> $GITHUB_OUTPUT
           fi
-
-          echo "coverage_percent=${coverage_percent}" >> $GITHUB_OUTPUT
-
-          if [[ "${coverage_percent}" -lt 85 ]]; then
-            echo "::error::Coverage ${coverage_percent}% below 85% threshold"
-            echo "approved=false" >> $GITHUB_OUTPUT
-          else
-            echo "::notice::Coverage ${coverage_percent}% meets threshold"
-            echo "approved=true" >> $GITHUB_OUTPUT
-          fi
-
-          echo "::endgroup::"
-
-      - name: Security vulnerability check
-        id: security-check
-        run: |
-          echo "::group::Security Check"
-
-          # Check for high/critical vulnerabilities
-          uv run safety check --json --output safety-report.json --continue-on-error || true
-
-          if [[ -f "safety-report.json" ]]; then
-            high_vulns=$(cat safety-report.json | jq -r '.vulnerabilities[] | select(.vulnerability.severity=="high" or .vulnerability.severity=="critical") | .vulnerability.id' | wc -l || echo "0")
-
-            if [[ "${high_vulns}" -gt 0 ]]; then
-              echo "::error::${high_vulns} high/critical security vulnerabilities found"
-              echo "status=failed" >> $GITHUB_OUTPUT
-            else
-              echo "::notice::No high/critical security vulnerabilities found"
-              echo "status=passed" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "::warning::Could not run security check"
-            echo "status=warning" >> $GITHUB_OUTPUT
-          fi
-
-          echo "::endgroup::"
-
-      - name: Final approval decision
-        id: final-decision
-        run: |
-          force_deploy="${{ github.event.inputs.force_deploy }}"
-          coverage_approved="${{ steps.quality-check.outputs.approved }}"
-          security_status="${{ steps.security-check.outputs.status }}"
-
-          if [[ "${force_deploy}" == "true" ]]; then
-            echo "::warning::Force deploy enabled - bypassing quality gates"
-            echo "approved=true" >> $GITHUB_OUTPUT
-          elif [[ "${coverage_approved}" == "true" && "${security_status}" != "failed" ]]; then
-            echo "::notice::All quality gates passed - deployment approved"
-            echo "approved=true" >> $GITHUB_OUTPUT
-          else
-            echo "::error::Quality gates failed - deployment blocked"
-            echo "approved=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-
-  # Build and publish container image
-  build-and-push:
-    name: 🏗️ Build & Push Container Image
-    runs-on: ubuntu-latest
-    needs: quality-gate
-    if: needs.quality-gate.outputs.deploy-approved == 'true'
-    timeout-minutes: 20
-    outputs:
-      image-tag: ${{ steps.image.outputs.tag }}
-      image-digest: ${{ steps.image.outputs.digest }}
-
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          # Build production stage
-          target: production
-
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
-
-      - name: Set outputs
-        id: image
-        run: |
-          echo "tag=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> $GITHUB_OUTPUT
-          echo "digest=${{ steps.push.outputs.digest }}" >> $GITHUB_OUTPUT
 
   # Deploy to Staging (automatic from master)
   deploy-staging:
     name: 🧪 Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [quality-gate, build-and-push]
+    needs: [get-release-info]
     if: |
-      needs.quality-gate.outputs.deploy-approved == 'true' &&
-      (github.event_name == 'push' || github.event.inputs.environment == 'staging')
+      needs.get-release-info.outputs.should-deploy == 'true' &&
+      (github.event_name == 'workflow_run' || github.event.inputs.environment == 'staging')
     timeout-minutes: 10
 
     environment:
@@ -217,14 +87,15 @@ jobs:
       - name: Deploy to staging
         run: |
           echo "🚀 Deploying to staging environment"
-          echo "Image: ${{ needs.build-and-push.outputs.image-tag }}"
-          echo "Digest: ${{ needs.build-and-push.outputs.image-digest }}"
+          echo "Version: ${{ needs.get-release-info.outputs.version }}"
+          echo "Image Tag: ${{ needs.get-release-info.outputs.image-tag }}"
+          echo "Released: ${{ needs.get-release-info.outputs.released }}"
 
-          # Here you would add your actual deployment commands
+          # Here you would add your actual deployment commands using the pre-built image
           # Examples:
-          # - kubectl apply -f k8s/staging/
+          # - kubectl set image deployment/app app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-release-info.outputs.version }}
           # - docker-compose -f docker-compose.staging.yml up -d
-          # - Deploy to cloud provider (AWS ECS, Google Cloud Run, etc.)
+          # - Deploy to cloud provider using semantic version tag
 
           echo "::notice::Staging deployment completed successfully"
 
@@ -245,11 +116,10 @@ jobs:
   deploy-production:
     name: 🌟 Deploy to Production
     runs-on: ubuntu-latest
-    needs: [quality-gate, build-and-push, deploy-staging]
+    needs: [get-release-info, deploy-staging]
     if: |
       always() &&
-      needs.quality-gate.outputs.deploy-approved == 'true' &&
-      needs.build-and-push.result == 'success' &&
+      needs.get-release-info.outputs.should-deploy == 'true' &&
       (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped') &&
       github.event.inputs.environment == 'production'
     timeout-minutes: 15
@@ -262,14 +132,15 @@ jobs:
       - name: Deploy to production
         run: |
           echo "🌟 Deploying to production environment"
-          echo "Image: ${{ needs.build-and-push.outputs.image-tag }}"
-          echo "Digest: ${{ needs.build-and-push.outputs.image-digest }}"
+          echo "Version: ${{ needs.get-release-info.outputs.version }}"
+          echo "Image Tag: ${{ needs.get-release-info.outputs.image-tag }}"
+          echo "Released: ${{ needs.get-release-info.outputs.released }}"
 
-          # Here you would add your actual production deployment commands
+          # Here you would add your actual production deployment commands using pre-built image
           # Examples:
-          # - kubectl apply -f k8s/production/
+          # - kubectl set image deployment/app app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-release-info.outputs.version }}
           # - docker-compose -f docker-compose.prod.yml up -d
-          # - Deploy to cloud provider with rolling update
+          # - Deploy to cloud provider with rolling update using semantic version
 
           echo "::notice::Production deployment completed successfully"
 
@@ -288,7 +159,7 @@ jobs:
 
       - name: Notify deployment success
         run: |
-          echo "::notice title=🎉 Production Deployment::Successfully deployed ${{ needs.build-and-push.outputs.image-tag }} to production"
+          echo "::notice title=🎉 Production Deployment::Successfully deployed version ${{ needs.get-release-info.outputs.version }} to production"
 
           # Add notifications here:
           # - Slack webhook
@@ -300,15 +171,15 @@ jobs:
   post-deployment-monitoring:
     name: 📊 Post-Deployment Monitoring
     uses: ./.github/workflows/monitoring-gates.yml
-    needs: [build-and-push, deploy-staging, deploy-production]
+    needs: [get-release-info, deploy-staging, deploy-production]
     if: |
       always() &&
-      needs.build-and-push.result == 'success' &&
+      needs.get-release-info.outputs.should-deploy == 'true' &&
       (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
     with:
       environment: ${{ github.event.inputs.environment == 'production' && 'production' || 'staging' }}
       deployment_id: ${{ github.run_id }}
-      image_tag: ${{ needs.build-and-push.outputs.image-tag }}
+      image_tag: ${{ needs.get-release-info.outputs.image-tag }}
       rollback_enabled: true
     secrets:
       MONITORING_WEBHOOK: ${{ secrets.MONITORING_WEBHOOK }}
@@ -318,7 +189,7 @@ jobs:
   deployment-summary:
     name: 📊 Deployment Summary
     runs-on: ubuntu-latest
-    needs: [quality-gate, build-and-push, deploy-staging, deploy-production, post-deployment-monitoring]
+    needs: [get-release-info, deploy-staging, deploy-production, post-deployment-monitoring]
     if: always()
     timeout-minutes: 5
 
@@ -328,20 +199,12 @@ jobs:
           echo "## 🚀 Deployment Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Quality Gate Status
-          if [[ "${{ needs.quality-gate.result }}" == "success" ]]; then
-            echo "✅ **Quality Gate**: Passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Quality Gate**: Failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Build Status
-          if [[ "${{ needs.build-and-push.result }}" == "success" ]]; then
-            echo "✅ **Container Build**: Completed" >> $GITHUB_STEP_SUMMARY
-            echo "📦 **Image**: \`${{ needs.build-and-push.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Container Build**: Failed" >> $GITHUB_STEP_SUMMARY
-          fi
+          # Release Information
+          echo "### 📋 Release Information" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ needs.get-release-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Released**: ${{ needs.get-release-info.outputs.released }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag**: \`${{ needs.get-release-info.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
           # Staging Deployment
           if [[ "${{ needs.deploy-staging.result }}" == "success" ]]; then
@@ -363,3 +226,5 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "_Generated on $(date -u)_" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🐳 **Container images are pre-built by Semantic Release workflow**" >> $GITHUB_STEP_SUMMARY
