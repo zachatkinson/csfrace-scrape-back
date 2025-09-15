@@ -5,10 +5,9 @@ This module provides reusable browser contexts and smart test markers
 for maximum CI/CD performance.
 """
 
-import asyncio
 from collections.abc import AsyncIterator
-from typing import Any
 
+import asyncio
 import pytest
 import pytest_asyncio
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
@@ -19,18 +18,14 @@ from src.rendering.browser_config import OptimizedBrowserConfig
 # Custom markers for smart test selection
 def pytest_configure(config):
     """Register custom markers for test categorization."""
-    config.addinivalue_line(
-        "markers", "no_browser: mark test as not requiring a real browser"
-    )
+    config.addinivalue_line("markers", "no_browser: mark test as not requiring a real browser")
     config.addinivalue_line(
         "markers", "lightweight: mark test as suitable for webkit (lighter browser)"
     )
     config.addinivalue_line(
         "markers", "heavy_browser: mark test as requiring full chromium features"
     )
-    config.addinivalue_line(
-        "markers", "browser_pool: mark test to use pre-warmed browser pool"
-    )
+    config.addinivalue_line("markers", "browser_pool: mark test to use pre-warmed browser pool")
 
 
 # Browser Pool for pre-warming
@@ -132,14 +127,14 @@ async def browser_pool(
 # Function-scoped fixtures for test isolation
 @pytest_asyncio.fixture
 async def browser_context(
-    request, chromium_browser: Browser, webkit_browser: Browser, browser_config: OptimizedBrowserConfig
+    request,
+    chromium_browser: Browser,
+    webkit_browser: Browser,
+    browser_config: OptimizedBrowserConfig,
 ) -> AsyncIterator[BrowserContext]:
     """Get browser context based on test markers."""
     # Choose browser based on test markers
-    if "lightweight" in request.keywords:
-        browser = webkit_browser
-    else:
-        browser = chromium_browser
+    browser = webkit_browser if "lightweight" in request.keywords else chromium_browser
 
     # Create isolated context for this test
     context = await browser.new_context(**browser_config.context_options)
@@ -219,8 +214,7 @@ async def quick_page_load(page, url: str, config: OptimizedBrowserConfig):
 
 async def wait_for_idle(page, timeout: int = 1000):
     """Wait for page to be idle (no network activity)."""
-    try:
+    import contextlib
+
+    with contextlib.suppress(Exception):
         await page.wait_for_load_state("networkidle", timeout=timeout)
-    except:
-        # Don't fail tests if network doesn't go idle
-        pass
