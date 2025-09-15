@@ -46,7 +46,7 @@ class TestJobEndpoints:
         data = response.json()
 
         assert data["id"] == sample_job.id
-        assert data["url"] == sample_job.url
+        assert data["url"] == sample_job.source_url
         assert data["domain"] == sample_job.domain
         assert data["slug"] == sample_job.slug
         assert data["status"] == sample_job.status

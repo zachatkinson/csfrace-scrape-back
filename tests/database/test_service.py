@@ -306,7 +306,7 @@ class TestDatabaseServiceJobOperations:
         retrieved_job = db_service_with_session.get_job(created_job.id)
         assert retrieved_job is not None
         assert retrieved_job.id == created_job.id
-        assert retrieved_job.url == created_job.url
+        assert retrieved_job.source_url == created_job.source_url
 
     def test_get_job_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent job."""
