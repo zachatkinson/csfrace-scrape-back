@@ -534,19 +534,13 @@ jobs:
           # Shard-specific test execution for dedicated Playwright optimization
           if [ "${{ matrix.shard }}" = "4" ]; then
             echo "::notice title=Shard ${{ matrix.shard }}::Dedicated rendering shard - includes Playwright tests"
-            # Shard 4: Dedicated rendering shard (includes tests/rendering/)
-            uv run pytest tests/ \
-              --ignore=tests/integration/ \
-              --ignore=tests/performance/ \
-              --ignore=tests/e2e/ \
-              --ignore=tests/api/ \
+            # Shard 4: Dedicated rendering shard (ONLY tests/rendering/)
+            uv run pytest tests/rendering/ \
               -m "not integration" \
-              --splits=4 \
-              --group=${{ matrix.shard }} \
               -n auto \
               --dist=worksteal \
               --durations=10 \
-              --cov=src \
+              --cov=src/rendering \
               --cov-branch \
             --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
@@ -564,7 +558,7 @@ jobs:
               --ignore=tests/api/ \
               --ignore=tests/rendering/ \
               -m "not integration" \
-              --splits=4 \
+              --splits=3 \
               --group=${{ matrix.shard }} \
               -n auto \
               --dist=worksteal \
