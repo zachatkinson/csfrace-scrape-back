@@ -13,7 +13,7 @@ Architecture:
 
 from __future__ import annotations
 
-import asyncio
+import contextlib
 import json
 import time
 from abc import ABC, abstractmethod
@@ -21,8 +21,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+import asyncio
 import structlog
 
 if TYPE_CHECKING:
@@ -33,6 +34,7 @@ logger = structlog.get_logger(__name__)
 
 def serialize_health_data(data: dict[str, Any]) -> dict[str, Any]:
     """Serialize health data, converting non-JSON-serializable types."""
+
     def convert_value(value):
         if isinstance(value, Decimal):
             return float(value)
@@ -44,7 +46,7 @@ def serialize_health_data(data: dict[str, Any]) -> dict[str, Any]:
             return [convert_value(item) for item in value]
         else:
             return value
-    
+
     return {k: convert_value(v) for k, v in data.items()}
 
 
@@ -118,10 +120,8 @@ class HealthEmitter(ABC):
         self._running = False
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
 
         self._logger.info("Stopped health monitoring")
 
@@ -179,7 +179,7 @@ class RedisHealthEmitter(HealthEmitter):
             if response:
                 # Get Redis info
                 info = await self.redis_client.info()
-                
+
                 details = {
                     "connected": True,
                     "version": info.get("redis_version", "unknown"),
@@ -191,9 +191,7 @@ class RedisHealthEmitter(HealthEmitter):
                 }
 
                 # Determine status based on response time
-                if response_time_ms > 1000:  # 1 second
-                    status = ServiceStatus.DEGRADED
-                elif response_time_ms > 100:  # 100ms
+                if response_time_ms > 1000 or response_time_ms > 100:  # 1 second
                     status = ServiceStatus.DEGRADED
                 else:
                     status = ServiceStatus.HEALTHY
@@ -244,8 +242,10 @@ class PostgreSQLHealthEmitter(HealthEmitter):
             with self.db_session_factory() as session:
                 # Simple query to test connectivity and get version
                 from sqlalchemy import text
-                
-                result = session.execute(text("SELECT version(), current_database(), current_user")).fetchone()
+
+                result = session.execute(
+                    text("SELECT version(), current_database(), current_user")
+                ).fetchone()
                 response_time_ms = (time.time() - start_time) * 1000
 
                 if result:
@@ -254,12 +254,14 @@ class PostgreSQLHealthEmitter(HealthEmitter):
                     current_user = result[2] if result[2] else "unknown"
 
                     # Get additional stats
-                    stats_result = session.execute(text("""
-                        SELECT 
+                    stats_result = session.execute(
+                        text("""
+                        SELECT
                             pg_database_size(current_database()) as db_size,
                             (SELECT count(*) FROM pg_stat_activity WHERE state = 'active') as active_connections,
                             (SELECT setting FROM pg_settings WHERE name = 'max_connections') as max_connections
-                    """)).fetchone()
+                    """)
+                    ).fetchone()
 
                     db_size = stats_result[0] if stats_result and stats_result[0] else 0
                     active_connections = stats_result[1] if stats_result and stats_result[1] else 0
@@ -274,20 +276,30 @@ class PostgreSQLHealthEmitter(HealthEmitter):
                         "database_size_mb": round(int(db_size) / 1024 / 1024, 2) if db_size else 0,
                         "active_connections": int(active_connections) if active_connections else 0,
                         "max_connections": int(max_connections) if max_connections else 0,
-                        "connection_usage_percent": round((int(active_connections) / int(max_connections)) * 100, 2) if max_connections and int(max_connections) > 0 else 0,
+                        "connection_usage_percent": round(
+                            (int(active_connections) / int(max_connections)) * 100, 2
+                        )
+                        if max_connections and int(max_connections) > 0
+                        else 0,
                     }
 
                     # Determine status based on response time and connection usage
-                    connection_usage = details["connection_usage_percent"]
-                    if response_time_ms > 2000 or connection_usage > 90:  # 2 seconds or >90% connections
+                    connection_usage = cast(float, details["connection_usage_percent"])
+                    if (
+                        response_time_ms > 2000 or connection_usage > 90
+                    ):  # 2 seconds or >90% connections
                         status = ServiceStatus.UNHEALTHY
-                    elif response_time_ms > 1000 or connection_usage > 75:  # 1 second or >75% connections
+                    elif (
+                        response_time_ms > 1000 or connection_usage > 75
+                    ):  # 1 second or >75% connections
                         status = ServiceStatus.DEGRADED
                     else:
                         status = ServiceStatus.HEALTHY
 
                     # Extract PostgreSQL version
-                    pg_version = version_info.split()[1] if len(version_info.split()) > 1 else "unknown"
+                    pg_version = (
+                        version_info.split()[1] if len(version_info.split()) > 1 else "unknown"
+                    )
 
                     return ServiceHealthData(
                         service_name="postgresql",
@@ -322,21 +334,26 @@ class PostgreSQLHealthEmitter(HealthEmitter):
 class FrontendHealthEmitter(HealthEmitter):
     """Frontend service health emitter (runs from backend for coordination)."""
 
-    def __init__(self, redis_client: Redis, frontend_url: str = "http://frontend:3000", check_interval: float = 30.0):
+    def __init__(
+        self,
+        redis_client: Redis,
+        frontend_url: str = "http://frontend:3000",
+        check_interval: float = 30.0,
+    ):
         super().__init__("frontend", redis_client, check_interval)
         self.frontend_url = frontend_url
 
     async def check_health(self) -> ServiceHealthData:
         """Check Frontend health by making HTTP request."""
         import aiohttp
-        
+
         start_time = time.time()
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-                async with session.get(f"{self.frontend_url}/") as response:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session, \
+                       session.get(f"{self.frontend_url}/") as response:
                     response_time_ms = (time.time() - start_time) * 1000
-                    
+
                     details = {
                         "connected": True,
                         "status_code": response.status,
@@ -347,9 +364,9 @@ class FrontendHealthEmitter(HealthEmitter):
                     # Determine status based on HTTP status and response time
                     if response.status >= 500:
                         status = ServiceStatus.UNHEALTHY
-                    elif response.status >= 400 or response_time_ms > 5000:  # 5 seconds
-                        status = ServiceStatus.DEGRADED
-                    elif response_time_ms > 2000:  # 2 seconds
+                    elif (
+                        response.status >= 400 or response_time_ms > 5000 or response_time_ms > 2000
+                    ):  # 5 seconds
                         status = ServiceStatus.DEGRADED
                     else:
                         status = ServiceStatus.HEALTHY
@@ -399,7 +416,7 @@ class BackendHealthEmitter(HealthEmitter):
 
             # Get system info
             import psutil
-            
+
             cpu_percent = psutil.cpu_percent(interval=0.1)
             memory = psutil.virtual_memory()
 
@@ -451,7 +468,7 @@ class BackendHealthEmitter(HealthEmitter):
 class HealthServiceRegistry:
     """
     Health Service Registry - Coordinates all service health emitters.
-    
+
     This follows Astro MCP best practices by:
     1. Single Responsibility: Each service manages its own health
     2. DRY: No duplicate health checking logic
@@ -493,13 +510,15 @@ class HealthServiceRegistry:
             except Exception as e:
                 self._logger.error("Failed to stop monitoring", service=service_name, error=str(e))
 
-    async def initialize_default_services(self, db_session_factory, frontend_url: str = "http://frontend:3000") -> None:
+    async def initialize_default_services(
+        self, db_session_factory, frontend_url: str = "http://frontend:3000"
+    ) -> None:
         """Initialize all default service emitters."""
         # Register Redis health emitter
         redis_emitter = RedisHealthEmitter(self.redis_client)
         self.register_service(redis_emitter)
 
-        # Register PostgreSQL health emitter  
+        # Register PostgreSQL health emitter
         postgres_emitter = PostgreSQLHealthEmitter(self.redis_client, db_session_factory)
         self.register_service(postgres_emitter)
 
@@ -522,13 +541,15 @@ class HealthServiceRegistry:
 health_service_registry: HealthServiceRegistry | None = None
 
 
-async def initialize_health_service_registry(redis_client: Redis, db_session_factory) -> HealthServiceRegistry:
+async def initialize_health_service_registry(
+    redis_client: Redis, db_session_factory
+) -> HealthServiceRegistry:
     """Initialize the global health service registry."""
     global health_service_registry
-    
+
     health_service_registry = HealthServiceRegistry(redis_client)
     await health_service_registry.initialize_default_services(db_session_factory)
-    
+
     logger.info("Health Service Registry initialized following Astro MCP best practices")
     return health_service_registry
 

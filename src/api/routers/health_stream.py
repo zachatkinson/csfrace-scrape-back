@@ -1,5 +1,6 @@
 """Health monitoring SSE stream endpoint for real-time health updates."""
 
+import contextlib
 import json
 from collections.abc import AsyncGenerator
 from decimal import Decimal
@@ -32,7 +33,7 @@ def safe_json_dumps(data: Any) -> str:
         elif hasattr(obj, 'isoformat'):
             return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-    
+
     return json.dumps(data, default=default_serializer)
 
 
@@ -143,13 +144,13 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             try:
                 pubsub = redis_client.pubsub()
                 await pubsub.subscribe("health_events")
-                
+
                 async for message in pubsub.listen():
                     if message["type"] == "message":
                         try:
                             # Parse service health data from Health Service Registry
                             service_data = json.loads(message["data"].decode("utf-8"))
-                            
+
                             # Format for SSE client (consistent with existing format)
                             service_update = {
                                 "service": service_data["service"],
@@ -164,10 +165,10 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                                 }
                             }
                             await event_queue.put(service_update)
-                            
+
                         except Exception as e:
                             logger.error("Failed to process service health data", error=str(e))
-                            
+
             except Exception as e:
                 logger.error("Redis health listener failed", error=str(e))
 
@@ -227,11 +228,9 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             # Cleanup Redis listener task
             if 'listener_task' in locals():
                 listener_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await listener_task
-                except asyncio.CancelledError:
-                    pass
-            
+
             # Cleanup legacy subscription
             if health_event_subscriber:
                 health_event_subscriber.unsubscribe(health_event_callback)

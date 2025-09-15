@@ -15,8 +15,10 @@ from slowapi.util import get_remote_address
 from .. import __version__
 from ..auth.models import MessageResponse
 from ..auth.router import router as auth_router
+from ..caching.manager import cache_manager
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
+from ..database.service import DatabaseService
 from ..monitoring.background_health_monitor import (
     start_background_monitoring,
     stop_background_monitoring,
@@ -26,8 +28,6 @@ from ..monitoring.health_service_registry import (
     start_health_monitoring,
     stop_health_monitoring,
 )
-from ..caching.manager import cache_manager
-from ..database.service import DatabaseService
 from ..monitoring.metrics import metrics_collector
 from ..monitoring.observability import observability_manager
 from .errors import APIErrorFactory
@@ -60,13 +60,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         # Initialize cache manager to get Redis client
         await cache_manager.initialize()
         redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
-        
+
         # Initialize database service for health emitters
         db_service = DatabaseService(echo=False)
-        
+
         # Initialize Health Service Registry with all service emitters
         await initialize_health_service_registry(redis_client, db_service.get_session)
-        
+
         # Start event-driven health monitoring for all services
         await start_health_monitoring()
         print("Event-driven Health Service Registry initialized and started")
@@ -90,7 +90,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         print("Event-driven health monitoring stopped")
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Health Service Registry shutdown failed: {e}")
-    
+
     try:
         await stop_background_monitoring()
         print("Background health monitoring stopped")
