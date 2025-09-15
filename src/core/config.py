@@ -1,4 +1,8 @@
-"""Configuration settings for the converter."""
+"""Configuration settings for the converter.
+
+This module provides configuration dataclasses for HTTP settings,
+output settings, and other converter options.
+"""
 
 from dataclasses import dataclass, field
 
