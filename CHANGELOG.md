@@ -2,6 +2,44 @@
 
 <!-- version list -->
 
+## v4.3.0 (2025-09-15)
+
+### Bug Fixes
+
+- Resolve ruff formatting issue in test_browser.py
+  ([`5392f0a`](https://github.com/zachatkinson/csfrace-scrape-back/commit/5392f0a9af452d09aaf9176ba30d8caa4d3a756a))
+
+- Add missing blank line after import statement - Ensures CI formatting checks pass - Maintains code
+  consistency with project standards
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+### Features
+
+- **tests**: Enhance browser.py test coverage with SOLID/DRY principles
+  ([`2f16df2`](https://github.com/zachatkinson/csfrace-scrape-back/commit/2f16df2d1aba688c48a177130b197097fd577301))
+
+- Improved browser.py test coverage from 26% to 48% (+22% improvement) - Added comprehensive
+  TestActualBrowserClasses with 42 test methods - Enhanced test architecture following SOLID
+  principles: - Single Responsibility: Each test class has one clear purpose - Open/Closed: Easy to
+  extend test scenarios without modification - Liskov Substitution: All fakes substitute real
+  counterparts - Interface Segregation: Focused protocols for different concerns - Dependency
+  Inversion: Tests depend on abstractions via protocols - Applied DRY principles with shared
+  utilities and comprehensive factories - Added tests for BrowserConfig validation, RenderResult
+  dataclass, JavaScriptRenderer lifecycle, BrowserPool management, and factory functions - Created
+  test_browser_solid.py showcasing SOLID test architecture patterns - All tests pass with proper
+  formatting and linting compliance
+
+Coverage results: - browser.py: 48% (significant improvement, complex integration methods remaining)
+  - detector.py: 89% (already exceeds 80% target) - renderer.py: 96% (already exceeds 80% target)
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v4.2.0 (2025-09-15)
 
 ### Bug Fixes
