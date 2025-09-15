@@ -95,7 +95,7 @@ class TestDataFactory:
         # Create base data with correct types
         data = JobCreate(
             url=HttpUrl("https://example.com/test-page"),
-            priority=JobPriority.HIGH.value,
+            priority=JobPriority.HIGH,
             custom_slug="test-page-slug",
             max_retries=5,
             options={"preserve_images": True},
@@ -114,7 +114,7 @@ class TestDataFactory:
         """Create JobUpdate test data with optional overrides."""
         # Create base data with correct types
         data = JobUpdate(
-            priority=JobPriority.LOW.value,
+            priority=JobPriority.LOW,
             max_retries=2,
             options={"new_setting": True},
         )
@@ -157,9 +157,6 @@ class TestDataFactory:
             max_concurrent=5,
             continue_on_error=True,
             output_base_directory="/test/output",
-            create_archives=False,
-            cleanup_after_archive=False,
-            batch_config=None,
         )
 
         # Apply overrides if any
