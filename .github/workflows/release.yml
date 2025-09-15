@@ -31,6 +31,9 @@ jobs:
       pull-requests: write  # For creating PRs
       packages: write  # For container registry
       attestations: write  # For build provenance
+      actions: write  # For workflow dispatch
+      checks: write  # For status checks
+      metadata: read  # For repository metadata
     outputs:
       released: ${{ steps.semantic.outputs.released }}
       version: ${{ steps.semantic.outputs.version }}
@@ -39,21 +42,11 @@ jobs:
       image-digest: ${{ steps.container-outputs.outputs.image-digest }}
     
     steps:
-      - name: Setup SSH key for semantic release
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SEMANTIC_RELEASE_SSH_KEY }}
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for semantic release
-          ssh-key: ${{ secrets.SEMANTIC_RELEASE_SSH_KEY }}
-
-      - name: Configure Git remote for SSH
-        run: |
-          git remote set-url origin git@github.com:${{ github.repository }}.git
-          git remote -v
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Python Semantic Release
         id: semantic
