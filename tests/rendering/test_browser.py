@@ -99,7 +99,9 @@ class FakeBrowser:
         self.browser_type = browser_type
         self.behavior_mode = behavior_mode
         self.closed = False
-        self.shared_state = {}  # Shared state for this browser instance across all contexts/pages
+        self.shared_state: dict[
+            str, Any
+        ] = {}  # Shared state for this browser instance across all contexts/pages
 
     async def new_context(self, **kwargs):
         if self.behavior_mode == "context_failure":
@@ -138,7 +140,7 @@ class FakePage:
         self.behavior_mode = behavior_mode
         self.closed = False
         self._url = "https://example.com"
-        self.request_handlers = []
+        self.request_handlers: list[Any] = []
         self.shared_state = shared_state or {}
 
     async def goto(self, url: str, **kwargs):
@@ -353,7 +355,7 @@ class TestableJavaScriptRenderer:
             raise RuntimeError("Renderer not initialized - call initialize() first")
 
         # Apply retry logic if configured
-        if self.retry_config:
+        if self.retry_config and self.retry_config.max_attempts > 0:
             for attempt in range(self.retry_config.max_attempts):
                 try:
                     return await self._render_page_internal(url, **options)
@@ -363,11 +365,14 @@ class TestableJavaScriptRenderer:
                     import asyncio
 
                     await asyncio.sleep(self.retry_config.base_delay * (2**attempt))
-        else:
-            return await self._render_page_internal(url, **options)
+
+        # Fallback: either no retry config or retry config with 0 max_attempts
+        return await self._render_page_internal(url, **options)
 
     async def _render_page_internal(self, url: str, **options) -> RenderResult:
         """Internal render implementation."""
+        if not self._pool:
+            raise RuntimeError("Renderer not initialized - call initialize() first")
         async with self._pool.get_context() as context:
             page = await context.new_page()
             try:
@@ -555,10 +560,11 @@ class TestBrowserPoolRefactored(IsolatedAsyncioTestCase):
 
 
 @pytest.mark.heavy_browser
-class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
-    """Test JavaScript renderer using dependency injection."""
+class TestJavaScriptRendererRefactored:
+    """Test JavaScript renderer using dependency injection with pytest."""
 
     @pytest.mark.browser_pool
+    @pytest.mark.asyncio
     async def test_renderer_initialization(self, measure_browser_time):
         """Test renderer initialization using optimized browser pool."""
         stop_timer = measure_browser_time("renderer_init")
@@ -567,15 +573,16 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
         renderer = TestableJavaScriptRenderer(config)
 
         await renderer.initialize()
-        self.assertIsNotNone(renderer._pool)
+        assert renderer._pool is not None
 
         duration = stop_timer()
         # Browser pool initialization should be very fast
-        self.assertLess(duration, 0.5)
+        assert duration < 0.5
 
         await renderer.cleanup()
 
     @pytest.mark.lightweight
+    @pytest.mark.asyncio
     async def test_renderer_page_rendering_success(self, measure_browser_time):
         """Test successful page rendering using lightweight WebKit browser."""
         stop_timer = measure_browser_time("page_render")
@@ -590,16 +597,16 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
         result = await renderer.render_page("https://example.com")
 
         # Verify successful render
-        self.assertIsInstance(result, RenderResult)
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.url, "https://example.com")
-        self.assertIn("Test Content", result.html)
-        self.assertEqual(result.metadata["title"], "Test Page")
-        self.assertTrue(result.javascript_executed)
+        assert isinstance(result, RenderResult)
+        assert result.status_code == 200
+        assert result.url == "https://example.com"
+        assert "Test Content" in result.html
+        assert result.metadata["title"] == "Test Page"
+        assert result.javascript_executed is True
 
         duration = stop_timer()
         # Lightweight rendering should be very fast
-        self.assertLess(duration, 2.0)
+        assert duration < 2.0
 
         await renderer.cleanup()
 
@@ -620,6 +627,7 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
         await renderer.cleanup()
 
     @pytest.mark.browser_pool
+    @pytest.mark.asyncio
     async def test_renderer_concurrent_rendering(self, measure_browser_time):
         """Test concurrent page rendering using pre-warmed browser pool."""
         stop_timer = measure_browser_time("concurrent_render")
@@ -638,17 +646,18 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
         results = await asyncio.gather(*tasks)
 
         # Verify all renders succeeded
-        self.assertEqual(len(results), 5)
-        self.assertTrue(all(r.status_code == 200 for r in results))
-        self.assertTrue(all(r.javascript_executed for r in results))
+        assert len(results) == 5
+        assert all(r.status_code == 200 for r in results)
+        assert all(r.javascript_executed for r in results)
 
         duration = stop_timer()
         # Browser pool should enable fast concurrent rendering
-        self.assertLess(duration, 3.0)
+        assert duration < 3.0
 
         await renderer.cleanup()
 
     @pytest.mark.heavy_browser
+    @pytest.mark.asyncio
     async def test_renderer_with_wait_conditions(self, measure_browser_time):
         """Test renderer with various wait conditions using full Chromium features."""
         stop_timer = measure_browser_time("complex_render")
@@ -672,19 +681,20 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
             additional_wait_time=0.5,  # Reduced wait time for CI optimization
         )
 
-        self.assertIsInstance(result, RenderResult)
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.javascript_executed)
-        self.assertIn("screenshots", result.metadata or {})
-        self.assertGreater(len(result.network_requests), 0)
+        assert isinstance(result, RenderResult)
+        assert result.status_code == 200
+        assert result.javascript_executed is True
+        assert "screenshots" in (result.metadata or {})
+        assert len(result.network_requests) > 0
 
         duration = stop_timer()
         # Complex rendering should still be reasonably fast with optimizations
-        self.assertLess(duration, 5.0)
+        assert duration < 5.0
 
         await renderer.cleanup()
 
     @pytest.mark.browser_pool
+    @pytest.mark.asyncio
     async def test_renderer_context_manager(self, measure_browser_time):
         """Test renderer as async context manager with browser pool."""
         stop_timer = measure_browser_time("context_manager")
@@ -695,11 +705,11 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
 
         async with TestableJavaScriptRenderer(config, pool) as renderer:
             result = await renderer.render_page("https://example.com")
-            self.assertEqual(result.status_code, 200)
+            assert result.status_code == 200
 
         duration = stop_timer()
         # Context manager with browser pool should be very fast
-        self.assertLess(duration, 1.0)
+        assert duration < 1.0
 
     @pytest.mark.skip(
         "Retry mechanism test needs complex state management - covered by integration tests"
@@ -711,6 +721,7 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
         pass
 
     @pytest.mark.browser_pool
+    @pytest.mark.asyncio
     async def test_browser_pool_context_reuse(self, measure_browser_time):
         """Test browser pool context reuse functionality for performance."""
         stop_timer = measure_browser_time("context_reuse")
@@ -726,15 +737,16 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
         for i in range(5):
             async with pool.get_context() as context:
                 contexts_used.append(context)
-                self.assertIsNotNone(context)
+                assert context is not None
 
         duration = stop_timer()
         # Context reuse should provide significant performance benefits
-        self.assertLess(duration, 0.3)
+        assert duration < 0.3
 
         await pool.cleanup()
 
     @pytest.mark.browser_pool
+    @pytest.mark.asyncio
     async def test_browser_pool_stale_context_cleanup(self, measure_browser_time):
         """Test automatic cleanup of stale contexts for memory efficiency."""
         stop_timer = measure_browser_time("stale_cleanup")
@@ -749,22 +761,22 @@ class TestJavaScriptRendererRefactored(IsolatedAsyncioTestCase):
 
         # Create context that will become stale
         async with pool.get_context() as context1:
-            self.assertIsNotNone(context1)
+            assert context1 is not None
 
         # Use context to exceed reuse limit
         async with pool.get_context() as context2:
-            self.assertIsNotNone(context2)
+            assert context2 is not None
 
         # Wait for cleanup interval - reduced for CI efficiency
         await asyncio.sleep(0.1)
 
         # New context should trigger cleanup
         async with pool.get_context() as context3:
-            self.assertIsNotNone(context3)
+            assert context3 is not None
 
         duration = stop_timer()
         # Cleanup should be efficient and not slow down tests
-        self.assertLess(duration, 0.5)
+        assert duration < 0.5
 
         await pool.cleanup()
 
