@@ -70,15 +70,11 @@ class TestJobRouterEndpoints:
             priority=JobPriority.HIGH,
         )
 
-        # Mock the response
-        mock_response = JobsCreateResponse(
-            jobs=[sample_job],
-            batch_id=None,  # Single URL, no batch
-            total_jobs=1,
-        )
+        # Mock the database service to return list of jobs (not JobsCreateResponse)
+        mock_jobs = [sample_job]
 
         with patch(
-            "src.api.routers.jobs.DatabaseService.create_jobs", return_value=mock_response
+            "src.api.routers.jobs.DatabaseService.create_jobs", return_value=mock_jobs
         ) as mock_create:
             mock_background_tasks = MagicMock()
             mock_request = MagicMock(spec=Request)
