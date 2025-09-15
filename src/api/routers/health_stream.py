@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncGenerator
+from decimal import Decimal
 from typing import Any
 
 import asyncio
@@ -21,6 +22,18 @@ from ..services.health_service import health_service
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
+
+
+def safe_json_dumps(data: Any) -> str:
+    """JSON dumps with handling for non-serializable types like Decimal."""
+    def default_serializer(obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        elif hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
+    return json.dumps(data, default=default_serializer)
 
 
 @router.get("/stream")
@@ -48,7 +61,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
 
         except Exception as e:
             logger.error("Failed to initialize health event system", error=str(e))
-            yield f"event: error\ndata: {json.dumps({'error': 'Failed to initialize event system'})}\n\n"
+            yield f"event: error\ndata: {safe_json_dumps({'error': 'Failed to initialize event system'})}\n\n"
             return
 
         # Send initial connection message
@@ -57,11 +70,12 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             "message": "Real-time health monitoring connected",
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        yield f"event: connection\ndata: {json.dumps(connection_data)}\n\n"
+        yield f"event: connection\ndata: {safe_json_dumps(connection_data)}\n\n"
 
         # Get initial health status and send initial events
         try:
             current_health = await health_service.get_comprehensive_health_status(db)
+            logger.debug("Raw health data retrieved", health_keys=list(current_health.keys()))
 
             # Send initial service status events
             services = ["frontend", "backend", "database", "cache"]
@@ -114,17 +128,55 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                 else:
                     continue
 
-                yield f"event: service-update\ndata: {json.dumps(service_data)}\n\n"
+                yield f"event: service-update\ndata: {safe_json_dumps(service_data)}\n\n"
 
         except Exception as e:
             logger.error("Failed to send initial health status", error=str(e))
-            yield f"event: error\ndata: {json.dumps({'error': 'Failed to get initial health status'})}\n\n"
+            yield f"event: error\ndata: {safe_json_dumps({'error': 'Failed to get initial health status'})}\n\n"
 
-        # Set up event listener for Redis pub/sub health events
+        # Set up event listener for Redis pub/sub health events from Health Service Registry
         event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
+        # Direct Redis pub/sub listener for service health data
+        async def redis_health_listener():
+            """Listen directly to Redis health_events channel for service updates."""
+            try:
+                pubsub = redis_client.pubsub()
+                await pubsub.subscribe("health_events")
+                
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        try:
+                            # Parse service health data from Health Service Registry
+                            service_data = json.loads(message["data"].decode("utf-8"))
+                            
+                            # Format for SSE client (consistent with existing format)
+                            service_update = {
+                                "service": service_data["service"],
+                                "status": service_data["status"],
+                                "timestamp": service_data["timestamp"],
+                                "data": {
+                                    "version": service_data.get("version"),
+                                    "framework": service_data.get("framework"),
+                                    "port": service_data.get("port"),
+                                    "response_time_ms": service_data["response_time_ms"],
+                                    **service_data["details"]
+                                }
+                            }
+                            await event_queue.put(service_update)
+                            
+                        except Exception as e:
+                            logger.error("Failed to process service health data", error=str(e))
+                            
+            except Exception as e:
+                logger.error("Redis health listener failed", error=str(e))
+
+        # Start Redis listener task
+        listener_task = asyncio.create_task(redis_health_listener())
+
+        # Legacy event callback for backwards compatibility
         async def health_event_callback(event: HealthEvent):
-            """Callback for health events from Redis pub/sub."""
+            """Callback for health events from legacy pub/sub."""
             try:
                 # Convert health event to service update format
                 service_update = {
@@ -144,7 +196,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     error=str(e),
                 )
 
-        # Subscribe to health events
+        # Subscribe to legacy health events (for backwards compatibility)
         if health_event_subscriber:
             await health_event_subscriber.subscribe(health_event_callback)
 
@@ -159,20 +211,28 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                 try:
                     # Wait for events with timeout to periodically check connection
                     service_update = await asyncio.wait_for(event_queue.get(), timeout=30.0)
-                    yield f"event: service-update\ndata: {json.dumps(service_update)}\n\n"
+                    yield f"event: service-update\ndata: {safe_json_dumps(service_update)}\n\n"
 
                 except TimeoutError:
                     # Send keepalive ping every 30 seconds
-                    yield f"event: keepalive\ndata: {json.dumps({'timestamp': '2023-01-01T00:00:00Z'})}\n\n"
+                    yield f"event: keepalive\ndata: {safe_json_dumps({'timestamp': '2023-01-01T00:00:00Z'})}\n\n"
                     continue
 
         except asyncio.CancelledError:
             logger.info("Health SSE stream cancelled")
         except Exception as e:
             logger.error("Health SSE stream error", error=str(e))
-            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+            yield f"event: error\ndata: {safe_json_dumps({'error': str(e)})}\n\n"
         finally:
-            # Cleanup subscription
+            # Cleanup Redis listener task
+            if 'listener_task' in locals():
+                listener_task.cancel()
+                try:
+                    await listener_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Cleanup legacy subscription
             if health_event_subscriber:
                 health_event_subscriber.unsubscribe(health_event_callback)
             logger.info("Health SSE stream cleanup completed")

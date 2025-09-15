@@ -140,9 +140,9 @@ class HealthService:
                 "connected": True,
                 "response_time_ms": round(response_time, 2),
                 "size": metrics_row[0] if metrics_row else "unknown",  # e.g., "8715 kB"
-                "size_bytes": metrics_row[1] if metrics_row else 0,  # e.g., 8731648
-                "active_connections": metrics_row[2] if metrics_row else 0,  # e.g., 15
-                "cache_hit_ratio": metrics_row[3] if metrics_row else 0,  # e.g., 98.7
+                "size_bytes": int(metrics_row[1]) if metrics_row and metrics_row[1] else 0,  # e.g., 8731648
+                "active_connections": int(metrics_row[2]) if metrics_row and metrics_row[2] else 0,  # e.g., 15
+                "cache_hit_ratio": float(metrics_row[3]) if metrics_row and metrics_row[3] else 0.0,  # e.g., 98.7
             }
 
         except Exception as db_error:
