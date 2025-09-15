@@ -536,7 +536,7 @@ class TestBrowserPoolRefactored(IsolatedAsyncioTestCase):
 
         async with pool.get_context() as context:
             assert context is not None
-            assert context.default_timeout ==  config.timeout * 1000
+            assert context.default_timeout == config.timeout * 1000
 
         await pool.cleanup()
 
@@ -556,7 +556,7 @@ class TestBrowserPoolRefactored(IsolatedAsyncioTestCase):
 
         # Verify cleanup occurred
         assert pool._browser.closed is True
-        assert len(pool._contexts) ==  0
+        assert len(pool._contexts) == 0
 
 
 @pytest.mark.heavy_browser
@@ -873,12 +873,12 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         # Test defaults
         config = BrowserConfig()
-        assert config.browser_type ==  "chromium"
+        assert config.browser_type == "chromium"
         assert config.headless is True
-        assert config.viewport_width ==  1920
-        assert config.viewport_height ==  1080
-        assert config.timeout ==  30.0
-        assert config.wait_until ==  "networkidle"
+        assert config.viewport_width == 1920
+        assert config.viewport_height == 1080
+        assert config.timeout == 30.0
+        assert config.wait_until == "networkidle"
         assert config.javascript_enabled is True
         assert config.ignore_https_errors is True
 
@@ -899,16 +899,16 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             extra_http_headers={"X-Test": "value"},
             user_agent="Test Agent",
         )
-        assert config.browser_type ==  "firefox"
+        assert config.browser_type == "firefox"
         assert config.headless is False
-        assert config.viewport_width ==  1366
-        assert config.viewport_height ==  768
-        assert config.timeout ==  60.0
-        assert config.wait_until ==  "load"
+        assert config.viewport_width == 1366
+        assert config.viewport_height == 768
+        assert config.timeout == 60.0
+        assert config.wait_until == "load"
         assert config.javascript_enabled is False
         assert config.ignore_https_errors is False
-        assert config.extra_http_headers["X-Test"] ==  "value"
-        assert config.user_agent ==  "Test Agent"
+        assert config.extra_http_headers["X-Test"] == "value"
+        assert config.user_agent == "Test Agent"
 
     def test_actual_browser_config_validation(self):
         """Test actual BrowserConfig validation."""
@@ -935,12 +935,12 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             javascript_executed=True,
         )
 
-        assert result.status_code ==  200
+        assert result.status_code == 200
         assert result.javascript_executed is True
-        assert result.html ==  "<html></html>"
-        assert result.url ==  "https://test.com"
-        assert result.final_url ==  "https://test.com"
-        assert result.load_time ==  1.0
+        assert result.html == "<html></html>"
+        assert result.url == "https://test.com"
+        assert result.final_url == "https://test.com"
+        assert result.load_time == 1.0
 
     def test_actual_render_result_with_metadata(self):
         """Test actual RenderResult with metadata and optional fields."""
@@ -962,19 +962,19 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             network_requests=network_requests,
         )
 
-        assert result.metadata["title"] ==  "Test Page"
-        assert "main" in  result.screenshots
-        assert len(result.network_requests) ==  1
-        assert result.network_requests[0]["method"] ==  "GET"
+        assert result.metadata["title"] == "Test Page"
+        assert "main" in result.screenshots
+        assert len(result.network_requests) == 1
+        assert result.network_requests[0]["method"] == "GET"
 
     def test_actual_create_renderer_factory_defaults(self):
         """Test actual create_renderer factory function with defaults."""
         from src.rendering.browser import create_renderer
 
         renderer = create_renderer()
-        assert renderer.config.browser_type ==  "chromium"
+        assert renderer.config.browser_type == "chromium"
         assert renderer.config.headless is True
-        assert renderer.config.timeout ==  30.0
+        assert renderer.config.timeout == 30.0
 
     def test_actual_create_renderer_factory_custom(self):
         """Test actual create_renderer factory function with custom values."""
@@ -1001,7 +1001,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         renderer = JavaScriptRenderer(config=config)
 
         # Test that renderer has the config
-        assert renderer.config.browser_type ==  "chromium"
+        assert renderer.config.browser_type == "chromium"
         assert renderer._pool is None  # Should be None before initialization
 
     async def test_actual_javascript_renderer_cleanup(self):
@@ -1027,17 +1027,17 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         )
 
         # Verify config and settings
-        assert pool.config.browser_type ==  "firefox"
+        assert pool.config.browser_type == "firefox"
         assert pool.config.headless is False
-        assert pool.config.timeout ==  45.0
-        assert pool.max_contexts ==  3
-        assert pool.context_reuse_limit ==  10
-        assert pool.cleanup_interval ==  60.0
+        assert pool.config.timeout == 45.0
+        assert pool.max_contexts == 3
+        assert pool.context_reuse_limit == 10
+        assert pool.cleanup_interval == 60.0
 
         # Verify initial state
         assert pool._playwright is None
         assert pool._browser is None
-        assert len(pool._contexts) ==  0
+        assert len(pool._contexts) == 0
 
     async def test_actual_browser_pool_cleanup_uninitialized(self):
         """Test actual BrowserPool cleanup when not initialized."""
@@ -1059,18 +1059,18 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         # Test with minimal config
         config = BrowserConfig()
         renderer = JavaScriptRenderer(config)
-        assert renderer.config.browser_type ==  "chromium"
+        assert renderer.config.browser_type == "chromium"
 
         # Test with pool config
         pool_config = {"max_contexts": 5, "context_reuse_limit": 25}
         renderer = JavaScriptRenderer(config, pool_config=pool_config)
-        assert renderer.pool_config["max_contexts"] ==  5
+        assert renderer.pool_config["max_contexts"] == 5
 
         # Test with retry config
         retry_config = RetryConfig(max_attempts=5, base_delay=0.5)
         renderer = JavaScriptRenderer(config, retry_config=retry_config)
-        assert renderer.retry_config.max_attempts ==  5
-        assert renderer.retry_config.base_delay ==  0.5
+        assert renderer.retry_config.max_attempts == 5
+        assert renderer.retry_config.base_delay == 0.5
 
     async def test_actual_javascript_renderer_context_manager(self):
         """Test actual JavaScriptRenderer as context manager without real browser."""
@@ -1080,8 +1080,8 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         renderer = JavaScriptRenderer(config)
 
         # Test context manager interface exists
-        assert hasattr(renderer, "__aenter__" is True)
-        assert hasattr(renderer, "__aexit__" is True)
+        assert hasattr(renderer, "__aenter__" == True)
+        assert hasattr(renderer, "__aexit__" == True)
 
     def test_actual_browser_config_proxy_setting(self):
         """Test actual BrowserConfig proxy configuration."""
@@ -1095,7 +1095,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         config = BrowserConfig(proxy=proxy_config)
         assert config.proxy is not None
-        assert config.proxy["server"] ==  "http://proxy.example.com:8080"
+        assert config.proxy["server"] == "http://proxy.example.com:8080"
 
     def test_actual_browser_config_all_browsers(self):
         """Test actual BrowserConfig with all supported browser types."""
@@ -1105,7 +1105,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         for browser_type in browsers:
             config = BrowserConfig(browser_type=browser_type)
-            assert config.browser_type ==  browser_type
+            assert config.browser_type == browser_type
 
     def test_actual_browser_config_all_wait_conditions(self):
         """Test actual BrowserConfig with all supported wait conditions."""
@@ -1115,7 +1115,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         for wait_condition in wait_conditions:
             config = BrowserConfig(wait_until=wait_condition)
-            assert config.wait_until ==  wait_condition
+            assert config.wait_until == wait_condition
 
     async def test_actual_browser_pool_unsupported_browser_error(self):
         """Test actual BrowserPool with unsupported browser type handling."""
@@ -1143,7 +1143,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             with pytest.raises(ValueError) as cm:
                 await pool.initialize()
 
-            assert "Unsupported browser type" in  str(cm.exception)
+            assert "Unsupported browser type" in str(cm.exception)
 
     async def test_actual_browser_pool_time_tracking(self):
         """Test actual BrowserPool time tracking for cleanup."""
@@ -1155,14 +1155,14 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         pool = BrowserPool(config)
 
         # Check initial time tracking
-        assert isinstance(pool._last_cleanup,  float)
+        assert isinstance(pool._last_cleanup, float)
         initial_time = pool._last_cleanup
 
         # Simulate time passing
         pool._last_cleanup = time.time() - 1.0
 
         # Verify time was updated
-        assert pool._last_cleanup <  initial_time
+        assert pool._last_cleanup < initial_time
 
     def test_actual_javascript_renderer_retry_config_defaults(self):
         """Test actual JavaScriptRenderer default retry configuration."""
@@ -1173,9 +1173,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         # Test default retry config
         assert renderer.retry_config is not None
-        assert renderer.retry_config.max_attempts ==  3
-        assert renderer.retry_config.base_delay ==  1.0
-        assert renderer.retry_config.backoff_factor ==  2.0
+        assert renderer.retry_config.max_attempts == 3
+        assert renderer.retry_config.base_delay == 1.0
+        assert renderer.retry_config.backoff_factor == 2.0
         assert renderer.retry_config.jitter is True
 
     async def test_actual_javascript_renderer_render_page_auto_initialization(self):
@@ -1194,7 +1194,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError) as cm:
             await renderer._render_page_internal("https://example.com")
 
-        assert "not initialized" in  str(cm.exception.lower())
+        assert "not initialized" in str(cm.exception.lower())
 
     def test_actual_render_result_defaults(self):
         """Test actual RenderResult with default field values."""
@@ -1211,9 +1211,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         )
 
         # Test default values for optional fields
-        assert result.metadata ==  {}
-        assert result.screenshots ==  {}
-        assert result.network_requests ==  []
+        assert result.metadata == {}
+        assert result.screenshots == {}
+        assert result.network_requests == []
 
     def test_actual_browser_config_field_coverage(self):
         """Test actual BrowserConfig to cover all field access."""
@@ -1243,8 +1243,8 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         pool = BrowserPool(config)
 
         # Test initial context usage tracking
-        assert len(pool._context_usage) ==  0
-        assert isinstance(pool._context_usage,  dict)
+        assert len(pool._context_usage) == 0
+        assert isinstance(pool._context_usage, dict)
 
     async def test_actual_browser_pool_lock_initialization(self):
         """Test actual BrowserPool async lock initialization."""
@@ -1256,7 +1256,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         pool = BrowserPool(config)
 
         # Test that lock is properly initialized
-        assert isinstance(pool._lock,  asyncio.Lock)
+        assert isinstance(pool._lock, asyncio.Lock)
 
     def test_actual_browser_config_proxy_field(self):
         """Test actual BrowserConfig proxy field handling."""
@@ -1266,9 +1266,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         proxy_config = {"server": "proxy.example.com:8080", "username": "user", "password": "pass"}
         config = BrowserConfig(proxy=proxy_config)
 
-        assert config.proxy["server"] ==  "proxy.example.com:8080"
-        assert config.proxy["username"] ==  "user"
-        assert config.proxy["password"] ==  "pass"
+        assert config.proxy["server"] == "proxy.example.com:8080"
+        assert config.proxy["username"] == "user"
+        assert config.proxy["password"] == "pass"
 
         # Test with None proxy (default)
         config_no_proxy = BrowserConfig()
@@ -1282,12 +1282,12 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         headers = {"Authorization": "Bearer token", "X-Custom": "value"}
         config = BrowserConfig(extra_http_headers=headers)
 
-        assert config.extra_http_headers["Authorization"] ==  "Bearer token"
-        assert config.extra_http_headers["X-Custom"] ==  "value"
+        assert config.extra_http_headers["Authorization"] == "Bearer token"
+        assert config.extra_http_headers["X-Custom"] == "value"
 
         # Test empty headers default
         config_default = BrowserConfig()
-        assert config_default.extra_http_headers ==  {}
+        assert config_default.extra_http_headers == {}
 
     async def test_actual_javascript_renderer_retry_config_creation(self):
         """Test actual JavaScriptRenderer retry configuration creation."""
@@ -1297,10 +1297,10 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         # Test default retry config creation
         renderer = JavaScriptRenderer()
 
-        assert isinstance(renderer.retry_config,  RetryConfig)
-        assert renderer.retry_config.max_attempts ==  3
-        assert renderer.retry_config.base_delay ==  1.0
-        assert renderer.retry_config.backoff_factor ==  2.0
+        assert isinstance(renderer.retry_config, RetryConfig)
+        assert renderer.retry_config.max_attempts == 3
+        assert renderer.retry_config.base_delay == 1.0
+        assert renderer.retry_config.backoff_factor == 2.0
         assert renderer.retry_config.jitter is True
 
     async def test_actual_javascript_renderer_custom_retry_config(self):
@@ -1313,9 +1313,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         renderer = JavaScriptRenderer(config=config, retry_config=retry_config)
 
-        assert renderer.retry_config.max_attempts ==  5
-        assert renderer.retry_config.base_delay ==  2.0
-        assert renderer.retry_config.backoff_factor ==  3.0
+        assert renderer.retry_config.max_attempts == 5
+        assert renderer.retry_config.base_delay == 2.0
+        assert renderer.retry_config.backoff_factor == 3.0
         assert renderer.retry_config.jitter is False
 
     async def test_actual_javascript_renderer_pool_config_handling(self):
@@ -1327,9 +1327,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
         renderer = JavaScriptRenderer(config=config, pool_config=pool_config)
 
-        assert renderer.pool_config["max_contexts"] ==  15
-        assert renderer.pool_config["context_reuse_limit"] ==  100
-        assert renderer.pool_config["cleanup_interval"] ==  600.0
+        assert renderer.pool_config["max_contexts"] == 15
+        assert renderer.pool_config["context_reuse_limit"] == 100
+        assert renderer.pool_config["cleanup_interval"] == 600.0
 
     def test_actual_render_result_default_fields(self):
         """Test actual RenderResult default field values."""
@@ -1346,9 +1346,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         )
 
         # Check default values for optional fields
-        assert result.metadata ==  {}
-        assert result.screenshots ==  {}
-        assert result.network_requests ==  []
+        assert result.metadata == {}
+        assert result.screenshots == {}
+        assert result.network_requests == []
 
     def test_actual_render_result_complex_metadata(self):
         """Test actual RenderResult with complex metadata."""
@@ -1373,10 +1373,10 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             metadata=complex_metadata,
         )
 
-        assert result.metadata["title"] ==  "Complex Page"
-        assert len(result.metadata["keywords"]) ==  3
-        assert result.metadata["nested_data"]["views"] ==  1000
-        assert len(result.metadata["nested_data"]["comments"]) ==  2
+        assert result.metadata["title"] == "Complex Page"
+        assert len(result.metadata["keywords"]) == 3
+        assert result.metadata["nested_data"]["views"] == 1000
+        assert len(result.metadata["nested_data"]["comments"]) == 2
 
     def test_actual_render_result_multiple_screenshots(self):
         """Test actual RenderResult with multiple screenshots."""
@@ -1399,12 +1399,12 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             screenshots=screenshots,
         )
 
-        assert len(result.screenshots) ==  4
-        assert "full_page" in  result.screenshots
-        assert "mobile" in  result.screenshots
-        assert "tablet" in  result.screenshots
-        assert "desktop" in  result.screenshots
-        assert result.screenshots["full_page"] ==  b"full_page_screenshot_data"
+        assert len(result.screenshots) == 4
+        assert "full_page" in result.screenshots
+        assert "mobile" in result.screenshots
+        assert "tablet" in result.screenshots
+        assert "desktop" in result.screenshots
+        assert result.screenshots["full_page"] == b"full_page_screenshot_data"
 
     def test_actual_render_result_extensive_network_requests(self):
         """Test actual RenderResult with extensive network requests."""
@@ -1453,10 +1453,10 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             network_requests=network_requests,
         )
 
-        assert len(result.network_requests) ==  5
-        assert result.network_requests[0]["method"] ==  "GET"
-        assert result.network_requests[4]["method"] ==  "POST"
-        assert result.network_requests[2]["url"] ==  "https://example.com/script.js"
+        assert len(result.network_requests) == 5
+        assert result.network_requests[0]["method"] == "GET"
+        assert result.network_requests[4]["method"] == "POST"
+        assert result.network_requests[2]["url"] == "https://example.com/script.js"
 
     def test_actual_browser_config_all_field_combinations(self):
         """Test actual BrowserConfig with all possible field combinations."""
@@ -1478,17 +1478,17 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         )
 
         # Verify all field values
-        assert config.browser_type ==  "webkit"
+        assert config.browser_type == "webkit"
         assert config.headless is False
-        assert config.viewport_width ==  1440
-        assert config.viewport_height ==  900
-        assert config.user_agent ==  "Custom User Agent String"
-        assert config.timeout ==  90.0
-        assert config.wait_until ==  "domcontentloaded"
-        assert len(config.extra_http_headers) ==  2
+        assert config.viewport_width == 1440
+        assert config.viewport_height == 900
+        assert config.user_agent == "Custom User Agent String"
+        assert config.timeout == 90.0
+        assert config.wait_until == "domcontentloaded"
+        assert len(config.extra_http_headers) == 2
         assert config.ignore_https_errors is False
         assert config.javascript_enabled is False
-        assert config.proxy["server"] ==  "proxy.example.com"
+        assert config.proxy["server"] == "proxy.example.com"
 
     async def test_actual_browser_pool_attributes_access(self):
         """Test actual BrowserPool attribute access and defaults."""
@@ -1500,17 +1500,17 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         pool = BrowserPool(config)
 
         # Test default values
-        assert pool.max_contexts ==  5
-        assert pool.context_reuse_limit ==  50
-        assert pool.cleanup_interval ==  300.0
+        assert pool.max_contexts == 5
+        assert pool.context_reuse_limit == 50
+        assert pool.cleanup_interval == 300.0
 
         # Test initial time tracking
-        assert isinstance(pool._last_cleanup,  float)
-        assert pool._last_cleanup <=  time.time()
+        assert isinstance(pool._last_cleanup, float)
+        assert pool._last_cleanup <= time.time()
 
         # Test empty collections
-        assert len(pool._contexts) ==  0
-        assert len(pool._context_usage) ==  0
+        assert len(pool._contexts) == 0
+        assert len(pool._context_usage) == 0
 
     async def test_actual_javascript_renderer_render_method_error_handling(self):
         """Test JavaScriptRenderer render_page error handling without Playwright."""
@@ -1571,12 +1571,12 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         # Test all valid browser types
         for browser_type in ["chromium", "firefox", "webkit"]:
             config = BrowserConfig(browser_type=browser_type)
-            assert config.browser_type ==  browser_type
+            assert config.browser_type == browser_type
 
         # Test all valid wait_until values
         for wait_until in ["load", "domcontentloaded", "networkidle"]:
             config = BrowserConfig(wait_until=wait_until)
-            assert config.wait_until ==  wait_until
+            assert config.wait_until == wait_until
 
     async def test_actual_javascript_renderer_context_manager_methods(self):
         """Test JavaScriptRenderer async context manager methods."""
@@ -1590,7 +1590,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         # Test __aenter__
         with patch.object(renderer, "initialize", new_callable=AsyncMock) as mock_init:
             result = await renderer.__aenter__()
-            assert result ==  renderer
+            assert result == renderer
             mock_init.assert_called_once()
 
         # Test __aexit__
@@ -1612,10 +1612,10 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             ignore_https_errors=True,
         )
 
-        assert renderer.config.browser_type ==  "chromium"
+        assert renderer.config.browser_type == "chromium"
         assert renderer.config.headless is True
-        assert renderer.config.timeout ==  30.0
-        assert renderer.config.extra_http_headers["X-Test"] ==  "value"
+        assert renderer.config.timeout == 30.0
+        assert renderer.config.extra_http_headers["X-Test"] == "value"
         assert renderer.config.javascript_enabled is True
         assert renderer.config.ignore_https_errors is True
 
@@ -1633,9 +1633,9 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             javascript_executed=False,
         )
 
-        assert result.html ==  ""
-        assert result.status_code ==  204
-        assert result.load_time ==  0.0
+        assert result.html == ""
+        assert result.status_code == 204
+        assert result.load_time == 0.0
         assert result.javascript_executed is False
 
         # Test with error status codes
@@ -1648,8 +1648,8 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             javascript_executed=True,
         )
 
-        assert result_error.status_code ==  500
-        assert result_error.load_time ==  10.5
+        assert result_error.status_code == 500
+        assert result_error.load_time == 10.5
 
     @pytest.mark.browser_pool
     async def test_actual_browser_pool_cleanup_stale_contexts_method(self):
@@ -1685,16 +1685,16 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
             # Verify first context was cleaned up
             mock_context1.close.assert_called_once()
-            assert mock_context1 not in  pool._contexts
-            assert mock_context1 not in  pool._context_usage
+            assert mock_context1 not in pool._contexts
+            assert mock_context1 not in pool._context_usage
 
             # Verify second context remains
             mock_context2.close.assert_not_called()
-            assert mock_context2 in  pool._contexts
+            assert mock_context2 in pool._contexts
 
         duration = time.time() - start_time
         # Cleanup operations should be very fast to not impact CI
-        assert duration <  0.1
+        assert duration < 0.1
 
 
 # Benefits of this optimized approach:

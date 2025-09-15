@@ -26,7 +26,6 @@ from ...common.status import JobStatus
 from ...config.rate_limits import rate_limits
 from ...core.config import config as default_config
 from ...core.converter import AsyncWordPressConverter
-from ...database.service import DatabaseService
 from ...monitoring.job_events import job_event_publisher, publish_job_status_update
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
@@ -133,8 +132,9 @@ async def create_jobs(
     """
     try:
         # Create jobs using CRUD operations with proper async session handling
-        from ...database.models import ScrapingJob
         from uuid import uuid4
+
+        from ...database.models import ScrapingJob
 
         # Auto-batch detection: multiple URLs = batch, single URL = individual
         batch_id = str(uuid4()) if len(jobs_data.urls) > 1 else None
