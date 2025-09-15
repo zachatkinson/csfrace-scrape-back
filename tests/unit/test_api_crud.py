@@ -132,7 +132,6 @@ class TestDataFactory:
         defaults = {
             "id": "test-job-id-1",  # String UUID instead of integer
             "source_url": "https://example.com/test",
-            "url": "https://example.com/test",
             "domain": "example.com",
             "priority": JobPriority.HIGH.value,  # Use string value
             "status": JobStatus.PENDING.value,  # Use string value
@@ -184,7 +183,7 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
 
         # Verify job creation
         self.assertIsInstance(result, ScrapingJob)
-        self.assertEqual(result.url, str(job_data.url))
+        self.assertEqual(result.source_url, str(job_data.url))
         self.assertEqual(result.priority, job_data.priority.value)  # Fixed: Compare string value
         # Status is None because it's not explicitly set in the constructor
         # (database defaults only apply when inserted to DB)
@@ -461,7 +460,6 @@ class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
             mock_jobs = [
                 ScrapingJob(
                     id=f"test-job-{i + 1}",
-                    url=url,
                     source_url=url,
                     domain="example.com",
                     output_directory="/tmp/output",
