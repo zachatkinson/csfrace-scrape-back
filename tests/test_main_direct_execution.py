@@ -208,9 +208,9 @@ class TestMainDirectExecution(TestCase):
         print(f"Error running converter: {runtime_error}")
         mock_exit(1)
 
-        # Verify both exception paths were tested
-        self.assertEqual(mock_exit.call_count, 2)
-        # First test: 3 print calls, second test: 1 print call = 4 total after reset
+        # Verify second exception path was tested (after reset)
+        self.assertEqual(mock_exit.call_count, 1)  # Only counts calls after reset
+        # After reset, only the second test's print call should be recorded
         self.assertEqual(len(mock_print.call_args_list), 1)
 
 
