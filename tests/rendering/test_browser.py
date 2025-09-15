@@ -1461,6 +1461,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
 
                 # This should trigger auto-initialization
                 import contextlib
+
                 with contextlib.suppress(Exception):
                     await renderer.render_page("https://test.com")
 
