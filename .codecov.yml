@@ -25,6 +25,9 @@ coverage:
         threshold: 1%
         flags:
           - unit-tests
+        # Exclude test files from patch coverage (Codecov best practice)
+        paths:
+          - "!tests/"  # Official Codecov syntax for excluding tests
 
 comment:
   layout: "header, diff, flags, files, footer"
@@ -32,8 +35,9 @@ comment:
   require_changes: false
 
 # Enhanced ignore patterns
+# Tests are excluded from coverage calculation entirely
 ignore:
-  - "tests/"
+  - "tests/"  # Test files should not be covered by coverage metrics
   - "scripts/"
   - "docs/"
   - "examples/"
