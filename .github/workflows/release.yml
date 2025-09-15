@@ -27,12 +27,17 @@ jobs:
       pull-requests: write  # For creating PRs
     
     steps:
+      - name: Setup SSH key for semantic release
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SEMANTIC_RELEASE_SSH_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for semantic release
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
+          ssh-key: ${{ secrets.SEMANTIC_RELEASE_SSH_KEY }}
+
       - name: Python Semantic Release
         id: semantic
         uses: python-semantic-release/python-semantic-release@v9.21.1
