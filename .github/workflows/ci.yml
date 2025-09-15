@@ -426,7 +426,7 @@ jobs:
   # Ubuntu: Full test suite with coverage (primary validation) + PostgreSQL service
   # Windows/macOS: Platform-specific smoke tests (compatibility validation)
   unit-tests-linux:
-    name: Unit Tests - Ubuntu (Shard ${{ matrix.shard }})
+    name: Unit Tests - Ubuntu (${{ matrix.shard_name }})
     runs-on: ubuntu-latest
     needs: [detect-changes, quality]
     timeout-minutes: 25
@@ -461,6 +461,15 @@ jobs:
         # PostgreSQL official docs recommend max 20 parallel test scripts (40 processes)
         # GitHub Actions runners have 2-4 cores, so 4 shards aligns with both constraints
         shard: [1, 2, 3, 4]
+        include:
+          - shard: 4
+            shard_name: "Playwright Tests"
+          - shard: 1
+            shard_name: "Shard 1"
+          - shard: 2
+            shard_name: "Shard 2"
+          - shard: 3
+            shard_name: "Shard 3"
 
     steps:
       - name: Record job start time
@@ -533,7 +542,7 @@ jobs:
           
           # Shard-specific test execution for dedicated Playwright optimization
           if [ "${{ matrix.shard }}" = "4" ]; then
-            echo "::notice title=Shard ${{ matrix.shard }}::Dedicated rendering shard - includes Playwright tests"
+            echo "::notice title=${{ matrix.shard_name }}::Dedicated rendering shard - includes Playwright tests"
             # Shard 4: Dedicated rendering shard (ONLY tests/rendering/)
             uv run pytest tests/rendering/ \
               -m "not integration" \
@@ -549,7 +558,7 @@ jobs:
               --tb=short \
               --maxfail=3
           else
-            echo "::notice title=Shard ${{ matrix.shard }}::Standard unit tests shard - excludes rendering tests for speed"
+            echo "::notice title=${{ matrix.shard_name }}::Standard unit tests shard - excludes rendering tests for speed"
             # Shards 1-3: Exclude rendering tests (no Playwright needed)
             uv run pytest tests/ \
               --ignore=tests/integration/ \
