@@ -60,7 +60,10 @@ class TestMainDirectExecution(TestCase):
         # Simulate the exact ImportError handling from main.py without actually importing
         # This tests the error handling code path that would execute in main.py
 
-        # Simulate ImportError scenario
+        # Test the error handling logic directly without expecting actual ImportError
+        # since the import succeeds in our current environment
+
+        # Simulate what would happen if ImportError occurred
         test_error = ImportError("No module named 'src.main'")
 
         # Execute the exact error handling from main.py (lines 26-30)

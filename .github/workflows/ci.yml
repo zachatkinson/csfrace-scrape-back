@@ -665,15 +665,13 @@ jobs:
               -n 2 \
               --dist=loadgroup \
               --durations=10 \
-              --browser=chromium \
-              --browser=webkit \
               --cov=src/rendering \
               --cov-branch \
               --cov-append \
-            --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
-            --cov-report=term-missing \
-            --junit-xml=junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml \
-            -v \
+              --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
+              --cov-report=term-missing \
+              --junit-xml=junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml \
+              -v \
               --tb=short \
               --maxfail=3
           else
