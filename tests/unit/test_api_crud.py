@@ -15,9 +15,9 @@ from unittest.mock import patch
 
 from pydantic import HttpUrl
 
-from src.api.crud import BatchCRUD, JobCRUD
-from src.api.schemas import BatchCreate, JobCreate, JobUpdate
-from src.database.models import Batch, ContentResult, JobPriority, JobStatus, ScrapingJob
+from src.api.crud import JobCRUD
+from src.api.schemas import JobCreate, JobUpdate
+from src.database.models import ContentResult, JobPriority, JobStatus, ScrapingJob
 
 
 # STEP 1: Define protocols for database operations
@@ -95,7 +95,7 @@ class TestDataFactory:
         # Create base data with correct types
         data = JobCreate(
             url=HttpUrl("https://example.com/test-page"),
-            priority=JobPriority.HIGH.value,
+            priority=JobPriority.HIGH,
             custom_slug="test-page-slug",
             max_retries=5,
             options={"preserve_images": True},
@@ -114,7 +114,7 @@ class TestDataFactory:
         """Create JobUpdate test data with optional overrides."""
         # Create base data with correct types
         data = JobUpdate(
-            priority=JobPriority.LOW.value,
+            priority=JobPriority.LOW,
             max_retries=2,
             options={"new_setting": True},
         )
@@ -146,28 +146,6 @@ class TestDataFactory:
         }
         defaults.update(overrides)
         return ScrapingJob(**defaults)
-
-    @staticmethod
-    def create_batch_create_data(**overrides) -> BatchCreate:
-        """Create BatchCreate test data with optional overrides."""
-        # Create base data with correct types
-        data = BatchCreate(
-            name="Test Batch",
-            urls=[HttpUrl("https://example.com/1"), HttpUrl("https://example.com/2")],
-            max_concurrent=5,
-            continue_on_error=True,
-            output_base_directory="/test/output",
-            create_archives=False,
-            cleanup_after_archive=False,
-            batch_config=None,
-        )
-
-        # Apply overrides if any
-        if overrides:
-            data_dict = data.model_dump()
-            data_dict.update(overrides)
-            return BatchCreate(**data_dict)
-        return data
 
 
 # STEP 4: Refactored tests using real async behavior
@@ -320,78 +298,6 @@ class TestJobCRUDRefactored(IsolatedAsyncioTestCase):
             self.assertEqual(result.started_at, existing_time)
 
 
-class TestBatchCRUDRefactored(IsolatedAsyncioTestCase):
-    """Test BatchCRUD operations using dependency injection."""
-
-    async def test_create_batch_with_jobs(self):
-        """Test batch creation with job creation."""
-        db_session = FakeDatabaseSession()
-        batch_data = TestDataFactory.create_batch_create_data()
-
-        with patch.object(JobCRUD, "create_job") as mock_create_job:
-            # Setup mock jobs
-            mock_job1 = ScrapingJob(
-                id="test-job-1",
-                source_url="https://example.com/1",  # Required field
-                domain="example.com",
-                output_directory="/tmp/output",
-            )
-            mock_job2 = ScrapingJob(
-                id="test-job-2",
-                source_url="https://example.com/2",  # Required field
-                domain="example.com",
-                output_directory="/tmp/output",
-            )
-            mock_create_job.side_effect = [mock_job1, mock_job2]
-
-            result = await BatchCRUD.create_batch(db_session, batch_data)
-
-            # Verify batch creation
-            self.assertIsInstance(result, Batch)
-            self.assertEqual(result.name, "Test Batch")
-            self.assertEqual(result.total_jobs, 2)
-
-            # Verify database interactions
-            self.assertTrue(db_session.flushed)
-            self.assertIn(result, db_session.added_objects)
-
-    async def test_create_batch_custom_output_directory(self):
-        """Test batch creation with custom output directory."""
-        db_session = FakeDatabaseSession()
-        batch_data = TestDataFactory.create_batch_create_data(
-            output_base_directory="/custom/output"
-        )
-
-        with patch.object(JobCRUD, "create_job"):
-            result = await BatchCRUD.create_batch(db_session, batch_data)
-
-            self.assertEqual(result.output_base_directory, "/custom/output")
-
-    async def test_create_batch_auto_directory_generation(self):
-        """Test batch with auto-generated directory."""
-        db_session = FakeDatabaseSession()
-        batch_data = TestDataFactory.create_batch_create_data(
-            name="Auto Dir Batch", output_base_directory=None
-        )
-
-        with patch.object(JobCRUD, "create_job"):
-            result = await BatchCRUD.create_batch(db_session, batch_data)
-
-            # Should generate directory based on batch name
-            self.assertEqual(result.output_base_directory, "batch_output/Auto Dir Batch")
-
-    async def test_create_batch_empty_urls(self):
-        """Test batch creation with empty URLs list."""
-        db_session = FakeDatabaseSession()
-        batch_data = TestDataFactory.create_batch_create_data(urls=[])
-
-        with patch.object(JobCRUD, "create_job") as mock_create_job:
-            result = await BatchCRUD.create_batch(db_session, batch_data)
-
-            self.assertEqual(result.total_jobs, 0)
-            mock_create_job.assert_not_called()
-
-
 class TestContentResultCRUDRefactored(IsolatedAsyncioTestCase):
     """Test ContentResultCRUD operations using dependency injection."""
 
@@ -421,58 +327,6 @@ class TestContentResultCRUDRefactored(IsolatedAsyncioTestCase):
 
 class TestIntegratedCRUDOperations(IsolatedAsyncioTestCase):
     """Test integrated CRUD operations across different entities."""
-
-    async def test_job_batch_relationship(self):
-        """Test creating jobs within a batch context."""
-        db_session = FakeDatabaseSession()
-        batch_data = TestDataFactory.create_batch_create_data()
-
-        with patch.object(JobCRUD, "create_job") as mock_create_job:
-            # Setup mock jobs with batch relationship
-            mock_job1 = ScrapingJob(
-                id="test-batch-job-1",
-                source_url="https://example.com/1",  # Required field
-                domain="example.com",
-                output_directory="/tmp/output",
-            )
-            mock_job2 = ScrapingJob(
-                id="test-batch-job-2",
-                source_url="https://example.com/2",  # Required field
-                domain="example.com",
-                output_directory="/tmp/output",
-            )
-            mock_create_job.side_effect = [mock_job1, mock_job2]
-
-            batch = await BatchCRUD.create_batch(db_session, batch_data)
-
-            # Verify batch-job relationship is established
-            # In real implementation, jobs would have batch_id set
-            self.assertEqual(batch.total_jobs, 2)
-            self.assertEqual(len(batch_data.urls), 2)
-
-    async def test_complex_batch_job_creation_workflow(self):
-        """Test complex workflow with custom job configurations."""
-        db_session = FakeDatabaseSession()
-        urls = [f"https://example.com/page{i}" for i in range(10)]
-        batch_data = TestDataFactory.create_batch_create_data(urls=urls)
-
-        with patch.object(JobCRUD, "create_job") as mock_create_job:
-            mock_jobs = [
-                ScrapingJob(
-                    id=f"test-job-{i + 1}",
-                    source_url=url,
-                    domain="example.com",
-                    output_directory="/tmp/output",
-                )
-                for i, url in enumerate(urls)
-            ]
-            mock_create_job.side_effect = mock_jobs
-
-            result = await BatchCRUD.create_batch(db_session, batch_data)
-
-            # Verify batch creation with large job set
-            self.assertEqual(result.total_jobs, 10)
-            self.assertEqual(mock_create_job.call_count, 10)
 
     async def test_partial_job_update_workflow(self):
         """Test partial update workflow maintaining data integrity."""

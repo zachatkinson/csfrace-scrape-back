@@ -27,29 +27,27 @@ This guide walks you through setting up the complete production deployment pipel
 1. Click **New Environment**
 2. Name: `production`
 3. Configure protection rules:
-   - ✅ **Required reviewers**: 2 reviewers minimum
+   - ✅ **Required reviewers**: 1-2 reviewers (1 for solo development, 2+ for teams)
    - ✅ **Wait timer**: 5 minutes (review period)
    - ✅ **Deployment branches**: Restrict to `master` only
-   - ✅ **Add reviewers**: Add senior developers/tech leads
+   - ✅ **Add reviewers**: Add yourself (for solo development) or senior developers/tech leads
 
 ### Set Environment Secrets
-For both `staging` and `production` environments, add these secrets:
+For both `staging` and `production` environments, add these secrets based on your actual configuration:
 
 ```bash
-# Database & Cache
-DATABASE_URL=postgresql://user:pass@host:5432/dbname
-REDIS_URL=redis://host:6379/0
+# Database & Cache (update with your actual production values)
+DATABASE_URL=postgresql://postgres:your-prod-password@your-prod-db-host:5432/csfrace_prod
+REDIS_URL=redis://your-prod-redis-host:6379/0
 
-# API Keys & External Services
-API_KEYS={"service1": "key1", "service2": "key2"}
-EXTERNAL_SERVICE_TOKENS=token1,token2
+# OAuth Configuration (create production OAuth apps)
+OAUTH_GOOGLE_CLIENT_ID=your-production-google-client-id
+OAUTH_GOOGLE_CLIENT_SECRET=your-production-google-client-secret
+OAUTH_GITHUB_CLIENT_ID=your-production-github-client-id
+OAUTH_GITHUB_CLIENT_SECRET=your-production-github-client-secret
 
-# Monitoring & Notifications
-MONITORING_WEBHOOK=https://hooks.slack.com/your-webhook-url
-
-# Production-only secrets
-SSL_CERTIFICATES=cert-data  # Production only
-BACKUP_CREDENTIALS=backup-credentials  # Production only
+# Application Security (generate new secret key for production)
+SECRET_KEY=your-production-secret-key-different-from-dev
 ```
 
 ### Set Environment Variables
@@ -80,10 +78,10 @@ FEATURE_FLAG_ENHANCED_IMAGE_PROCESSING=false
 Add these repository-level secrets in **Settings** → **Secrets and variables** → **Actions**:
 
 ```bash
-GITHUB_TOKEN=<automatically provided>
-CODECOV_TOKEN=<your codecov token>
-MONITORING_WEBHOOK=<slack/teams webhook for alerts>
+CODECOV_TOKEN=<your codecov token from codecov.io>
 ```
+
+**Note**: `GITHUB_TOKEN` is automatically provided by GitHub for all workflows - no manual setup needed.
 
 ## 3. Branch Protection Rules
 
@@ -183,21 +181,22 @@ gh workflow run monitoring-gates.yml -f environment=production -f rollback_enabl
 
 ## 7. Notification Setup
 
-### Slack Integration
-1. Create Slack webhook: https://api.slack.com/messaging/webhooks
-2. Add webhook URL to `MONITORING_WEBHOOK` secret
-3. Notifications will be sent for:
-   - 🚀 Successful deployments
-   - 🚨 Failed deployments
-   - 🔄 Auto-rollbacks
-   - ⚠️ Quality gate failures
+### GitHub Native Notifications
+GitHub provides built-in notifications for deployment events:
 
-### Other Notification Options
-Configure in the deployment workflow:
-- 📧 Email notifications
-- 📱 Teams webhooks
-- 🎮 Discord webhooks
-- 📟 PagerDuty alerts
+1. **Email Notifications**: Automatically sent to commit authors and repository watchers
+2. **GitHub UI**: Deployment status visible in Actions tab and commit status
+3. **Pull Request Integration**: Deployment status shown in PR checks
+4. **Repository Insights**: Deployment history and metrics in Insights → Deployments
+
+### Optional External Notifications
+If you want additional notifications, you can configure:
+- 📧 **Email notifications** via GitHub Actions email step
+- 📱 **Teams webhooks** for Microsoft Teams integration
+- 🎮 **Discord webhooks** for Discord server notifications
+- 📟 **PagerDuty alerts** for critical production issues
+
+**Note**: For solo development, GitHub's native notifications are typically sufficient.
 
 ## 8. Testing the Setup
 
@@ -243,9 +242,9 @@ Configure in the deployment workflow:
 - Confirm required approvals are set
 
 **Auto-rollback not triggering:**
-- Verify monitoring webhook is configured
 - Check health endpoint is responding correctly
 - Review error thresholds for environment
+- Verify monitoring gates workflow is enabled
 
 **Feature flags not working:**
 - Check `config/feature_flags.json` syntax

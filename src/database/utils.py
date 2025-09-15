@@ -57,6 +57,8 @@ def create_postgresql_enums(
                     "duplicate key",
                     "already exists and is not a constraint",
                     "constraint already exists",
+                    "pg_type_typname_nsp_index",  # PostgreSQL type uniqueness constraint
+                    "violates unique constraint",
                 ]
             ):
                 logger.debug("Enum type already exists (concurrent creation): %s", enum_name)

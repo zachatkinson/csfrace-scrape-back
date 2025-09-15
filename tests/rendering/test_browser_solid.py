@@ -11,7 +11,7 @@ This module implements test coverage for browser.py using:
 """
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from unittest import IsolatedAsyncioTestCase
 
 import asyncio
@@ -188,7 +188,7 @@ class FakePage:
         self.behavior = behavior
         self.closed = False
         self._url = "https://example.com"
-        self.request_handlers = []
+        self.request_handlers: list[Any] = []
 
     async def goto(self, url: str, **kwargs) -> "FakeResponse":
         if self.behavior.should_fail_navigation(url):

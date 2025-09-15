@@ -4,6 +4,8 @@ This module contains ALL constants used throughout the application.
 NO hardcoded values should exist in business logic - everything must be here.
 """
 
+from typing import Any
+
 from .core.environment import EnvironmentLoader
 
 # URLs - NO hardcoding allowed anywhere else
@@ -439,13 +441,13 @@ class CLIConstants:  # pylint: disable=too-few-public-methods
 class AppConstants:  # pylint: disable=too-few-public-methods
     """Deprecated - use module level constants instead."""
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         """Redirect to module level constants."""
         import sys  # pylint: disable=import-outside-toplevel
 
         return getattr(sys.modules[__name__], name)
 
-    def __setattr__(self, name: str, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         """Prevent modification to maintain immutability like frozen dataclass."""
         raise AttributeError(f"Cannot set attribute '{name}' on frozen constants")
 

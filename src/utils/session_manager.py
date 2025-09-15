@@ -63,7 +63,7 @@ class SessionConfig:
     verify_ssl: bool = True
     ssl_context: Any | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration parameters."""
         if self.max_concurrent_connections < 1:
             raise ValueError("max_concurrent_connections must be at least 1")

@@ -31,7 +31,7 @@ from ..monitoring.health_service_registry import (
 from ..monitoring.metrics import metrics_collector
 from ..monitoring.observability import observability_manager
 from .errors import APIErrorFactory
-from .routers import batches, health, health_stream, jobs
+from .routers import health, health_stream, jobs
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -238,7 +238,6 @@ app.include_router(health.router)
 app.include_router(health_stream.router)  # Real-time health events via SSE
 app.include_router(auth_router)  # Authentication endpoints
 app.include_router(jobs.router)
-app.include_router(batches.router)
 
 
 @app.get("/", response_model=MessageResponse, tags=["Root"])

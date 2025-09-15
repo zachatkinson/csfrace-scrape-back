@@ -12,10 +12,11 @@ This module provides a flexible feature flag system that supports:
 import json
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,11 @@ logger = logging.getLogger(__name__)
 class RolloutStrategy(Enum):
     """Feature rollout strategies."""
 
-    ALL_USERS = "all_users"           # Enable for everyone
-    PERCENTAGE = "percentage"         # Enable for X% of users
-    ALLOWLIST = "allowlist"           # Enable for specific user IDs
-    ENVIRONMENT = "environment"       # Enable based on environment
-    DISABLED = "disabled"             # Completely disabled
+    ALL_USERS = "all_users"  # Enable for everyone
+    PERCENTAGE = "percentage"  # Enable for X% of users
+    ALLOWLIST = "allowlist"  # Enable for specific user IDs
+    ENVIRONMENT = "environment"  # Enable based on environment
+    DISABLED = "disabled"  # Completely disabled
 
 
 @dataclass
@@ -43,17 +44,17 @@ class FeatureFlag:
     percentage: int = 0
 
     # Allowlist of user IDs
-    allowlist: Set[str] = field(default_factory=set)
+    allowlist: set[str] = field(default_factory=set)
 
     # Environment restrictions
-    environments: Set[str] = field(default_factory=set)
+    environments: set[str] = field(default_factory=set)
 
     # Metadata for tracking
     created_by: str = "system"
-    created_at: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    created_at: str | None = None
+    tags: list[str] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate flag configuration."""
         if self.percentage < 0 or self.percentage > 100:
             raise ValueError(f"Percentage must be 0-100, got {self.percentage}")
@@ -67,9 +68,9 @@ class FeatureFlagManager:
 
     def __init__(
         self,
-        config_path: Optional[Path] = None,
-        environment: Optional[str] = None,
-        user_id_provider: Optional[callable] = None
+        config_path: Path | None = None,
+        environment: str | None = None,
+        user_id_provider: Callable[[], str] | None = None,
     ):
         """
         Initialize feature flag manager.
@@ -83,7 +84,7 @@ class FeatureFlagManager:
         self.environment = environment or os.getenv("ENVIRONMENT", "development")
         self.user_id_provider = user_id_provider or self._default_user_id
 
-        self._flags: Dict[str, FeatureFlag] = {}
+        self._flags: dict[str, FeatureFlag] = {}
         self._load_flags()
 
         logger.info(f"FeatureFlagManager initialized with {len(self._flags)} flags")
@@ -97,7 +98,7 @@ class FeatureFlagManager:
         # Load from JSON config file
         if self.config_path.exists():
             try:
-                with open(self.config_path, 'r') as f:
+                with open(self.config_path) as f:
                     config_data = json.load(f)
                     self._load_flags_from_dict(config_data)
                 logger.info(f"Loaded {len(self._flags)} flags from {self.config_path}")
@@ -107,7 +108,7 @@ class FeatureFlagManager:
         # Override with environment variables
         self._load_flags_from_env()
 
-    def _load_flags_from_dict(self, config: Dict[str, Any]) -> None:
+    def _load_flags_from_dict(self, config: dict[str, Any]) -> None:
         """Load flags from dictionary configuration."""
         for flag_name, flag_config in config.get("features", {}).items():
             try:
@@ -121,7 +122,7 @@ class FeatureFlagManager:
                     environments=set(flag_config.get("environments", [])),
                     created_by=flag_config.get("created_by", "config"),
                     created_at=flag_config.get("created_at"),
-                    tags=flag_config.get("tags", [])
+                    tags=flag_config.get("tags", []),
                 )
                 self._flags[flag_name] = flag
             except Exception as e:
@@ -137,19 +138,25 @@ class FeatureFlagManager:
                 if flag_name in self._flags:
                     # Override existing flag
                     self._flags[flag_name].enabled = value.lower() in ("true", "1", "yes")
-                    logger.info(f"Environment override: {flag_name} = {self._flags[flag_name].enabled}")
+                    logger.info(
+                        f"Environment override: {flag_name} = {self._flags[flag_name].enabled}"
+                    )
                 else:
                     # Create new flag from environment
                     self._flags[flag_name] = FeatureFlag(
                         name=flag_name,
                         description=f"Environment flag: {key}",
-                        strategy=RolloutStrategy.ALL_USERS if value.lower() in ("true", "1", "yes") else RolloutStrategy.DISABLED,
+                        strategy=RolloutStrategy.ALL_USERS
+                        if value.lower() in ("true", "1", "yes")
+                        else RolloutStrategy.DISABLED,
                         enabled=value.lower() in ("true", "1", "yes"),
-                        created_by="environment"
+                        created_by="environment",
                     )
-                    logger.info(f"Environment flag created: {flag_name} = {self._flags[flag_name].enabled}")
+                    logger.info(
+                        f"Environment flag created: {flag_name} = {self._flags[flag_name].enabled}"
+                    )
 
-    def is_enabled(self, flag_name: str, user_id: Optional[str] = None) -> bool:
+    def is_enabled(self, flag_name: str, user_id: str | None = None) -> bool:
         """
         Check if a feature flag is enabled for the current context.
 
@@ -195,10 +202,11 @@ class FeatureFlagManager:
                 return user_id in flag.allowlist
 
             elif flag.strategy == RolloutStrategy.PERCENTAGE:
-                # Consistent hash-based percentage rollout
+                # Consistent hash-based percentage rollout using secure SHA-256
                 import hashlib
+
                 hash_input = f"{flag.name}:{user_id}".encode()
-                hash_value = int(hashlib.md5(hash_input).hexdigest()[:8], 16)
+                hash_value = int(hashlib.sha256(hash_input).hexdigest()[:8], 16)
                 user_percentage = hash_value % 100
                 return user_percentage < flag.percentage
 
@@ -212,14 +220,11 @@ class FeatureFlagManager:
             logger.error(f"Error evaluating flag {flag.name}: {e}")
             return False  # Fail safe
 
-    def get_enabled_flags(self, user_id: Optional[str] = None) -> List[str]:
+    def get_enabled_flags(self, user_id: str | None = None) -> list[str]:
         """Get list of all enabled flag names for the current context."""
-        return [
-            flag_name for flag_name in self._flags.keys()
-            if self.is_enabled(flag_name, user_id)
-        ]
+        return [flag_name for flag_name in self._flags if self.is_enabled(flag_name, user_id)]
 
-    def get_flag_info(self, flag_name: str) -> Optional[Dict[str, Any]]:
+    def get_flag_info(self, flag_name: str) -> dict[str, Any] | None:
         """Get detailed information about a flag."""
         flag = self._flags.get(flag_name)
         if not flag:
@@ -235,14 +240,15 @@ class FeatureFlagManager:
             "environments": list(flag.environments),
             "created_by": flag.created_by,
             "created_at": flag.created_at,
-            "tags": flag.tags
+            "tags": flag.tags,
         }
 
-    def list_all_flags(self) -> Dict[str, Dict[str, Any]]:
+    def list_all_flags(self) -> dict[str, dict[str, Any]]:
         """Get information about all flags."""
         return {
-            flag_name: self.get_flag_info(flag_name)
-            for flag_name in self._flags.keys()
+            flag_name: flag_info
+            for flag_name in self._flags
+            if (flag_info := self.get_flag_info(flag_name)) is not None
         }
 
     def add_flag(self, flag: FeatureFlag) -> None:
@@ -260,13 +266,13 @@ class FeatureFlagManager:
 
 
 # Global feature flag manager instance
-_feature_manager: Optional[FeatureFlagManager] = None
+_feature_manager: FeatureFlagManager | None = None
 
 
 def initialize_feature_flags(
-    config_path: Optional[Path] = None,
-    environment: Optional[str] = None,
-    user_id_provider: Optional[callable] = None
+    config_path: Path | None = None,
+    environment: str | None = None,
+    user_id_provider: Callable[[], str] | None = None,
 ) -> FeatureFlagManager:
     """Initialize the global feature flag manager."""
     global _feature_manager
@@ -282,7 +288,7 @@ def get_feature_manager() -> FeatureFlagManager:
     return _feature_manager
 
 
-def feature_enabled(flag_name: str, user_id: Optional[str] = None) -> bool:
+def feature_enabled(flag_name: str, user_id: str | None = None) -> bool:
     """
     Convenience function to check if a feature is enabled.
 
@@ -295,7 +301,7 @@ def feature_enabled(flag_name: str, user_id: Optional[str] = None) -> bool:
     return get_feature_manager().is_enabled(flag_name, user_id)
 
 
-def with_feature_flag(flag_name: str, user_id: Optional[str] = None):
+def with_feature_flag(flag_name: str, user_id: str | None = None) -> Any:
     """
     Decorator for feature-flagged functions.
 
@@ -304,12 +310,15 @@ def with_feature_flag(flag_name: str, user_id: Optional[str] = None):
         def parse_with_new_method(content):
             return new_parser.parse(content)
     """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+
+    def decorator(func: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if feature_enabled(flag_name, user_id):
                 return func(*args, **kwargs)
             else:
                 logger.debug(f"Feature {flag_name} disabled, skipping {func.__name__}")
                 return None
+
         return wrapper
+
     return decorator

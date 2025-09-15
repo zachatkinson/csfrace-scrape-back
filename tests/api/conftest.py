@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from src.api.dependencies import get_db_session
 from src.api.main import app
-from src.database.models import Base, Batch, JobPriority, JobStatus, ScrapingJob
+from src.database.models import Base, JobPriority, JobStatus, ScrapingJob
 
 
 @pytest.fixture(scope="session")
@@ -61,7 +61,7 @@ async def override_get_db(test_db_session):
 
     # Reset rate limiter storage for clean tests
     try:
-        from src.api.routers.batches import limiter
+        from src.api.routers.jobs import limiter
 
         # Clear the rate limiter storage between tests
         if hasattr(limiter, "storage"):
@@ -117,25 +117,6 @@ async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
     await test_db_session.commit()
     await test_db_session.refresh(job)
     return job
-
-
-@pytest_asyncio.fixture
-async def sample_batch(test_db_session: AsyncSession) -> Batch:
-    """Create a sample batch for testing."""
-    batch = Batch(
-        name="Test Batch",
-        description="A test batch for API testing",
-        total_jobs=2,
-        max_concurrent=5,
-        continue_on_error=True,
-        output_base_directory="test_output",
-        create_archives=False,
-        cleanup_after_archive=False,
-    )
-    test_db_session.add(batch)
-    await test_db_session.commit()
-    await test_db_session.refresh(batch)
-    return batch
 
 
 @pytest.fixture

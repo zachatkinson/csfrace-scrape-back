@@ -5,7 +5,6 @@ from datetime import datetime
 import pytest
 
 from src.database.models import (
-    Batch,
     ContentResult,
     JobLog,
     JobPriority,
@@ -97,74 +96,32 @@ class TestDatabaseModels:
         job.retry_count = 3
         assert not job.can_retry
 
-    def test_batch_model_creation(self, testcontainers_db_service):
-        """Test Batch model creation and defaults."""
-        batch = Batch(
-            name="Test Batch",
-            description="A test batch for validation",
-            output_base_directory="/tmp/batch_output",
-        )
-
+    def test_job_batch_id_field(self, testcontainers_db_service):
+        """Test that jobs can have batch_id for unified batch processing."""
         with testcontainers_db_service.get_session() as session:
-            session.add(batch)
-            session.commit()
+            # Create jobs with same batch_id (simulating unified batch architecture)
+            batch_id = "test-batch-uuid-123"
 
-        assert batch.id is not None
-        assert batch.status == "pending"
-        assert batch.max_concurrent == 5
-        assert batch.continue_on_error is True
-        assert batch.total_jobs == 0
-        assert batch.completed_jobs == 0
-        assert batch.failed_jobs == 0
-        assert batch.skipped_jobs == 0
-        assert batch.created_at is not None
-
-    def test_batch_success_rate_property(self, testcontainers_db_service):
-        """Test Batch success_rate property calculation."""
-        batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
-
-        # Empty batch has 0% success rate
-        assert batch.success_rate == 0.0
-
-        # Batch with completed jobs
-        batch.total_jobs = 10
-        batch.completed_jobs = 8
-        assert batch.success_rate == 0.8
-
-        # All completed
-        batch.completed_jobs = 10
-        assert batch.success_rate == 1.0
-
-    def test_job_batch_relationship(self, testcontainers_db_service):
-        """Test relationship between jobs and batches."""
-        with testcontainers_db_service.get_session() as session:
-            # Create batch
-            batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
-            session.add(batch)
-            session.flush()
-
-            # Create jobs in batch
             job1 = ScrapingJob(
-                source_url="https://example.com/post1",  # Required field
+                source_url="https://example.com/post1",
                 domain="example.com",
                 output_directory="/tmp/output/post1",
-                batch_id=batch.id,
+                batch_id=batch_id,
             )
             job2 = ScrapingJob(
-                source_url="https://example.com/post2",  # Required field
+                source_url="https://example.com/post2",
                 domain="example.com",
                 output_directory="/tmp/output/post2",
-                batch_id=batch.id,
+                batch_id=batch_id,
             )
 
             session.add_all([job1, job2])
             session.commit()
 
-            # Test relationships
-            session.refresh(batch)
-            assert len(batch.jobs) == 2
-            assert job1.batch == batch
-            assert job2.batch == batch
+            # Verify jobs share same batch_id
+            assert job1.batch_id == batch_id
+            assert job2.batch_id == batch_id
+            assert job1.batch_id == job2.batch_id
 
     def test_content_result_model(self, testcontainers_db_service):
         """Test ContentResult model creation and relationships."""
@@ -303,23 +260,18 @@ class TestDatabaseModels:
     def test_cascade_deletion(self, testcontainers_db_service):
         """Test cascade deletion of related records."""
         # Store IDs for verification
-        batch_id = None
         job_id = None
         content_id = None
         log_entry_id = None
 
         # Create and delete data in separate session
         with testcontainers_db_service.get_session() as session:
-            # Create batch with jobs
-            batch = Batch(name="Test Batch", output_base_directory="/tmp/output")
-            session.add(batch)
-            session.flush()
-
+            # Create job with content and logs
             job = ScrapingJob(
                 source_url="https://example.com/test",  # Required field
                 domain="example.com",
                 output_directory="/tmp/output",
-                batch_id=batch.id,
+                batch_id="test-batch-uuid",  # Simple batch_id field
             )
             session.add(job)
             session.flush()
@@ -331,18 +283,16 @@ class TestDatabaseModels:
             session.commit()
 
             # Store IDs before deletion
-            batch_id = batch.id
             job_id = job.id
             content_id = content.id
             log_entry_id = log_entry.id
 
-            # Delete batch - should cascade to jobs and their related data
-            session.delete(batch)
+            # Delete job - should cascade to content and logs
+            session.delete(job)
             session.commit()
 
         # Verify cascade deletion using fresh session
         with testcontainers_db_service.get_session() as verification_session:
-            assert verification_session.get(Batch, batch_id) is None
             assert verification_session.get(ScrapingJob, job_id) is None
             assert verification_session.get(ContentResult, content_id) is None
             assert verification_session.get(JobLog, log_entry_id) is None
@@ -481,10 +431,10 @@ class TestModelConstraintsAndValidation:
             assert job.options["max_concurrent_downloads"] == 10
             assert job.options["custom_settings"]["nested"]["value"] is True
 
-    def test_foreign_key_constraints(self, testcontainers_db_service):
-        """Test foreign key relationships and constraints."""
+    def test_batch_id_field_constraints(self, testcontainers_db_service):
+        """Test batch_id field behavior in unified architecture."""
         with testcontainers_db_service.get_session() as session:
-            # Create job without batch (should work)
+            # Create job without batch_id (should work)
             job1 = ScrapingJob(
                 source_url="https://example.com/test1",  # Required field
                 domain="example.com",
@@ -494,19 +444,15 @@ class TestModelConstraintsAndValidation:
             session.commit()
             assert job1.batch_id is None
 
-            # Create batch and job with relationship
-            batch = Batch(name="Test Batch", output_base_directory="/tmp/batch")
-            session.add(batch)
-            session.flush()
-
+            # Create job with batch_id (unified batch processing)
+            batch_uuid = "test-batch-uuid-456"
             job2 = ScrapingJob(
                 source_url="https://example.com/test2",  # Required field
                 domain="example.com",
                 output_directory="/tmp/output",
-                batch_id=batch.id,
+                batch_id=batch_uuid,
             )
             session.add(job2)
             session.commit()
 
-            assert job2.batch_id == batch.id
-            assert job2.batch == batch
+            assert job2.batch_id == batch_uuid

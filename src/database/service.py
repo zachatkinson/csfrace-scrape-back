@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, overload
+from uuid import uuid4
 
 import structlog
 from sqlalchemy import and_, case, desc, func, or_, select, update
@@ -19,7 +20,6 @@ from ..constants import API_DEFAULT_LIMIT
 from ..core.exceptions import DatabaseError
 from .models import (
     Base,
-    Batch,
     ContentResult,
     JobLog,
     ScrapingJob,
@@ -500,100 +500,89 @@ class DatabaseService:
             logger.error("Failed to retrieve retry jobs", error=str(e))
             raise DatabaseError(f"Retry jobs retrieval failed: {e}") from e
 
-    # Batch Management Operations
+    # Elegant Array-Based Job Processing (auto-batch detection)
 
-    def create_batch(
-        self,
-        name: str,
-        description: str | None = None,
-        output_base_directory: str = "batch_output",
-        **config,
-    ) -> Batch:
-        """Create a new batch processing operation.
+    def create_jobs(self, urls: list[str], **job_config) -> list[ScrapingJob]:
+        """Create jobs from URL array with automatic batch detection.
+
+        Elegant approach:
+        - Single URL: batch_id = None (individual job)
+        - Multiple URLs: auto-generate batch_id (batch processing)
 
         Args:
-            name: Batch name
-            description: Optional description
-            output_base_directory: Base directory for batch outputs
-            **config: Additional batch configuration
+            urls: List of URLs to process (single item = individual, multiple = batch)
+            **job_config: Configuration applied to all jobs
 
         Returns:
-            Created Batch instance
+            List of created jobs
         """
+        if not urls:
+            raise ValueError("URLs list cannot be empty")
+
         try:
             with self.get_session() as session:
-                # Extract valid Batch model fields from config
-                valid_batch_fields = {
-                    "max_concurrent",
-                    "continue_on_error",
-                    "create_archives",
-                    "cleanup_after_archive",
-                    "total_jobs",
-                    "completed_jobs",
-                    "failed_jobs",
-                    "skipped_jobs",
-                    "summary_data",
-                }
-                batch_model_params = {k: v for k, v in config.items() if k in valid_batch_fields}
+                # Auto-batch detection: multiple URLs = batch, single URL = individual
+                batch_id = str(uuid4()) if len(urls) > 1 else None
 
-                batch = Batch(
-                    name=name,
-                    description=description,
-                    output_base_directory=output_base_directory,
-                    options=config,  # Store all config parameters in JSON field (correct field name)
-                    **batch_model_params,  # Only pass valid model fields directly
-                )
+                jobs = []
+                for url in urls:
+                    job = ScrapingJob(source_url=url, batch_id=batch_id, **job_config)
+                    jobs.append(job)
+                    session.add(job)
 
-                session.add(batch)
-                session.flush()
+                session.flush()  # Get job IDs
 
                 logger.info(
-                    "Created batch",
-                    batch_id=batch.id,
-                    name=name,
-                    output_base_directory=output_base_directory,
+                    "Created jobs",
+                    job_count=len(jobs),
+                    batch_id=batch_id,
+                    is_batch=batch_id is not None,
                 )
 
-                return batch
+                return jobs
 
         except SQLAlchemyError as e:
-            logger.error("Batch creation failed", name=name, error=str(e))
-            raise DatabaseError(f"Batch creation failed: {e}") from e
+            logger.error("Job creation failed", urls_count=len(urls), error=str(e))
+            raise DatabaseError(f"Job creation failed: {e}") from e
 
-    def get_batch(self, batch_id: int) -> Batch | None:
-        """Retrieve a batch by ID with associated jobs.
+    def get_batch_jobs(self, batch_id: str) -> list[ScrapingJob]:
+        """Get all jobs in a batch.
 
         Args:
             batch_id: Batch identifier
 
         Returns:
-            Batch instance with jobs loaded, or None if not found
+            List of jobs in the batch
         """
         try:
             with self.get_session() as session:
-                stmt = select(Batch).where(Batch.id == batch_id)
-
-                batch = session.execute(stmt).scalar_one_or_none()
-                return batch
+                stmt = (
+                    select(ScrapingJob)
+                    .where(ScrapingJob.batch_id == batch_id)
+                    .order_by(ScrapingJob.created_at)
+                )
+                jobs = session.scalars(stmt).all()
+                return list(jobs)
 
         except SQLAlchemyError as e:
-            logger.error("Failed to retrieve batch", batch_id=batch_id, error=str(e))
-            raise DatabaseError(f"Batch retrieval failed: {e}") from e
+            logger.error("Failed to get batch jobs", batch_id=batch_id, error=str(e))
+            raise DatabaseError(f"Batch jobs retrieval failed: {e}") from e
 
-    def update_batch_progress(self, batch_id: str) -> bool:
-        """Update batch progress counters based on current job statuses.
+    def get_batch_summary(self, batch_id: str) -> dict[str, Any]:
+        """Get batch progress summary.
 
         Args:
             batch_id: Batch identifier
 
         Returns:
-            True if update successful, False if batch not found
+            Dictionary with job counts and progress
         """
         try:
             with self.get_session() as session:
-                # Get current job counts using case statements for conditional counting
                 counts_stmt = select(
-                    func.count(ScrapingJob.id).label("total"),  # pylint: disable=not-callable
+                    func.count(ScrapingJob.id).label("total"),
+                    func.sum(case((ScrapingJob.status == "pending", 1), else_=0)).label("pending"),
+                    func.sum(case((ScrapingJob.status == "running", 1), else_=0)).label("running"),
                     func.sum(case((ScrapingJob.status == "completed", 1), else_=0)).label(
                         "completed"
                     ),
@@ -603,36 +592,20 @@ class DatabaseService:
 
                 counts = session.execute(counts_stmt).one()
 
-                # Update batch with current counts
-                update_stmt = (
-                    update(Batch)
-                    .where(Batch.id == batch_id)
-                    .values(
-                        total_jobs=counts.total,
-                        completed_jobs=counts.completed,
-                        failed_jobs=counts.failed,
-                        skipped_jobs=counts.skipped,
-                    )
-                )
-
-                result = session.execute(update_stmt)
-                success = result.rowcount > 0
-
-                if success:
-                    logger.debug(
-                        "Updated batch progress",
-                        batch_id=batch_id,
-                        total=counts.total,
-                        completed=counts.completed,
-                        failed=counts.failed,
-                        skipped=counts.skipped,
-                    )
-
-                return success
+                return {
+                    "batch_id": batch_id,
+                    "total": counts.total,
+                    "pending": counts.pending,
+                    "running": counts.running,
+                    "completed": counts.completed,
+                    "failed": counts.failed,
+                    "skipped": counts.skipped,
+                    "success_rate": counts.completed / counts.total if counts.total > 0 else 0.0,
+                }
 
         except SQLAlchemyError as e:
-            logger.error("Failed to update batch progress", batch_id=batch_id, error=str(e))
-            raise DatabaseError(f"Batch progress update failed: {e}") from e
+            logger.error("Failed to get batch summary", batch_id=batch_id, error=str(e))
+            raise DatabaseError(f"Batch summary failed: {e}") from e
 
     # Content and Logging Operations
 

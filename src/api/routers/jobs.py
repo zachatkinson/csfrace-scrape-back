@@ -30,7 +30,13 @@ from ...monitoring.job_events import job_event_publisher, publish_job_status_upd
 from ..crud import JobCRUD
 from ..dependencies import DBSession, async_session
 from ..errors import APIErrorFactory
-from ..schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
+from ..schemas import (
+    JobListResponse,
+    JobResponse,
+    JobsCreateRequest,
+    JobsCreateResponse,
+    JobUpdate,
+)
 from ..utils import create_response_dict
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -99,39 +105,69 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str):
             raise
 
 
-@router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=JobsCreateResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(rate_limits.JOB_CREATION)
-async def create_job(
+async def create_jobs(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
-    job_data: JobCreate,
+    jobs_data: JobsCreateRequest,
     background_tasks: BackgroundTasks,
     db: DBSession,
-) -> JobResponse:
-    """Create a new scraping job and start background conversion.
+) -> JobsCreateResponse:
+    """Create jobs from URL array with automatic batch detection.
+
+    Elegant approach:
+    - Single URL: batch_id = None (individual job)
+    - Multiple URLs: auto-generate batch_id (batch processing)
 
     Args:
-        job_data: Job creation data
+        jobs_data: Jobs creation data with URL array
         background_tasks: FastAPI background tasks
         db: Database session
 
     Returns:
-        Created job details
+        Created jobs details with batch info
 
     Raises:
         HTTPException: If job creation fails
     """
     try:
-        # Create the job record first
-        job = await JobCRUD.create_job(db, job_data)
+        # Create jobs using CRUD operations with proper async session handling
+        from uuid import uuid4
 
-        # Add background task to execute the conversion
-        background_tasks.add_task(
-            execute_conversion_job, job.id, str(job_data.url), job.output_directory or ""
-        )
+        from ...database.models import ScrapingJob
 
-        return JobResponse.model_validate(job)
-    except SQLAlchemyError as e:
-        raise APIErrorFactory.from_sqlalchemy_error("create job", e)
+        # Auto-batch detection: multiple URLs = batch, single URL = individual
+        batch_id = str(uuid4()) if len(jobs_data.urls) > 1 else None
+
+        jobs = []
+        for url in jobs_data.urls:
+            job = ScrapingJob(
+                source_url=str(url),
+                batch_id=batch_id,
+                priority=jobs_data.priority.value,
+                output_directory=jobs_data.output_base_directory,
+                max_retries=jobs_data.max_retries,
+                options=jobs_data.options or {},
+            )
+            jobs.append(job)
+            db.add(job)
+
+        await db.flush()  # Get job IDs
+        await db.commit()
+
+        # Add background tasks for all jobs
+        for job in jobs:
+            background_tasks.add_task(
+                execute_conversion_job, job.id, job.source_url, job.output_directory or ""
+            )
+
+        # Prepare response
+        job_responses = [JobResponse.model_validate(job) for job in jobs]
+        batch_id = jobs[0].batch_id if jobs else None
+
+        return JobsCreateResponse(jobs=job_responses, batch_id=batch_id, total_jobs=len(jobs))
+    except Exception as e:
+        raise APIErrorFactory.internal_server_error("create jobs", e)
 
 
 @router.get("/", response_model=JobListResponse)

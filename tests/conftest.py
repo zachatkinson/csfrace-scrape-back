@@ -32,7 +32,11 @@ from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
 from src.caching.redis_cache import RedisCache
 from src.constants import TEST_CONSTANTS
-from src.database.models import Base, JobPriority, JobStatus
+from src.database.models import (
+    Base,
+    JobPriority,
+    JobStatus,
+)
 from src.database.service import DatabaseService
 from src.plugins.base import PluginConfig, PluginType
 

@@ -14,11 +14,10 @@ import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.common.status import BatchStatus
+from src.common.status import JobStatus
 from src.core.exceptions import DatabaseError
 from src.database.models import (
     JobPriority,
-    JobStatus,
     ScrapingJob,
 )
 from src.database.service import DatabaseService
@@ -66,7 +65,6 @@ class TestDatabaseServiceCore:
         table_names = inspector.get_table_names()
         expected_tables = {
             "jobs",
-            "batches",
             "content_results",
             "job_logs",
             "system_metrics",
@@ -189,27 +187,22 @@ class TestDatabaseServiceJobOperations:
         assert job.priority_enum == JobPriority.HIGH  # JobPriority.HIGH enum object
         assert job.max_retries == 5
 
-    def test_create_job_with_batch(self, db_service_with_session):
-        """Test job creation associated with a batch."""
-        # Create batch first
-        batch = db_service_with_session.create_batch(
-            name="Test Batch",
-            description="Test batch for job creation",
-        )
-
-        # Create job in batch
+    def test_create_job_with_batch_id(self, db_service_with_session):
+        """Test job creation with batch_id for unified batch architecture."""
+        # Create job with batch_id (no separate Batch model needed)
+        batch_id = "test-batch-uuid-123"
         job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
-            batch_id=batch.id,
+            batch_id=batch_id,
         )
 
-        assert job.batch_id == batch.id
+        assert job.batch_id == batch_id
 
-        # Verify batch relationship through fresh query to avoid DetachedInstanceError
+        # Verify batch_id persists through fresh query
         retrieved_job = db_service_with_session.get_job(job.id)
         assert retrieved_job is not None
-        assert retrieved_job.batch_id == batch.id
+        assert retrieved_job.batch_id == batch_id
 
     def test_create_job_url_parsing_edge_cases(self, db_service_with_session):
         """Test URL parsing for various edge cases."""
@@ -751,119 +744,6 @@ class TestDatabaseServiceRetryOperations:
 
 
 @pytest.mark.integration
-class TestDatabaseServiceBatchOperations:
-    """Batch creation and management operations."""
-
-    def test_create_batch(self, db_service_with_session):
-        """Test batch creation with configuration."""
-        batch = db_service_with_session.create_batch(
-            name="Test Batch",
-            description="A comprehensive test batch",
-            output_base_directory="/tmp/batch_output",
-            max_concurrent=5,
-            continue_on_error=False,
-        )
-
-        assert batch.id is not None
-        assert batch.name == "Test Batch"
-        assert batch.description == "A comprehensive test batch"
-        assert batch.output_base_directory == "/tmp/batch_output"
-        assert batch.status == BatchStatus.PENDING.value
-        assert batch.max_concurrent == 5
-        assert batch.continue_on_error is False
-
-    def test_get_batch(self, db_service_with_session):
-        """Test batch retrieval by ID."""
-        created_batch = db_service_with_session.create_batch(name="Test Batch")
-
-        retrieved_batch = db_service_with_session.get_batch(created_batch.id)
-        assert retrieved_batch is not None
-        assert retrieved_batch.id == created_batch.id
-        assert retrieved_batch.name == created_batch.name
-
-    def test_get_batch_nonexistent(self, db_service_with_session):
-        """Test retrieval of non-existent batch."""
-        batch = db_service_with_session.get_batch("nonexistent-batch-uuid")
-        assert batch is None
-
-    def test_update_batch_progress(self, db_service_with_session):
-        """Test batch progress counter updates based on job statuses."""
-        # Create batch with jobs
-        batch = db_service_with_session.create_batch(name="Progress Test Batch")
-
-        jobs = []
-        for i in range(5):
-            job = db_service_with_session.create_job(
-                url=f"https://example.com/test{i}",
-                output_directory=f"/tmp/output{i}",
-                batch_id=batch.id,
-            )
-            jobs.append(job)
-
-        # Update job statuses
-        db_service_with_session.update_job_status(jobs[0].id, JobStatus.COMPLETED)
-        db_service_with_session.update_job_status(jobs[1].id, JobStatus.COMPLETED)
-        db_service_with_session.update_job_status(jobs[2].id, JobStatus.FAILED)
-        db_service_with_session.update_job_status(jobs[3].id, JobStatus.SKIPPED)
-        # jobs[4] remains PENDING
-
-        # Update batch progress
-        success = db_service_with_session.update_batch_progress(batch.id)
-        assert success is True
-
-        # Verify progress counters
-        updated_batch = db_service_with_session.get_batch(batch.id)
-        assert updated_batch.total_jobs == 5
-        assert updated_batch.completed_jobs == 2
-        assert updated_batch.failed_jobs == 1
-        assert updated_batch.skipped_jobs == 1
-
-    def test_update_batch_progress_nonexistent_batch(self, db_service_with_session):
-        """Test updating progress for non-existent batch."""
-        success = db_service_with_session.update_batch_progress("nonexistent-batch-uuid")
-        assert success is False
-
-    def test_update_batch_progress_with_all_job_states(
-        self, db_service_with_session, test_isolation_id
-    ):
-        """Test batch progress update with various job states."""
-        batch = db_service_with_session.create_batch(name=f"Test Batch {test_isolation_id}")
-
-        # Create jobs in different states with unique identifiers
-        jobs = []
-        for i in range(10):
-            job = db_service_with_session.create_job(
-                url=f"https://example.com/batch-progress-test-{test_isolation_id}-{i}",
-                output_directory=f"/tmp/output{i}",
-                batch_id=batch.id,
-            )
-            jobs.append(job)
-
-        # Set various states
-        db_service_with_session.update_job_status(jobs[0].id, JobStatus.COMPLETED)
-        db_service_with_session.update_job_status(jobs[1].id, JobStatus.COMPLETED)
-        db_service_with_session.update_job_status(jobs[2].id, JobStatus.COMPLETED)
-        db_service_with_session.update_job_status(jobs[3].id, JobStatus.FAILED)
-        db_service_with_session.update_job_status(jobs[4].id, JobStatus.FAILED)
-        db_service_with_session.update_job_status(jobs[5].id, JobStatus.SKIPPED)
-        db_service_with_session.update_job_status(jobs[6].id, JobStatus.RUNNING)
-        db_service_with_session.update_job_status(jobs[7].id, JobStatus.CANCELLED)
-        # jobs[8] and jobs[9] remain PENDING
-
-        # Update batch progress
-        success = db_service_with_session.update_batch_progress(batch.id)
-        assert success is True
-
-        # Verify counts
-        updated_batch = db_service_with_session.get_batch(batch.id)
-        assert updated_batch.total_jobs == 10
-        assert updated_batch.completed_jobs == 3
-        assert updated_batch.failed_jobs == 2
-        assert updated_batch.skipped_jobs == 1
-        # RUNNING, CANCELLED, and PENDING are not counted in these specific fields
-
-
-@pytest.mark.integration
 class TestDatabaseServiceContentOperations:
     """Content result and logging operations."""
 
@@ -1351,30 +1231,6 @@ class TestDatabaseServiceErrorHandling:
 
             with pytest.raises(DatabaseError, match="Retry jobs retrieval failed"):
                 db_service_with_session.get_retry_jobs()
-
-    def test_create_batch_database_error(self, db_service_with_session):
-        """Test batch creation with database error."""
-        with patch.object(db_service_with_session, "get_session") as mock_session:
-            mock_session.side_effect = SQLAlchemyError("Database error")
-
-            with pytest.raises(DatabaseError, match="Batch creation failed"):
-                db_service_with_session.create_batch(name="Test Batch")
-
-    def test_get_batch_database_error(self, db_service_with_session):
-        """Test batch retrieval with database error."""
-        with patch.object(db_service_with_session, "get_session") as mock_session:
-            mock_session.side_effect = SQLAlchemyError("Database error")
-
-            with pytest.raises(DatabaseError, match="Batch retrieval failed"):
-                db_service_with_session.get_batch("test-batch-id")
-
-    def test_update_batch_progress_database_error(self, db_service_with_session):
-        """Test batch progress update with database error."""
-        with patch.object(db_service_with_session, "get_session") as mock_session:
-            mock_session.side_effect = SQLAlchemyError("Database error")
-
-            with pytest.raises(DatabaseError, match="Batch progress update failed"):
-                db_service_with_session.update_batch_progress("test-batch-id")
 
     def test_save_content_result_database_error(self, db_service_with_session):
         """Test content result save with database error."""

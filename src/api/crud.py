@@ -6,15 +6,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..common.status import JobPriority, JobStatus
+from ..common.status import JobStatus
 from ..constants import API_DEFAULT_LIMIT
-from ..database.models import Batch, ContentResult, ScrapingJob
+from ..database.models import ContentResult, ScrapingJob
 from ..monitoring.job_events import (
     publish_job_created,
     publish_job_deleted,
     publish_job_status_update,
 )
-from .schemas import BatchCreate, JobCreate, JobUpdate
+from .schemas import JobCreate, JobUpdate
 
 
 class JobCRUD:
@@ -245,97 +245,6 @@ class JobCRUD:
             )
 
         return job
-
-
-class BatchCRUD:
-    """CRUD operations for batches."""
-
-    @staticmethod
-    async def create_batch(db: AsyncSession, batch_data: BatchCreate) -> Batch:
-        """Create a new batch with jobs.
-
-        Args:
-            db: Database session
-            batch_data: Batch creation data
-
-        Returns:
-            Created batch instance
-        """
-        # Create batch
-        batch = Batch(
-            name=batch_data.name,
-            description=batch_data.description,
-            max_concurrent=batch_data.max_concurrent,
-            continue_on_error=batch_data.continue_on_error,
-            output_base_directory=batch_data.output_base_directory
-            or f"batch_output/{batch_data.name}",
-            total_jobs=len(batch_data.urls),
-        )
-
-        db.add(batch)
-        await db.flush()
-        await db.refresh(batch)
-
-        # Create jobs for each URL
-        for i, url in enumerate(batch_data.urls):
-            job_data = JobCreate(
-                url=url,
-                priority=JobPriority.NORMAL,
-                output_directory=f"{batch.output_base_directory}/job_{i + 1}",
-            )
-            job = await JobCRUD.create_job(db, job_data)
-            job.batch_id = batch.id
-
-        await db.flush()
-        await db.refresh(batch)
-        return batch
-
-    @staticmethod
-    async def get_batch(db: AsyncSession, batch_id: str) -> Batch | None:
-        """Get a batch by ID.
-
-        Args:
-            db: Database session
-            batch_id: Batch ID
-
-        Returns:
-            Batch instance or None
-        """
-        result = await db.execute(
-            select(Batch).options(selectinload(Batch.jobs)).where(Batch.id == batch_id)
-        )
-        return result.scalar_one_or_none()
-
-    @staticmethod
-    async def get_batches(
-        db: AsyncSession, skip: int = 0, limit: int = API_DEFAULT_LIMIT
-    ) -> tuple[list[Batch], int]:
-        """Get paginated list of batches.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Tuple of (batches list, total count)
-        """
-        # Get batches with jobs loaded
-        batches_result = await db.execute(
-            select(Batch)
-            .options(selectinload(Batch.jobs))
-            .order_by(Batch.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
-
-        # Get total count
-        count_result = await db.execute(select(func.count(Batch.id)))
-
-        batches = batches_result.scalars().all()
-        total = count_result.scalar() or 0
-
-        return list(batches), total
 
 
 class ContentResultCRUD:

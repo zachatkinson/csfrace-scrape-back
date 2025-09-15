@@ -19,7 +19,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from ..common.status import BatchStatus
+from ..common.status import JobStatus
 from ..constants import CONSTANTS
 from ..core.converter import AsyncWordPressConverter
 from ..utils.path_utils import (
@@ -61,7 +61,7 @@ class BatchJob:  # pylint: disable=too-many-instance-attributes
 
     url: str
     output_dir: Path
-    status: BatchStatus = BatchStatus.PENDING
+    status: JobStatus = JobStatus.PENDING
     error: str | None = None
     start_time: float | None = None
     end_time: float | None = None
@@ -513,7 +513,7 @@ class BatchProcessor:
         """
         async with self.semaphore:
             job.start_time = asyncio.get_event_loop().time()
-            job.status = BatchStatus.RUNNING
+            job.status = JobStatus.RUNNING
 
             # Show job in progress
             if job.progress_task:
@@ -527,7 +527,7 @@ class BatchProcessor:
                     self.config.skip_existing
                     and (job.output_dir / "converted_content.html").exists()
                 ):
-                    job.status = BatchStatus.SKIPPED
+                    job.status = JobStatus.SKIPPED
                     logger.info("Skipping existing output", url=job.url)
                     return job
 
@@ -546,7 +546,7 @@ class BatchProcessor:
                     timeout=self.config.timeout_per_job,
                 )
 
-                job.status = BatchStatus.COMPLETED
+                job.status = JobStatus.COMPLETED
                 job.end_time = asyncio.get_event_loop().time()
 
                 if job.progress_task:
@@ -566,7 +566,7 @@ class BatchProcessor:
                         logger.warning("Failed to create archive", url=job.url, error=str(e))
 
             except TimeoutError:
-                job.status = BatchStatus.FAILED
+                job.status = JobStatus.FAILED
                 job.error = f"Timeout after {self.config.timeout_per_job}s"
                 job.end_time = asyncio.get_event_loop().time()
 
@@ -578,7 +578,7 @@ class BatchProcessor:
                 logger.error("Job timed out", url=job.url, timeout=self.config.timeout_per_job)
 
             except Exception as e:
-                job.status = BatchStatus.FAILED
+                job.status = JobStatus.FAILED
                 job.error = str(e)
                 job.end_time = asyncio.get_event_loop().time()
 
@@ -623,13 +623,13 @@ class BatchProcessor:
             }
             summary["jobs"].append(job_data)
 
-            if job.status == BatchStatus.COMPLETED:
+            if job.status == JobStatus.COMPLETED:
                 summary["successful"] += 1
                 if job.duration:
                     summary["total_duration"] += job.duration
-            elif job.status == BatchStatus.FAILED:
+            elif job.status == JobStatus.FAILED:
                 summary["failed"] += 1
-            elif job.status == BatchStatus.SKIPPED:
+            elif job.status == JobStatus.SKIPPED:
                 summary["skipped"] += 1
 
         if summary["successful"] > 0:

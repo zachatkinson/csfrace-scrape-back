@@ -22,22 +22,21 @@ class TestRateLimiting:
 
     @pytest.mark.ratelimit
     @pytest.mark.asyncio
-    async def test_batch_creation_rate_limiting(self, async_client: AsyncClient):
-        """Test that batch creation is properly rate limited."""
-        batch_data = {
-            "name": "Rate Limit Test",
+    async def test_jobs_creation_rate_limiting(self, async_client: AsyncClient):
+        """Test that jobs creation is properly rate limited."""
+        jobs_data = {
             "urls": ["https://example.com/test"],
-            "max_concurrent": 5,
+            "priority": "normal",
         }
 
         # First few requests should succeed (up to the rate limit)
         success_count = 0
         for i in range(15):  # Try more requests than the limit
             response = await async_client.post(
-                "/batches/",
+                "/jobs/",
                 json={
-                    **batch_data,
-                    "name": f"Rate Limit Test {i}",  # Unique name to avoid conflicts
+                    **jobs_data,
+                    "urls": [f"https://example.com/test{i}"],  # Unique URLs to avoid conflicts
                 },
             )
 
@@ -67,9 +66,9 @@ class TestRateLimiting:
         # In a real-world scenario, you might use a shorter time window for tests
         # or mock the time functions.
 
-        batch_data = {
-            "name": "Recovery Test",
+        jobs_data = {
             "urls": ["https://example.com/test"],
+            "priority": "normal",
         }
 
         # This would be the pattern for testing recovery:
@@ -78,7 +77,7 @@ class TestRateLimiting:
         # 3. Verify requests work again
 
         # For now, just verify the rate limiting works
-        response = await async_client.post("/batches/", json=batch_data)
+        response = await async_client.post("/jobs/", json=jobs_data)
         # Should succeed or fail predictably based on previous tests
         assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_429_TOO_MANY_REQUESTS]
 
@@ -86,12 +85,12 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_rate_limiting_per_endpoint(self, async_client: AsyncClient):
         """Test that rate limiting is applied per endpoint."""
-        # Test batch creation endpoint
-        batch_response = await async_client.post(
-            "/batches/",
+        # Test jobs creation endpoint
+        jobs_response = await async_client.post(
+            "/jobs/",
             json={
-                "name": "Endpoint Test",
                 "urls": ["https://example.com/test"],
+                "priority": "normal",
             },
         )
 
@@ -99,12 +98,12 @@ class TestRateLimiting:
         # Use docs endpoint since health might not exist
         docs_response = await async_client.get("/docs")
 
-        # Docs endpoint should not be rate limited by batch endpoint usage
+        # Docs endpoint should not be rate limited by jobs endpoint usage
         # Should either work (200) or redirect (307) but not be rate limited (429)
         assert docs_response.status_code not in [status.HTTP_429_TOO_MANY_REQUESTS]
 
-        # Batch endpoint may or may not be rate limited depending on test order
-        assert batch_response.status_code in [
+        # Jobs endpoint may or may not be rate limited depending on test order
+        assert jobs_response.status_code in [
             status.HTTP_201_CREATED,
             status.HTTP_429_TOO_MANY_REQUESTS,
         ]
