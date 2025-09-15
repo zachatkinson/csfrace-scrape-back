@@ -17,7 +17,7 @@ from src.api.routers.jobs import (
     start_job,
     update_job,
 )
-from src.api.schemas import JobCreate, JobListResponse, JobResponse, JobUpdate
+from src.api.schemas import JobListResponse, JobResponse, JobUpdate
 from src.database.models import JobPriority, JobStatus, ScrapingJob
 
 
@@ -28,15 +28,6 @@ class TestJobRouterEndpoints:
     def mock_db_session(self):
         """Mock database session."""
         return AsyncMock()
-
-    @pytest.fixture
-    def job_create_data(self):
-        """Sample job creation data."""
-        return JobCreate(
-            url="https://example.com/test-page",
-            priority=JobPriority.HIGH.value,
-            custom_slug="test-slug",
-        )
 
     @pytest.fixture
     def job_update_data(self):
@@ -67,37 +58,63 @@ class TestJobRouterEndpoints:
         )
 
     @pytest.mark.asyncio
-    async def test_create_job_success(self, mock_db_session, job_create_data, sample_job):
-        """Test successful job creation."""
+    async def test_create_jobs_success(self, mock_db_session, sample_job):
+        """Test successful job creation with unified jobs endpoint."""
+        from pydantic import HttpUrl
+
+        from src.api.schemas import JobsCreateRequest, JobsCreateResponse
+
+        # Use the new unified request schema
+        jobs_create_data = JobsCreateRequest(
+            urls=[HttpUrl("https://example.com/test-page")],
+            priority=JobPriority.HIGH,
+        )
+
+        # Mock the response
+        mock_response = JobsCreateResponse(
+            jobs=[sample_job],
+            batch_id=None,  # Single URL, no batch
+            total_jobs=1,
+        )
+
         with patch(
-            "src.api.routers.jobs.JobCRUD.create_job", return_value=sample_job
+            "src.api.routers.jobs.DatabaseService.create_jobs", return_value=mock_response
         ) as mock_create:
             mock_background_tasks = MagicMock()
             mock_request = MagicMock(spec=Request)
             mock_request.client.host = "127.0.0.1"
-            result = await create_job(
-                mock_request, job_create_data, mock_background_tasks, mock_db_session
+            result = await create_jobs(
+                mock_request, jobs_create_data, mock_background_tasks, mock_db_session
             )
 
-            assert isinstance(result, JobResponse)
-            assert result.id == sample_job.id
-            assert result.url == sample_job.source_url
-            assert result.domain == sample_job.domain
+            assert isinstance(result, JobsCreateResponse)
+            assert result.total_jobs == 1
+            assert len(result.jobs) == 1
+            assert result.batch_id is None  # Single URL
 
-            mock_create.assert_called_once_with(mock_db_session, job_create_data)
+            mock_create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_job_database_error(self, mock_db_session, job_create_data):
+    async def test_create_jobs_database_error(self, mock_db_session):
         """Test job creation with database error."""
-        with patch("src.api.routers.jobs.JobCRUD.create_job") as mock_create:
+        from pydantic import HttpUrl
+
+        from src.api.schemas import JobsCreateRequest
+
+        jobs_create_data = JobsCreateRequest(
+            urls=[HttpUrl("https://example.com/test-page")],
+            priority=JobPriority.HIGH,
+        )
+
+        with patch("src.api.routers.jobs.DatabaseService.create_jobs") as mock_create:
             mock_create.side_effect = SQLAlchemyError("Database error")
 
             mock_background_tasks = MagicMock()
             mock_request = MagicMock(spec=Request)
             mock_request.client.host = "127.0.0.1"
             with pytest.raises(HTTPException) as exc_info:
-                await create_job(
-                    mock_request, job_create_data, mock_background_tasks, mock_db_session
+                await create_jobs(
+                    mock_request, jobs_create_data, mock_background_tasks, mock_db_session
                 )
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
