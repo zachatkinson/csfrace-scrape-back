@@ -73,12 +73,37 @@ class TestJobRouterEndpoints:
         # Mock the database service to return list of jobs (not JobsCreateResponse)
         mock_jobs = [sample_job]
 
-        with patch(
-            "src.api.routers.jobs.DatabaseService.create_jobs", return_value=mock_jobs
-        ) as mock_create:
+        # Mock the ScrapingJob model and database operations
+        with patch("src.database.models.ScrapingJob") as mock_job_class:
+            # Configure the mock to return our sample job with all required attributes
+            mock_job_instance = MagicMock()
+            mock_job_instance.id = sample_job.id
+            mock_job_instance.source_url = sample_job.source_url
+            mock_job_instance.batch_id = None
+            mock_job_instance.domain = sample_job.domain
+            mock_job_instance.slug = sample_job.slug
+            mock_job_instance.status = sample_job.status
+            mock_job_instance.priority = sample_job.priority
+            mock_job_instance.output_directory = sample_job.output_directory
+            mock_job_instance.max_retries = sample_job.max_retries
+            mock_job_instance.retry_count = sample_job.retry_count
+            mock_job_instance.success = sample_job.success
+            mock_job_instance.images_downloaded = sample_job.images_downloaded
+            mock_job_instance.created_at = sample_job.created_at
+            mock_job_instance.error_message = None
+            mock_job_instance.error_type = None
+            mock_job_instance.options = {}
+            mock_job_class.return_value = mock_job_instance
+
+            # Mock the database session operations
+            mock_db_session.add = MagicMock()
+            mock_db_session.flush = AsyncMock()
+            mock_db_session.commit = AsyncMock()
+
             mock_background_tasks = MagicMock()
             mock_request = MagicMock(spec=Request)
             mock_request.client.host = "127.0.0.1"
+
             result = await create_jobs(
                 mock_request, jobs_create_data, mock_background_tasks, mock_db_session
             )
@@ -88,7 +113,10 @@ class TestJobRouterEndpoints:
             assert len(result.jobs) == 1
             assert result.batch_id is None  # Single URL
 
-            mock_create.assert_called_once()
+            # Verify database operations were called
+            mock_db_session.add.assert_called()
+            mock_db_session.flush.assert_called_once()
+            mock_db_session.commit.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_jobs_database_error(self, mock_db_session):
@@ -102,8 +130,14 @@ class TestJobRouterEndpoints:
             priority=JobPriority.HIGH,
         )
 
-        with patch("src.api.routers.jobs.DatabaseService.create_jobs") as mock_create:
-            mock_create.side_effect = SQLAlchemyError("Database error")
+        # Mock database session to raise an error during commit
+        mock_db_session.add = MagicMock()
+        mock_db_session.flush = AsyncMock()
+        mock_db_session.commit = AsyncMock(side_effect=SQLAlchemyError("Database error"))
+
+        with patch("src.database.models.ScrapingJob") as mock_job_class:
+            mock_job_instance = MagicMock()
+            mock_job_class.return_value = mock_job_instance
 
             mock_background_tasks = MagicMock()
             mock_request = MagicMock(spec=Request)
@@ -114,7 +148,7 @@ class TestJobRouterEndpoints:
                 )
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Database operation failed" in str(exc_info.value.detail)
+            assert "create jobs" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_list_jobs_success(self, mock_db_session):

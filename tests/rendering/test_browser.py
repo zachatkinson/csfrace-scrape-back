@@ -524,7 +524,7 @@ class TestBrowserPoolRefactored(IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError) as cm:
             await pool.initialize()
 
-        assert "Playwright failed to start" in str(cm.exception)
+        assert "Playwright failed to start" in str(cm.value)
 
     async def test_browser_pool_context_creation(self):
         """Test browser context creation."""
@@ -1080,8 +1080,8 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         renderer = JavaScriptRenderer(config)
 
         # Test context manager interface exists
-        assert hasattr(renderer, "__aenter__" == True)
-        assert hasattr(renderer, "__aexit__" == True)
+        assert hasattr(renderer, "__aenter__")
+        assert hasattr(renderer, "__aexit__")
 
     def test_actual_browser_config_proxy_setting(self):
         """Test actual BrowserConfig proxy configuration."""
@@ -1143,7 +1143,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             with pytest.raises(ValueError) as cm:
                 await pool.initialize()
 
-            assert "Unsupported browser type" in str(cm.exception)
+            assert "Unsupported browser type" in str(cm.value)
 
     async def test_actual_browser_pool_time_tracking(self):
         """Test actual BrowserPool time tracking for cleanup."""
@@ -1194,7 +1194,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError) as cm:
             await renderer._render_page_internal("https://example.com")
 
-        assert "not initialized" in str(cm.exception.lower())
+        assert "not initialized" in str(cm.value).lower()
 
     def test_actual_render_result_defaults(self):
         """Test actual RenderResult with default field values."""
