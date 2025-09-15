@@ -1,13 +1,10 @@
 name: 🚀 Production Deployment Pipeline
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Semantic Release"]
+    types: [completed]
     branches: [master]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - '.gitignore'
   workflow_dispatch:
     inputs:
       environment:
@@ -39,6 +36,8 @@ jobs:
     name: 🔍 Pre-Deployment Quality Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Only run if semantic release completed successfully (or manual trigger)
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     outputs:
       deploy-approved: ${{ steps.quality-check.outputs.approved }}
       security-status: ${{ steps.security-check.outputs.status }}
