@@ -465,14 +465,14 @@ jobs:
           sarif_file: semgrep.sarif
           category: semgrep-sast
 
-      - name: Run CodeQL Analysis (GitHub's Semantic Code Analysis)
+      - name: Initialize CodeQL (Setup Security Database)
         uses: github/codeql-action/init@v3
         with:
           languages: python
           config-file: ./.github/codeql/codeql-config.yml
         continue-on-error: true
 
-      - name: Perform CodeQL Analysis
+      - name: Perform CodeQL Analysis (Execute Security Scanning)
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:python"
