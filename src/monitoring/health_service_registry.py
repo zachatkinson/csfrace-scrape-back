@@ -284,7 +284,7 @@ class PostgreSQLHealthEmitter(HealthEmitter):
                     }
 
                     # Determine status based on response time and connection usage
-                    connection_usage = cast(float, details["connection_usage_percent"])
+                    connection_usage = cast("float", details["connection_usage_percent"])
                     if (
                         response_time_ms > 2000 or connection_usage > 90
                     ):  # 2 seconds or >90% connections
