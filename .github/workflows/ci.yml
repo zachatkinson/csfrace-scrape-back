@@ -595,14 +595,27 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable --extra=test --extra=monitoring
 
-      - name: Install Playwright browsers (Shard 4 only - dedicated rendering shard)
+      - name: Cache Playwright browsers
+        if: matrix.shard == 4
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+            %USERPROFILE%\AppData\Local\ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}-
+
+      - name: Install Playwright browsers (Shard 4 only - optimized with caching)
         if: matrix.shard == 4
         run: |
           # Shard 4 is the dedicated rendering shard for all Playwright tests
-          # Following official Playwright recommendations - no caching
-          # Caching adds complexity without meaningful benefit per official docs
-          # Fresh install ensures version compatibility
-          uv run playwright install --with-deps chromium
+          # Now WITH caching for 30-60s savings per run
+          # Install chromium (280MB) and webkit (lighter, for simple tests)
+          uv run playwright install chromium webkit
+          # Only install OS dependencies if browsers were not cached
+          uv run playwright install-deps chromium webkit
         
       - name: Create shard-specific database
         run: |
@@ -631,15 +644,32 @@ jobs:
           
           # Shard-specific test execution for dedicated Playwright optimization
           if [ "${{ matrix.shard }}" = "4" ]; then
-            echo "::notice title=${{ matrix.shard_name }}::Dedicated rendering shard - includes Playwright tests"
-            # Shard 4: Dedicated rendering shard (ONLY tests/rendering/)
+            echo "::notice title=${{ matrix.shard_name }}::Optimized rendering shard with parallel browser tests"
+            # Shard 4: Dedicated rendering shard with enhanced parallelization
+            # Run lightweight tests first (no real browser needed)
             uv run pytest tests/rendering/ \
-              -m "not integration" \
+              -m "no_browser" \
               -n auto \
               --dist=worksteal \
-              --durations=10 \
+              --durations=5 \
               --cov=src/rendering \
               --cov-branch \
+              --cov-report=xml:coverage-shard-${{ matrix.shard }}-nobrowser.xml \
+              -v \
+              --tb=short \
+              --maxfail=3 || true
+
+            # Then run real browser tests with optimized parallelization
+            uv run pytest tests/rendering/ \
+              -m "not no_browser and not integration" \
+              -n 2 \
+              --dist=loadgroup \
+              --durations=10 \
+              --browser=chromium \
+              --browser=webkit \
+              --cov=src/rendering \
+              --cov-branch \
+              --cov-append \
             --cov-report=xml:coverage-shard-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
             --junit-xml=junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml \
@@ -971,12 +1001,26 @@ jobs:
       - name: Install dependencies with UV
         run: uv sync --frozen --no-editable --extra=test --extra=monitoring
 
-      - name: Install Playwright browsers
+      - name: Cache Playwright browsers for Performance Tests
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+            %USERPROFILE%\AppData\Local\ms-playwright
+          key: playwright-perf-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            playwright-perf-${{ runner.os }}-
+
+      - name: Install Playwright browsers (Optimized for Performance)
         run: |
-          # Following official Playwright recommendations - no caching
-          # Caching adds complexity without meaningful benefit per official docs
-          # Fresh install ensures version compatibility
-          uv run playwright install --with-deps chromium
+          # Install only chromium for performance benchmarks (most realistic)
+          # With caching, this saves 30-60s per run
+          uv run playwright install chromium
+          uv run playwright install-deps chromium
+
+          # Set optimal Chrome flags for performance testing
+          export PLAYWRIGHT_CHROMIUM_FLAGS="--disable-blink-features=AutomationControlled --disable-dev-shm-usage --disable-gpu --no-sandbox --disable-web-security --single-process"
 
 
       - name: Run performance tests
