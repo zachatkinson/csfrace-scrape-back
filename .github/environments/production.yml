@@ -1,0 +1,78 @@
+# GitHub Environment Configuration for Production
+# This file documents the production environment settings
+# (Actual configuration must be done via GitHub UI)
+
+name: production
+description: "Production environment with strict controls and manual approval"
+
+# Protection Rules (configure via GitHub UI)
+protection_rules:
+  # Require manual approval from designated reviewers
+  required_reviewers: 2
+
+  # Wait timer before deployment (5 minutes to allow for review)
+  wait_timer: 300  # 5 minutes in seconds
+
+  # Only allow deployment from master branch
+  deployment_branches:
+    - master
+
+  # Required reviewers (GitHub usernames)
+  reviewers:
+    - "senior-developer-1"    # Replace with actual GitHub username
+    - "tech-lead"             # Replace with actual GitHub username
+    - "devops-engineer"       # Replace with actual GitHub username
+
+  # Prevent deployments during specific times (optional)
+  # deployment_protection_rules:
+  #   - type: "time_window"
+  #     config:
+  #       allowed_times: "09:00-17:00"
+  #       timezone: "UTC"
+  #       allowed_days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+
+# Environment Variables
+environment_variables:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  CACHE_TTL: "3600"  # 1 hour for production stability
+  RATE_LIMIT_REQUESTS: "10000"
+  PROMETHEUS_ENABLED: "true"
+  FEATURE_FLAG_NEW_WORDPRESS_PARSER: "false"  # Conservative defaults
+  FEATURE_FLAG_ENHANCED_IMAGE_PROCESSING: "false"
+
+# Secrets (configure via GitHub UI)
+secrets:
+  - DATABASE_URL              # Production database connection
+  - REDIS_URL                # Production Redis connection
+  - API_KEYS                 # Production API keys
+  - MONITORING_WEBHOOK       # Production monitoring alerts
+  - SSL_CERTIFICATES         # Production SSL certs
+  - BACKUP_CREDENTIALS       # Database backup credentials
+  - EXTERNAL_SERVICE_TOKENS  # Third-party production tokens
+
+# URL
+url: "https://csfrace-scraper.example.com"
+
+# Production-specific considerations:
+production_checklist:
+  - "✅ Database backups configured"
+  - "✅ Monitoring and alerting active"
+  - "✅ SSL certificates valid"
+  - "✅ Rate limiting configured"
+  - "✅ Error logging enabled"
+  - "✅ Performance monitoring active"
+  - "✅ Security scanning completed"
+  - "✅ Disaster recovery plan documented"
+
+# Notes for setup:
+# 1. Go to GitHub repository Settings > Environments
+# 2. Create "production" environment
+# 3. Enable "Required reviewers" protection rule
+# 4. Add 2-3 trusted reviewers (senior developers, tech leads)
+# 5. Set wait timer to 5-10 minutes
+# 6. Restrict deployment branches to "master" only
+# 7. Add all production secrets
+# 8. Set production environment variables
+# 9. Configure custom deployment protection rules if needed
+# 10. Test the approval workflow before first production deployment

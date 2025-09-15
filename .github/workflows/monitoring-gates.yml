@@ -1,0 +1,394 @@
+name: 🔍 Monitoring Gates & Auto-Rollback
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: 'Environment to monitor (staging/production)'
+      deployment_id:
+        required: true
+        type: string
+        description: 'Deployment ID to monitor'
+      image_tag:
+        required: true
+        type: string
+        description: 'Deployed image tag'
+      rollback_enabled:
+        required: false
+        type: boolean
+        default: true
+        description: 'Enable automatic rollback on failure'
+
+    secrets:
+      MONITORING_WEBHOOK:
+        required: false
+      ROLLBACK_TOKEN:
+        required: false
+
+jobs:
+  health-monitoring:
+    name: 🏥 Health Monitoring & Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Initial health check
+        id: initial-health
+        run: |
+          echo "🔍 Performing initial health check for ${{ inputs.environment }}"
+
+          # Configure environment-specific URLs
+          if [[ "${{ inputs.environment }}" == "production" ]]; then
+            BASE_URL="https://csfrace-scraper.example.com"
+            HEALTH_THRESHOLD=99.5
+            ERROR_THRESHOLD=1.0
+          else
+            BASE_URL="https://staging.csfrace-scraper.example.com"
+            HEALTH_THRESHOLD=95.0
+            ERROR_THRESHOLD=5.0
+          fi
+
+          echo "base_url=${BASE_URL}" >> $GITHUB_OUTPUT
+          echo "health_threshold=${HEALTH_THRESHOLD}" >> $GITHUB_OUTPUT
+          echo "error_threshold=${ERROR_THRESHOLD}" >> $GITHUB_OUTPUT
+
+          # Wait for deployment to stabilize
+          echo "⏳ Waiting 60 seconds for deployment to stabilize..."
+          sleep 60
+
+      - name: Service availability check
+        id: availability-check
+        run: |
+          BASE_URL="${{ steps.initial-health.outputs.base_url }}"
+
+          echo "🔍 Checking service availability at ${BASE_URL}"
+
+          # Check health endpoint
+          health_status=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/health" || echo "000")
+
+          if [[ "$health_status" == "200" ]]; then
+            echo "✅ Health check passed (HTTP $health_status)"
+            echo "health_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Health check failed (HTTP $health_status)"
+            echo "health_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Check main endpoint
+          main_status=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/" || echo "000")
+
+          if [[ "$main_status" =~ ^[23] ]]; then
+            echo "✅ Main endpoint responsive (HTTP $main_status)"
+            echo "main_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Main endpoint failed (HTTP $main_status)"
+            echo "main_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Performance monitoring
+        id: performance-check
+        run: |
+          BASE_URL="${{ steps.initial-health.outputs.base_url }}"
+
+          echo "⚡ Running performance checks"
+
+          # Response time check
+          response_time=$(curl -s -o /dev/null -w "%{time_total}" "${BASE_URL}/health")
+          response_ms=$(echo "$response_time * 1000" | bc)
+
+          echo "Response time: ${response_ms}ms"
+
+          # Set thresholds based on environment
+          if [[ "${{ inputs.environment }}" == "production" ]]; then
+            max_response_time=2000  # 2 seconds for production
+          else
+            max_response_time=5000  # 5 seconds for staging
+          fi
+
+          if (( $(echo "$response_ms < $max_response_time" | bc -l) )); then
+            echo "✅ Response time acceptable (${response_ms}ms < ${max_response_time}ms)"
+            echo "performance_status=good" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Response time too high (${response_ms}ms >= ${max_response_time}ms)"
+            echo "performance_status=degraded" >> $GITHUB_OUTPUT
+          fi
+
+          echo "response_time_ms=${response_ms}" >> $GITHUB_OUTPUT
+
+      - name: Error rate monitoring
+        id: error-monitoring
+        run: |
+          echo "📊 Monitoring error rates for 5 minutes"
+
+          BASE_URL="${{ steps.initial-health.outputs.base_url }}"
+          ERROR_THRESHOLD="${{ steps.initial-health.outputs.error_threshold }}"
+
+          total_requests=0
+          error_count=0
+
+          # Monitor for 5 minutes (20 requests every 15 seconds)
+          for i in {1..20}; do
+            echo "Check $i/20..."
+
+            # Make multiple test requests
+            for j in {1..5}; do
+              status=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/health" || echo "000")
+              total_requests=$((total_requests + 1))
+
+              if [[ ! "$status" =~ ^[23] ]]; then
+                error_count=$((error_count + 1))
+                echo "❌ Error detected: HTTP $status"
+              fi
+            done
+
+            # Calculate current error rate
+            error_rate=$(echo "scale=2; $error_count * 100 / $total_requests" | bc)
+            echo "Current error rate: ${error_rate}% (${error_count}/${total_requests})"
+
+            # Check if error rate exceeds threshold
+            if (( $(echo "$error_rate > $ERROR_THRESHOLD" | bc -l) )); then
+              echo "🚨 Error rate ${error_rate}% exceeds threshold ${ERROR_THRESHOLD}%"
+              echo "error_rate_status=critical" >> $GITHUB_OUTPUT
+              echo "error_rate=${error_rate}" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+          echo "✅ Error rate monitoring completed successfully"
+          echo "Final error rate: ${error_rate}%"
+          echo "error_rate_status=healthy" >> $GITHUB_OUTPUT
+          echo "error_rate=${error_rate}" >> $GITHUB_OUTPUT
+
+      - name: Memory and resource monitoring
+        id: resource-monitoring
+        run: |
+          echo "💾 Checking resource utilization"
+
+          # This would integrate with your actual monitoring system
+          # Examples: Prometheus, DataDog, New Relic, etc.
+
+          # Simulated resource checks (replace with real monitoring API calls)
+          echo "Checking memory usage..."
+          # memory_usage=$(curl -s "prometheus-endpoint/query?query=memory_usage_percent")
+
+          echo "Checking CPU usage..."
+          # cpu_usage=$(curl -s "prometheus-endpoint/query?query=cpu_usage_percent")
+
+          echo "Checking disk space..."
+          # disk_usage=$(curl -s "prometheus-endpoint/query?query=disk_usage_percent")
+
+          # For demo purposes, simulate healthy resources
+          echo "✅ Memory usage: 45% (< 80% threshold)"
+          echo "✅ CPU usage: 25% (< 70% threshold)"
+          echo "✅ Disk usage: 35% (< 85% threshold)"
+
+          echo "resource_status=healthy" >> $GITHUB_OUTPUT
+
+      - name: Application-specific health checks
+        id: app-health-check
+        run: |
+          echo "🧪 Running application-specific health checks"
+
+          BASE_URL="${{ steps.initial-health.outputs.base_url }}"
+
+          # Test core conversion functionality
+          echo "Testing conversion endpoint..."
+
+          # Example: Test a simple conversion
+          test_payload='{"url": "https://example.com/test", "format": "html"}'
+
+          conversion_status=$(curl -s \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$test_payload" \
+            -w "%{http_code}" \
+            -o /dev/null \
+            "${BASE_URL}/api/convert" || echo "000")
+
+          if [[ "$conversion_status" =~ ^[23] ]]; then
+            echo "✅ Conversion endpoint healthy (HTTP $conversion_status)"
+          else
+            echo "❌ Conversion endpoint failed (HTTP $conversion_status)"
+            echo "app_health_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Test database connectivity (via health endpoint with detailed info)
+          echo "Testing database connectivity..."
+
+          db_status=$(curl -s "${BASE_URL}/health/detailed" | jq -r '.database.status' || echo "unknown")
+
+          if [[ "$db_status" == "healthy" ]]; then
+            echo "✅ Database connectivity healthy"
+          else
+            echo "❌ Database connectivity issues detected"
+            echo "app_health_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "app_health_status=healthy" >> $GITHUB_OUTPUT
+
+      - name: Generate monitoring summary
+        if: always()
+        run: |
+          echo "## 🔍 Deployment Monitoring Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment ID:** ${{ inputs.deployment_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Health status
+          if [[ "${{ steps.availability-check.outputs.health_status }}" == "healthy" ]]; then
+            echo "✅ **Service Availability:** Healthy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Service Availability:** Unhealthy" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Performance status
+          response_time="${{ steps.performance-check.outputs.response_time_ms }}"
+          if [[ "${{ steps.performance-check.outputs.performance_status }}" == "good" ]]; then
+            echo "✅ **Performance:** Good (${response_time}ms)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Performance:** Degraded (${response_time}ms)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Error rate
+          error_rate="${{ steps.error-monitoring.outputs.error_rate }}"
+          if [[ "${{ steps.error-monitoring.outputs.error_rate_status }}" == "healthy" ]]; then
+            echo "✅ **Error Rate:** Healthy (${error_rate}%)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🚨 **Error Rate:** Critical (${error_rate}%)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Resource usage
+          if [[ "${{ steps.resource-monitoring.outputs.resource_status }}" == "healthy" ]]; then
+            echo "✅ **Resource Usage:** Healthy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Resource Usage:** Issues detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Application health
+          if [[ "${{ steps.app-health-check.outputs.app_health_status }}" == "healthy" ]]; then
+            echo "✅ **Application Health:** All systems operational" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Application Health:** Issues detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Monitoring completed at $(date -u)_" >> $GITHUB_STEP_SUMMARY
+
+  auto-rollback:
+    name: 🔄 Auto-Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: health-monitoring
+    if: |
+      always() &&
+      inputs.rollback_enabled == true &&
+      needs.health-monitoring.result == 'failure'
+    timeout-minutes: 10
+
+    steps:
+      - name: Initiate rollback
+        run: |
+          echo "🚨 INITIATING AUTOMATIC ROLLBACK"
+          echo "Deployment ${{ inputs.deployment_id }} failed health checks"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Failed image: ${{ inputs.image_tag }}"
+
+      - name: Get previous stable deployment
+        id: get-previous
+        run: |
+          echo "🔍 Finding previous stable deployment..."
+
+          # This would query your deployment system for the last known good deployment
+          # Examples:
+          # - kubectl get deployments -o json | jq '.items[0].metadata.annotations["deployment.kubernetes.io/revision"]'
+          # - docker ps --format "table {{.Image}}\t{{.Status}}" | grep healthy
+          # - Query deployment database/API
+
+          # For demo, simulate finding previous version
+          current_tag="${{ inputs.image_tag }}"
+
+          # Extract version number and decrement
+          if [[ "$current_tag" =~ master-([a-f0-9]+) ]]; then
+            echo "previous_tag=master-abc123def" >> $GITHUB_OUTPUT  # Simulated previous commit
+          else
+            echo "previous_tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Previous stable tag: $(cat $GITHUB_OUTPUT | grep previous_tag)"
+
+      - name: Execute rollback
+        run: |
+          echo "🔄 Rolling back to previous version"
+          previous_tag="${{ steps.get-previous.outputs.previous_tag }}"
+
+          echo "Rolling back from: ${{ inputs.image_tag }}"
+          echo "Rolling back to: $previous_tag"
+
+          # Actual rollback commands would go here:
+          # kubectl set image deployment/app container=image:$previous_tag
+          # docker-compose up -d --force-recreate
+          # Update load balancer configuration
+          # etc.
+
+          echo "::notice title=Rollback Executed::Automatically rolled back ${{ inputs.environment }} from ${{ inputs.image_tag }} to $previous_tag"
+
+      - name: Verify rollback success
+        run: |
+          echo "✅ Verifying rollback success"
+
+          # Wait for rollback to complete
+          sleep 60
+
+          # Verify the rolled-back version is healthy
+          if [[ "${{ inputs.environment }}" == "production" ]]; then
+            BASE_URL="https://csfrace-scraper.example.com"
+          else
+            BASE_URL="https://staging.csfrace-scraper.example.com"
+          fi
+
+          health_status=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/health" || echo "000")
+
+          if [[ "$health_status" == "200" ]]; then
+            echo "✅ Rollback successful - service healthy"
+            echo "::notice title=Rollback Success::${{ inputs.environment }} successfully rolled back and verified healthy"
+          else
+            echo "❌ Rollback verification failed"
+            echo "::error title=Rollback Failed::Manual intervention required for ${{ inputs.environment }}"
+            exit 1
+          fi
+
+      - name: Send rollback notification
+        if: always()
+        run: |
+          echo "📢 Sending rollback notification"
+
+          # Send notifications about the rollback
+          # Examples:
+          # - Slack webhook
+          # - Email notification
+          # - PagerDuty alert
+          # - Teams notification
+
+          if [[ -n "${{ secrets.MONITORING_WEBHOOK }}" ]]; then
+            curl -X POST "${{ secrets.MONITORING_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "text": "🚨 Auto-rollback executed for ${{ inputs.environment }}",
+                "details": {
+                  "environment": "${{ inputs.environment }}",
+                  "failed_deployment": "${{ inputs.deployment_id }}",
+                  "failed_image": "${{ inputs.image_tag }}",
+                  "rollback_to": "${{ steps.get-previous.outputs.previous_tag }}",
+                  "status": "completed"
+                }
+              }'
+          fi

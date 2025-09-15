@@ -1,0 +1,62 @@
+{
+  "features": {
+    "new_wordpress_parser": {
+      "description": "New WordPress block parser with enhanced gallery support",
+      "strategy": "percentage",
+      "enabled": true,
+      "percentage": 25,
+      "environments": ["development", "staging"],
+      "created_by": "development-team",
+      "created_at": "2025-01-15T12:00:00Z",
+      "tags": ["parser", "experimental"]
+    },
+    "enhanced_image_processing": {
+      "description": "Improved image optimization and WebP conversion",
+      "strategy": "environment",
+      "enabled": true,
+      "environments": ["development"],
+      "created_by": "performance-team",
+      "created_at": "2025-01-15T12:00:00Z",
+      "tags": ["performance", "images"]
+    },
+    "advanced_caching": {
+      "description": "Multi-layer caching with Redis and file-based fallback",
+      "strategy": "allowlist",
+      "enabled": true,
+      "allowlist": ["admin", "beta-tester-1", "beta-tester-2"],
+      "environments": ["development", "staging", "production"],
+      "created_by": "infrastructure-team",
+      "created_at": "2025-01-15T12:00:00Z",
+      "tags": ["performance", "caching"]
+    },
+    "ai_content_enhancement": {
+      "description": "AI-powered content cleanup and optimization",
+      "strategy": "disabled",
+      "enabled": false,
+      "percentage": 0,
+      "environments": ["development"],
+      "created_by": "ai-team",
+      "created_at": "2025-01-15T12:00:00Z",
+      "tags": ["ai", "experimental", "future"]
+    },
+    "prometheus_metrics": {
+      "description": "Enhanced Prometheus metrics collection",
+      "strategy": "environment",
+      "enabled": true,
+      "environments": ["staging", "production"],
+      "created_by": "monitoring-team",
+      "created_at": "2025-01-15T12:00:00Z",
+      "tags": ["monitoring", "metrics"]
+    },
+    "async_batch_processing": {
+      "description": "Asynchronous batch processing for large conversion jobs",
+      "strategy": "percentage",
+      "enabled": true,
+      "percentage": 50,
+      "environments": ["development", "staging"],
+      "created_by": "performance-team",
+      "created_at": "2025-01-15T12:00:00Z",
+      "tags": ["performance", "async"]
+    }
+  }
+}

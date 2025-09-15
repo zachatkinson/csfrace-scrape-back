@@ -1,0 +1,43 @@
+# GitHub Environment Configuration for Staging
+# This file documents the staging environment settings
+# (Actual configuration must be done via GitHub UI)
+
+name: staging
+description: "Staging environment for testing before production deployment"
+
+# Protection Rules (configure via GitHub UI)
+protection_rules:
+  # No manual approval required for staging
+  wait_timer: 0
+
+  # Allow deployment from master branch only
+  deployment_branches:
+    - master
+
+  # Reviewers (optional for staging)
+  reviewers: []
+
+# Environment Variables
+environment_variables:
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "DEBUG"
+  CACHE_TTL: "300"  # 5 minutes for quick testing
+  RATE_LIMIT_REQUESTS: "1000"
+  PROMETHEUS_ENABLED: "true"
+
+# Secrets (configure via GitHub UI)
+secrets:
+  - DATABASE_URL          # Staging database connection
+  - REDIS_URL            # Staging Redis connection
+  - API_KEYS             # Third-party service keys for staging
+  - MONITORING_WEBHOOK   # Staging monitoring notifications
+
+# URL
+url: "https://staging.csfrace-scraper.example.com"
+
+# Notes for setup:
+# 1. Go to GitHub repository Settings > Environments
+# 2. Create "staging" environment
+# 3. Configure protection rules as documented above
+# 4. Add environment secrets
+# 5. Set environment variables
