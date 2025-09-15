@@ -50,6 +50,11 @@ jobs:
           fetch-depth: 0  # Full history for semantic release
           ssh-key: ${{ secrets.SEMANTIC_RELEASE_SSH_KEY }}
 
+      - name: Configure Git remote for SSH
+        run: |
+          git remote set-url origin git@github.com:${{ github.repository }}.git
+          git remote -v
+
       - name: Python Semantic Release
         id: semantic
         uses: python-semantic-release/python-semantic-release@v9.21.1
