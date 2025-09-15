@@ -2,6 +2,67 @@
 
 <!-- version list -->
 
+## v4.2.0 (2025-09-15)
+
+### Bug Fixes
+
+- Apply ruff formatting for structlog imports
+  ([`6878f16`](https://github.com/zachatkinson/csfrace-scrape-back/commit/6878f16dc127311446dad8a8708b8bd493df44f7))
+
+Add blank line after logging import in structlog fallback blocks to comply with ruff formatting
+  requirements
+
+- Final API schema and test factory corrections
+  ([`749030f`](https://github.com/zachatkinson/csfrace-scrape-back/commit/749030fbcd87e8279542a5d4b0b1fb27c2d44127))
+
+- Add field alias in JobResponse to map source_url to url for API compatibility - Remove duplicate
+  url field assignment in test_api_crud.py - Update test assertion to use result.source_url instead
+  of result.url
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- Remove duplicate url field from ScrapingJob model usage
+  ([`23bfac2`](https://github.com/zachatkinson/csfrace-scrape-back/commit/23bfac2f374b4828b096ba8bdc8702c43c3af030))
+
+- Remove all duplicate url= field assignments after source_url - Update test assertions to use
+  source_url instead of url - Fix database service to only use source_url field - Ensure all tests
+  pass with correct field names
+
+- Revert BatchJob test assertions to use url field
+  ([`7401172`](https://github.com/zachatkinson/csfrace-scrape-back/commit/74011729199ab8beb995364721ef0069e67104fa))
+
+BatchJob class correctly uses 'url' field, not 'source_url' Only ScrapingJob model uses 'source_url'
+  field
+
+- Update remaining job.url references to job.source_url
+  ([`4071996`](https://github.com/zachatkinson/csfrace-scrape-back/commit/40719963eb1a1317e2d2e528ad89456fc870a353))
+
+- Fix remaining test assertions using deprecated url field - Ensure all database service and API
+  tests use correct field names
+
+- Update test utility functions to use source_url
+  ([`8b79bc6`](https://github.com/zachatkinson/csfrace-scrape-back/commit/8b79bc6c7df2942d74c9ddccdf7e64051d57ff0d))
+
+- Fix test data factory helper functions using deprecated url field - Update unit test assertions to
+  use correct field names - Ensure all test utilities work with ScrapingJob model changes
+
+### Features
+
+- **backend**: Implement comprehensive SSE job monitoring system
+  ([`7f87883`](https://github.com/zachatkinson/csfrace-scrape-back/commit/7f87883a0ca9aa484cdd05bd89e56db7bddbcca3))
+
+- Add Redis pub/sub event system for real-time job updates - Create JobEventPublisher with lifecycle
+  event handling - Integrate event publishing into CRUD operations - Add SSE streaming endpoints for
+  job monitoring - Follow DRY/SOLID architecture principles - Fix database model inconsistencies
+  (remove duplicate url field) - Ensure all code passes ruff formatting and mypy validation
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v4.1.0 (2025-09-15)
 
 ### Bug Fixes
