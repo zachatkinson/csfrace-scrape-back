@@ -104,7 +104,6 @@ async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
     """Create a sample scraping job for testing."""
     job = ScrapingJob(
         source_url="https://example.com/test-page",  # Required field
-        url="https://example.com/test-page",
         domain="example.com",
         slug="test-page",
         priority=JobPriority.NORMAL.value,  # Use string value

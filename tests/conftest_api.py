@@ -22,7 +22,6 @@ def sample_job():
     return ScrapingJob(
         id="sample-job-id-1",  # String UUID instead of integer
         source_url="https://example.com/test",  # Required field
-        url="https://example.com/test",
         domain="example.com",
         slug="test",
         status=JobStatus.PENDING.value,  # Use string value

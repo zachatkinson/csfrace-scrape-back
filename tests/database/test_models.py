@@ -30,7 +30,6 @@ class TestDatabaseModels:
         """Test ScrapingJob model creation with required fields."""
         job = ScrapingJob(
             source_url="https://example.com/test-post",  # Required field
-            url="https://example.com/test-post",
             domain="example.com",
             slug="test-post",
             output_directory="/tmp/output",
@@ -54,7 +53,6 @@ class TestDatabaseModels:
         """Test ScrapingJob computed properties."""
         job = ScrapingJob(
             source_url="https://example.com/test",  # Required field
-            url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
         )
@@ -82,7 +80,6 @@ class TestDatabaseModels:
         """Test ScrapingJob can_retry property logic."""
         job = ScrapingJob(
             source_url="https://example.com/test",  # Required field
-            url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
             max_retries=3,
@@ -149,14 +146,12 @@ class TestDatabaseModels:
             # Create jobs in batch
             job1 = ScrapingJob(
                 source_url="https://example.com/post1",  # Required field
-                url="https://example.com/post1",
                 domain="example.com",
                 output_directory="/tmp/output/post1",
                 batch_id=batch.id,
             )
             job2 = ScrapingJob(
                 source_url="https://example.com/post2",  # Required field
-                url="https://example.com/post2",
                 domain="example.com",
                 output_directory="/tmp/output/post2",
                 batch_id=batch.id,
@@ -177,7 +172,6 @@ class TestDatabaseModels:
             # Create job first
             job = ScrapingJob(
                 source_url="https://example.com/test",  # Required field
-                url="https://example.com/test",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
@@ -213,7 +207,6 @@ class TestDatabaseModels:
             # Create job first
             job = ScrapingJob(
                 source_url="https://example.com/test",  # Required field
-                url="https://example.com/test",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
@@ -324,7 +317,6 @@ class TestDatabaseModels:
 
             job = ScrapingJob(
                 source_url="https://example.com/test",  # Required field
-                url="https://example.com/test",
                 domain="example.com",
                 output_directory="/tmp/output",
                 batch_id=batch.id,
@@ -432,7 +424,6 @@ class TestModelConstraintsAndValidation:
         long_url = "https://example.com/" + "a" * 2000
         job = ScrapingJob(
             source_url=long_url,  # Required field
-            url=long_url,
             domain="example.com",
             output_directory="/tmp/output",
         )
@@ -441,13 +432,12 @@ class TestModelConstraintsAndValidation:
             session.commit()
 
             assert job.id is not None
-            assert job.url == long_url
+            assert job.source_url == long_url
 
     def test_datetime_defaults(self, testcontainers_db_service):
         """Test that datetime fields have proper defaults."""
         job = ScrapingJob(
             source_url="https://example.com/test",  # Required field
-            url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
         )
@@ -477,7 +467,6 @@ class TestModelConstraintsAndValidation:
 
         job = ScrapingJob(
             source_url="https://example.com/test",  # Required field
-            url="https://example.com/test",
             domain="example.com",
             output_directory="/tmp/output",
             options=test_config,  # Use the correct field name from the model
@@ -498,7 +487,6 @@ class TestModelConstraintsAndValidation:
             # Create job without batch (should work)
             job1 = ScrapingJob(
                 source_url="https://example.com/test1",  # Required field
-                url="https://example.com/test1",
                 domain="example.com",
                 output_directory="/tmp/output",
             )
@@ -513,7 +501,6 @@ class TestModelConstraintsAndValidation:
 
             job2 = ScrapingJob(
                 source_url="https://example.com/test2",  # Required field
-                url="https://example.com/test2",
                 domain="example.com",
                 output_directory="/tmp/output",
                 batch_id=batch.id,

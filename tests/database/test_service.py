@@ -167,7 +167,7 @@ class TestDatabaseServiceJobOperations:
         )
 
         assert job.id is not None
-        assert job.url == "https://example.com/blog/test-post"
+        assert job.source_url == "https://example.com/blog/test-post"
         assert job.domain == "example.com"
         assert job.slug == "test-post"
         assert job.output_directory == "/tmp/output"

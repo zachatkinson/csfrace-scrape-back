@@ -285,7 +285,6 @@ class DatabaseService:
 
                 job = ScrapingJob(
                     source_url=request.url,  # Required field
-                    url=request.url,
                     domain=domain,
                     slug=slug,
                     output_directory=request.output_directory,

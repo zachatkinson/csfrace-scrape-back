@@ -51,7 +51,6 @@ class TestJobRouterEndpoints:
         return ScrapingJob(
             id="test-job-id-123",  # String UUID instead of integer
             source_url="https://example.com/test",  # Required field
-            url="https://example.com/test",
             domain="example.com",
             slug="test",
             status=JobStatus.PENDING.value,  # Use string value
@@ -113,7 +112,6 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-job-1",  # String UUID instead of integer
                 source_url="https://test1.com",  # Required field
-                url="https://test1.com",
                 domain="test1.com",
                 slug="test1",
                 status=JobStatus.PENDING.value,  # Use string value
@@ -130,7 +128,6 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-job-2",  # String UUID instead of integer
                 source_url="https://test2.com",  # Required field
-                url="https://test2.com",
                 domain="test2.com",
                 slug="test2",
                 status=JobStatus.PENDING.value,  # Use string value
@@ -177,7 +174,6 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-pagination-job",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
-                url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=JobStatus.PENDING.value,  # Use string value
@@ -321,7 +317,6 @@ class TestJobRouterEndpoints:
         updated_job = ScrapingJob(
             id=sample_job.id,
             source_url=sample_job.source_url,  # Required field
-            url=sample_job.url,
             domain=sample_job.domain,
             slug=sample_job.slug,
             status=JobStatus.RUNNING.value,  # Updated status
@@ -393,7 +388,6 @@ class TestJobRouterEndpoints:
         updated_job = ScrapingJob(
             id=sample_job.id,
             source_url=sample_job.source_url,  # Required field
-            url=sample_job.url,
             domain=sample_job.domain,
             slug=sample_job.slug,
             status=JobStatus.CANCELLED.value,  # Updated status
@@ -557,7 +551,6 @@ class TestJobRouterEndpoints:
             job = ScrapingJob(
                 id="test-job-status-validation",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
-                url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=invalid_status,  # Already using .value
@@ -581,7 +574,6 @@ class TestJobRouterEndpoints:
             job = ScrapingJob(
                 id="test-job-valid-status",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
-                url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=valid_status,  # Already using .value
@@ -625,7 +617,6 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-job-1",
                 source_url="https://test.com",  # Required field
-                url="https://test.com",
                 domain="test.com",
                 slug="test",
                 status=JobStatus.PENDING.value,
