@@ -27,10 +27,11 @@ router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 
 def safe_json_dumps(data: Any) -> str:
     """JSON dumps with handling for non-serializable types like Decimal."""
+
     def default_serializer(obj):
         if isinstance(obj, Decimal):
             return float(obj)
-        elif hasattr(obj, 'isoformat'):
+        elif hasattr(obj, "isoformat"):
             return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
@@ -161,8 +162,8 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                                     "framework": service_data.get("framework"),
                                     "port": service_data.get("port"),
                                     "response_time_ms": service_data["response_time_ms"],
-                                    **service_data["details"]
-                                }
+                                    **service_data["details"],
+                                },
                             }
                             await event_queue.put(service_update)
 
@@ -226,7 +227,7 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
             yield f"event: error\ndata: {safe_json_dumps({'error': str(e)})}\n\n"
         finally:
             # Cleanup Redis listener task
-            if 'listener_task' in locals():
+            if "listener_task" in locals():
                 listener_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await listener_task

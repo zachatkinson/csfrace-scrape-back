@@ -350,37 +350,39 @@ class FrontendHealthEmitter(HealthEmitter):
         start_time = time.time()
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session, \
-                       session.get(f"{self.frontend_url}/") as response:
-                    response_time_ms = (time.time() - start_time) * 1000
+            async with (
+                aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                session.get(f"{self.frontend_url}/") as response,
+            ):
+                response_time_ms = (time.time() - start_time) * 1000
 
-                    details = {
-                        "connected": True,
-                        "status_code": response.status,
-                        "content_length": response.headers.get("content-length", "unknown"),
-                        "server": response.headers.get("server", "unknown"),
-                    }
+                details = {
+                    "connected": True,
+                    "status_code": response.status,
+                    "content_length": response.headers.get("content-length", "unknown"),
+                    "server": response.headers.get("server", "unknown"),
+                }
 
-                    # Determine status based on HTTP status and response time
-                    if response.status >= 500:
-                        status = ServiceStatus.UNHEALTHY
-                    elif (
-                        response.status >= 400 or response_time_ms > 5000 or response_time_ms > 2000
-                    ):  # 5 seconds
-                        status = ServiceStatus.DEGRADED
-                    else:
-                        status = ServiceStatus.HEALTHY
+                # Determine status based on HTTP status and response time
+                if response.status >= 500:
+                    status = ServiceStatus.UNHEALTHY
+                elif (
+                    response.status >= 400 or response_time_ms > 5000 or response_time_ms > 2000
+                ):  # 5 seconds
+                    status = ServiceStatus.DEGRADED
+                else:
+                    status = ServiceStatus.HEALTHY
 
-                    return ServiceHealthData(
-                        service_name="frontend",
-                        status=status,
-                        timestamp=datetime.now(UTC),
-                        response_time_ms=response_time_ms,
-                        details=details,
-                        version="5.13.7",  # Astro version
-                        port="3000",
-                        framework="Astro + React + TypeScript",
-                    )
+                return ServiceHealthData(
+                    service_name="frontend",
+                    status=status,
+                    timestamp=datetime.now(UTC),
+                    response_time_ms=response_time_ms,
+                    details=details,
+                    version="5.13.7",  # Astro version
+                    port="3000",
+                    framework="Astro + React + TypeScript",
+                )
 
         except Exception as e:
             response_time_ms = (time.time() - start_time) * 1000
