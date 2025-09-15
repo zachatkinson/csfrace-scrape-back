@@ -2,6 +2,50 @@
 
 <!-- version list -->
 
+## v4.5.0 (2025-09-15)
+
+### Bug Fixes
+
+- **ci**: Add coverage finalization job to ensure proper Codecov aggregation
+  ([`6eb51db`](https://github.com/zachatkinson/csfrace-scrape-back/commit/6eb51db1e534ef41ab93d0ea389c3437f1e21c59))
+
+- Add finalize-coverage job that waits for all test shards to complete - Ensures Codecov properly
+  aggregates coverage from all 4 Ubuntu shards + integration tests - Runs with 'finalize' flag to
+  tell Codecov when all uploads are complete - Fixes issue where sharded coverage wasn't reflecting
+  in Codecov dashboard - Addresses user report: 'codecov shows latest commit but doesnt reflect new
+  coverage'
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- **ci**: Make Shard 4 explicitly run only rendering tests
+  ([`f3a8afd`](https://github.com/zachatkinson/csfrace-scrape-back/commit/f3a8afd9979d4fb929c5e66a4ba2366c36a3aa37))
+
+- Shard 4 now runs 'tests/rendering/' exclusively instead of using pytest-split - This ensures all
+  187 rendering tests actually run in CI - Shards 1-3 now split non-rendering tests across 3 groups
+  instead of 4 - Should dramatically improve rendering module coverage in Codecov - Fixes issue
+  where rendering tests were being excluded from all shards
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+### Features
+
+- **ci**: Rename Shard 4 to 'Playwright Tests' for clarity
+  ([`3a7828e`](https://github.com/zachatkinson/csfrace-scrape-back/commit/3a7828e34e8a8a72002bf487f7a2a31a79819a6f))
+
+- Use matrix.include to provide descriptive names for each shard - Shard 4 now shows as 'Unit Tests
+  - Ubuntu (Playwright Tests)' - Other shards remain as 'Unit Tests - Ubuntu (Shard 1/2/3)' - Notice
+  messages now use descriptive names instead of numbers - Makes CI output much more readable and
+  intuitive
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+
 ## v4.4.0 (2025-09-15)
 
 ### Features
