@@ -5,7 +5,235 @@ This Python3 application converts WordPress blog content from the CSFrace websit
 
 ## MANDATORY Code Quality Standards
 
-### 1. IDT, DRY and SOLID Principles (MANDATORY)
+### 1. Modern CI/CD and Deployment Standards (MANDATORY)
+**These deployment practices are MANDATORY and must be followed without exception. NO EXCEPTIONS.**
+
+#### Trunk-Based Development with Intelligent CI (MANDATORY)
+**MANDATORY: ALL development must follow trunk-based development with intelligent change detection.**
+
+- **Master-Only Deployments**: Deploy only from master branch with protection rules
+- **Feature Flags**: Control feature rollout without branches using percentage/allowlist strategies
+- **Environment Protection**: Manual approval gates for production deployments
+- **Monitoring Gates**: Auto-rollback on error metrics and health check failures
+- **Quality Gates**: Coverage >85%, security scans, linting must pass before deployment
+
+**CI/CD Workflow (MANDATORY):**
+```yaml
+# Master branch protection - MANDATORY
+protection_rules:
+  required_reviewers: 1
+  dismiss_stale_reviews: true
+  require_status_checks: true
+  require_up_to_date_branches: true
+  include_administrators: true
+
+# Deployment environments - MANDATORY
+environments:
+  staging:
+    auto_deploy: true
+    branches: [master]
+  production:
+    required_reviewers: 2
+    wait_timer: 300  # 5 minutes
+    branches: [master]
+    manual_approval: true
+```
+
+**Feature Flag Implementation (MANDATORY):**
+```python
+# Feature flags usage - MANDATORY pattern
+from src.core.feature_flags import feature_enabled
+
+# Simple conditional logic
+if feature_enabled("new_wordpress_parser", user_id):
+    return new_parser.parse(content)
+else:
+    return legacy_parser.parse(content)
+
+# Percentage rollouts (MANDATORY for gradual releases)
+{
+  "new_feature": {
+    "strategy": "percentage",
+    "enabled": true,
+    "percentage": 25,  # 25% of users
+    "environments": ["staging", "production"]
+  }
+}
+```
+
+**Quality Gates (MANDATORY):**
+- **Coverage Threshold**: Minimum 85% test coverage required
+- **Security Scanning**: No high/critical vulnerabilities allowed
+- **Linting**: All code must pass Ruff and Black formatting
+- **Type Checking**: MyPy validation required for production code
+- **Performance**: Response times <2s production, <5s staging
+
+**Monitoring & Auto-Rollback (MANDATORY):**
+```yaml
+# Health monitoring - MANDATORY thresholds
+health_checks:
+  production:
+    error_threshold: 1.0%    # Auto-rollback if >1% errors
+    response_time: 2000ms    # Auto-rollback if >2s response
+    availability: 99.9%      # Health endpoint must respond
+  staging:
+    error_threshold: 5.0%    # More lenient for staging
+    response_time: 5000ms
+    availability: 95.0%
+```
+
+**Environment Variables (MANDATORY):**
+```bash
+# MANDATORY environment-based configuration
+ENVIRONMENT=production|staging|development
+FEATURE_FLAG_<NAME>=true|false  # Override any feature flag
+LOG_LEVEL=INFO|DEBUG|WARNING|ERROR
+RATE_LIMIT_REQUESTS=10000|1000|100
+CACHE_TTL=3600|300|60
+```
+
+#### Progressive CI with Change Detection (MANDATORY)
+**MANDATORY: Use intelligent change detection to optimize CI performance and cost.**
+
+- **File-Based Sharding**: Automatically detect changed components and run relevant tests only
+- **Matrix Optimization**: Reduce CI time by 60-80% through intelligent test selection
+- **Cost Efficiency**: Eliminate unnecessary test runs on unchanged code
+- **Fast Feedback**: Critical path tests run first for immediate developer feedback
+
+**Shard Strategy (MANDATORY):**
+```yaml
+# Intelligent CI sharding - MANDATORY configuration
+matrix:
+  shard:
+    - { name: "Core Tests", id: "1", pattern: "src/core/ src/utils/" }
+    - { name: "API Tests", id: "2", pattern: "src/api/ src/database/" }
+    - { name: "Integration Tests", id: "3", pattern: "src/rendering/ src/caching/" }
+    - { name: "Playwright Tests", id: "4", pattern: "tests/rendering/" }
+
+# Change detection logic - MANDATORY
+run_condition: |
+  git diff --name-only HEAD~1 HEAD | grep -E "(src/|tests/)" |
+  grep -E "${{ matrix.pattern }}" || echo "no-changes"
+```
+
+#### GitHub Environment Setup (MANDATORY)
+**MANDATORY: Repository must be configured with proper environments and protection rules.**
+
+**Environment Configuration (MANDATORY):**
+```bash
+# Repository settings - MANDATORY configuration
+# 1. Create environments: Settings → Environments
+# 2. Configure staging environment:
+#    - Auto-deploy: true (deploy on master push)
+#    - Required reviewers: 0
+#    - Wait timer: 0 minutes
+#    - Deployment branches: master only
+
+# 3. Configure production environment:
+#    - Required reviewers: 2 (senior developers/tech leads)
+#    - Wait timer: 5 minutes (review period)
+#    - Deployment branches: master only
+#    - Manual approval: true
+
+# 4. Branch protection for master:
+#    - Require pull request before merging
+#    - Require 1 approval minimum
+#    - Dismiss stale PR approvals
+#    - Require status checks to pass
+#    - Require branches to be up to date
+#    - Include administrators
+```
+
+**Environment Secrets (MANDATORY):**
+```bash
+# Staging and Production environments - MANDATORY secrets
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+REDIS_URL=redis://host:6379/0
+API_KEYS={"service1": "key1", "service2": "key2"}
+EXTERNAL_SERVICE_TOKENS=token1,token2
+MONITORING_WEBHOOK=https://hooks.slack.com/webhook-url
+
+# Production-only secrets
+SSL_CERTIFICATES=cert-data
+BACKUP_CREDENTIALS=backup-credentials
+```
+
+**Environment Variables (MANDATORY):**
+```bash
+# MANDATORY per-environment configuration
+# Staging:
+ENVIRONMENT=staging
+LOG_LEVEL=DEBUG
+CACHE_TTL=300
+RATE_LIMIT_REQUESTS=1000
+FEATURE_FLAG_NEW_WORDPRESS_PARSER=true
+FEATURE_FLAG_ENHANCED_IMAGE_PROCESSING=true
+
+# Production:
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+CACHE_TTL=3600
+RATE_LIMIT_REQUESTS=10000
+FEATURE_FLAG_NEW_WORDPRESS_PARSER=false
+FEATURE_FLAG_ENHANCED_IMAGE_PROCESSING=false
+```
+
+#### Deployment Commands (MANDATORY)
+**MANDATORY: All deployments must follow these exact procedures.**
+
+**Automatic Staging Deployment:**
+```bash
+# MANDATORY: Every push to master triggers staging deployment
+git checkout master
+git pull origin master
+git merge feature/my-feature
+git push origin master
+# → Automatic staging deployment after CI passes
+```
+
+**Manual Production Deployment:**
+```bash
+# MANDATORY: Production requires manual workflow dispatch
+# 1. GitHub Actions → Production Deployment Pipeline → Run workflow
+# 2. Select environment: production
+# 3. Force deploy: false (respect quality gates)
+# 4. Wait for reviewer approval (configured in environment protection)
+# 5. Deployment proceeds automatically after approval
+```
+
+**Emergency Rollback (MANDATORY):**
+```bash
+# MANDATORY: Auto-rollback triggers for production issues
+# Automatic triggers:
+# - Health endpoint returns non-200 status
+# - Error rate exceeds 1% (production) or 5% (staging)
+# - Response time exceeds 2s (production) or 5s (staging)
+# - Core functionality tests fail
+
+# Manual rollback:
+gh workflow run deploy.yml -f environment=production -f force_deploy=false
+gh workflow run monitoring-gates.yml -f environment=production -f rollback_enabled=true
+```
+
+#### Notification Setup (MANDATORY)
+**MANDATORY: All environments must have monitoring notifications configured.**
+
+```bash
+# Slack Integration - MANDATORY
+# 1. Create Slack webhook: https://api.slack.com/messaging/webhooks
+# 2. Add MONITORING_WEBHOOK secret to environment
+# 3. Notifications sent for:
+#    - 🚀 Successful deployments
+#    - 🚨 Failed deployments
+#    - 🔄 Auto-rollbacks
+#    - ⚠️ Quality gate failures
+
+# Repository secrets - MANDATORY
+CODECOV_TOKEN=<your-codecov-token>
+MONITORING_WEBHOOK=<slack-webhook-url>
+```
+
+### 2. IDT, DRY and SOLID Principles (MANDATORY)
 **These principles are MANDATORY and must be followed without exception. NO EXCEPTIONS.**
 
 #### IDT (Implementation-Driven Testing) - PRACTICAL APPROACH

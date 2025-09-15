@@ -202,11 +202,11 @@ class FeatureFlagManager:
                 return user_id in flag.allowlist
 
             elif flag.strategy == RolloutStrategy.PERCENTAGE:
-                # Consistent hash-based percentage rollout
+                # Consistent hash-based percentage rollout using secure SHA-256
                 import hashlib
 
                 hash_input = f"{flag.name}:{user_id}".encode()
-                hash_value = int(hashlib.md5(hash_input).hexdigest()[:8], 16)
+                hash_value = int(hashlib.sha256(hash_input).hexdigest()[:8], 16)
                 user_percentage = hash_value % 100
                 return user_percentage < flag.percentage
 
