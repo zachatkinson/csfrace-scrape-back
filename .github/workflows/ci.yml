@@ -720,7 +720,7 @@ jobs:
         with:
           files: |
             junit-unit-${{ env.PYTHON_VERSION }}-shard-${{ matrix.shard }}.xml
-          check_name: "Unit Tests Results (Shard ${{ matrix.shard }})"
+          check_name: "${{ matrix.shard_name == 'Playwright Tests' && 'Playwright Tests Results' || format('Unit Tests Results (Shard {0})', matrix.shard) }}"
           comment_mode: off
 
       - name: Upload coverage reports to Codecov (Ubuntu only - primary validation)
