@@ -13,6 +13,7 @@ try:
 except ImportError:
     # Fallback to basic logging if structlog not available
     import logging
+
     structlog = logging  # type: ignore[misc]
 
 from pydantic import BaseModel
