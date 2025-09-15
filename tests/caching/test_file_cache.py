@@ -121,6 +121,53 @@ class TestFileCacheErrorHandling:
             assert result == 0
 
 
+class TestFileCacheBasicOperations:
+    """Test basic file cache operations that need coverage improvement."""
+
+    @pytest_asyncio.fixture
+    async def basic_cache(self, temp_dir):
+        """Create basic file cache instance."""
+        config = CacheConfig(cache_dir=temp_dir / "basic_cache")
+        cache = FileCache(config)
+        yield cache
+
+    @pytest.mark.asyncio
+    async def test_cache_initialization_creates_directories(self, temp_dir):
+        """Test that cache initialization creates all required directories."""
+        config = CacheConfig(cache_dir=temp_dir / "init_test")
+        cache = FileCache(config)
+
+        # Verify all subdirectories are created
+        assert cache.html_dir.exists()
+        assert cache.image_dir.exists()
+        assert cache.metadata_dir.exists()
+        assert cache.robots_dir.exists()
+        assert cache.generic_dir.exists()
+
+        # Verify stats are initialized
+        assert cache._stats["hits"] == 0
+        assert cache._stats["misses"] == 0
+        assert cache._stats["sets"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_cache_path_generation(self, basic_cache):
+        """Test cache path generation for different content types."""
+        test_key = "test_key_123"
+
+        # Test different content types
+        html_path = basic_cache._get_cache_path(test_key, "html")
+        image_path = basic_cache._get_cache_path(test_key, "image")
+        metadata_path = basic_cache._get_cache_path(test_key, "metadata")
+
+        # Verify paths are in correct subdirectories
+        assert "html" in str(html_path)
+        assert "images" in str(image_path)
+        assert "metadata" in str(metadata_path)
+
+        # Verify paths are different
+        assert html_path != image_path != metadata_path
+
+
 class TestFileCacheSizeEnforcement:
     """Test file cache size limit enforcement."""
 
