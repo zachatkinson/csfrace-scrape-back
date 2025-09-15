@@ -836,12 +836,12 @@ class TestJavaScriptRendererRefactored:
             network_requests=[{"url": "https://api.example.com", "method": "GET"}],
         )
 
-        self.assertEqual(result.html, "<html><body>Test</body></html>")
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.javascript_executed)
-        self.assertEqual(result.metadata["test"], "data")
-        self.assertIn("main", result.screenshots)
-        self.assertEqual(len(result.network_requests), 1)
+        assert result.html == "<html><body>Test</body></html>"
+        assert result.status_code == 200
+        assert result.javascript_executed is True
+        assert result.metadata["test"] == "data"
+        assert "main" in result.screenshots
+        assert len(result.network_requests) == 1
 
     @pytest.mark.asyncio
     async def test_create_renderer_factory(self):
@@ -856,11 +856,11 @@ class TestJavaScriptRendererRefactored:
             viewport_height=768,
         )
 
-        self.assertEqual(renderer.config.browser_type, "firefox")
-        self.assertFalse(renderer.config.headless)
-        self.assertEqual(renderer.config.timeout, 45.0)
-        self.assertEqual(renderer.config.viewport_width, 1366)
-        self.assertEqual(renderer.config.viewport_height, 768)
+        assert renderer.config.browser_type == "firefox"
+        assert renderer.config.headless is False
+        assert renderer.config.timeout == 45.0
+        assert renderer.config.viewport_width == 1366
+        assert renderer.config.viewport_height == 768
 
 
 # Test the actual browser.py classes for coverage
@@ -987,11 +987,11 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             viewport_width=1366,
             viewport_height=768,
         )
-        self.assertEqual(renderer.config.browser_type, "firefox")
-        self.assertFalse(renderer.config.headless)
-        self.assertEqual(renderer.config.timeout, 45.0)
-        self.assertEqual(renderer.config.viewport_width, 1366)
-        self.assertEqual(renderer.config.viewport_height, 768)
+        assert renderer.config.browser_type == "firefox"
+        assert renderer.config.headless is False
+        assert renderer.config.timeout == 45.0
+        assert renderer.config.viewport_width == 1366
+        assert renderer.config.viewport_height == 768
 
     async def test_actual_javascript_renderer_initialization(self):
         """Test actual JavaScriptRenderer initialization."""

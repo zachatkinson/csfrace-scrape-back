@@ -132,15 +132,28 @@ async def create_jobs(
         HTTPException: If job creation fails
     """
     try:
-        # Use database service for elegant array-based job creation
-        db_service = DatabaseService()
-        jobs = db_service.create_jobs(
-            urls=[str(url) for url in jobs_data.urls],
-            priority=jobs_data.priority.value,
-            output_directory=jobs_data.output_base_directory,
-            max_retries=jobs_data.max_retries,
-            options=jobs_data.options,
-        )
+        # Create jobs using CRUD operations with proper async session handling
+        from ...database.models import ScrapingJob
+        from uuid import uuid4
+
+        # Auto-batch detection: multiple URLs = batch, single URL = individual
+        batch_id = str(uuid4()) if len(jobs_data.urls) > 1 else None
+
+        jobs = []
+        for url in jobs_data.urls:
+            job = ScrapingJob(
+                source_url=str(url),
+                batch_id=batch_id,
+                priority=jobs_data.priority.value,
+                output_directory=jobs_data.output_base_directory,
+                max_retries=jobs_data.max_retries,
+                options=jobs_data.options or {},
+            )
+            jobs.append(job)
+            db.add(job)
+
+        await db.flush()  # Get job IDs
+        await db.commit()
 
         # Add background tasks for all jobs
         for job in jobs:
