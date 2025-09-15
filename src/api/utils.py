@@ -229,9 +229,9 @@ def handle_service_errors(operation: str) -> Callable[[Callable[..., Any]], Call
         operation: Description of the operation for error messages (e.g., "create batch")
 
     Usage:
-        @handle_service_errors("create batch")
-        async def create_batch_endpoint(batch_data: BatchCreate, service: BatchService):
-            return await service.create_batch(batch_data)
+        @handle_service_errors("create jobs")
+        async def create_jobs_endpoint(jobs_data: JobsCreateRequest, service: JobService):
+            return await service.create_jobs(jobs_data)
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:

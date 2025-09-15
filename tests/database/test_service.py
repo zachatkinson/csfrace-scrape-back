@@ -14,11 +14,10 @@ import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.common.status import BatchStatus
+from src.common.status import JobStatus
 from src.core.exceptions import DatabaseError
 from src.database.models import (
     JobPriority,
-    JobStatus,
     ScrapingJob,
 )
 from src.database.service import DatabaseService
@@ -768,7 +767,7 @@ class TestDatabaseServiceBatchOperations:
         assert batch.name == "Test Batch"
         assert batch.description == "A comprehensive test batch"
         assert batch.output_base_directory == "/tmp/batch_output"
-        assert batch.status == BatchStatus.PENDING.value
+        assert batch.status == JobStatus.PENDING.value
         assert batch.max_concurrent == 5
         assert batch.continue_on_error is False
 

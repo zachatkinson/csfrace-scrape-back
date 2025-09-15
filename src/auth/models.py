@@ -455,7 +455,7 @@ class LockoutStatsResponse(BaseModel):
 # Type Aliases for Path Parameters - FastAPI Best Practices
 UserIdPath = Annotated[str, Field(min_length=1, max_length=50, description="User ID")]
 JobIdPath = Annotated[str, Field(min_length=1, max_length=50, description="Job ID")]
-BatchIdPath = Annotated[str, Field(min_length=1, max_length=50, description="Batch ID")]
+
 CredentialIdPath = Annotated[
     str, Field(min_length=1, max_length=100, description="WebAuthn Credential ID")
 ]

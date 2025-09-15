@@ -5,7 +5,7 @@ following CLAUDE.md standards with proper relationships and constraints.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -23,7 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Import enums from common status module
-from ..common.status import BatchStatus, JobPriority, JobStatus
+from ..common.status import JobPriority, JobStatus
 
 # pylint: disable=too-few-public-methods  # SQLAlchemy models often have minimal methods
 # pylint: disable=too-many-instance-attributes  # Database models need many fields
@@ -38,7 +38,6 @@ from ..common.status import BatchStatus, JobPriority, JobStatus
 __all__ = [
     "Base",
     "ScrapingJob",
-    "Batch",
     "ContentResult",
     "JobLog",
     "SystemMetrics",
@@ -48,7 +47,6 @@ __all__ = [
     "RevokedToken",
     "JobStatus",
     "JobPriority",
-    "BatchStatus",
     "create_database_engine",
 ]
 
@@ -128,11 +126,8 @@ class ScrapingJob(Base):
     output_size_bytes: Mapped[int | None] = mapped_column(Integer)
     content_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
-    # Relationships
-    batch_id: Mapped[str | None] = mapped_column(
-        ForeignKey("batches.id", ondelete="CASCADE"), index=True
-    )
-    batch: Mapped[Optional["Batch"]] = relationship("Batch", back_populates="jobs")
+    # Batch grouping (simplified from complex Batch table relationship)
+    batch_id: Mapped[str | None] = mapped_column(String(255), index=True)
 
     content_results: Mapped[list["ContentResult"]] = relationship(
         "ContentResult", back_populates="job", cascade="all, delete-orphan", passive_deletes=True
@@ -173,72 +168,6 @@ class ScrapingJob(Base):
     def can_retry(self) -> bool:
         """Check if job can be retried."""
         return self.status == "failed" and self.retry_count < self.max_retries
-
-
-class Batch(Base):
-    """Model for batch processing operations.
-
-    Represents a collection of related scraping jobs processed together,
-    with shared configuration and progress tracking.
-    """
-
-    __tablename__ = "batches"
-
-    # Primary identification
-    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text)
-
-    # Batch status and timing
-    status: Mapped[str] = mapped_column(
-        String,
-        default="pending",
-        nullable=False,
-        index=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), nullable=False
-    )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), nullable=False
-    )
-
-    # Configuration
-    concurrent_limit: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
-    max_concurrent: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
-    rate_limit_per_second: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
-    continue_on_error: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    output_base_directory: Mapped[str | None] = mapped_column(String(1024))
-    options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
-
-    # Progress tracking
-    total_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    completed_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    failed_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    skipped_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-
-    # Statistics
-    statistics: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
-
-    # Relationships
-    jobs: Mapped[list[ScrapingJob]] = relationship(
-        "ScrapingJob", back_populates="batch", cascade="all, delete-orphan"
-    )
-
-    def __repr__(self) -> str:
-        """String representation of the batch."""
-        return f"<Batch(id={self.id}, name='{self.name}', status='{self.status}')>"
-
-    @property
-    def success_rate(self) -> float:
-        """Calculate batch success rate."""
-        if self.total_jobs is None or self.total_jobs == 0:
-            return 0.0
-        if self.completed_jobs is None:
-            return 0.0
-        return self.completed_jobs / self.total_jobs
 
 
 class ContentResult(Base):

@@ -5,7 +5,6 @@ from datetime import datetime
 import pytest
 
 from src.database.models import (
-    Batch,
     ContentResult,
     JobLog,
     JobPriority,

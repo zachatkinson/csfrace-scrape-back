@@ -7,8 +7,6 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from ..common.status import JobPriority
 from ..constants import (
-    API_MAX_CONCURRENT_JOBS,
-    API_MAX_NAME_LENGTH,
     API_MAX_RETRIES_LIMIT,
     API_MAX_URLS_PER_BATCH,
 )
@@ -84,52 +82,28 @@ class JobListResponse(BaseModel):
     total_pages: int
 
 
-# Batch-related schemas
-class BatchCreate(BaseModel):
-    """Schema for creating a new batch."""
+# Array-based job creation schema
+class JobsCreateRequest(BaseModel):
+    """Schema for creating multiple jobs from URL array.
 
-    name: str = Field(..., min_length=1, max_length=API_MAX_NAME_LENGTH)
-    description: str | None = None
-    urls: list[HttpUrl] = Field(..., max_length=API_MAX_URLS_PER_BATCH)
-    max_concurrent: int = Field(default=5, ge=1, le=API_MAX_CONCURRENT_JOBS)
-    continue_on_error: bool = True
+    Elegant approach: Always expect arrays, auto-detect batches vs individual jobs.
+    - Single URL: batch_id = None (individual job)
+    - Multiple URLs: auto-generate batch_id (batch processing)
+    """
+
+    urls: list[HttpUrl] = Field(min_length=1, max_length=API_MAX_URLS_PER_BATCH)
+    priority: JobPriority = JobPriority.NORMAL
     output_base_directory: str | None = None
+    max_retries: int = Field(default=3, ge=0, le=API_MAX_RETRIES_LIMIT)
+    options: dict[str, Any] | None = None
 
 
-class BatchResponse(BaseSchema):
-    """Schema for batch responses."""
-
-    id: str  # String ID in database model
-    name: str
-    description: str | None = None
-    status: str  # String status in database model
-    created_at: datetime
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    max_concurrent: int
-    continue_on_error: bool
-    output_base_directory: str | None = None
-    total_jobs: int
-    completed_jobs: int
-    failed_jobs: int
-    skipped_jobs: int
-    success_rate: float  # Computed property
-
-
-class BatchWithJobsResponse(BatchResponse):
-    """Schema for batch responses that include jobs."""
+class JobsCreateResponse(BaseModel):
+    """Schema for jobs creation response."""
 
     jobs: list[JobResponse]
-
-
-class BatchListResponse(BaseModel):
-    """Schema for paginated batch list responses."""
-
-    batches: list[BatchResponse]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
+    batch_id: str | None = None  # Present if multiple URLs (batch), None if single URL
+    total_jobs: int
 
 
 # Content result schemas

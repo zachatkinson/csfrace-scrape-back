@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.routers.jobs import (
     cancel_job,
-    create_job,
+    create_jobs,
     delete_job,
     get_job,
     list_jobs,

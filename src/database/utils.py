@@ -8,7 +8,7 @@ import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
-from ..common.status import BatchStatus, JobPriority, JobStatus
+from ..common.status import JobPriority, JobStatus
 
 # Import for type checking only to avoid circular dependencies
 
@@ -73,7 +73,7 @@ def get_standard_enum_definitions() -> list[tuple[str, type[Enum]]]:
     Returns:
         List of (enum_name, enum_class) tuples for standard enums
     """
-    enums: list[tuple[str, type[Enum]]] = [("batchstatus", BatchStatus), ("jobstatus", JobStatus)]
+    enums: list[tuple[str, type[Enum]]] = [("jobstatus", JobStatus)]
 
     # Only add JobPriority if it was imported successfully
     if JobPriority is not None:

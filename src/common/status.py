@@ -19,16 +19,6 @@ class JobStatus(Enum):
     PARTIAL = "partial"  # For partially completed jobs
 
 
-class BatchStatus(Enum):
-    """Status enumeration specifically for batch operations."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-
-
 class JobPriority(Enum):
     """Priority enumeration for jobs."""
 

@@ -62,52 +62,43 @@ class TestAPIIntegration:
         final_get_response = client.get(f"/jobs/{job_id}")
         assert final_get_response.status_code == 404
 
-    def test_complete_batch_workflow(self, client: TestClient):
-        """Test complete batch lifecycle workflow."""
-        # 1. Create a batch
-        batch_data = {
-            "name": "Integration Test Batch",
-            "description": "Testing batch workflow",
+    def test_multiple_jobs_workflow(self, client: TestClient):
+        """Test creating multiple jobs with unified array endpoint."""
+        # 1. Create multiple jobs using the unified array endpoint
+        jobs_data = {
             "urls": [
                 "https://example.com/page1",
                 "https://example.com/page2",
                 "https://example.com/page3",
             ],
-            "max_concurrent": 2,
-            "continue_on_error": True,
+            "priority": "normal",
         }
 
-        create_response = client.post("/batches/", json=batch_data)
+        create_response = client.post("/jobs/", json=jobs_data)
         assert create_response.status_code == 201
-        batch = create_response.json()
-        batch_id = batch["id"]
+        response_data = create_response.json()
 
-        # 2. Verify batch was created with jobs
-        get_response = client.get(f"/batches/{batch_id}")
-        assert get_response.status_code == 200
-        retrieved_batch = get_response.json()
+        # Verify all jobs were created and have the same batch_id
+        assert len(response_data["jobs"]) == 3
+        batch_id = response_data["jobs"][0]["batch_id"]
+        assert batch_id is not None
 
-        assert retrieved_batch["name"] == batch_data["name"]
-        assert retrieved_batch["total_jobs"] == 3
-        assert len(retrieved_batch["jobs"]) == 3
-
-        # 3. Verify all jobs belong to the batch
-        for job in retrieved_batch["jobs"]:
+        # All jobs should have the same batch_id since they were created together
+        for job in response_data["jobs"]:
             assert job["batch_id"] == batch_id
             assert job["status"] == "pending"
 
-        # 4. Test individual job operations within the batch
-        job_id = retrieved_batch["jobs"][0]["id"]
+        # 2. Test individual job operations within the batch
+        job_id = response_data["jobs"][0]["id"]
 
         # Start one job from the batch
         start_response = client.post(f"/jobs/{job_id}/start")
         assert start_response.status_code == 200
 
-        # 5. Verify batch still exists and job status updated
-        batch_check_response = client.get(f"/batches/{batch_id}")
-        updated_batch = batch_check_response.json()
-
-        started_job = next(job for job in updated_batch["jobs"] if job["id"] == job_id)
+        # 3. Verify job status was updated
+        get_job_response = client.get(f"/jobs/{job_id}")
+        assert get_job_response.status_code == 200
+        started_job = get_job_response.json()
         assert started_job["status"] == "running"
 
     def test_job_filtering_and_pagination(self, client: TestClient):
@@ -169,7 +160,6 @@ class TestAPIIntegration:
             ("POST", "/jobs/nonexistent-job-id/start"),
             ("POST", "/jobs/nonexistent-job-id/cancel"),
             ("POST", "/jobs/nonexistent-job-id/retry"),
-            ("GET", "/batches/nonexistent-batch-id"),
         ]
 
         for method, endpoint in endpoints_404:
@@ -263,16 +253,17 @@ class TestAPIIntegration:
         job_response = client.post("/jobs/", json=invalid_url_data)
         assert job_response.status_code == 422
 
-        batch_response = client.post("/batches/", json={"name": "Test", "urls": ["not-a-url"]})
-        assert batch_response.status_code == 422
+        # Test multiple jobs with invalid URL
+        jobs_response = client.post("/jobs/", json={"urls": ["not-a-url"], "priority": "normal"})
+        assert jobs_response.status_code == 422
 
         # Test missing required fields
         incomplete_job = {"priority": "high"}  # Missing URL
         response = client.post("/jobs/", json=incomplete_job)
         assert response.status_code == 422
 
-        incomplete_batch = {"urls": ["https://example.com"]}  # Missing name
-        response = client.post("/batches/", json=incomplete_batch)
+        incomplete_jobs = {"priority": "high"}  # Missing urls array
+        response = client.post("/jobs/", json=incomplete_jobs)
         assert response.status_code == 422
 
     def test_api_response_format_consistency(self, client: TestClient):
@@ -283,27 +274,32 @@ class TestAPIIntegration:
         )
         job = job_response.json()
 
-        batch_response = client.post(
-            "/batches/", json={"name": "Format Test", "urls": ["https://format.test/batch"]}
+        jobs_response = client.post(
+            "/jobs/",
+            json={
+                "urls": ["https://format.test/batch1", "https://format.test/batch2"],
+                "priority": "normal",
+            },
         )
-        batch = batch_response.json()
+        jobs_data = jobs_response.json()
+        job_from_batch = jobs_data["jobs"][0]  # Get first job from the batch
 
         # Check common fields have consistent naming and types
         common_fields = ["id", "created_at"]
 
         for field in common_fields:
             assert field in job
-            assert field in batch
+            assert field in job_from_batch
 
-            # IDs should be integers
+            # IDs should be consistent type
             if field == "id":
                 # IDs can be strings or integers depending on implementation
                 assert job[field] is not None
-                assert batch[field] is not None
+                assert job_from_batch[field] is not None
 
             # Timestamps should be strings in ISO format
             if "at" in field:
                 assert isinstance(job[field], str)
-                assert isinstance(batch[field], str)
+                assert isinstance(job_from_batch[field], str)
                 assert "T" in job[field]  # ISO format
-                assert "T" in batch[field]  # ISO format
+                assert "T" in job_from_batch[field]  # ISO format

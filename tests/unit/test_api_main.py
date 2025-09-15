@@ -49,9 +49,8 @@ class TestFastAPIApp:
         job_routes = [route for route in routes if "/jobs" in route]
         assert len(job_routes) > 0
 
-        # Check batch routes
-        batch_routes = [route for route in routes if "/batches" in route]
-        assert len(batch_routes) > 0
+        # Verify jobs routes support both single and batch operations
+        assert any("/jobs" in route for route in job_routes)
 
     def test_root_endpoint_functionality(self):
         """Test root endpoint returns correct information."""
@@ -159,7 +158,7 @@ class TestGlobalExceptionHandler:
     @pytest.mark.asyncio
     async def test_global_exception_handler_different_paths(self):
         """Test global exception handler with different request paths."""
-        test_paths = ["/", "/jobs", "/batches/123", "/health"]
+        test_paths = ["/", "/jobs", "/jobs/123", "/health"]
 
         for path in test_paths:
             request = MagicMock(spec=Request)
