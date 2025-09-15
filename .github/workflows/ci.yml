@@ -515,7 +515,7 @@ jobs:
   # Ubuntu: Full test suite with coverage (primary validation) + PostgreSQL service
   # Windows/macOS: Platform-specific smoke tests (compatibility validation)
   unit-tests-linux:
-    name: Unit Tests - Ubuntu (${{ matrix.shard_name }})
+    name: ${{ matrix.shard == 4 && 'Playwright Tests - Ubuntu' || format('Unit Tests - Ubuntu (Shard {0})', matrix.shard) }}
     runs-on: ubuntu-latest
     needs: [detect-changes, quality]
     timeout-minutes: 25
@@ -649,8 +649,6 @@ jobs:
             # Run lightweight tests first (no real browser needed)
             uv run pytest tests/rendering/ \
               -m "no_browser" \
-              -n auto \
-              --dist=worksteal \
               --durations=5 \
               --cov=src/rendering \
               --cov-branch \
@@ -686,8 +684,6 @@ jobs:
               -m "not integration" \
               --splits=3 \
               --group=${{ matrix.shard }} \
-              -n auto \
-              --dist=worksteal \
               --durations=10 \
               --cov=src \
               --cov-branch \

@@ -8,7 +8,7 @@ import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 
-from ..common.status import JobPriority, JobStatus
+from ..common.status import BatchStatus, JobPriority, JobStatus
 
 # Import for type checking only to avoid circular dependencies
 
@@ -57,6 +57,8 @@ def create_postgresql_enums(
                     "duplicate key",
                     "already exists and is not a constraint",
                     "constraint already exists",
+                    "pg_type_typname_nsp_index",  # PostgreSQL type uniqueness constraint
+                    "violates unique constraint",
                 ]
             ):
                 logger.debug("Enum type already exists (concurrent creation): %s", enum_name)
@@ -71,7 +73,7 @@ def get_standard_enum_definitions() -> list[tuple[str, type[Enum]]]:
     Returns:
         List of (enum_name, enum_class) tuples for standard enums
     """
-    enums: list[tuple[str, type[Enum]]] = [("jobstatus", JobStatus)]
+    enums: list[tuple[str, type[Enum]]] = [("batchstatus", BatchStatus), ("jobstatus", JobStatus)]
 
     # Only add JobPriority if it was imported successfully
     if JobPriority is not None:

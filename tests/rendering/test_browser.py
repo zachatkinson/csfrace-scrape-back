@@ -821,6 +821,7 @@ class TestJavaScriptRendererRefactored:
 
             await pool.cleanup()
 
+    @pytest.mark.asyncio
     async def test_render_result_dataclass(self):
         """Test RenderResult dataclass functionality."""
         result = RenderResult(
@@ -842,6 +843,7 @@ class TestJavaScriptRendererRefactored:
         self.assertIn("main", result.screenshots)
         self.assertEqual(len(result.network_requests), 1)
 
+    @pytest.mark.asyncio
     async def test_create_renderer_factory(self):
         """Test create_renderer factory function."""
         from src.rendering.browser import create_renderer
@@ -1650,14 +1652,15 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
         self.assertEqual(result_error.load_time, 10.5)
 
     @pytest.mark.browser_pool
-    async def test_actual_browser_pool_cleanup_stale_contexts_method(self, measure_browser_time):
+    async def test_actual_browser_pool_cleanup_stale_contexts_method(self):
         """Test BrowserPool _cleanup_stale_contexts method with performance monitoring."""
         import time
         from unittest.mock import AsyncMock, MagicMock
 
         from src.rendering.browser import BrowserConfig, BrowserPool
 
-        stop_timer = measure_browser_time("cleanup_stale_contexts")
+        # Simple timer without fixture dependency
+        start_time = time.time()
 
         config = BrowserConfig()
         pool = BrowserPool(config, cleanup_interval=0.1)  # Very short interval for testing
@@ -1689,7 +1692,7 @@ class TestActualBrowserClasses(IsolatedAsyncioTestCase):
             mock_context2.close.assert_not_called()
             self.assertIn(mock_context2, pool._contexts)
 
-        duration = stop_timer()
+        duration = time.time() - start_time
         # Cleanup operations should be very fast to not impact CI
         self.assertLess(duration, 0.1)
 
