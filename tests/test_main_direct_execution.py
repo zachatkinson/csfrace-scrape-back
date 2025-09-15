@@ -6,7 +6,6 @@ to ensure proper coverage measurement.
 """
 
 import sys
-import tempfile
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -34,7 +33,7 @@ class TestMainDirectExecution(TestCase):
         mock_main_function = MagicMock()
         mock_main_module.main = mock_main_function
 
-        with patch.dict('sys.modules', {'src.main': mock_main_module}):
+        with patch.dict("sys.modules", {"src.main": mock_main_module}):
             # Execute the actual main.py logic manually to get coverage
             # This simulates the exact code in main.py
 
@@ -45,6 +44,7 @@ class TestMainDirectExecution(TestCase):
             # Step 2: Import and execution (from main.py lines 19-24)
             try:
                 from src.main import main
+
                 # Simulate if __name__ == "__main__" being True
                 main()
             except ImportError:
@@ -53,19 +53,20 @@ class TestMainDirectExecution(TestCase):
             # Verify the mock was called (simulating successful execution)
             mock_main_function.assert_called_once()
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_import_error_path(self, mock_exit, mock_print):
         """Test ImportError handling path for coverage."""
         # Clear sys.modules to force ImportError
-        modules_to_remove = [key for key in sys.modules.keys() if key.startswith('src.main')]
+        modules_to_remove = [key for key in sys.modules if key.startswith("src.main")]
         for module in modules_to_remove:
             if module in sys.modules:
                 del sys.modules[module]
 
         # Execute the ImportError handling code from main.py (lines 26-30)
         try:
-            from src.main import main  # This will fail
+            from src.main import main  # noqa: F401 - This will fail intentionally
+
             self.fail("Should have raised ImportError")
         except ImportError as e:
             # Execute the exact error handling from main.py
@@ -78,8 +79,8 @@ class TestMainDirectExecution(TestCase):
         self.assertEqual(len(mock_print.call_args_list), 3)
         mock_exit.assert_called_once_with(1)
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_general_exception_path(self, mock_exit, mock_print):
         """Test general exception handling path for coverage."""
         # Create a mock that raises a general exception
@@ -87,9 +88,10 @@ class TestMainDirectExecution(TestCase):
         mock_main_module = MagicMock()
         mock_main_module.main = mock_main_function
 
-        with patch.dict('sys.modules', {'src.main': mock_main_module}):
+        with patch.dict("sys.modules", {"src.main": mock_main_module}):
             try:
                 from src.main import main
+
                 try:
                     main()  # This will raise RuntimeError
                     self.fail("Should have raised RuntimeError")
@@ -111,9 +113,9 @@ class TestMainDirectExecution(TestCase):
         content = main_py_path.read_text()
 
         # Verify shebang line exists and is correct
-        lines = content.split('\n')
+        lines = content.split("\n")
         first_line = lines[0].strip()
-        self.assertTrue(first_line.startswith('#!/usr/bin/env python3'))
+        self.assertTrue(first_line.startswith("#!/usr/bin/env python3"))
 
     def test_docstring_coverage(self):
         """Test that docstring is covered."""
@@ -122,7 +124,7 @@ class TestMainDirectExecution(TestCase):
 
         # Verify docstring exists
         self.assertIn('"""', content)
-        self.assertIn('WordPress to Shopify Content Converter - Legacy Entry Point', content)
+        self.assertIn("WordPress to Shopify Content Converter - Legacy Entry Point", content)
 
     def test_imports_coverage(self):
         """Test that import statements are covered."""
@@ -143,7 +145,7 @@ class TestMainDirectExecution(TestCase):
         mock_main_module = MagicMock()
         mock_main_module.main = mock_main_function
 
-        with patch.dict('sys.modules', {'src.main': mock_main_module}):
+        with patch.dict("sys.modules", {"src.main": mock_main_module}):
             # Simulate the complete main.py execution
 
             # Add src directory to path (lines 16-17)
@@ -154,6 +156,7 @@ class TestMainDirectExecution(TestCase):
             try:
                 # Import and run main (lines 21-24)
                 from src.main import main
+
                 # Simulate __name__ == "__main__" condition
                 if True:  # Simulates if __name__ == "__main__"
                     main()
@@ -187,8 +190,8 @@ class TestMainDirectExecution(TestCase):
         sys.path.pop(0)
         self.assertEqual(len(sys.path), original_length)
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_all_exception_paths(self, mock_exit, mock_print):
         """Test all exception handling paths for complete coverage."""
 

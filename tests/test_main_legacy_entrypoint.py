@@ -62,10 +62,10 @@ modified_path = sys.path[0]
 
             # Verify the src path was added to sys.path
             expected_src_path = str(temp_path / "src")
-            self.assertEqual(namespace['modified_path'], expected_src_path)
+            self.assertEqual(namespace["modified_path"], expected_src_path)
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_import_error_handling(self, mock_exit, mock_print):
         """Test that ImportError is handled gracefully."""
         # Simulate the import error block from main.py directly
@@ -80,12 +80,14 @@ modified_path = sys.path[0]
         # Verify error handling behavior
         self.assertEqual(len(mock_print.call_args_list), 3)
         self.assertIn("Error importing async implementation", str(mock_print.call_args_list[0]))
-        self.assertIn("Please ensure all dependencies are installed", str(mock_print.call_args_list[1]))
+        self.assertIn(
+            "Please ensure all dependencies are installed", str(mock_print.call_args_list[1])
+        )
         self.assertIn("requirements.txt", str(mock_print.call_args_list[2]))
         mock_exit.assert_called_once_with(1)
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_general_exception_handling(self, mock_exit, mock_print):
         """Test that general exceptions during execution are handled."""
         # Simulate a general exception scenario
@@ -102,7 +104,7 @@ modified_path = sys.path[0]
         mock_print.assert_called_once_with("Error running converter: Test execution error")
         mock_exit.assert_called_once_with(1)
 
-    @patch('src.main.main')
+    @patch("src.main.main")
     def test_successful_main_execution(self, mock_main):
         """Test successful execution path when src.main imports correctly."""
         # Mock the main function to simulate successful import
@@ -111,6 +113,7 @@ modified_path = sys.path[0]
         # Simulate the successful execution path
         try:
             from src.main import main
+
             if True:  # Simulates if __name__ == "__main__"
                 main()
         except ImportError:
@@ -140,7 +143,7 @@ modified_path = sys.path[0]
             self.assertEqual(src_path, expected_src_path)
             self.assertEqual(str(src_path), str(expected_src_path))
 
-    @patch('sys.path')
+    @patch("sys.path")
     def test_sys_path_insertion(self, mock_sys_path):
         """Test that sys.path.insert is called correctly."""
         # Mock sys.path as a list
@@ -153,9 +156,9 @@ modified_path = sys.path[0]
         # Verify sys.path.insert was called correctly
         mock_sys_path.insert.assert_called_once_with(0, test_src_path)
 
-    @patch('builtins.print')
-    @patch('sys.exit')
-    @patch('src.main.main')
+    @patch("builtins.print")
+    @patch("sys.exit")
+    @patch("src.main.main")
     def test_main_function_exception_handling(self, mock_main, mock_exit, mock_print):
         """Test that exceptions from main() function are handled."""
         # Configure main() to raise an exception
@@ -164,6 +167,7 @@ modified_path = sys.path[0]
         # Simulate the execution with exception handling
         try:
             from src.main import main
+
             if True:  # Simulates if __name__ == "__main__"
                 main()
         except ImportError as e:
@@ -187,18 +191,15 @@ modified_path = sys.path[0]
 
         # Check that main.py exists in the backend directory
         main_py_path = backend_dir / "main.py"
-        self.assertTrue(main_py_path.exists(),
-                       f"main.py should exist at {main_py_path}")
+        self.assertTrue(main_py_path.exists(), f"main.py should exist at {main_py_path}")
 
         # Check that src directory exists
         src_dir_path = backend_dir / "src"
-        self.assertTrue(src_dir_path.exists(),
-                       f"src directory should exist at {src_dir_path}")
+        self.assertTrue(src_dir_path.exists(), f"src directory should exist at {src_dir_path}")
 
         # Check that src/main.py exists
         src_main_path = src_dir_path / "main.py"
-        self.assertTrue(src_main_path.exists(),
-                       f"src/main.py should exist at {src_main_path}")
+        self.assertTrue(src_main_path.exists(), f"src/main.py should exist at {src_main_path}")
 
     def test_shebang_and_docstring_presence(self):
         """Test that main.py has proper shebang and docstring."""
@@ -210,13 +211,11 @@ modified_path = sys.path[0]
             content = main_py_path.read_text()
 
             # Check for shebang
-            lines = content.split('\n')
+            lines = content.split("\n")
             if lines:
                 first_line = lines[0].strip()
-                self.assertTrue(first_line.startswith('#!'),
-                               "main.py should have a shebang line")
-                self.assertIn('python', first_line.lower(),
-                             "Shebang should reference python")
+                self.assertTrue(first_line.startswith("#!"), "main.py should have a shebang line")
+                self.assertIn("python", first_line.lower(), "Shebang should reference python")
 
             # Check for docstring
             self.assertIn('"""', content, "main.py should have a docstring")
@@ -225,11 +224,11 @@ modified_path = sys.path[0]
 class TestMainLegacyEntrypointIntegration(TestCase):
     """Integration tests for the main.py entry point."""
 
-    @patch('src.main.main')
+    @patch("src.main.main")
     def test_actual_main_py_execution_success(self, mock_main):
         """Test actual execution of the top-level main.py file."""
-        import subprocess
         import os
+        import subprocess
 
         # Get the path to the actual main.py file
         backend_dir = Path(__file__).parents[1]
@@ -240,7 +239,7 @@ class TestMainLegacyEntrypointIntegration(TestCase):
 
         # Execute main.py as a subprocess to test actual file execution
         env = os.environ.copy()
-        env['PYTHONPATH'] = str(backend_dir)
+        env["PYTHONPATH"] = str(backend_dir)
 
         try:
             # Execute main.py directly
@@ -250,7 +249,7 @@ class TestMainLegacyEntrypointIntegration(TestCase):
                 capture_output=True,
                 text=True,
                 timeout=10,
-                cwd=str(backend_dir)
+                cwd=str(backend_dir),
             )
 
             # If it runs without ImportError, that's success
@@ -265,12 +264,11 @@ class TestMainLegacyEntrypointIntegration(TestCase):
             # Any other exception indicates a problem with the file
             self.fail(f"main.py execution failed: {e}")
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_actual_import_error_scenario(self, mock_exit, mock_print):
         """Test ImportError handling by temporarily breaking the import."""
         import subprocess
-        import os
 
         backend_dir = Path(__file__).parents[1]
         main_py_path = backend_dir / "main.py"
@@ -292,7 +290,7 @@ class TestMainLegacyEntrypointIntegration(TestCase):
                 capture_output=True,
                 text=True,
                 timeout=5,
-                cwd=temp_dir
+                cwd=temp_dir,
             )
 
             # Verify ImportError handling
@@ -301,12 +299,11 @@ class TestMainLegacyEntrypointIntegration(TestCase):
             self.assertIn("requirements.txt", result.stdout)
             self.assertEqual(result.returncode, 1)
 
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_actual_general_exception_scenario(self, mock_exit, mock_print):
         """Test general exception handling by creating a broken src.main."""
         import subprocess
-        import os
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create main.py
@@ -322,10 +319,10 @@ class TestMainLegacyEntrypointIntegration(TestCase):
 
             # Create a main.py that raises an exception
             broken_main = temp_src / "main.py"
-            broken_main.write_text('''
+            broken_main.write_text("""
 def main():
     raise RuntimeError("Test exception for error handling")
-''')
+""")
 
             # Execute the temporary main.py
             result = subprocess.run(
@@ -333,7 +330,7 @@ def main():
                 capture_output=True,
                 text=True,
                 timeout=5,
-                cwd=temp_dir
+                cwd=temp_dir,
             )
 
             # Verify general exception handling
@@ -357,8 +354,8 @@ def main():
         self.assertIn("except ImportError as e:", content)
         self.assertIn("except Exception as e:", content)
 
-    @patch('sys.argv', ['main.py', '--help'])
-    @patch('src.main.main')
+    @patch("sys.argv", ["main.py", "--help"])
+    @patch("src.main.main")
     def test_command_line_argument_passthrough(self, mock_main):
         """Test that command line arguments are passed through correctly."""
         # This would test if sys.argv is properly passed to src.main.main()
@@ -366,6 +363,7 @@ def main():
 
         try:
             from src.main import main
+
             # In real usage, main() would parse sys.argv
             main()
         except ImportError:
@@ -378,6 +376,7 @@ def main():
     def test_environment_independence(self):
         """Test that main.py works regardless of current working directory."""
         import os
+
         original_cwd = os.getcwd()
 
         try:
@@ -395,14 +394,16 @@ def main():
                     src_path = main_py_path.parent / "src"
 
                     # Verify the src directory exists (regardless of cwd)
-                    self.assertTrue(src_path.exists(),
-                                   "src directory should be found regardless of cwd")
+                    self.assertTrue(
+                        src_path.exists(), "src directory should be found regardless of cwd"
+                    )
         finally:
             os.chdir(original_cwd)
 
     def test_main_py_as_module(self):
         """Test executing main.py as a module."""
         import subprocess
+
         backend_dir = Path(__file__).parents[1]
 
         # Test running as python main.py
@@ -412,7 +413,7 @@ def main():
                 cwd=str(backend_dir),
                 capture_output=True,
                 text=True,
-                timeout=3
+                timeout=3,
             )
             # Should not have import errors
             self.assertNotIn("Error importing async implementation", result.stderr)
@@ -427,8 +428,8 @@ def main():
         content = main_py_path.read_text()
 
         # Test 1: Verify shebang line exists (first line coverage)
-        lines = content.split('\n')
-        self.assertTrue(lines[0].startswith('#!'), "Shebang line should be present")
+        lines = content.split("\n")
+        self.assertTrue(lines[0].startswith("#!"), "Shebang line should be present")
 
         # Test 2: Verify imports section
         self.assertIn("import sys", content)
