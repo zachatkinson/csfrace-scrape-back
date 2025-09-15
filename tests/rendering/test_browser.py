@@ -610,6 +610,7 @@ class TestJavaScriptRendererRefactored:
 
         await renderer.cleanup()
 
+    @pytest.mark.asyncio
     async def test_renderer_navigation_failure(self):
         """Test renderer handling navigation failure."""
         config = BrowserConfig()
@@ -619,10 +620,10 @@ class TestJavaScriptRendererRefactored:
 
         await renderer.initialize()
 
-        with self.assertRaises(RuntimeError) as cm:
+        with pytest.raises(RuntimeError) as exc_info:
             await renderer.render_page("https://failing-site.com")
 
-        self.assertIn("Navigation failed", str(cm.exception))
+        assert "Navigation failed" in str(exc_info.value)
 
         await renderer.cleanup()
 
@@ -780,27 +781,30 @@ class TestJavaScriptRendererRefactored:
 
         await pool.cleanup()
 
+    @pytest.mark.asyncio
     async def test_browser_config_validation_errors(self):
         """Test browser config validation errors."""
         # Test invalid browser type
-        with self.assertRaises(ValueError) as cm:
+        with pytest.raises(ValueError) as exc_info:
             BrowserConfig(browser_type="invalid")
-        self.assertIn("Browser type must be one of", str(cm.exception))
+        assert "Browser type must be one of" in str(exc_info.value)
 
         # Test invalid wait_until
-        with self.assertRaises(ValueError) as cm:
+        with pytest.raises(ValueError) as exc_info:
             BrowserConfig(wait_until="invalid")
-        self.assertIn("wait_until must be one of", str(cm.exception))
+        assert "wait_until must be one of" in str(exc_info.value)
 
+    @pytest.mark.asyncio
     async def test_browser_pool_error_handling(self):
         """Test browser pool error handling scenarios."""
         config = BrowserConfig()
         playwright = FakePlaywright("launch_failure")
         pool = TestableBrowserPool(config, playwright)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await pool.initialize()
 
+    @pytest.mark.asyncio
     async def test_browser_type_selection(self):
         """Test different browser type selections."""
         browsers = ["chromium", "firefox", "webkit"]
@@ -813,7 +817,7 @@ class TestJavaScriptRendererRefactored:
             await pool.initialize()
 
             async with pool.get_context() as context:
-                self.assertIsNotNone(context)
+                assert context is not None
 
             await pool.cleanup()
 
