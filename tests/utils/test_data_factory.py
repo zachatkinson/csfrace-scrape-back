@@ -119,7 +119,7 @@ class DataMatcher:
         Returns:
             List[Any]: Jobs belonging to current test only
         """
-        return [job for job in jobs if test_id in job.url]
+        return [job for job in jobs if test_id in job.source_url]
 
     @staticmethod
     def assert_job_count(
@@ -134,7 +134,7 @@ class DataMatcher:
         """
         actual_count = len(actual_jobs)
         if actual_count != expected_count:
-            job_urls = [job.url for job in actual_jobs]
+            job_urls = [job.source_url for job in actual_jobs]
             raise AssertionError(
                 f"{test_context}: Expected {expected_count} jobs, got {actual_count}. "
                 f"Job URLs: {job_urls}"

@@ -81,7 +81,7 @@ class TestJobRouterEndpoints:
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
-            assert result.url == sample_job.url
+            assert result.url == sample_job.source_url
             assert result.domain == sample_job.domain
 
             mock_create.assert_called_once_with(mock_db_session, job_create_data)
@@ -217,7 +217,7 @@ class TestJobRouterEndpoints:
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
-            assert result.url == sample_job.url
+            assert result.url == sample_job.source_url
 
             mock_get.assert_called_once_with(mock_db_session, "test-job-id-123")
 
