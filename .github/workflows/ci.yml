@@ -1391,6 +1391,32 @@ jobs:
               body: comment
             });
 
+  # Coverage finalization to ensure proper aggregation across all shards
+  finalize-coverage:
+    name: Finalize Coverage Reports
+    runs-on: ubuntu-latest
+    needs: [unit-tests-linux, integration-tests]
+    if: ${{ always() && !cancelled() }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Finalize Codecov Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: finalize
+          name: coverage-finalization
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   # Note: Umbrella repository update moved to semantic-release.yml
   # This ensures updates only happen on actual releases, not every push
 
