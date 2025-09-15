@@ -1,6 +1,7 @@
 """Structured logging configuration using structlog."""
 
 import logging
+from typing import Any
 
 import structlog
 from rich.logging import RichHandler
@@ -53,7 +54,7 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
-def get_logger(name: str) -> structlog.BoundLogger:
+def get_logger(name: str) -> Any:
     """Get a configured logger instance.
 
     Args:
