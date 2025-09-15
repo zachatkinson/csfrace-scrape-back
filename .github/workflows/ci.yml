@@ -413,6 +413,15 @@ jobs:
           echo "::notice title=Quality Job Duration::Quality checks completed in ${duration} seconds"
         shell: bash
 
+      - name: Generate Code Quality & Security Summary
+        if: always()
+        uses: ./.github/actions
+        with:
+          quality-duration: ${{ steps.quality-check.outputs.duration }}
+          include-coverage: false
+          severity-threshold: medium
+          custom-title: "🔍 Code Quality & Security Analysis Results"
+
   # Unit Tests Matrix (optimized platform strategy)
   # Ubuntu: Full test suite with coverage (primary validation) + PostgreSQL service
   # Windows/macOS: Platform-specific smoke tests (compatibility validation)
