@@ -57,7 +57,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --frozen --no-editable
+        run: uv sync --frozen --no-editable --extra dev
 
       - name: Run quality checks
         id: quality-check
