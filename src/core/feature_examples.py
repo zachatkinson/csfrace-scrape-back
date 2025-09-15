@@ -87,9 +87,9 @@ class ImageProcessor:
 class CacheManager:
     """Example cache manager with feature-flagged caching strategies."""
 
-    def __init__(self):
-        self.file_cache = {}  # Simple dict for demo
-        self.redis_cache = None  # Would be Redis client
+    def __init__(self) -> None:
+        self.file_cache: dict[str, Any] = {}  # Simple dict for demo
+        self.redis_cache: Any = None  # Would be Redis client
 
     def get_cached_content(self, key: str, user_id: str | None = None) -> Any | None:
         """Get content from cache with advanced caching if enabled."""

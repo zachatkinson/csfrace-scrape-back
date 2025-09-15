@@ -54,7 +54,7 @@ class FeatureFlag:
     created_at: str | None = None
     tags: list[str] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate flag configuration."""
         if self.percentage < 0 or self.percentage > 100:
             raise ValueError(f"Percentage must be 0-100, got {self.percentage}")
@@ -301,7 +301,7 @@ def feature_enabled(flag_name: str, user_id: str | None = None) -> bool:
     return get_feature_manager().is_enabled(flag_name, user_id)
 
 
-def with_feature_flag(flag_name: str, user_id: str | None = None):
+def with_feature_flag(flag_name: str, user_id: str | None = None) -> Any:
     """
     Decorator for feature-flagged functions.
 
@@ -311,8 +311,8 @@ def with_feature_flag(flag_name: str, user_id: str | None = None):
             return new_parser.parse(content)
     """
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if feature_enabled(flag_name, user_id):
                 return func(*args, **kwargs)
             else:
