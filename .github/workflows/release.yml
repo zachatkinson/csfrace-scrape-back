@@ -31,7 +31,6 @@ jobs:
       attestations: write  # For build provenance
       actions: write  # For workflow dispatch
       checks: write  # For status checks
-      metadata: read  # For repository metadata
     outputs:
       released: ${{ steps.semantic.outputs.released }}
       version: ${{ steps.semantic.outputs.version }}
