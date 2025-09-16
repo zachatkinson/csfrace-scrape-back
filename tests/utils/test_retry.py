@@ -53,11 +53,12 @@ class TestRetryConfig:
 
     def test_retry_config_validation_backoff_factor(self):
         """Test validation of backoff_factor parameter."""
-        with pytest.raises(ValueError, match="backoff_factor must be greater than 1"):
-            RetryConfig(backoff_factor=1.0)
-
-        with pytest.raises(ValueError, match="backoff_factor must be greater than 1"):
+        with pytest.raises(ValueError, match="backoff_factor must be at least 1"):
             RetryConfig(backoff_factor=0.5)
+
+        # backoff_factor=1.0 should be valid now
+        config = RetryConfig(backoff_factor=1.0)
+        assert config.backoff_factor == 1.0
 
     def test_retry_config_validation_jitter_factor(self):
         """Test validation of jitter_factor parameter."""
@@ -305,7 +306,7 @@ class TestRetryTiming:
             call_times = []
 
             async def make_jitter_function(times_list):
-                @with_retry(RetryConfig(max_attempts=2, base_delay=0.1, jitter=True))
+                @with_retry(RetryConfig(max_attempts=2, base_delay=1.0, jitter=True))
                 async def jitter_function():
                     times_list.append(time.time())
                     if len(times_list) == 1:

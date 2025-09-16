@@ -119,8 +119,8 @@ Disallow: /admin/
             # Second call - should use cached None result
             result2 = await self.checker.get_robots_parser("https://example.com", self.mock_session)
 
-            # Should only make one HTTP request
-            assert mock_get.call_count == 1
+            # Should make 3 HTTP requests due to retry logic (stop_after_attempt(3))
+            assert mock_get.call_count == 3
             assert result1 is None
             assert result2 is None
 
