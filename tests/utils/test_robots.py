@@ -371,8 +371,11 @@ class TestCrawlDelayEnforcement:
         initial_time = 1000.0
         partial_time = 1001.5  # 1.5 seconds later
 
+        # Provide 4 time calls: first_get, first_update, second_get, second_update
+        time_calls = [initial_time, initial_time, partial_time, partial_time]
+
         with patch("asyncio.get_event_loop") as mock_loop:
-            mock_loop.return_value.time.side_effect = [initial_time, partial_time, partial_time]
+            mock_loop.return_value.time.side_effect = time_calls
 
             # First request
             with patch.object(self.checker, "get_crawl_delay", return_value=2.0):
@@ -611,7 +614,8 @@ class TestGlobalRobotsInstance:
     async def test_global_robots_checker_functionality(self):
         """Test that global instance functions correctly."""
         # Should be able to use the global instance
-        with patch("src.utils.robots.config.robots.respect_robots_txt", False):
+        with patch("src.utils.robots.config") as mock_config:
+            mock_config.robots.respect_robots_txt = False
             result = await robots_checker.can_fetch("https://example.com/test")
 
         assert result is True
@@ -695,8 +699,11 @@ class TestRobotsEdgeCases:
         """Test crawl delay timing precision with very small delays."""
         with patch.object(self.checker, "get_crawl_delay", return_value=0.1):  # 100ms delay
             with patch("asyncio.get_event_loop") as mock_loop:
-                # Mock precise timing
-                mock_loop.return_value.time.side_effect = [1000.0, 1000.05, 1000.05]  # 50ms apart
+                # Mock precise timing with 4 calls: first_get, first_update, second_get, second_update
+                initial_time = 1000.0
+                later_time = 1000.05  # 50ms apart
+                time_calls = [initial_time, initial_time, later_time, later_time]
+                mock_loop.return_value.time.side_effect = time_calls
 
                 # First request
                 await self.checker.enforce_crawl_delay(
