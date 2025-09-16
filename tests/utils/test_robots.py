@@ -413,7 +413,9 @@ class TestRobotsEdgeCases:
         assert isinstance(result, RobotFileParser)
 
         # Cache should be separate for different ports
-        assert "https://example.com:8080" in self.checker._cache
+        expected_url = "https://example.com:8080"
+        cache_keys = list(self.checker._cache.keys())
+        assert expected_url in cache_keys
 
     @pytest.mark.asyncio
     async def test_robots_international_domain(self):
