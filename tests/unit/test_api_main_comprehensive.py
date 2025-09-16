@@ -471,7 +471,7 @@ class TestLifespanAdvanced:
         ):
             mock_init_db.return_value = None
             mock_observability.initialize.side_effect = Exception("Observability failed")
-            mock_observability.shutdown.return_value = None
+            mock_observability.shutdown = AsyncMock(return_value=None)
             mock_cache.initialize.return_value = None
             mock_start_monitoring.return_value = None
             mock_stop_monitoring.return_value = None
@@ -498,7 +498,7 @@ class TestLifespanAdvanced:
         ):
             mock_init_db.return_value = None
             mock_observability.initialize.return_value = None
-            mock_observability.shutdown.return_value = None
+            mock_observability.shutdown = AsyncMock(return_value=None)
             mock_cache.initialize.return_value = None
 
             # Mock cache backend properly
@@ -537,7 +537,7 @@ class TestLifespanAdvanced:
         ):
             mock_init_db.return_value = None
             mock_observability.initialize.return_value = None
-            mock_observability.shutdown.return_value = None
+            mock_observability.shutdown = AsyncMock(return_value=None)
             mock_start_monitoring.side_effect = Exception("Monitoring failed")
             mock_stop_monitoring.return_value = None
 
@@ -594,7 +594,7 @@ class TestLifespanAdvanced:
             # Setup all successful mocks
             mock_init_db.return_value = None
             mock_observability.initialize.return_value = None
-            mock_observability.shutdown.return_value = None
+            mock_observability.shutdown = AsyncMock(return_value=None)
             mock_cache.initialize.return_value = None
 
             # Create proper mock structure for cache

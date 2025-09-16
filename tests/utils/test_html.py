@@ -64,7 +64,9 @@ class TestSafeCopyAttributes:
         safe_copy_attributes(source, target, attribute_map)
 
         assert target.get("id") == "123"
-        assert target.get("class") == "container"
+        # BeautifulSoup's class attribute is always a list in modern versions
+        class_value = target.get("class")
+        assert class_value == "container" or class_value == ["container"]
         assert target.get("data-missing") == "default-value"
 
     def test_copy_attributes_handles_none_values(self):
