@@ -127,7 +127,8 @@ Disallow: /admin/
     @pytest.mark.asyncio
     async def test_can_fetch_robots_disabled(self):
         """Test can_fetch when robots.txt respect is disabled."""
-        with patch("src.utils.robots.config.robots.respect_robots_txt", False):
+        with patch("src.utils.robots.config") as mock_config:
+            mock_config.robots.respect_robots_txt = False
             result = await self.checker.can_fetch("https://example.com/any/path")
 
         assert result is True
@@ -196,9 +197,10 @@ Disallow: /admin/
     @pytest.mark.asyncio
     async def test_get_crawl_delay_robots_disabled(self):
         """Test get_crawl_delay when robots.txt respect is disabled."""
-        with patch("src.utils.robots.config.robots.respect_robots_txt", False):
-            with patch("src.utils.robots.config.http.rate_limit_delay", 2.0):
-                delay = await self.checker.get_crawl_delay("https://example.com")
+        with patch("src.utils.robots.config") as mock_config:
+            mock_config.robots.respect_robots_txt = False
+            mock_config.http.rate_limit_delay = 2.0
+            delay = await self.checker.get_crawl_delay("https://example.com")
 
         assert delay == 2.0
 
@@ -206,7 +208,8 @@ Disallow: /admin/
     async def test_get_crawl_delay_no_robots_file(self):
         """Test get_crawl_delay when no robots.txt exists."""
         with patch.object(self.checker, "get_robots_parser", return_value=None):
-            with patch("src.utils.robots.config.http.rate_limit_delay", 1.5):
+            with patch("src.utils.robots.config") as mock_config:
+                mock_config.http.rate_limit_delay = 1.5
                 delay = await self.checker.get_crawl_delay(
                     "https://example.com", session=self.mock_session
                 )
