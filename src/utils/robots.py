@@ -76,8 +76,9 @@ class RobotsChecker:
                         rp = RobotFileParser()
                         rp.set_url(robots_url)
 
-                        # Parse the content line by line
-                        lines = robots_content.splitlines()
+                        # Parse the content line by line - decode bytes to string
+                        text_content = robots_content.decode("utf-8", errors="ignore")
+                        lines = text_content.splitlines()
                         rp.parse(lines)
 
                         result = rp
