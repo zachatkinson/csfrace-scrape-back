@@ -114,7 +114,7 @@ jobs:
         with:
           token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
           repository: zachatkinson/csfrace-scrape
-          event-type: backend-released
+          event-type: backend-updated
           client-payload: |
             {
               "repository": "${{ github.repository }}",
