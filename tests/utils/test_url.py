@@ -286,7 +286,9 @@ class TestFilenameExtraction:
 
         with patch("src.utils.url.safe_parse_url") as mock_parse:
             # Mock a parsed URL with empty netloc to trigger fallback
-            mock_parsed = type("MockParsed", (), {"path": "", "netloc": ""})()
+            mock_parsed = type(
+                "MockParsed", (), {"path": "", "netloc": "", "query": "", "fragment": ""}
+            )()
             mock_parse.return_value = mock_parsed
 
             result = extract_filename_from_url(url, ".html")

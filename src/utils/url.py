@@ -7,6 +7,24 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+def _is_valid_domain(domain: str) -> bool:
+    """Check if domain looks valid.
+
+    Args:
+        domain: Domain string to validate
+
+    Returns:
+        True if domain appears valid, False otherwise
+    """
+    if not domain:
+        return False
+    # Allow localhost, IP addresses, and IPv6
+    if domain in ("localhost", "127.0.0.1") or domain.startswith("[") or ":" in domain:
+        return True
+    # Domain should have at least one dot for proper domains
+    return "." in domain
+
+
 def safe_parse_url(url: str) -> ParseResult | None:
     """Safely parse URL with error handling.
 
@@ -70,9 +88,16 @@ def normalize_url(url: str, base_url: str | None = None) -> str | None:
 
     url = url.strip()
 
-    # If already absolute, validate and return
+    # Reject protocol-relative URLs (//example.com/path)
+    if url.startswith("//"):
+        return None
+
+    # If already absolute, validate domain and return
     if url.startswith(("http://", "https://")):
-        return url if safe_parse_url(url) else None
+        parsed = safe_parse_url(url)
+        if parsed and _is_valid_domain(parsed.netloc):
+            return url
+        return None
 
     # If relative and we have base_url, resolve it
     if base_url and url.startswith("/"):
@@ -83,7 +108,7 @@ def normalize_url(url: str, base_url: str | None = None) -> str | None:
             return None
 
     # If it looks like a relative URL without leading slash
-    if base_url and not url.startswith(("http", "//", "#")):
+    if base_url and not url.startswith(("http", "#")):
         try:
             return urljoin(base_url, url)
         except Exception as e:
@@ -112,13 +137,17 @@ def extract_filename_from_url(url: str, default_extension: str = "") -> str:
     path = parsed.path
     filename = path.split("/")[-1] if "/" in path else path
 
-    # If no filename or extension, generate one
+    # If query looks like it could be part of filename (contains extension), combine them
+    if parsed.query and "." in parsed.query:
+        filename = filename + parsed.query
+
+    # Clean up filename for filesystem safety - remove query/fragment separators
+    filename = filename.replace("?", "").replace("#", "").replace(" ", "_")
+
+    # If no filename or extension after cleaning, generate one
     if not filename or "." not in filename:
         # Use last path segment or domain as base
-        base = filename or parsed.netloc.replace(".", "_")
+        base = filename or parsed.netloc.replace(".", "_") or "file"
         filename = f"{base}{default_extension}"
-
-    # Clean up filename for filesystem safety
-    filename = filename.replace(" ", "_").replace("?", "").replace("#", "")
 
     return filename or f"file{default_extension}"
