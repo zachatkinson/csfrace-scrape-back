@@ -15,7 +15,9 @@ def normalize_path_separators(path: PathLike) -> str:
     Returns:
         Path string with forward slash separators
     """
-    return str(Path(path)).replace(os.sep, "/")
+    # Replace both Windows and Unix separators to ensure cross-platform consistency
+    path_str = str(path)
+    return path_str.replace("\\", "/").replace(os.sep, "/")
 
 
 def get_path_parts(path: PathLike) -> list[str]:
