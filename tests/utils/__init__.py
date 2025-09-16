@@ -1,9 +1,5 @@
-"""Test utilities package for the backend scraper application.
+"""Tests for utility modules."""
 
-This package provides reusable utilities for test data creation, isolation,
-and validation following SOLID principles and DRY standards.
-"""
+from .test_data_factory import DataMatcher, JobFactory, MockSessionFactory
 
-from .test_data_factory import DataMatcher, DataSpec, JobFactory, MockSessionFactory
-
-__all__ = ["JobFactory", "DataMatcher", "DataSpec", "MockSessionFactory"]
+__all__ = ["DataMatcher", "JobFactory", "MockSessionFactory"]

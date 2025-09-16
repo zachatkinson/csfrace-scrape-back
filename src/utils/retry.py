@@ -57,8 +57,8 @@ class RetryConfig:
             raise ValueError("max_attempts must be at least 1")
         if self.base_delay <= 0:
             raise ValueError("base_delay must be positive")
-        if self.backoff_factor <= 1:
-            raise ValueError("backoff_factor must be greater than 1")
+        if self.backoff_factor < 1:
+            raise ValueError("backoff_factor must be at least 1")
         if not 0 <= self.jitter_factor <= 1:
             raise ValueError("jitter_factor must be between 0 and 1")
 
@@ -79,11 +79,14 @@ class RetryConfig:
 
         # Apply full decorrelated jitter - latest implementation
         if self.jitter:
-            # Full jitter: delay = random(0, delay)
-            # This is more effective than proportional jitter
-            delay = secrets.SystemRandom().uniform(0, delay)
-            # Ensure minimum delay to prevent too aggressive retries
-            delay = max(0.1, delay)
+            # Use bounded jitter: delay = min_delay + random(0, delay - min_delay)
+            # This ensures minimum while preserving variation
+            min_delay = 0.1
+            if delay > min_delay:
+                delay = min_delay + secrets.SystemRandom().uniform(0, delay - min_delay)
+            else:
+                # If calculated delay is already below minimum, use minimum
+                delay = min_delay
 
         return delay
 

@@ -15,7 +15,9 @@ def normalize_path_separators(path: PathLike) -> str:
     Returns:
         Path string with forward slash separators
     """
-    return str(Path(path)).replace(os.sep, "/")
+    # Replace both Windows and Unix separators to ensure cross-platform consistency
+    path_str = str(path)
+    return path_str.replace("\\", "/").replace(os.sep, "/")
 
 
 def get_path_parts(path: PathLike) -> list[str]:
@@ -27,6 +29,9 @@ def get_path_parts(path: PathLike) -> list[str]:
     Returns:
         List of path parts
     """
+    path_str = str(path)
+    if not path_str or path_str == "":
+        return ["."]  # Return current directory for empty paths
     return list(Path(path).parts)
 
 
@@ -51,7 +56,13 @@ def get_directory_name(path: PathLike) -> str:
     Returns:
         Directory or file name
     """
-    return Path(path).name
+    path_str = str(path)
+    if path_str == "":
+        return ""  # Return empty for empty string
+    if path_str == ".":
+        return "."  # Return dot for current directory
+    name = Path(path).name
+    return name if name else ""
 
 
 def split_directory_path(path: PathLike) -> tuple[str, str]:
@@ -221,7 +232,7 @@ def truncate_path_component(component: str, max_length: int = 50) -> str:
 
     # Keep some characters from the beginning and end
     if max_length >= 10:
-        start_chars = max_length // 2 - 2
+        start_chars = max_length // 2
         end_chars = max_length - start_chars - 4  # Account for ellipsis
         return f"{component[:start_chars]}...{component[-end_chars:]}"
     return component[:max_length]
