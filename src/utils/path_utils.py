@@ -57,10 +57,12 @@ def get_directory_name(path: PathLike) -> str:
         Directory or file name
     """
     path_str = str(path)
-    if not path_str or path_str == "":
-        return "."  # Return current directory for empty paths
+    if path_str == "":
+        return ""  # Return empty for empty string
+    if path_str == ".":
+        return "."  # Return dot for current directory
     name = Path(path).name
-    return name if name else "."
+    return name if name else ""
 
 
 def split_directory_path(path: PathLike) -> tuple[str, str]:
