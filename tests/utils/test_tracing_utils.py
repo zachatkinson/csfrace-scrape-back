@@ -36,9 +36,10 @@ class TestTraceDecorator:
         def sample_function(arg1, arg2):
             return f"{arg1}_{arg2}"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="test_result")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = sample_function("hello", "world")
@@ -46,6 +47,9 @@ class TestTraceDecorator:
         # Verify tracer was called with expected parameters
         expected_span_name = f"{sample_function.__module__}.{sample_function.__name__}"
         self.mock_tracer.trace_function.assert_called_once_with(expected_span_name, None)
+        # Verify decorator was called with the original function
+        mock_decorator.assert_called_once()
+        # Verify the decorated function was called with args
         mock_decorated_func.assert_called_once_with("hello", "world")
         assert result == "test_result"
 
@@ -56,15 +60,20 @@ class TestTraceDecorator:
         def sample_function():
             return "result"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="custom_result")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = sample_function()
 
         # Verify custom operation name was used
         self.mock_tracer.trace_function.assert_called_once_with("custom_operation", None)
+        # Verify decorator was called with the original function
+        mock_decorator.assert_called_once()
+        # Verify the decorated function was called
+        mock_decorated_func.assert_called_once_with()
         assert result == "custom_result"
 
     def test_trace_decorator_sync_function_with_attributes(self):
@@ -75,9 +84,10 @@ class TestTraceDecorator:
         def sample_function():
             return "result"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="attr_result")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = sample_function()
@@ -87,6 +97,10 @@ class TestTraceDecorator:
         self.mock_tracer.trace_function.assert_called_once_with(
             expected_span_name, custom_attributes
         )
+        # Verify decorator was called with the original function
+        mock_decorator.assert_called_once()
+        # Verify the decorated function was called
+        mock_decorated_func.assert_called_once_with()
         assert result == "attr_result"
 
     @pytest.mark.asyncio
@@ -99,8 +113,10 @@ class TestTraceDecorator:
 
         # Configure mock context manager
         mock_context = Mock()
-        mock_context.__aenter__ = Mock(return_value=asyncio.coroutine(lambda: None)())
-        mock_context.__aexit__ = Mock(return_value=asyncio.coroutine(lambda: None)())
+        mock_context.__aenter__ = Mock(return_value=asyncio.Future())
+        mock_context.__aenter__.return_value.set_result(None)
+        mock_context.__aexit__ = Mock(return_value=asyncio.Future())
+        mock_context.__aexit__.return_value.set_result(None)
         self.mock_tracer.trace_operation.return_value = mock_context
 
         # Call decorated function
@@ -128,8 +144,10 @@ class TestTraceDecorator:
 
         # Configure mock context manager
         mock_context = Mock()
-        mock_context.__aenter__ = Mock(return_value=asyncio.coroutine(lambda: None)())
-        mock_context.__aexit__ = Mock(return_value=asyncio.coroutine(lambda: None)())
+        mock_context.__aenter__ = Mock(return_value=asyncio.Future())
+        mock_context.__aenter__.return_value.set_result(None)
+        mock_context.__aexit__ = Mock(return_value=asyncio.Future())
+        mock_context.__aexit__.return_value.set_result(None)
         self.mock_tracer.trace_operation.return_value = mock_context
 
         # Call decorated function
@@ -179,9 +197,10 @@ class TestTraceDecorator:
         def failing_function():
             raise ValueError("Test exception")
 
-        # Configure mock to raise exception
+        # Configure mock to raise exception - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(side_effect=ValueError("Test exception"))
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Verify exception is propagated
         with pytest.raises(ValueError, match="Test exception"):
@@ -200,8 +219,10 @@ class TestTraceDecorator:
 
         # Configure mock context manager that allows exception propagation
         mock_context = Mock()
-        mock_context.__aenter__ = Mock(return_value=asyncio.coroutine(lambda: None)())
-        mock_context.__aexit__ = Mock(return_value=asyncio.coroutine(lambda: None)())
+        mock_context.__aenter__ = Mock(return_value=asyncio.Future())
+        mock_context.__aenter__.return_value.set_result(None)
+        mock_context.__aexit__ = Mock(return_value=asyncio.Future())
+        mock_context.__aexit__.return_value.set_result(None)
         self.mock_tracer.trace_operation.return_value = mock_context
 
         # Verify exception is propagated
@@ -323,9 +344,10 @@ class TestSpecializedTraceDecorators:
         def get_user_by_id(user_id):
             return f"User {user_id}"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="User 123")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = get_user_by_id(123)
@@ -346,9 +368,10 @@ class TestSpecializedTraceDecorators:
         def create_product(product_data):
             return f"Created product {product_data['name']}"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="Created product Widget")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = create_product({"name": "Widget"})
@@ -369,9 +392,10 @@ class TestSpecializedTraceDecorators:
         def get_cached_value(key):
             return f"Value for {key}"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="Value for test_key")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = get_cached_value("test_key")
@@ -392,9 +416,10 @@ class TestSpecializedTraceDecorators:
         def set_cached_value(key, value):
             return f"Set {key} = {value}"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="Set config = active")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = set_cached_value("config", "active")
@@ -415,9 +440,10 @@ class TestSpecializedTraceDecorators:
         def fetch_users():
             return {"users": []}
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value={"users": []})
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = fetch_users()
@@ -438,9 +464,10 @@ class TestSpecializedTraceDecorators:
         def create_user(user_data):
             return {"id": 123, "name": user_data["name"]}
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value={"id": 123, "name": "John"})
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = create_user({"name": "John"})
@@ -474,9 +501,10 @@ class TestSpecializedTraceDecorators:
 
             db_operation = make_db_operation(table, operation)
 
-            # Configure mock
+            # Configure mock - trace_function returns a decorator, which returns a wrapped function
             mock_decorated_func = Mock(return_value=f"{operation} on {table}")
-            self.mock_tracer.trace_function.return_value = mock_decorated_func
+            mock_decorator = Mock(return_value=mock_decorated_func)
+            self.mock_tracer.trace_function.return_value = mock_decorator
 
             # Call decorated function
             result = db_operation()
@@ -518,9 +546,10 @@ class TestSpecializedTraceDecorators:
 
             cache_operation = make_cache_operation(cache_type, operation)
 
-            # Configure mock
+            # Configure mock - trace_function returns a decorator, which returns a wrapped function
             mock_decorated_func = Mock(return_value=f"{operation} from {cache_type}")
-            self.mock_tracer.trace_function.return_value = mock_decorated_func
+            mock_decorator = Mock(return_value=mock_decorated_func)
+            self.mock_tracer.trace_function.return_value = mock_decorator
 
             # Call decorated function
             result = cache_operation()
@@ -562,9 +591,10 @@ class TestTraceDecoratorEdgeCases:
         def function_with_empty_attrs():
             return "result"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="result")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = function_with_empty_attrs()
@@ -583,9 +613,10 @@ class TestTraceDecoratorEdgeCases:
         def function_with_none_name():
             return "none_result"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="none_result")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = function_with_none_name()
@@ -611,9 +642,10 @@ class TestTraceDecoratorEdgeCases:
         def function_with_complex_attrs():
             return "complex_result"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         mock_decorated_func = Mock(return_value="complex_result")
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function
         result = function_with_complex_attrs()
@@ -640,8 +672,10 @@ class TestTraceDecoratorEdgeCases:
 
         # Configure mock context manager
         mock_context = Mock()
-        mock_context.__aenter__ = Mock(return_value=asyncio.coroutine(lambda: None)())
-        mock_context.__aexit__ = Mock(return_value=asyncio.coroutine(lambda: None)())
+        mock_context.__aenter__ = Mock(return_value=asyncio.Future())
+        mock_context.__aenter__.return_value.set_result(None)
+        mock_context.__aexit__ = Mock(return_value=asyncio.Future())
+        mock_context.__aexit__.return_value.set_result(None)
         self.mock_tracer.trace_operation.return_value = mock_context
 
         # Call decorated function
@@ -660,12 +694,13 @@ class TestTraceDecoratorEdgeCases:
         ):
             return f"pos1={pos1}, pos2={pos2}, args={args}, kw1={keyword1}, kw2={keyword2}, kwargs={kwargs}"
 
-        # Configure mock
+        # Configure mock - trace_function returns a decorator, which returns a wrapped function
         expected_result = (
             "pos1=a, pos2=b, args=(c, d), kw1=test, kw2=custom, kwargs={'extra': 'value'}"
         )
         mock_decorated_func = Mock(return_value=expected_result)
-        self.mock_tracer.trace_function.return_value = mock_decorated_func
+        mock_decorator = Mock(return_value=mock_decorated_func)
+        self.mock_tracer.trace_function.return_value = mock_decorator
 
         # Call decorated function with various arguments
         result = function_with_various_args(
