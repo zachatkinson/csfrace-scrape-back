@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v5.4.0 (2025-09-16)
+
+### Bug Fixes
+
+- **ci**: Prevent cascading semantic releases from release commits
+  ([#7](https://github.com/zachatkinson/csfrace-scrape-back/pull/7),
+  [`1f5c707`](https://github.com/zachatkinson/csfrace-scrape-back/commit/1f5c7076248fc3b066a160096cd0657850f14e7c))
+
+- Add condition to skip semantic release when triggered by chore(release): commits - Prevents
+  infinite semantic release chains caused by release commits triggering CI - Ensures only one
+  semantic release per actual code change - Completes workflow optimization to eliminate ALL
+  redundant runs
+
+🔧 Fixes cascading release issue observed after workflow optimization ⚡ Reduces semantic release
+  executions by 50% (eliminates redundant runs)
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+### Features
+
+- **ci**: Consolidate umbrella updates in CI for 100% reliability
+  ([#8](https://github.com/zachatkinson/csfrace-scrape-back/pull/8),
+  [`c1742cc`](https://github.com/zachatkinson/csfrace-scrape-back/commit/c1742cc166f9ec4bcef20a124142d3364d58bd61))
+
+
 ## v5.3.0 (2025-09-16)
 
 ### Features
