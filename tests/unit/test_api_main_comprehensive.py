@@ -497,9 +497,9 @@ class TestLifespanAdvanced:
             patch("builtins.print") as mock_print,
         ):
             mock_init_db.return_value = None
-            mock_observability.initialize.return_value = None
+            mock_observability.initialize = AsyncMock(return_value=None)
             mock_observability.shutdown = AsyncMock(return_value=None)
-            mock_cache.initialize.return_value = None
+            mock_cache.initialize = AsyncMock(return_value=None)
 
             # Mock cache backend properly
             mock_backend = MagicMock()
@@ -513,10 +513,10 @@ class TestLifespanAdvanced:
 
             # Simulate failure during health registry initialization
             mock_health_registry.side_effect = Exception("Health registry failed")
-            mock_start_health.return_value = None
-            mock_stop_health.return_value = None
-            mock_start_monitoring.return_value = None
-            mock_stop_monitoring.return_value = None
+            mock_start_health = AsyncMock(return_value=None)
+            mock_stop_health = AsyncMock(return_value=None)
+            mock_start_monitoring = AsyncMock(return_value=None)
+            mock_stop_monitoring = AsyncMock(return_value=None)
 
             async with lifespan(app):
                 pass
