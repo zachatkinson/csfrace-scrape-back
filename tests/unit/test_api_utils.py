@@ -8,7 +8,6 @@ This test suite covers all functionality in src/api/utils.py with focus on:
 - Complete edge case coverage
 """
 
-
 import asyncio
 import pytest
 from fastapi import HTTPException, status

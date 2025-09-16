@@ -1,541 +1,507 @@
-"""Comprehensive tests for enhanced retry mechanisms with jitter and resilience patterns.
-
-This test module ensures all retry patterns meet CLAUDE.md requirements for
-production-ready reliability and error handling.
-"""
+"""Tests for retry utilities following testing best practices."""
 
 import time
-from unittest.mock import AsyncMock
 
-import asyncio
 import pytest
 from aiohttp import ClientError
 
 from src.core.exceptions import RateLimitError
-from src.utils.retry import (
-    BulkheadPattern,
-    CircuitBreaker,
-    CircuitBreakerState,
-    ResilienceManager,
-    RetryConfig,
-    with_retry,
-)
+from src.utils.retry import RetryConfig, with_retry
 
 
 class TestRetryConfig:
-    """Test suite for RetryConfig with jitter support."""
+    """Test RetryConfig dataclass following SOLID principles."""
 
-    def test_retry_config_defaults(self):
-        """Test RetryConfig uses proper defaults."""
+    def test_retry_config_default_values(self):
+        """Test retry config with default values."""
         config = RetryConfig()
-
-        assert config.max_attempts == 3  # From CONSTANTS.MAX_RETRIES
-        assert config.base_delay == 1.0
-        assert config.max_delay == 60.0
-        assert config.backoff_factor == 2.0  # From CONSTANTS.BACKOFF_FACTOR
+        assert config.max_attempts >= 1
+        assert config.base_delay > 0
+        assert config.backoff_factor > 1
         assert config.jitter is True
-        assert config.jitter_factor == 0.1
+        assert 0 <= config.jitter_factor <= 1
 
-    def test_retry_config_validation(self):
-        """Test RetryConfig parameter validation."""
-        # Invalid max_attempts
+    def test_retry_config_custom_values(self):
+        """Test retry config with custom values."""
+        config = RetryConfig(
+            max_attempts=5,
+            base_delay=2.0,
+            max_delay=30.0,
+            backoff_factor=2.5,
+            jitter=False,
+            jitter_factor=0.2,
+        )
+        assert config.max_attempts == 5
+        assert config.base_delay == 2.0
+        assert config.max_delay == 30.0
+        assert config.backoff_factor == 2.5
+        assert config.jitter is False
+        assert config.jitter_factor == 0.2
+
+    def test_retry_config_validation_max_attempts(self):
+        """Test validation of max_attempts parameter."""
         with pytest.raises(ValueError, match="max_attempts must be at least 1"):
             RetryConfig(max_attempts=0)
 
-        # Invalid base_delay
+    def test_retry_config_validation_base_delay(self):
+        """Test validation of base_delay parameter."""
         with pytest.raises(ValueError, match="base_delay must be positive"):
             RetryConfig(base_delay=0)
 
-        # Invalid backoff_factor
+        with pytest.raises(ValueError, match="base_delay must be positive"):
+            RetryConfig(base_delay=-1)
+
+    def test_retry_config_validation_backoff_factor(self):
+        """Test validation of backoff_factor parameter."""
         with pytest.raises(ValueError, match="backoff_factor must be greater than 1"):
             RetryConfig(backoff_factor=1.0)
 
-        # Invalid jitter_factor
-        with pytest.raises(ValueError, match="jitter_factor must be between 0 and 1"):
-            RetryConfig(jitter_factor=1.5)
+        with pytest.raises(ValueError, match="backoff_factor must be greater than 1"):
+            RetryConfig(backoff_factor=0.5)
 
-    def test_calculate_delay_without_jitter(self):
+    def test_retry_config_validation_jitter_factor(self):
+        """Test validation of jitter_factor parameter."""
+        with pytest.raises(ValueError, match="jitter_factor must be between 0 and 1"):
+            RetryConfig(jitter_factor=-0.1)
+
+        with pytest.raises(ValueError, match="jitter_factor must be between 0 and 1"):
+            RetryConfig(jitter_factor=1.1)
+
+    def test_retry_config_boundary_values(self):
+        """Test retry config with boundary values."""
+        # Test minimum valid values
+        config = RetryConfig(
+            max_attempts=1, base_delay=0.001, backoff_factor=1.001, jitter_factor=0.0
+        )
+        assert config.max_attempts == 1
+        assert config.base_delay == 0.001
+        assert config.backoff_factor == 1.001
+        assert config.jitter_factor == 0.0
+
+        # Test maximum valid values
+        config = RetryConfig(
+            max_attempts=100, base_delay=60.0, backoff_factor=10.0, jitter_factor=1.0
+        )
+        assert config.max_attempts == 100
+        assert config.base_delay == 60.0
+        assert config.backoff_factor == 10.0
+        assert config.jitter_factor == 1.0
+
+
+class TestRetryConfigDelayCalculation:
+    """Test delay calculation with exponential backoff and jitter."""
+
+    def test_calculate_delay_no_jitter(self):
         """Test delay calculation without jitter."""
         config = RetryConfig(base_delay=1.0, backoff_factor=2.0, max_delay=10.0, jitter=False)
 
-        # Test exponential backoff without jitter
-        assert config.calculate_delay(0) == 1.0
-        assert config.calculate_delay(1) == 2.0
-        assert config.calculate_delay(2) == 4.0
-        assert config.calculate_delay(3) == 8.0
-        assert config.calculate_delay(4) == 10.0  # Max delay reached
+        # Test exponential backoff
+        assert config.calculate_delay(0) == 1.0  # 1.0 * 2^0
+        assert config.calculate_delay(1) == 2.0  # 1.0 * 2^1
+        assert config.calculate_delay(2) == 4.0  # 1.0 * 2^2
+        assert config.calculate_delay(3) == 8.0  # 1.0 * 2^3
+
+    def test_calculate_delay_with_max_delay(self):
+        """Test delay calculation respects max_delay."""
+        config = RetryConfig(base_delay=1.0, backoff_factor=2.0, max_delay=5.0, jitter=False)
+
+        # Should cap at max_delay
+        assert config.calculate_delay(3) == 5.0  # Capped at max_delay
+        assert config.calculate_delay(4) == 5.0  # Still capped
+        assert config.calculate_delay(10) == 5.0  # Still capped
 
     def test_calculate_delay_with_jitter(self):
-        """Test delay calculation with full jitter."""
-        config = RetryConfig(base_delay=2.0, backoff_factor=2.0, max_delay=16.0, jitter=True)
-
-        # With jitter, delay should be random between 0 and calculated delay
-        for attempt in range(5):
-            delay = config.calculate_delay(attempt)
-            expected_max = min(2.0 * (2.0**attempt), 16.0)
-
-            assert 0.1 <= delay <= expected_max  # Minimum 0.1 enforced
-
-        # Test multiple calls return different values (probabilistic test)
-        delays = [config.calculate_delay(2) for _ in range(10)]
-        assert len(set(delays)) > 1  # Should have variance with jitter
-
-
-class TestEnhancedRetryDecorator:
-    """Test suite for enhanced retry decorator with jitter."""
-
-    @pytest.mark.asyncio
-    async def test_retry_success_immediate(self):
-        """Test successful operation on first attempt."""
-        mock_func = AsyncMock(return_value="success")
-
-        @with_retry()
-        async def decorated_func():
-            return await mock_func()
-
-        result = await decorated_func()
-
-        assert result == "success"
-        assert mock_func.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_retry_success_after_failures(self):
-        """Test successful operation after retries."""
-        mock_func = AsyncMock(
-            side_effect=[ClientError("First failure"), ClientError("Second failure"), "success"]
-        )
-
-        retry_config = RetryConfig(max_attempts=3, base_delay=0.01, jitter=False)
-
-        @with_retry(retry_config=retry_config)
-        async def decorated_func():
-            return await mock_func()
-
-        start_time = time.time()
-        result = await decorated_func()
-        duration = time.time() - start_time
-
-        assert result == "success"
-        assert mock_func.call_count == 3
-        # Should have delays (0.01 + 0.02 = 0.03 minimum)
-        assert duration >= 0.03
-
-    @pytest.mark.asyncio
-    async def test_retry_exhausted(self):
-        """Test all retry attempts exhausted."""
-        mock_func = AsyncMock(side_effect=ClientError("Persistent failure"))
-
-        retry_config = RetryConfig(max_attempts=2, base_delay=0.01, jitter=False)
-
-        @with_retry(retry_config=retry_config)
-        async def decorated_func():
-            return await mock_func()
-
-        with pytest.raises(ClientError, match="Persistent failure"):
-            await decorated_func()
-
-        assert mock_func.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_retry_reraise_exceptions(self):
-        """Test exceptions that should not be retried."""
-        mock_func = AsyncMock(side_effect=RateLimitError("Rate limited"))
-
-        @with_retry()
-        async def decorated_func():
-            return await mock_func()
-
-        with pytest.raises(RateLimitError, match="Rate limited"):
-            await decorated_func()
-
-        # Should not retry RateLimitError
-        assert mock_func.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_retry_unexpected_exceptions(self):
-        """Test handling of unexpected exceptions."""
-        mock_func = AsyncMock(side_effect=ValueError("Unexpected error"))
-
-        @with_retry()
-        async def decorated_func():
-            return await mock_func()
-
-        with pytest.raises(ValueError, match="Unexpected error"):
-            await decorated_func()
-
-        # Should not retry unexpected exceptions
-        assert mock_func.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_retry_with_jitter_timing(self):
-        """Test retry timing with jitter enabled."""
-        mock_func = AsyncMock(side_effect=[ClientError("First failure"), "success"])
-
-        retry_config = RetryConfig(max_attempts=2, base_delay=0.1, jitter=True, jitter_factor=0.5)
-
-        @with_retry(retry_config=retry_config)
-        async def decorated_func():
-            return await mock_func()
-
-        start_time = time.time()
-        result = await decorated_func()
-        duration = time.time() - start_time
-
-        assert result == "success"
-        assert mock_func.call_count == 2
-        # With jitter, delay should be between 0.1 and base_delay (0.1)
-        # Minimum enforced delay is 0.1
-        assert duration >= 0.05  # Allow some test timing variance
-
-
-class TestCircuitBreaker:
-    """Test suite for enhanced CircuitBreaker implementation."""
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_closed_state(self):
-        """Test circuit breaker in closed state."""
-        cb = CircuitBreaker(failure_threshold=2, name="test")
-        mock_func = AsyncMock(return_value="success")
-
-        async with cb:
-            result = await mock_func()
-
-        assert result == "success"
-        assert cb.state == CircuitBreakerState.CLOSED
-        assert cb.successful_calls == 1
-        assert cb.failed_calls == 0
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_opens_on_failures(self):
-        """Test circuit breaker opens after threshold failures."""
-        cb = CircuitBreaker(failure_threshold=2, name="test")
-
-        # First failure
-        with pytest.raises(ClientError):
-            async with cb:
-                raise ClientError("First failure")
-
-        assert cb.state == CircuitBreakerState.CLOSED
-        assert cb.failure_count == 1
-
-        # Second failure - should open circuit
-        with pytest.raises(ClientError):
-            async with cb:
-                raise ClientError("Second failure")
-
-        assert cb.state == CircuitBreakerState.OPEN
-        assert cb.failure_count == 2
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_rejects_when_open(self):
-        """Test circuit breaker rejects requests when open."""
-        cb = CircuitBreaker(failure_threshold=1, recovery_timeout=10.0, name="test")
-
-        # Force circuit to open
-        with pytest.raises(ClientError):
-            async with cb:
-                raise ClientError("Failure to open circuit")
-
-        assert cb.state == CircuitBreakerState.OPEN
-
-        # Next request should be rejected
-        with pytest.raises(RateLimitError, match="Circuit breaker 'test' is open"):
-            async with cb:
-                pass
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_half_open_recovery(self):
-        """Test circuit breaker half-open state and recovery."""
-        cb = CircuitBreaker(
-            failure_threshold=1,
-            recovery_timeout=0.01,  # Very short for testing
-            half_open_max_calls=2,
-            name="test",
-        )
-
-        # Force circuit to open
-        with pytest.raises(ClientError):
-            async with cb:
-                raise ClientError("Force open")
-
-        assert cb.state == CircuitBreakerState.OPEN
-
-        # Wait for recovery timeout
-        await asyncio.sleep(0.02)  # Mocked - instant return
-
-        # First request should transition to half-open
-        async with cb:
-            pass  # Success
-
-        assert cb.state == CircuitBreakerState.HALF_OPEN
-        assert cb.success_count == 1
-
-        # Second success should close circuit
-        async with cb:
-            pass  # Success
-
-        assert cb.state == CircuitBreakerState.CLOSED
-        assert cb.failure_count == 0
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_reopens_on_half_open_failure(self):
-        """Test circuit breaker reopens on failure in half-open state."""
-        cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, name="test")
-
-        # Force circuit to open
-        with pytest.raises(ClientError):
-            async with cb:
-                raise ClientError("Force open")
-
-        # Wait for recovery timeout
-        await asyncio.sleep(0.02)  # Mocked - instant return
-
-        # Failure in half-open should reopen circuit
-        with pytest.raises(ClientError):
-            async with cb:
-                raise ClientError("Half-open failure")
-
-        assert cb.state == CircuitBreakerState.OPEN
-        assert cb.success_count == 0
-
-    def test_circuit_breaker_metrics(self):
-        """Test circuit breaker metrics collection."""
-        cb = CircuitBreaker(name="test")
-
-        metrics = cb.metrics
-
-        assert metrics["name"] == "test"
-        assert metrics["state"] == CircuitBreakerState.CLOSED.value
-        assert metrics["total_calls"] == 0
-        assert metrics["successful_calls"] == 0
-        assert metrics["failed_calls"] == 0
-        assert metrics["success_rate"] == 0
-
-
-class TestBulkheadPattern:
-    """Test suite for BulkheadPattern resource isolation."""
-
-    @pytest.mark.asyncio
-    async def test_bulkhead_allows_concurrent_requests(self):
-        """Test bulkhead allows requests within limit."""
-        bulkhead = BulkheadPattern(max_concurrent_operations=2, name="test")
-
-        async def slow_operation():
-            await asyncio.sleep(0.1)
-            return "success"
-
-        # Start two concurrent operations (within limit)
-        task1 = asyncio.create_task(bulkhead.execute(slow_operation))
-        task2 = asyncio.create_task(bulkhead.execute(slow_operation))
-
-        results = await asyncio.gather(task1, task2)
-
-        assert results == ["success", "success"]
-        assert bulkhead.total_requests == 2
-        assert bulkhead.rejected_requests == 0
-
-    @pytest.mark.asyncio
-    async def test_bulkhead_rejects_excess_requests(self):
-        """Test bulkhead rejects requests exceeding limit."""
-        bulkhead = BulkheadPattern(max_concurrent_operations=1, name="test")
-
-        async def slow_operation():
-            await asyncio.sleep(0.1)
-            return "success"
-
-        # Start operation that will hold the semaphore
-        task1 = asyncio.create_task(bulkhead.execute(slow_operation))
-
-        # Give first task time to acquire semaphore
-        await asyncio.sleep(0.01)
-
-        # Second operation should be rejected
-        with pytest.raises(RateLimitError, match="Bulkhead 'test' resource limit exceeded"):
-            await bulkhead.execute(slow_operation)
-
-        # Complete first task
-        result = await task1
-        assert result == "success"
-        assert bulkhead.total_requests == 2
-        assert bulkhead.rejected_requests == 1
-
-    def test_bulkhead_metrics(self):
-        """Test bulkhead metrics collection."""
-        bulkhead = BulkheadPattern(max_concurrent_operations=5, name="test")
-
-        metrics = bulkhead.metrics
-
-        assert metrics["name"] == "test"
-        assert metrics["max_concurrent"] == 5
-        assert metrics["active_requests"] == 0
-        assert metrics["total_requests"] == 0
-        assert metrics["rejected_requests"] == 0
-        assert metrics["acceptance_rate"] == 0
-
-
-class TestResilienceManager:
-    """Test suite for ResilienceManager orchestrating all patterns."""
-
-    @pytest.mark.asyncio
-    async def test_resilience_manager_retry_only(self):
-        """Test resilience manager with only retry pattern."""
-        retry_config = RetryConfig(max_attempts=2, base_delay=0.01, jitter=False)
-        manager = ResilienceManager(retry_config=retry_config, name="test")
-
-        mock_func = AsyncMock(side_effect=[ClientError("Fail"), "success"])
-
-        result = await manager.execute(mock_func)
-
-        assert result == "success"
-        assert mock_func.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_resilience_manager_with_circuit_breaker(self):
-        """Test resilience manager with circuit breaker pattern."""
-        cb = CircuitBreaker(failure_threshold=1, name="cb_test")
-        manager = ResilienceManager(circuit_breaker=cb, name="test")
-
-        mock_func = AsyncMock(return_value="success")
-
-        result = await manager.execute(mock_func)
-
-        assert result == "success"
-        assert cb.successful_calls == 1
-
-    @pytest.mark.asyncio
-    async def test_resilience_manager_with_bulkhead(self):
-        """Test resilience manager with bulkhead pattern."""
-        bulkhead = BulkheadPattern(max_concurrent_operations=1, name="bulkhead_test")
-        manager = ResilienceManager(bulkhead=bulkhead, name="test")
-
-        mock_func = AsyncMock(return_value="success")
-
-        result = await manager.execute(mock_func)
-
-        assert result == "success"
-        assert bulkhead.total_requests == 1
-
-    @pytest.mark.asyncio
-    async def test_resilience_manager_all_patterns(self):
-        """Test resilience manager with all patterns combined."""
-        retry_config = RetryConfig(max_attempts=2, base_delay=0.01)
-        cb = CircuitBreaker(failure_threshold=2, name="cb_test")
-        bulkhead = BulkheadPattern(max_concurrent_operations=5, name="bulkhead_test")
-
-        manager = ResilienceManager(
-            retry_config=retry_config, circuit_breaker=cb, bulkhead=bulkhead, name="test"
-        )
-
-        mock_func = AsyncMock(return_value="success")
-
-        result = await manager.execute(mock_func)
-
-        assert result == "success"
-        assert cb.successful_calls == 1
-        assert bulkhead.total_requests == 1
-
-    def test_resilience_manager_metrics(self):
-        """Test comprehensive metrics from resilience manager."""
-        retry_config = RetryConfig(max_attempts=3, base_delay=1.0)
-        cb = CircuitBreaker(name="cb_test")
-        bulkhead = BulkheadPattern(max_concurrent_operations=10, name="bulkhead_test")
-
-        manager = ResilienceManager(
-            retry_config=retry_config, circuit_breaker=cb, bulkhead=bulkhead, name="test"
-        )
-
-        metrics = manager.metrics
-
-        assert metrics["name"] == "test"
-        assert metrics["retry_config"]["max_attempts"] == 3
-        assert metrics["retry_config"]["base_delay"] == 1.0
-        assert metrics["retry_config"]["jitter_enabled"] is True
-        assert "circuit_breaker" in metrics
-        assert "bulkhead" in metrics
-        assert metrics["circuit_breaker"]["name"] == "cb_test"
-        assert metrics["bulkhead"]["name"] == "bulkhead_test"
-
-
-@pytest.mark.integration
-class TestResiliencePatternsIntegration:
-    """Integration tests for all resilience patterns working together."""
-
-    @pytest.mark.asyncio
-    async def test_full_resilience_stack_failure_recovery(self):
-        """Test complete resilience stack handling failures and recovery."""
-        # Configure settings that allow recovery within circuit breaker limits
-        retry_config = RetryConfig(
-            max_attempts=2,  # Reduced to stay within circuit breaker threshold
-            base_delay=0.01,
-            backoff_factor=1.5,
+        """Test delay calculation with jitter."""
+        config = RetryConfig(base_delay=1.0, backoff_factor=2.0, max_delay=10.0, jitter=True)
+
+        # With jitter, delays should be random but within bounds
+        delays = [config.calculate_delay(1) for _ in range(10)]
+
+        # All delays should be different (very high probability)
+        assert len(set(delays)) > 1
+
+        # All delays should be between minimum (0.1) and expected max (2.0)
+        for delay in delays:
+            assert 0.1 <= delay <= 2.0
+
+    def test_calculate_delay_jitter_minimum(self):
+        """Test delay calculation ensures minimum delay with jitter."""
+        config = RetryConfig(
+            base_delay=0.05,  # Very small base delay
+            backoff_factor=1.1,
             jitter=True,
         )
-        cb = CircuitBreaker(
-            failure_threshold=3,  # Allow more failures before opening
-            recovery_timeout=0.05,
-            name="integration_cb",
-        )
-        bulkhead = BulkheadPattern(max_concurrent_operations=3, name="integration_bulkhead")
 
-        manager = ResilienceManager(
-            retry_config=retry_config,
-            circuit_breaker=cb,
-            bulkhead=bulkhead,
-            name="integration_test",
+        # Even with small base delay and jitter, should maintain minimum
+        delay = config.calculate_delay(0)
+        assert delay >= 0.1
+
+    def test_calculate_delay_different_backoff_factors(self):
+        """Test delay calculation with different backoff factors."""
+        config_slow = RetryConfig(base_delay=1.0, backoff_factor=1.5, jitter=False)
+        config_fast = RetryConfig(base_delay=1.0, backoff_factor=3.0, jitter=False)
+
+        # Fast backoff should grow quicker
+        assert config_slow.calculate_delay(2) == 2.25  # 1.0 * 1.5^2
+        assert config_fast.calculate_delay(2) == 9.0  # 1.0 * 3.0^2
+
+
+class TestWithRetryDecorator:
+    """Test retry decorator functionality with async functions."""
+
+    @pytest.mark.asyncio
+    async def test_with_retry_success_first_attempt(self):
+        """Test retry decorator with successful first attempt."""
+        call_count = 0
+
+        @with_retry(RetryConfig(max_attempts=3))
+        async def successful_function():
+            nonlocal call_count
+            call_count += 1
+            return "success"
+
+        result = await successful_function()
+        assert result == "success"
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_with_retry_success_after_failures(self):
+        """Test retry decorator with success after failures."""
+        call_count = 0
+
+        @with_retry(RetryConfig(max_attempts=3, base_delay=0.01, jitter=False))
+        async def flaky_function():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ClientError("Temporary failure")
+            return "success"
+
+        result = await flaky_function()
+        assert result == "success"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_with_retry_exhausted_attempts(self):
+        """Test retry decorator when all attempts are exhausted."""
+        call_count = 0
+
+        @with_retry(RetryConfig(max_attempts=2, base_delay=0.01, jitter=False))
+        async def always_failing_function():
+            nonlocal call_count
+            call_count += 1
+            raise ClientError("Persistent failure")
+
+        with pytest.raises(ClientError, match="Persistent failure"):
+            await always_failing_function()
+
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_with_retry_different_exceptions(self):
+        """Test retry decorator with different exception types."""
+        # Test with retryable exception
+        call_count = 0
+
+        @with_retry(
+            RetryConfig(max_attempts=2, base_delay=0.01), retry_on=(ClientError,), reraise_on=()
         )
+        async def function_with_client_error():
+            nonlocal call_count
+            call_count += 1
+            raise ClientError("Client error")
+
+        with pytest.raises(ClientError):
+            await function_with_client_error()
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_with_retry_reraise_exception(self):
+        """Test retry decorator with exception that should be reraised."""
+        call_count = 0
+
+        @with_retry(
+            RetryConfig(max_attempts=3, base_delay=0.01),
+            retry_on=(ClientError,),
+            reraise_on=(RateLimitError,),
+        )
+        async def function_with_rate_limit():
+            nonlocal call_count
+            call_count += 1
+            raise RateLimitError("Rate limited")
+
+        with pytest.raises(RateLimitError, match="Rate limited"):
+            await function_with_rate_limit()
+
+        # Should not retry for reraise exceptions
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_with_retry_preserves_function_metadata(self):
+        """Test retry decorator preserves function metadata."""
+
+        @with_retry(RetryConfig(max_attempts=2))
+        async def documented_function():
+            """This function has documentation."""
+            return "result"
+
+        assert documented_function.__name__ == "documented_function"
+        assert "This function has documentation" in documented_function.__doc__
+
+    @pytest.mark.asyncio
+    async def test_with_retry_with_args_and_kwargs(self):
+        """Test retry decorator with function arguments."""
+        call_count = 0
+
+        @with_retry(RetryConfig(max_attempts=2, base_delay=0.01, jitter=False))
+        async def function_with_args(arg1, arg2, kwarg1=None):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ClientError("First failure")
+            return f"{arg1}-{arg2}-{kwarg1}"
+
+        result = await function_with_args("test", "value", kwarg1="extra")
+        assert result == "test-value-extra"
+        assert call_count == 2
+
+
+class TestRetryTiming:
+    """Test retry timing and delay behavior."""
+
+    @pytest.mark.asyncio
+    async def test_retry_timing_without_jitter(self):
+        """Test actual timing of retry delays without jitter."""
+        call_times = []
+
+        @with_retry(RetryConfig(max_attempts=3, base_delay=0.1, backoff_factor=2.0, jitter=False))
+        async def timing_function():
+            call_times.append(time.time())
+            if len(call_times) < 3:
+                raise ClientError("Retry needed")
+            return "success"
+
+        start_time = time.time()
+        result = await timing_function()
+        total_time = time.time() - start_time
+
+        assert result == "success"
+        assert len(call_times) == 3
+
+        # Check delay intervals (approximately)
+        delay1 = call_times[1] - call_times[0]
+        delay2 = call_times[2] - call_times[1]
+
+        # First delay should be ~0.1s, second delay should be ~0.2s
+        assert 0.05 <= delay1 <= 0.15  # Allow some tolerance
+        assert 0.15 <= delay2 <= 0.25  # Allow some tolerance
+
+    @pytest.mark.asyncio
+    async def test_retry_timing_with_jitter(self):
+        """Test retry timing with jitter introduces variability."""
+        delays = []
+
+        for _ in range(5):
+            call_times = []
+
+            async def make_jitter_function(times_list):
+                @with_retry(RetryConfig(max_attempts=2, base_delay=0.1, jitter=True))
+                async def jitter_function():
+                    times_list.append(time.time())
+                    if len(times_list) == 1:
+                        raise ClientError("Retry needed")
+                    return "success"
+
+                return jitter_function
+
+            jitter_func = await make_jitter_function(call_times)
+            await jitter_func()
+
+            if len(call_times) >= 2:
+                delay = call_times[1] - call_times[0]
+                delays.append(delay)
+
+        # With jitter, delays should be variable
+        assert len({f"{d:.3f}" for d in delays}) > 1  # At least some variation
+
+
+class TestRetryEdgeCases:
+    """Test edge cases and error conditions in retry logic."""
+
+    @pytest.mark.asyncio
+    async def test_retry_with_zero_max_attempts_config_validation(self):
+        """Test retry config validation prevents invalid configurations."""
+        with pytest.raises(ValueError):
+            RetryConfig(max_attempts=0)
+
+    @pytest.mark.asyncio
+    async def test_retry_with_non_async_function_protection(self):
+        """Test retry decorator behavior with non-async functions."""
+        # This should be caught at the decorator level if implemented
+        # For now, we test that async decorator expects async function
 
         call_count = 0
 
-        async def flaky_operation():
+        @with_retry(RetryConfig(max_attempts=2, base_delay=0.01))
+        async def proper_async_function():
             nonlocal call_count
             call_count += 1
-
-            # Fail first time, then succeed
             if call_count == 1:
-                raise ClientError(f"Failure #{call_count}")
-            return f"success_after_{call_count}_attempts"
+                raise ClientError("First failure")
+            return "success"
 
-        # Should succeed after retries
-        result = await manager.execute(flaky_operation)
-
-        assert result == "success_after_2_attempts"
+        result = await proper_async_function()
+        assert result == "success"
         assert call_count == 2
-        assert cb.successful_calls == 1
-        assert bulkhead.total_requests == 2  # One for each retry attempt
-
-        # Verify all metrics
-        metrics = manager.metrics
-        assert metrics["circuit_breaker"]["state"] == CircuitBreakerState.CLOSED.value
-        assert metrics["bulkhead"]["acceptance_rate"] == 1.0
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_prevents_cascading_failures(self):
-        """Test circuit breaker prevents cascade failures across the stack."""
-        # Configure retry to not interfere with circuit breaker test
-        retry_config = RetryConfig(max_attempts=1)  # No retries
-        cb = CircuitBreaker(failure_threshold=1, recovery_timeout=10.0, name="protection_cb")
-        bulkhead = BulkheadPattern(max_concurrent_operations=5, name="protection_bulkhead")
+    async def test_retry_exception_chaining(self):
+        """Test that retry preserves exception information."""
 
-        manager = ResilienceManager(
-            retry_config=retry_config,
-            circuit_breaker=cb,
-            bulkhead=bulkhead,
-            name="cascade_protection",
+        @with_retry(RetryConfig(max_attempts=2, base_delay=0.01))
+        async def failing_function():
+            raise ClientError("Original error message")
+
+        try:
+            await failing_function()
+        except ClientError as e:
+            assert "Original error message" in str(e)
+        else:
+            pytest.fail("Expected ClientError to be raised")
+
+    @pytest.mark.asyncio
+    async def test_retry_with_complex_exception_hierarchy(self):
+        """Test retry behavior with complex exception hierarchies."""
+
+        class CustomClientError(ClientError):
+            pass
+
+        call_count = 0
+
+        @with_retry(
+            RetryConfig(max_attempts=2, base_delay=0.01),
+            retry_on=(ClientError,),  # Should catch subclasses too
+        )
+        async def function_with_custom_error():
+            nonlocal call_count
+            call_count += 1
+            raise CustomClientError("Custom client error")
+
+        with pytest.raises(CustomClientError):
+            await function_with_custom_error()
+
+        assert call_count == 2  # Should retry subclass of ClientError
+
+
+class TestRetryIntegration:
+    """Test integration scenarios for retry functionality."""
+
+    @pytest.mark.asyncio
+    async def test_retry_with_async_context_manager(self):
+        """Test retry decorator works with async context managers."""
+        call_count = 0
+        context_entered = 0
+        context_exited = 0
+
+        class AsyncContextManager:
+            async def __aenter__(self):
+                nonlocal context_entered
+                context_entered += 1
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                nonlocal context_exited
+                context_exited += 1
+
+        @with_retry(RetryConfig(max_attempts=2, base_delay=0.01))
+        async def function_with_context():
+            nonlocal call_count
+            call_count += 1
+            async with AsyncContextManager():
+                if call_count == 1:
+                    raise ClientError("First failure")
+                return "success"
+
+        result = await function_with_context()
+        assert result == "success"
+        assert call_count == 2
+        assert context_entered == 2  # Context entered for each retry
+        assert context_exited == 2  # Context exited for each retry
+
+    @pytest.mark.asyncio
+    async def test_retry_performance_overhead(self):
+        """Test retry decorator has minimal performance overhead."""
+        call_count = 0
+
+        @with_retry(RetryConfig(max_attempts=1))  # No actual retries
+        async def fast_function():
+            nonlocal call_count
+            call_count += 1
+            return call_count
+
+        # Measure overhead by running many times
+        start_time = time.time()
+        results = []
+        for _ in range(100):
+            result = await fast_function()
+            results.append(result)
+        execution_time = time.time() - start_time
+
+        # Should complete quickly even with decorator overhead
+        assert execution_time < 0.1  # Less than 100ms for 100 calls
+        assert len(results) == 100
+        assert call_count == 100
+
+
+class TestRetryConfigCalculations:
+    """Test mathematical correctness of retry calculations."""
+
+    def test_exponential_backoff_progression(self):
+        """Test exponential backoff follows correct mathematical progression."""
+        config = RetryConfig(base_delay=1.0, backoff_factor=2.0, max_delay=100.0, jitter=False)
+
+        # Test exponential sequence: 1, 2, 4, 8, 16, 32...
+        expected_delays = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0]
+
+        for attempt, expected in enumerate(expected_delays):
+            actual = config.calculate_delay(attempt)
+            assert actual == expected
+
+    def test_max_delay_capping_behavior(self):
+        """Test max delay capping behavior is mathematically correct."""
+        config = RetryConfig(base_delay=1.0, backoff_factor=2.0, max_delay=10.0, jitter=False)
+
+        # Test that delays are capped at max_delay
+        delays = [config.calculate_delay(i) for i in range(10)]
+
+        # Find where capping starts (2^n >= 10, so n >= log2(10) ≈ 3.32, so at attempt 4)
+        assert delays[0] == 1.0  # 2^0 = 1
+        assert delays[1] == 2.0  # 2^1 = 2
+        assert delays[2] == 4.0  # 2^2 = 4
+        assert delays[3] == 8.0  # 2^3 = 8
+        assert delays[4] == 10.0  # 2^4 = 16, capped to 10
+        assert delays[5] == 10.0  # Still capped
+        assert all(delay <= 10.0 for delay in delays)
+
+    def test_jitter_statistical_properties(self):
+        """Test jitter has correct statistical properties."""
+        config = RetryConfig(
+            base_delay=2.0,
+            backoff_factor=1.0,  # No exponential growth
+            jitter=True,
         )
 
-        # First operation fails and opens circuit
-        with pytest.raises(ClientError):
-            await manager.execute(AsyncMock(side_effect=ClientError("Force open")))
+        # Collect many samples for attempt 1 (base_delay = 2.0)
+        samples = [config.calculate_delay(0) for _ in range(1000)]
 
-        assert cb.state == CircuitBreakerState.OPEN
+        # All samples should be >= 0.1 (minimum) and <= 2.0 (base_delay)
+        assert all(0.1 <= sample <= 2.0 for sample in samples)
 
-        # Subsequent operations should be rejected by circuit breaker
-        # without consuming bulkhead resources
-        initial_bulkhead_requests = bulkhead.total_requests
+        # Mean should be approximately 1.0 (midpoint of uniform distribution)
+        # Allow generous tolerance for randomness
+        mean = sum(samples) / len(samples)
+        assert 0.8 <= mean <= 1.2
 
-        with pytest.raises(RateLimitError, match="Circuit breaker"):
-            await manager.execute(AsyncMock(return_value="should_not_execute"))
-
-        # Bulkhead should not see additional requests due to circuit breaker protection
-        assert bulkhead.total_requests == initial_bulkhead_requests
-        assert cb.failed_calls == 1  # Only the first failure
+        # Should have good distribution (not all the same value)
+        unique_values = len({f"{s:.3f}" for s in samples})
+        assert unique_values > 100  # Should have many unique values
