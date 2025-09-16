@@ -1,10 +1,8 @@
 name: 🚀 Production Deployment Pipeline
 
 on:
-  workflow_run:
-    workflows: ["Semantic Release"]
-    types: [completed]
-    branches: [master]
+  release:
+    types: [published]  # Triggered when semantic-release creates and publishes a release
   workflow_dispatch:
     inputs:
       environment:
@@ -36,11 +34,8 @@ jobs:
     name: 📋 Get Release Information
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Only run if semantic release completed successfully AND actually created a release
-    if: |
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.name == 'Semantic Release')
+    # Run on published releases or manual dispatch
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     outputs:
       should-deploy: ${{ steps.check-release.outputs.should-deploy }}
       image-tag: ${{ steps.check-release.outputs.image-tag }}
@@ -51,18 +46,20 @@ jobs:
       - name: Check semantic release outputs
         id: check-release
         run: |
-          # Production deployment triggers after semantic release completes (skip or success)
-          # This ensures the sequence: CI → Semantic Release → Production Deployment
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            echo "Triggered by semantic release workflow completion"
+          # Production deployment triggers after semantic release publishes a release
+          # This ensures the sequence: CI → Semantic Release → Tag/Release → Production Deployment
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "Triggered by semantic release publication"
             echo "should-deploy=true" >> $GITHUB_OUTPUT
-            echo "image-tag=latest" >> $GITHUB_OUTPUT
-            echo "version=from-semantic-release" >> $GITHUB_OUTPUT
+            echo "image-tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+            echo "released=true" >> $GITHUB_OUTPUT
           else
             echo "Manual deployment trigger"
             echo "should-deploy=true" >> $GITHUB_OUTPUT
             echo "image-tag=latest" >> $GITHUB_OUTPUT
             echo "version=manual" >> $GITHUB_OUTPUT
+            echo "released=false" >> $GITHUB_OUTPUT
           fi
 
   # Deploy to Staging (automatic from master)
@@ -72,7 +69,7 @@ jobs:
     needs: [get-release-info]
     if: |
       needs.get-release-info.outputs.should-deploy == 'true' &&
-      (github.event_name == 'workflow_run' || github.event.inputs.environment == 'staging')
+      (github.event_name == 'release' || github.event.inputs.environment == 'staging')
     timeout-minutes: 10
 
     environment:
