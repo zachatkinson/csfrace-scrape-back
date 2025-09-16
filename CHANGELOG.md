@@ -2,6 +2,69 @@
 
 <!-- version list -->
 
+## v5.1.0 (2025-09-16)
+
+### Features
+
+- Comprehensive test coverage improvements - 96% services coverage
+  ([#4](https://github.com/zachatkinson/csfrace-scrape-back/pull/4),
+  [`f49dd55`](https://github.com/zachatkinson/csfrace-scrape-back/commit/f49dd55289d3ba328d581d5b5b5fa72ed60de148))
+
+* test(caching): add basic file cache operation tests for codecov AI demo
+
+- Add test for cache directory initialization - Add test for cache path generation with different
+  content types - Target improving coverage for file_cache.py (currently 8%) - Prepare for testing
+  @codecov-ai-reviewer functionality
+
+* feat(tests): refactor router tests following testing best practices
+
+- Replace brittle, over-mocked tests with maintainable, behavior-focused tests - Use real
+  dependencies where possible instead of excessive mocking - Create focused test classes with clear
+  arrange-act-assert patterns - Add comprehensive coverage for health, jobs, and health_stream
+  routers - Improve router coverage from 30% to 40%+ with practical tests - Follow DRY/SOLID
+  principles in test design - Add integration tests combining multiple components - Test error
+  handling, response formats, and performance characteristics
+
+Router test improvements: - Health endpoints: liveness, readiness, metrics, prometheus, SSE streams
+  - Jobs endpoints: CRUD operations, pagination, filtering, batch processing - Health stream: SSE
+  headers, JSON serialization, trigger endpoints - Error cases: invalid methods, malformed requests,
+  missing resources
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* feat(tests): achieve 96% coverage for health service with comprehensive test suite
+
+- Create complete test directory structure for services - Add 33 comprehensive tests for
+  health_service.py covering: * Initialization and configuration (3 tests) * Comprehensive health
+  status workflows (4 tests) * Database health checks with metrics (5 tests) * Cache health checks
+  with Redis integration (8 tests) * Monitoring status validation (2 tests) * Overall status
+  calculation logic (5 tests) * Integration scenarios and performance (4 tests) * Error handling and
+  edge cases (2 tests)
+
+- Follow testing best practices with real dependencies - Test actual behavior vs excessive mocking -
+  Cover all critical paths: success, failure, edge cases - Include performance testing and error
+  isolation - Achieve 96% line coverage (5 lines missed from 99 total) - Significantly exceed 80%
+  coverage target for services
+
+Coverage improvement: services 53.54% → 96%
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+### Testing
+
+- **caching**: Add basic file cache operation tests for codecov AI demo
+  ([#3](https://github.com/zachatkinson/csfrace-scrape-back/pull/3),
+  [`c44aa8c`](https://github.com/zachatkinson/csfrace-scrape-back/commit/c44aa8c7207b1309c95ba430d22c3e2a6178756f))
+
+- Add test for cache directory initialization - Add test for cache path generation with different
+  content types - Target improving coverage for file_cache.py (currently 8%) - Prepare for testing
+  @codecov-ai-reviewer functionality
+
+
 ## v5.0.0 (2025-09-15)
 
 ### Bug Fixes
