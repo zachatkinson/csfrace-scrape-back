@@ -511,9 +511,9 @@ class TestLifespanAdvanced:
             mock_db_instance.get_session = "db_session"
             mock_db_service.return_value = mock_db_instance
 
-            # Simulate failure during health registry initialization
-            mock_health_registry.side_effect = Exception("Health registry failed")
-            mock_start_health.return_value = None
+            # Simulate failure during health monitoring start (which is part of health registry initialization)
+            mock_health_registry.return_value = None
+            mock_start_health.side_effect = Exception("Health registry failed")
             mock_stop_health.return_value = None
             mock_start_monitoring.return_value = None
             mock_stop_monitoring.return_value = None

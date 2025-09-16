@@ -44,8 +44,11 @@ class TestLoggingSetup:
         # In test environment, accept either DEBUG or the configured level
         assert root_logger.level in [logging.DEBUG, logging.WARNING, logging.INFO]
 
-        # Verify handlers are properly configured
-        assert len(root_logger.handlers) == 1
+        # Verify handlers are properly configured (pytest may add LogCaptureHandlers)
+        # Check that at least one handler is present and that RichHandler is among them
+        assert len(root_logger.handlers) >= 1
+        rich_handlers = [h for h in root_logger.handlers if hasattr(h, "rich_tracebacks")]
+        assert len(rich_handlers) >= 1
 
     @patch("src.utils.logging.RichHandler")
     def test_setup_logging_rich_handler_configuration(self, mock_rich_handler):
@@ -466,8 +469,9 @@ class TestLoggingConfiguration:
 
             call_args = mock_configure.call_args[1]
 
-            # Verify logger_factory is set correctly
-            assert call_args["logger_factory"] == structlog.stdlib.LoggerFactory()
+            # Verify logger_factory is set correctly (check type, not instance)
+            factory = call_args["logger_factory"]
+            assert isinstance(factory, structlog.stdlib.LoggerFactory)
 
     def test_cache_logger_configuration(self):
         """Test that logger caching is enabled."""
