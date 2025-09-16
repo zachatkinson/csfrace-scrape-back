@@ -112,44 +112,9 @@ jobs:
           echo "image-tag=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> $GITHUB_OUTPUT
           echo "image-digest=${{ steps.container.outputs.digest }}" >> $GITHUB_OUTPUT
 
-      - name: Update Umbrella Repository
-        if: steps.semantic.outputs.released == 'true'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
-          repository: zachatkinson/csfrace-scrape
-          event-type: backend-updated
-          client-payload: |
-            {
-              "repository": "${{ github.repository }}",
-              "ref": "${{ github.ref }}",
-              "sha": "${{ github.sha }}",
-              "version": "${{ steps.semantic.outputs.version }}",
-              "tag": "${{ steps.semantic.outputs.tag }}",
-              "actor": "${{ github.actor }}",
-              "workflow": "${{ github.workflow }}",
-              "timestamp": "${{ github.event.head_commit.timestamp }}",
-              "release_url": "https://github.com/${{ github.repository }}/releases/tag/${{ steps.semantic.outputs.tag }}",
-              "changelog_url": "https://github.com/${{ github.repository }}/releases/tag/${{ steps.semantic.outputs.tag }}"
-            }
-
-      - name: Log umbrella repository update
-        if: steps.semantic.outputs.released == 'true'
-        run: |
-          echo "## 🚀 Umbrella Repository Update Triggered" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Backend Version:** ${{ steps.semantic.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Release Tag:** ${{ steps.semantic.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.semantic.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The umbrella repository will be updated with the new backend release." >> $GITHUB_STEP_SUMMARY
-          
-          # Also log to console
-          echo "🚀 Triggered umbrella repo update for backend release"
-          echo "Repository: ${{ github.repository }}"
-          echo "Version: ${{ steps.semantic.outputs.version }}"
-          echo "Tag: ${{ steps.semantic.outputs.tag }}"
-          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.semantic.outputs.tag }}"
+      # Note: Umbrella repository updates are handled by the CI workflow
+      # Every push to master (including release commits) triggers an update
+      # This ensures the umbrella always has the latest backend code
           
       - name: Create release success summary
         if: success()
