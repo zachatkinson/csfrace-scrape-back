@@ -237,7 +237,8 @@ Disallow: /admin/
         mock_parser.crawl_delay.return_value = None
 
         with patch.object(self.checker, "get_robots_parser", return_value=mock_parser):
-            with patch("src.utils.robots.config.http.rate_limit_delay", 1.0):
+            with patch("src.utils.robots.config") as mock_config:
+                mock_config.http.rate_limit_delay = 1.0
                 delay = await self.checker.get_crawl_delay(
                     "https://example.com", session=self.mock_session
                 )
@@ -264,7 +265,8 @@ Disallow: /admin/
         with patch.object(
             self.checker, "get_robots_parser", side_effect=aiohttp.ClientError("Error")
         ):
-            with patch("src.utils.robots.config.http.rate_limit_delay", 2.5):
+            with patch("src.utils.robots.config") as mock_config:
+                mock_config.http.rate_limit_delay = 2.5
                 delay = await self.checker.get_crawl_delay(
                     "https://example.com", session=self.mock_session
                 )
@@ -323,23 +325,28 @@ class TestCrawlDelayEnforcement:
         initial_time = 1000.0
         later_time = 1003.0  # 3 seconds later
 
-        with patch("asyncio.get_event_loop") as mock_loop:
-            mock_loop.return_value.time.side_effect = [initial_time, later_time, later_time]
+        # Set up precise time sequence for the enforce_crawl_delay logic:
+        # First call: get current_time (initial_time), update last_request (initial_time)
+        # Second call: get current_time (later_time), check vs last_request, update (later_time)
+        time_calls = [initial_time, initial_time, later_time, later_time]
 
-            # First request
+        with patch("asyncio.get_event_loop") as mock_loop:
+            mock_loop.return_value.time.side_effect = time_calls
+
+            # First request - establishes last_request time
             with patch.object(self.checker, "get_crawl_delay", return_value=2.0):
                 await self.checker.enforce_crawl_delay(
                     "https://example.com/first", session=self.mock_session
                 )
 
-            # Second request after enough time
+            # Second request after enough time (3 seconds > 2 second delay)
             with patch.object(self.checker, "get_crawl_delay", return_value=2.0):
                 with patch("asyncio.sleep") as mock_sleep:
                     await self.checker.enforce_crawl_delay(
                         "https://example.com/second", session=self.mock_session
                     )
 
-        # Should not sleep since enough time has passed
+        # Should not sleep since enough time has passed (3s > 2s delay)
         mock_sleep.assert_not_called()
 
     @pytest.mark.asyncio
