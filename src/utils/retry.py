@@ -83,11 +83,7 @@ class RetryConfig:
             # This is more effective than proportional jitter
             delay = secrets.SystemRandom().uniform(0, delay)
             # Ensure minimum delay to prevent too aggressive retries, but only if base delay is higher
-            if self.base_delay > 0.1:
-                delay = max(0.1, delay)
-            else:
-                # For small base delays, allow smaller minimum to preserve jitter variation
-                delay = max(0.01, delay)
+            delay = max(0.1, delay) if self.base_delay > 0.1 else max(0.01, delay)
 
         return delay
 
