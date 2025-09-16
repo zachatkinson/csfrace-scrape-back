@@ -1557,7 +1557,7 @@ jobs:
   update-umbrella-repository:
     name: 📦 Update Umbrella Repository
     runs-on: ubuntu-latest
-    needs: [finalize-codecov]
+    needs: [finalize-coverage]
     # ONLY run on master branch pushes (not PRs, not feature branches)
     # This includes ALL commits to master: features, fixes, and releases
     if: |
