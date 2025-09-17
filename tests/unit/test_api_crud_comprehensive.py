@@ -292,10 +292,13 @@ class TestJobCRUD:
 
             assert result is True
             mock_db_session.delete.assert_called_once_with(sample_scraping_job)
+            # Domain is extracted from source_url at runtime
+            from urllib.parse import urlparse
+            expected_domain = urlparse(sample_scraping_job.source_url).netloc
             mock_publish.assert_called_once_with(
                 job_id=sample_scraping_job.id,
                 url=sample_scraping_job.source_url,
-                domain=sample_scraping_job.domain,
+                domain=expected_domain,
             )
 
     @pytest.mark.asyncio
@@ -313,7 +316,7 @@ class TestJobCRUD:
         job_with_none_domain = MagicMock(spec=ScrapingJob)
         job_with_none_domain.id = "test-id"
         job_with_none_domain.source_url = "https://example.com"
-        job_with_none_domain.domain = None
+        # Domain field doesn't exist in ScrapingJob - it's extracted from source_url
 
         with (
             patch.object(JobCRUD, "get_job", return_value=job_with_none_domain),
@@ -322,10 +325,11 @@ class TestJobCRUD:
             result = await JobCRUD.delete_job(mock_db_session, "test-id")
 
             assert result is True
+            # Domain is extracted from source_url, so it should be 'example.com'
             mock_publish.assert_called_once_with(
                 job_id="test-id",
                 url="https://example.com",
-                domain="",  # None converted to empty string
+                domain="example.com",
             )
 
     @pytest.mark.asyncio
@@ -340,13 +344,12 @@ class TestJobCRUD:
                 sample_scraping_job.id,
                 JobStatus.RUNNING,
                 error_message="Test error",
-                error_type="TestError",
             )
 
             assert result == sample_scraping_job
             assert result.status == "running"
             assert result.error_message == "Test error"
-            assert result.error_type == "TestError"
+            # error_type field doesn't exist in ScrapingJob model
             mock_db_session.flush.assert_called_once()
             mock_publish.assert_called_once()
 
@@ -385,7 +388,7 @@ class TestJobCRUD:
     ):
         """Test that COMPLETED status sets completed_at and success flag."""
         sample_scraping_job.completed_at = None
-        sample_scraping_job.success = None
+        # success field doesn't exist in ScrapingJob model
 
         with (
             patch.object(JobCRUD, "get_job", return_value=sample_scraping_job),
@@ -396,7 +399,8 @@ class TestJobCRUD:
             )
 
             assert result.completed_at is not None
-            assert result.success is True
+            # success field doesn't exist in ScrapingJob model
+            assert result.status == JobStatus.COMPLETED.value
 
     @pytest.mark.asyncio
     async def test_update_job_status_failed_sets_timestamps_and_success(
@@ -404,7 +408,7 @@ class TestJobCRUD:
     ):
         """Test that FAILED status sets completed_at and success flag."""
         sample_scraping_job.completed_at = None
-        sample_scraping_job.success = None
+        # success field doesn't exist in ScrapingJob model
 
         with (
             patch.object(JobCRUD, "get_job", return_value=sample_scraping_job),
@@ -415,7 +419,8 @@ class TestJobCRUD:
             )
 
             assert result.completed_at is not None
-            assert result.success is False
+            # success field doesn't exist in ScrapingJob model
+            assert result.status == JobStatus.FAILED.value
 
     @pytest.mark.asyncio
     async def test_update_job_status_cancelled_sets_timestamps_and_success(
@@ -423,7 +428,7 @@ class TestJobCRUD:
     ):
         """Test that CANCELLED status sets completed_at and success flag."""
         sample_scraping_job.completed_at = None
-        sample_scraping_job.success = None
+        # success field doesn't exist in ScrapingJob model
 
         with (
             patch.object(JobCRUD, "get_job", return_value=sample_scraping_job),
@@ -434,7 +439,8 @@ class TestJobCRUD:
             )
 
             assert result.completed_at is not None
-            assert result.success is False
+            # success field doesn't exist in ScrapingJob model
+            assert result.status == JobStatus.CANCELLED.value
 
     @pytest.mark.asyncio
     async def test_update_job_status_no_duplicate_timestamp_setting(
