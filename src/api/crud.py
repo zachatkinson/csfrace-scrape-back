@@ -51,10 +51,9 @@ class JobCRUD:
 
         job = ScrapingJob(
             source_url=str(job_data.url),  # Required field
-            domain=domain,
-            slug=slug,
+            job_type="single",  # Default job type
+            target_format="html",  # Default target format
             priority=job_data.priority.value,  # Fixed: Use enum string value
-            output_directory=output_directory,
             max_retries=job_data.max_retries,
             options=job_data.options,
         )
@@ -117,8 +116,9 @@ class JobCRUD:
             count_query = count_query.where(ScrapingJob.status == status)
 
         if domain:
-            query = query.where(ScrapingJob.domain == domain)
-            count_query = count_query.where(ScrapingJob.domain == domain)
+            # Filter by domain extracted from source_url
+            query = query.where(ScrapingJob.source_url.like(f"%{domain}%"))
+            count_query = count_query.where(ScrapingJob.source_url.like(f"%{domain}%"))
 
         # Apply ordering and pagination
         query = query.order_by(ScrapingJob.created_at.desc()).offset(skip).limit(limit)
@@ -177,7 +177,11 @@ class JobCRUD:
 
         # Store job data for event publishing before deletion
         job_url = job.source_url
-        job_domain = job.domain or ""
+        # Extract domain from source_url since domain field doesn't exist
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(job.source_url)
+        job_domain = parsed_url.netloc
 
         await db.delete(job)
 
@@ -192,7 +196,6 @@ class JobCRUD:
         job_id: str,
         status: JobStatus,
         error_message: str | None = None,
-        error_type: str | None = None,
     ) -> ScrapingJob | None:
         """Update job status and error information.
 
@@ -201,7 +204,6 @@ class JobCRUD:
             job_id: Job ID
             status: New status
             error_message: Error message if failed
-            error_type: Error type if failed
 
         Returns:
             Updated job or None if not found
@@ -214,20 +216,29 @@ class JobCRUD:
         old_status = job.status
         new_status = status.value if hasattr(status, "value") else str(status)
 
+        # Extract domain from source_url for event publishing
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(job.source_url)
+        job_domain = parsed_url.netloc
+
         job.status = new_status
         if error_message:
             job.error_message = error_message
-        if error_type:
-            job.error_type = error_type
+        # Note: error_type field doesn't exist on ScrapingJob model
+        # Error details are stored in error_message only
 
         # Set timestamps based on status
         now = datetime.now(UTC)
         if status == JobStatus.RUNNING and not job.started_at:
             job.started_at = now
-        elif status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
-            if not job.completed_at:
-                job.completed_at = now
-            job.success = status == JobStatus.COMPLETED
+        elif (
+            status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}
+            and not job.completed_at
+        ):
+            job.completed_at = now
+            # Note: success field doesn't exist on ScrapingJob model
+            # Success is determined by status == JobStatus.COMPLETED
 
         await db.flush()
         await db.refresh(job)
@@ -239,7 +250,7 @@ class JobCRUD:
                 old_status=old_status,
                 new_status=new_status,
                 url=job.source_url,
-                domain=job.domain or "",
+                domain=job_domain,
                 error_message=error_message,
                 processing_time_ms=job.processing_time_ms,
             )

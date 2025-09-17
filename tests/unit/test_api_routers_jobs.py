@@ -42,18 +42,14 @@ class TestJobRouterEndpoints:
         return ScrapingJob(
             id="test-job-id-123",  # String UUID instead of integer
             source_url="https://example.com/test",  # Required field
-            domain="example.com",
-            slug="test",
+            job_type="single",  # Use actual model field
+            target_format="html",  # Use actual model field
             status=JobStatus.PENDING.value,  # Use string value
             priority=JobPriority.NORMAL.value,  # Use string value
-            output_directory="converted_content/test",
             max_retries=3,
             retry_count=0,
-            # Remove fields that don't exist in the model:
-            # timeout_seconds=30,  # Not a model field
-            # skip_existing=False,  # Not a model field
-            success=False,
-            images_downloaded=0,
+            processing_time_ms=None,  # Use actual model field
+            output_size_bytes=None,  # Use actual model field
             created_at=datetime.now(UTC),
         )
 
@@ -80,15 +76,14 @@ class TestJobRouterEndpoints:
             mock_job_instance.id = sample_job.id
             mock_job_instance.source_url = sample_job.source_url
             mock_job_instance.batch_id = None
-            mock_job_instance.domain = sample_job.domain
-            mock_job_instance.slug = sample_job.slug
+            mock_job_instance.job_type = sample_job.job_type
+            mock_job_instance.target_format = sample_job.target_format
             mock_job_instance.status = sample_job.status
             mock_job_instance.priority = sample_job.priority
-            mock_job_instance.output_directory = sample_job.output_directory
+            mock_job_instance.processing_time_ms = sample_job.processing_time_ms
             mock_job_instance.max_retries = sample_job.max_retries
             mock_job_instance.retry_count = sample_job.retry_count
-            mock_job_instance.success = sample_job.success
-            mock_job_instance.images_downloaded = sample_job.images_downloaded
+            mock_job_instance.output_size_bytes = sample_job.output_size_bytes
             mock_job_instance.created_at = sample_job.created_at
             mock_job_instance.error_message = None
             mock_job_instance.error_type = None
@@ -159,34 +154,24 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-job-1",  # String UUID instead of integer
                 source_url="https://test1.com",  # Required field
-                domain="test1.com",
-                slug="test1",
+                job_type="single",  # Use actual model field
+                target_format="html",  # Use actual model field
                 status=JobStatus.PENDING.value,  # Use string value
                 priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                # timeout_seconds=30,  # Field not in model
-                output_directory="converted_content/test1",
-                # skip_existing=False,  # Field not in model
-                success=False,
-                images_downloaded=0,
             ),
             ScrapingJob(
                 id="test-job-2",  # String UUID instead of integer
                 source_url="https://test2.com",  # Required field
-                domain="test2.com",
-                slug="test2",
+                job_type="single",  # Use actual model field
+                target_format="html",  # Use actual model field
                 status=JobStatus.PENDING.value,  # Use string value
                 priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                # timeout_seconds=30,  # Field not in model
-                output_directory="converted_content/test2",
-                # skip_existing=False,  # Field not in model
-                success=False,
-                images_downloaded=0,
             ),
         ]
 
@@ -221,18 +206,13 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-pagination-job",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
-                domain="test.com",
-                slug="test",
+                job_type="single",  # Use actual model field
+                target_format="html",  # Use actual model field
                 status=JobStatus.PENDING.value,  # Use string value
                 priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                # timeout_seconds=30,  # Field not in model
-                output_directory="converted_content/test",
-                # skip_existing=False,  # Field not in model
-                success=False,
-                images_downloaded=0,
             )
         ]
 
@@ -264,7 +244,7 @@ class TestJobRouterEndpoints:
 
             assert isinstance(result, JobResponse)
             assert result.id == sample_job.id
-            assert result.url == sample_job.source_url
+            assert result.source_url == sample_job.source_url
 
             mock_get.assert_called_once_with(mock_db_session, "test-job-id-123")
 
@@ -364,18 +344,16 @@ class TestJobRouterEndpoints:
         updated_job = ScrapingJob(
             id=sample_job.id,
             source_url=sample_job.source_url,  # Required field
-            domain=sample_job.domain,
-            slug=sample_job.slug,
+            job_type=sample_job.job_type,
+            target_format=sample_job.target_format,
             status=JobStatus.RUNNING.value,  # Updated status
             priority=sample_job.priority,
             created_at=sample_job.created_at,
             retry_count=sample_job.retry_count,
             max_retries=sample_job.max_retries,
             # timeout_seconds=30,  # Field not in sample_job
-            output_directory=sample_job.output_directory,
-            # skip_existing=False,  # Field not in sample_job
-            success=sample_job.success,
-            images_downloaded=sample_job.images_downloaded,
+            processing_time_ms=sample_job.processing_time_ms,
+            output_size_bytes=sample_job.output_size_bytes,
         )
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
@@ -435,18 +413,16 @@ class TestJobRouterEndpoints:
         updated_job = ScrapingJob(
             id=sample_job.id,
             source_url=sample_job.source_url,  # Required field
-            domain=sample_job.domain,
-            slug=sample_job.slug,
+            job_type=sample_job.job_type,
+            target_format=sample_job.target_format,
             status=JobStatus.CANCELLED.value,  # Updated status
             priority=sample_job.priority,
             created_at=sample_job.created_at,
             retry_count=sample_job.retry_count,
             max_retries=sample_job.max_retries,
             # timeout_seconds=30,  # Field not in sample_job
-            output_directory=sample_job.output_directory,
-            # skip_existing=False,  # Field not in sample_job
-            success=sample_job.success,
-            images_downloaded=sample_job.images_downloaded,
+            processing_time_ms=sample_job.processing_time_ms,
+            output_size_bytes=sample_job.output_size_bytes,
         )
 
         with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
@@ -526,7 +502,6 @@ class TestJobRouterEndpoints:
             assert sample_job.status == JobStatus.PENDING.value
             assert sample_job.retry_count == 2
             assert sample_job.error_message is None
-            assert sample_job.error_type is None
             assert sample_job.started_at is None
             assert sample_job.completed_at is None
 
@@ -598,8 +573,8 @@ class TestJobRouterEndpoints:
             job = ScrapingJob(
                 id="test-job-status-validation",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
-                domain="test.com",
-                slug="test",
+                job_type="single",  # Use actual model field
+                target_format="html",  # Use actual model field
                 status=invalid_status,  # Already using .value
             )
 
@@ -621,18 +596,13 @@ class TestJobRouterEndpoints:
             job = ScrapingJob(
                 id="test-job-valid-status",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
-                domain="test.com",
-                slug="test",
+                job_type="single",  # Use actual model field
+                target_format="html",  # Use actual model field
                 status=valid_status,  # Already using .value
                 priority=JobPriority.NORMAL.value,  # Use string value
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                # timeout_seconds=30,  # Field not in model
-                output_directory="converted_content/test",
-                # skip_existing=False,  # Field not in model
-                success=False,
-                images_downloaded=0,
             )
 
             with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
@@ -649,11 +619,14 @@ class TestJobRouterEndpoints:
 
             # Verify all required fields are present
             assert hasattr(result, "id")
-            assert hasattr(result, "url")
-            assert hasattr(result, "domain")
+            assert hasattr(result, "source_url")
+            assert hasattr(result, "job_type")
+            assert hasattr(result, "target_format")
             assert hasattr(result, "status")
             assert hasattr(result, "priority")
             assert hasattr(result, "created_at")
+            # domain is a computed property from source_url
+            assert result.domain == "example.com"
 
     @pytest.mark.asyncio
     async def test_job_list_response_validation(self, mock_db_session):
@@ -664,18 +637,13 @@ class TestJobRouterEndpoints:
             ScrapingJob(
                 id="test-job-1",
                 source_url="https://test.com",  # Required field
-                domain="test.com",
-                slug="test",
+                job_type="single",  # Use actual model field
+                target_format="html",  # Use actual model field
                 status=JobStatus.PENDING.value,
                 priority=JobPriority.NORMAL.value,
                 created_at=datetime.now(UTC),
                 retry_count=0,
                 max_retries=3,
-                # timeout_seconds=30,  # Field not in model
-                output_directory="converted_content/test",
-                # skip_existing=False,  # Field not in model
-                success=False,
-                images_downloaded=0,
             )
         ]
 

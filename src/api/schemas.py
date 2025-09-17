@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from ..common.status import JobPriority
 from ..constants import (
@@ -53,23 +53,47 @@ class JobResponse(BaseSchema):
 
     id: str  # String ID in database model
     source_url: str  # Required field in model
-    url: str = Field(alias="source_url")  # API compatibility - maps source_url to url
-    domain: str | None = None
-    slug: str | None = None
+    job_type: str  # Actual field in model
+    target_format: str  # Actual field in model
     status: str  # String status in database model
-    priority: str  # String priority in database model
+    priority: str  # String priority for API responses (converted from database integer)
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
     retry_count: int
     max_retries: int
-    output_directory: str | None = None
     error_message: str | None = None
-    error_type: str | None = None
-    duration_seconds: float | None = None
-    content_size_bytes: int | None = None
+    processing_time_ms: int | None = None  # Actual field in model
+    output_size_bytes: int | None = None  # Actual field in model
     batch_id: str | None = None  # String ID in database model
     options: dict[str, Any] | None = None
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def convert_priority_to_string(cls, v):
+        """Convert database integer priority to string for API response."""
+        if isinstance(v, int):
+            from ..common.status import db_to_priority
+
+            try:
+                return db_to_priority(v).value
+            except ValueError:
+                return JobPriority.NORMAL.value
+        return v
+
+    # Computed fields for backward compatibility - these will be derived
+    # from source_url rather than stored as separate fields
+    @property
+    def url(self) -> str:
+        """Alias for source_url for backward compatibility."""
+        return self.source_url
+
+    @property
+    def domain(self) -> str:
+        """Extract domain from source_url."""
+        from urllib.parse import urlparse
+
+        return urlparse(self.source_url).netloc
 
 
 class JobListResponse(BaseModel):

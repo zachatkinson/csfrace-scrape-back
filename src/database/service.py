@@ -11,7 +11,7 @@ from typing import Any, overload
 from uuid import uuid4
 
 import structlog
-from sqlalchemy import and_, case, desc, func, or_, select, update
+from sqlalchemy import and_, case, desc, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
@@ -190,21 +190,33 @@ class DatabaseService:
         path_parts = parsed.path.strip("/").split("/")
         return path_parts[-1] if path_parts and path_parts[-1] else "homepage"
 
-    def _normalize_priority(self, priority: str | object) -> str:
-        """Convert priority to string value for database storage."""
+    def _normalize_priority(self, priority: str | object) -> int:
+        """Convert priority to integer value for database storage."""
+        from ..common.status import priority_to_db
 
         if isinstance(priority, str):
             try:
-                return JobPriority(priority.lower()).value  # Return string value
+                return priority_to_db(priority)
             except ValueError:
-                return JobPriority.NORMAL.value  # Return default string value
+                return priority_to_db(JobPriority.NORMAL)
         if isinstance(priority, JobPriority):
-            return priority.value  # Convert enum to string value
+            return priority_to_db(priority)
         if isinstance(priority, int):
-            # Convert old integer priorities to string equivalents
-            priority_map = {1: "low", 5: "normal", 10: "high", 15: "urgent"}
-            return priority_map.get(priority, "normal")  # Default to normal
-        return JobPriority.NORMAL.value  # Default fallback
+            # If already an integer, validate it's in our mapping
+            from ..common.status import DB_TO_PRIORITY_MAP
+
+            if priority in DB_TO_PRIORITY_MAP:
+                return priority
+            # Convert old integer priorities to our new mapping
+            priority_map = {
+                1: JobPriority.LOW,
+                5: JobPriority.NORMAL,
+                10: JobPriority.HIGH,
+                15: JobPriority.URGENT,
+            }
+            mapped_enum = priority_map.get(priority, JobPriority.NORMAL)
+            return priority_to_db(mapped_enum)
+        return priority_to_db(JobPriority.NORMAL)  # Default fallback
 
     @overload
     def create_job(
@@ -265,7 +277,7 @@ class DatabaseService:
                     if not kwargs.get("custom_slug")
                     else None
                 )
-                priority_enum = self._normalize_priority(request.priority)
+                priority_db_value = self._normalize_priority(request.priority)
 
                 # Filter out kwargs that are already handled explicitly to avoid conflicts
                 filtered_kwargs = {
@@ -285,11 +297,10 @@ class DatabaseService:
 
                 job = ScrapingJob(
                     source_url=request.url,  # Required field
-                    domain=domain,
-                    slug=slug,
-                    output_directory=request.output_directory,
+                    job_type="single",  # Default job type
+                    target_format="html",  # Default target format
                     batch_id=request.batch_id,
-                    priority=priority_enum,
+                    priority=priority_db_value,
                     **filtered_kwargs,
                 )
 
@@ -362,7 +373,8 @@ class DatabaseService:
                 elif status_value in {"completed", "failed", "cancelled"}:
                     update_data["completed_at"] = now
                     if duration is not None:
-                        update_data["duration_seconds"] = duration
+                        # Convert duration from seconds to milliseconds for processing_time_ms field
+                        update_data["processing_time_ms"] = int(duration * 1000)
                     if error_message:
                         update_data["error_message"] = error_message
 
@@ -394,12 +406,14 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 # Order by priority (URGENT -> HIGH -> NORMAL -> LOW) then by creation time
+                # Use database integer values for priority comparison
+                from ..common.status import PRIORITY_TO_DB_MAP
 
                 priority_order = {
-                    JobPriority.URGENT: 4,
-                    JobPriority.HIGH: 3,
-                    JobPriority.NORMAL: 2,
-                    JobPriority.LOW: 1,
+                    PRIORITY_TO_DB_MAP[JobPriority.URGENT]: 4,
+                    PRIORITY_TO_DB_MAP[JobPriority.HIGH]: 3,
+                    PRIORITY_TO_DB_MAP[JobPriority.NORMAL]: 2,
+                    PRIORITY_TO_DB_MAP[JobPriority.LOW]: 1,
                 }
 
                 stmt = (
@@ -473,8 +487,8 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                now = datetime.now(UTC)
-
+                # Calculate retry delay: exponential backoff (2^retry_count minutes)
+                # Jobs are eligible if enough time has passed since completion
                 stmt = (
                     select(ScrapingJob)
                     .where(
@@ -482,12 +496,13 @@ class DatabaseService:
                             ScrapingJob.status == "failed",
                             ScrapingJob.retry_count < ScrapingJob.max_retries,
                             or_(
-                                ScrapingJob.next_retry_at.is_(None),
-                                ScrapingJob.next_retry_at <= now,
+                                ScrapingJob.completed_at.is_(None),
+                                ScrapingJob.completed_at
+                                <= func.now() - text("INTERVAL '1 minute' * POW(2, retry_count)"),
                             ),
                         )
                     )
-                    .order_by(ScrapingJob.next_retry_at.asc().nullsfirst())
+                    .order_by(ScrapingJob.completed_at.asc().nullsfirst())
                     .limit(max_jobs)
                 )
 
@@ -526,7 +541,13 @@ class DatabaseService:
 
                 jobs = []
                 for url in urls:
-                    job = ScrapingJob(source_url=url, batch_id=batch_id, **job_config)
+                    job = ScrapingJob(
+                        source_url=url,
+                        job_type="single",
+                        target_format="html",
+                        batch_id=batch_id,
+                        **job_config,
+                    )
                     jobs.append(job)
                     session.add(job)
 
@@ -738,9 +759,12 @@ class DatabaseService:
                     func.count(ScrapingJob.id)  # pylint: disable=not-callable
                     .filter(ScrapingJob.status == "pending")
                     .label("pending_jobs"),
-                    func.avg(ScrapingJob.duration_seconds).label("avg_duration"),
-                    func.sum(ScrapingJob.content_size_bytes).label("total_content_size"),
-                    func.sum(ScrapingJob.images_downloaded).label("total_images"),
+                    func.avg(ScrapingJob.processing_time_ms).label("avg_duration"),
+                    func.sum(ScrapingJob.output_size_bytes).label("total_content_size"),
+                    func.sum(ScrapingJob.download_size_bytes).label("total_download_size"),
+                    func.count(ScrapingJob.id)
+                    .filter(ScrapingJob.output_size_bytes.isnot(None))
+                    .label("total_processed"),
                 ).where(ScrapingJob.created_at >= cutoff_date)
 
                 stats = session.execute(stats_stmt).one()
@@ -757,9 +781,10 @@ class DatabaseService:
                     "failed_jobs": stats.failed_jobs or 0,
                     "pending_jobs": stats.pending_jobs or 0,
                     "success_rate_percent": round(success_rate, 2),
-                    "avg_duration_seconds": float(stats.avg_duration or 0),
+                    "avg_duration_seconds": float(stats.avg_duration or 0)
+                    / 1000.0,  # Convert ms to seconds
                     "total_content_size_bytes": stats.total_content_size or 0,
-                    "total_images_downloaded": stats.total_images or 0,
+                    "total_download_size_bytes": stats.total_download_size or 0,
                 }
 
         except SQLAlchemyError as e:

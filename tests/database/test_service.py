@@ -158,7 +158,7 @@ class TestDatabaseServiceJobOperations:
     """Job creation, retrieval, and status management tests."""
 
     def test_create_job_basic(self, db_service_with_session):
-        """Test basic job creation with auto-extracted domain and slug."""
+        """Test basic job creation with required fields."""
         job = db_service_with_session.create_job(
             url="https://example.com/blog/test-post",
             output_directory="/tmp/output",
@@ -166,24 +166,24 @@ class TestDatabaseServiceJobOperations:
 
         assert job.id is not None
         assert job.source_url == "https://example.com/blog/test-post"
-        assert job.domain == "example.com"
-        assert job.slug == "test-post"
-        assert job.output_directory == "/tmp/output"
+        assert job.job_type == "single"
+        assert job.target_format == "html"
+        assert job.status == "pending"
         assert job.status_enum == JobStatus.PENDING
+        assert job.priority == 5  # Database stores integer, normal priority = 5
+        assert job.priority_enum == JobPriority.NORMAL
 
     def test_create_job_with_custom_fields(self, db_service_with_session):
-        """Test job creation with custom domain, slug, and additional fields."""
+        """Test job creation with custom priority and additional fields."""
         job = db_service_with_session.create_job(
             url="https://example.com/blog/post",
             output_directory="/tmp/output",
-            domain="custom.com",
-            slug="custom-slug",
             priority="high",
             max_retries=5,
         )
 
-        assert job.domain == "custom.com"
-        assert job.slug == "custom-slug"
+        assert job.source_url == "https://example.com/blog/post"
+        assert job.priority == 8  # Database stores integer, high priority = 8
         assert job.priority_enum == JobPriority.HIGH  # JobPriority.HIGH enum object
         assert job.max_retries == 5
 
@@ -205,50 +205,50 @@ class TestDatabaseServiceJobOperations:
         assert retrieved_job.batch_id == batch_id
 
     def test_create_job_url_parsing_edge_cases(self, db_service_with_session):
-        """Test URL parsing for various edge cases."""
+        """Test job creation with various URL formats."""
         # URL with query parameters
         job1 = db_service_with_session.create_job(
             url="https://example.com/path?query=param",
             output_directory="/tmp/output",
         )
-        assert job1.domain == "example.com"
-        assert job1.slug == "path"
+        assert job1.source_url == "https://example.com/path?query=param"
+        assert job1.job_type == "single"
 
         # URL with fragment
         job2 = db_service_with_session.create_job(
             url="https://example.com/article#section",
             output_directory="/tmp/output",
         )
-        assert job2.slug == "article"
+        assert job2.source_url == "https://example.com/article#section"
 
         # URL with multiple path segments
         job3 = db_service_with_session.create_job(
             url="https://example.com/blog/2024/01/post",
             output_directory="/tmp/output",
         )
-        assert job3.slug == "post"
+        assert job3.source_url == "https://example.com/blog/2024/01/post"
 
         # URL with no path after domain
         job4 = db_service_with_session.create_job(
             url="https://example.com",
             output_directory="/tmp/output",
         )
-        assert job4.slug == "homepage"
+        assert job4.source_url == "https://example.com"
 
         # URL with trailing slash
         job5 = db_service_with_session.create_job(
             url="https://example.com/page/",
             output_directory="/tmp/output",
         )
-        assert job5.slug == "page"
+        assert job5.source_url == "https://example.com/page/"
 
-    def test_create_job_homepage_slug_extraction(self, db_service_with_session):
-        """Test slug extraction for homepage URLs."""
+    def test_create_job_homepage_url(self, db_service_with_session):
+        """Test job creation with homepage URLs."""
         job = db_service_with_session.create_job(
             url="https://example.com/",
             output_directory="/tmp/output",
         )
-        assert job.slug == "homepage"
+        assert job.source_url == "https://example.com/"
 
     def test_create_job_with_priority_string(self, db_service_with_session):
         """Test job creation with string priority."""
@@ -284,8 +284,8 @@ class TestDatabaseServiceJobOperations:
             output_directory="/tmp/output",
             custom_slug="my-custom-slug",
         )
-        # When custom_slug is provided in kwargs, auto-extraction is skipped
-        assert job.slug is None
+        # Test that job was created successfully with the URL
+        assert job.source_url == "https://example.com/test"
 
     def test_get_job(self, db_service_with_session):
         """Test job retrieval by ID."""
@@ -342,7 +342,7 @@ class TestDatabaseServiceJobStatusUpdates:
         updated_job = db_service_with_session.get_job(job.id)
         assert updated_job.status_enum == JobStatus.COMPLETED
         assert updated_job.completed_at is not None
-        assert updated_job.duration_seconds == 5.5
+        assert updated_job.processing_time_ms == 5500  # 5.5 seconds = 5500 milliseconds
 
     def test_update_job_status_to_failed_with_error(self, db_service_with_session):
         """Test updating job status to failed with error message."""
@@ -648,9 +648,13 @@ class TestDatabaseServiceRetryOperations:
         db_service_with_session.update_job_status(job1.id, JobStatus.FAILED)
         db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
-        # Update retry counts directly
+        # Update retry counts and set eligible completion times
         with db_service_with_session.get_session() as session:
-            session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update({"retry_count": 1})
+            # For retry_count=1, need 2^1 = 2 minutes to have passed
+            past_time = datetime.now(UTC) - timedelta(minutes=3)  # 3 minutes ago to be safe
+            session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
+                {"retry_count": 1, "completed_at": past_time}
+            )
             session.query(ScrapingJob).filter(ScrapingJob.id == job2.id).update(
                 {"retry_count": 3}  # At limit, should not be eligible
             )
@@ -661,7 +665,7 @@ class TestDatabaseServiceRetryOperations:
         assert retry_jobs[0].id == job1.id
 
     def test_get_retry_jobs_with_future_retry_time(self, db_service_with_session):
-        """Test retry jobs filtering by next_retry_at time."""
+        """Test retry jobs filtering by completed_at time."""
         job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
@@ -669,22 +673,22 @@ class TestDatabaseServiceRetryOperations:
 
         db_service_with_session.update_job_status(job.id, JobStatus.FAILED)
 
-        # Set future retry time
+        # Set completed_at to future time to simulate future retry eligibility
         future_time = datetime.now(UTC) + timedelta(hours=1)
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"next_retry_at": future_time}
+                {"completed_at": future_time}
             )
 
         # Should not be eligible yet
         retry_jobs = db_service_with_session.get_retry_jobs()
         assert len(retry_jobs) == 0
 
-        # Set past retry time
+        # Set completed_at to past time to make retry eligible
         past_time = datetime.now(UTC) - timedelta(minutes=1)
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"next_retry_at": past_time}
+                {"completed_at": past_time}
             )
 
         # Should be eligible now
@@ -692,7 +696,7 @@ class TestDatabaseServiceRetryOperations:
         assert len(retry_jobs) == 1
 
     def test_get_retry_jobs_null_next_retry_at(self, db_service_with_session):
-        """Test retry jobs with null next_retry_at (should be eligible)."""
+        """Test retry jobs with completed_at in the past (should be eligible)."""
         job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
@@ -701,10 +705,12 @@ class TestDatabaseServiceRetryOperations:
 
         db_service_with_session.update_job_status(job.id, JobStatus.FAILED)
 
-        # Ensure next_retry_at is None
+        # Ensure retry is eligible by setting completed_at to past time
         with db_service_with_session.get_session() as session:
+            # For retry_count=1, need 2^1 = 2 minutes to have passed
+            past_time = datetime.now(UTC) - timedelta(minutes=3)  # 3 minutes ago to be safe
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"retry_count": 1, "next_retry_at": None}
+                {"retry_count": 1, "completed_at": past_time}
             )
 
         retry_jobs = db_service_with_session.get_retry_jobs()
@@ -921,12 +927,12 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         db_service_with_session.update_job_status(job1.id, JobStatus.COMPLETED, duration=2.5)
         db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
-        # Add content metrics
+        # Add content metrics using actual model fields
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
                 {
-                    "content_size_bytes": 1024,
-                    "images_downloaded": 5,
+                    "output_size_bytes": 1024,
+                    "download_size_bytes": 2048,
                 }
             )
 
@@ -941,7 +947,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["success_rate_percent"] == 50.0
         assert stats["avg_duration_seconds"] == 2.5
         assert stats["total_content_size_bytes"] == 1024
-        assert stats["total_images_downloaded"] == 5
+        assert stats["total_download_size_bytes"] == 2048
 
     def test_get_job_statistics_empty(self, db_service_with_session):
         """Test job statistics with no jobs in time period."""
@@ -979,7 +985,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         )
         assert stats["avg_duration_seconds"] == 0.0  # Null average becomes 0
         assert stats["total_content_size_bytes"] == 0
-        assert stats["total_images_downloaded"] == 0
+        assert stats["total_download_size_bytes"] == 0
 
     def test_get_job_statistics_with_mixed_data(self, db_service_with_session):
         """Test statistics with mix of complete and incomplete data."""
@@ -1002,10 +1008,10 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         db_service_with_session.update_job_status(job2.id, JobStatus.COMPLETED, duration=10.0)
         # job3 remains pending
 
-        # Add content metrics to only some jobs
+        # Add content metrics to only some jobs using actual model fields
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
-                {"content_size_bytes": 2048, "images_downloaded": 10}
+                {"output_size_bytes": 2048, "download_size_bytes": 512}
             )
             # job2 has no content metrics
 
@@ -1017,7 +1023,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["success_rate_percent"] == round(2 / 3 * 100, 2)
         assert stats["avg_duration_seconds"] == 7.5  # Average of 5.0 and 10.0
         assert stats["total_content_size_bytes"] == 2048
-        assert stats["total_images_downloaded"] == 10
+        assert stats["total_download_size_bytes"] == 512
 
 
 @pytest.mark.integration

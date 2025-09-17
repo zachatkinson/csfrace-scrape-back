@@ -5,6 +5,7 @@ import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import asyncio
 
@@ -80,26 +81,25 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str):
             # Mark job as completed
             job = await JobCRUD.update_job_status(db, job_id, JobStatus.COMPLETED)
             if job:
-                job.success = True
+                # Note: success field doesn't exist on ScrapingJob model
+                # Success is determined by status == JobStatus.COMPLETED
                 # Update additional completion metadata
                 if output_path.exists():
                     # Calculate content size
                     total_size = sum(
                         f.stat().st_size for f in output_path.rglob("*") if f.is_file()
                     )
-                    job.content_size_bytes = total_size
+                    job.output_size_bytes = total_size
 
-                    # Count images downloaded
-                    images_dir = output_path / "images"
-                    if images_dir.exists():
-                        job.images_downloaded = len(list(images_dir.glob("*")))
+                    # Note: images_downloaded field doesn't exist on ScrapingJob model
+                    # Image count can be tracked separately if needed
 
                 await db.commit()
 
         except Exception as e:
             # Mark job as failed with error details
             await JobCRUD.update_job_status(
-                db, job_id, JobStatus.FAILED, error_message=str(e), error_type=type(e).__name__
+                db, job_id, JobStatus.FAILED, error_message=f"{type(e).__name__}: {str(e)}"
             )
             # Re-raise to ensure it's logged
             raise
@@ -157,9 +157,14 @@ async def create_jobs(
 
         # Add background tasks for all jobs
         for job in jobs:
-            background_tasks.add_task(
-                execute_conversion_job, job.id, job.source_url, job.output_directory or ""
-            )
+            # Note: output_directory field doesn't exist on ScrapingJob model
+            # Use default output directory generation (same logic as in crud.py)
+            parsed_url = urlparse(job.source_url)
+            path = parsed_url.path.strip("/")
+            slug = path.split("/")[-1] if path else "index"
+            output_dir = f"converted_content/{parsed_url.netloc}_{slug}"
+
+            background_tasks.add_task(execute_conversion_job, job.id, job.source_url, output_dir)
 
         # Prepare response
         job_responses = [JobResponse.model_validate(job) for job in jobs]
@@ -207,6 +212,160 @@ async def list_jobs(
         return JobListResponse(**response_data)
     except SQLAlchemyError as e:
         raise APIErrorFactory.from_sqlalchemy_error("retrieve jobs", e)
+
+
+@router.get("/stream")
+async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
+    """Server-Sent Events endpoint for real-time job monitoring.
+
+    This endpoint provides event-driven job monitoring using Redis pub/sub.
+    Streams job status changes, creation, deletion, and progress updates in real-time.
+
+    Returns:
+        StreamingResponse: SSE stream of job events
+    """
+    logger.info("Job SSE stream connection established")
+
+    async def event_generator() -> AsyncGenerator[str]:
+        """Generate SSE events from Redis job event stream."""
+
+        # Initialize Redis connection for job events
+        try:
+            await job_event_publisher.initialize()
+            redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
+
+        except Exception as e:
+            logger.error("Failed to initialize job event system", error=str(e))
+            yield f"event: error\ndata: {safe_json_dumps({'error': 'Failed to initialize event system'})}\n\n"
+            return
+
+        # Send initial connection message
+        connection_data = {
+            "type": "connection",
+            "message": "Real-time job monitoring connected",
+            "timestamp": "2023-01-01T00:00:00Z",
+        }
+        yield f"event: connection\ndata: {safe_json_dumps(connection_data)}\n\n"
+
+        # Send initial job list as baseline
+        try:
+            jobs_result, total_jobs = await JobCRUD.get_jobs(db=db, skip=0, limit=100)
+
+            initial_data = {
+                "type": "initial_data",
+                "total_jobs": total_jobs,
+                "jobs": [
+                    {
+                        "id": job.id,
+                        "url": job.source_url,
+                        "domain": urlparse(job.source_url).netloc,
+                        "status": job.status,
+                        "created_at": job.created_at.isoformat() if job.created_at else None,
+                        "started_at": job.started_at.isoformat() if job.started_at else None,
+                        "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                        "error_message": job.error_message,
+                        "success": job.status == "completed",
+                        "processing_time_ms": job.processing_time_ms,
+                    }
+                    for job in jobs_result
+                ],
+                "timestamp": "2023-01-01T00:00:00Z",
+            }
+            yield f"event: initial-data\ndata: {safe_json_dumps(initial_data)}\n\n"
+
+        except Exception as e:
+            logger.error("Failed to send initial job data", error=str(e))
+            yield f"event: error\ndata: {safe_json_dumps({'error': 'Failed to get initial job data'})}\n\n"
+
+        # Set up event listener for Redis pub/sub job events
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+        # Redis pub/sub listener for job events
+        async def redis_job_listener():
+            """Listen to Redis job_events channel for real-time updates."""
+            try:
+                pubsub = redis_client.pubsub()
+                await pubsub.subscribe("job_events")
+
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        try:
+                            # Parse job event data
+                            job_event_data = json.loads(message["data"].decode("utf-8"))
+
+                            # Format for SSE client
+                            job_update = {
+                                "job_id": job_event_data["job_id"],
+                                "event_type": job_event_data["event_type"],
+                                "status": job_event_data["status"],
+                                "timestamp": job_event_data["timestamp"],
+                                "data": job_event_data["data"],
+                                "message": job_event_data.get("message"),
+                            }
+                            await event_queue.put(job_update)
+
+                        except Exception as e:
+                            logger.error("Failed to process job event data", error=str(e))
+
+            except Exception as e:
+                logger.error("Redis job listener failed", error=str(e))
+
+        # Start Redis listener task
+        listener_task = asyncio.create_task(redis_job_listener())
+
+        # Stream events from queue
+        try:
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    logger.info("Job SSE client disconnected")
+                    break
+
+                try:
+                    # Wait for events with timeout to periodically check connection
+                    job_update = await asyncio.wait_for(event_queue.get(), timeout=30.0)
+
+                    # Map event types to SSE event names
+                    event_name_map = {
+                        "created": "job-created",
+                        "status_update": "job-status-update",
+                        "progress": "job-progress",
+                        "deleted": "job-deleted",
+                        "error": "job-error",
+                    }
+
+                    event_name = event_name_map.get(job_update["event_type"], "job-update")
+                    yield f"event: {event_name}\ndata: {safe_json_dumps(job_update)}\n\n"
+
+                except TimeoutError:
+                    # Send keepalive ping every 30 seconds
+                    yield f"event: keepalive\ndata: {safe_json_dumps({'timestamp': '2023-01-01T00:00:00Z'})}\n\n"
+                    continue
+
+        except asyncio.CancelledError:
+            logger.info("Job SSE stream cancelled")
+        except Exception as e:
+            logger.error("Job SSE stream error", error=str(e))
+            yield f"event: error\ndata: {safe_json_dumps({'error': str(e)})}\n\n"
+        finally:
+            # Cleanup Redis listener task
+            if "listener_task" in locals():
+                listener_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await listener_task
+
+            logger.info("Job SSE stream cleanup completed")
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
+        },
+    )
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -371,7 +530,7 @@ async def retry_job(job_id: str, db: DBSession) -> JobResponse:
         job.status = JobStatus.PENDING.value
         job.retry_count += 1
         job.error_message = None
-        job.error_type = None
+        # Note: error_type field doesn't exist on ScrapingJob model
         job.started_at = None
         job.completed_at = None
 
@@ -398,160 +557,6 @@ def safe_json_dumps(data: Any) -> str:
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     return json.dumps(data, default=default_serializer)
-
-
-@router.get("/stream")
-async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
-    """Server-Sent Events endpoint for real-time job monitoring.
-
-    This endpoint provides event-driven job monitoring using Redis pub/sub.
-    Streams job status changes, creation, deletion, and progress updates in real-time.
-
-    Returns:
-        StreamingResponse: SSE stream of job events
-    """
-    logger.info("Job SSE stream connection established")
-
-    async def event_generator() -> AsyncGenerator[str]:
-        """Generate SSE events from Redis job event stream."""
-
-        # Initialize Redis connection for job events
-        try:
-            await job_event_publisher.initialize()
-            redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
-
-        except Exception as e:
-            logger.error("Failed to initialize job event system", error=str(e))
-            yield f"event: error\ndata: {safe_json_dumps({'error': 'Failed to initialize event system'})}\n\n"
-            return
-
-        # Send initial connection message
-        connection_data = {
-            "type": "connection",
-            "message": "Real-time job monitoring connected",
-            "timestamp": "2023-01-01T00:00:00Z",
-        }
-        yield f"event: connection\ndata: {safe_json_dumps(connection_data)}\n\n"
-
-        # Send initial job list as baseline
-        try:
-            jobs_result, total_jobs = await JobCRUD.get_jobs(db=db, skip=0, limit=100)
-
-            initial_data = {
-                "type": "initial_data",
-                "total_jobs": total_jobs,
-                "jobs": [
-                    {
-                        "id": job.id,
-                        "url": job.source_url,
-                        "domain": job.domain,
-                        "status": job.status,
-                        "created_at": job.created_at.isoformat() if job.created_at else None,
-                        "started_at": job.started_at.isoformat() if job.started_at else None,
-                        "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-                        "error_message": job.error_message,
-                        "success": job.success,
-                        "processing_time_ms": job.processing_time_ms,
-                    }
-                    for job in jobs_result
-                ],
-                "timestamp": "2023-01-01T00:00:00Z",
-            }
-            yield f"event: initial-data\ndata: {safe_json_dumps(initial_data)}\n\n"
-
-        except Exception as e:
-            logger.error("Failed to send initial job data", error=str(e))
-            yield f"event: error\ndata: {safe_json_dumps({'error': 'Failed to get initial job data'})}\n\n"
-
-        # Set up event listener for Redis pub/sub job events
-        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-
-        # Redis pub/sub listener for job events
-        async def redis_job_listener():
-            """Listen to Redis job_events channel for real-time updates."""
-            try:
-                pubsub = redis_client.pubsub()
-                await pubsub.subscribe("job_events")
-
-                async for message in pubsub.listen():
-                    if message["type"] == "message":
-                        try:
-                            # Parse job event data
-                            job_event_data = json.loads(message["data"].decode("utf-8"))
-
-                            # Format for SSE client
-                            job_update = {
-                                "job_id": job_event_data["job_id"],
-                                "event_type": job_event_data["event_type"],
-                                "status": job_event_data["status"],
-                                "timestamp": job_event_data["timestamp"],
-                                "data": job_event_data["data"],
-                                "message": job_event_data.get("message"),
-                            }
-                            await event_queue.put(job_update)
-
-                        except Exception as e:
-                            logger.error("Failed to process job event data", error=str(e))
-
-            except Exception as e:
-                logger.error("Redis job listener failed", error=str(e))
-
-        # Start Redis listener task
-        listener_task = asyncio.create_task(redis_job_listener())
-
-        # Stream events from queue
-        try:
-            while True:
-                # Check if client disconnected
-                if await request.is_disconnected():
-                    logger.info("Job SSE client disconnected")
-                    break
-
-                try:
-                    # Wait for events with timeout to periodically check connection
-                    job_update = await asyncio.wait_for(event_queue.get(), timeout=30.0)
-
-                    # Map event types to SSE event names
-                    event_name_map = {
-                        "created": "job-created",
-                        "status_update": "job-status-update",
-                        "progress": "job-progress",
-                        "deleted": "job-deleted",
-                        "error": "job-error",
-                    }
-
-                    event_name = event_name_map.get(job_update["event_type"], "job-update")
-                    yield f"event: {event_name}\ndata: {safe_json_dumps(job_update)}\n\n"
-
-                except TimeoutError:
-                    # Send keepalive ping every 30 seconds
-                    yield f"event: keepalive\ndata: {safe_json_dumps({'timestamp': '2023-01-01T00:00:00Z'})}\n\n"
-                    continue
-
-        except asyncio.CancelledError:
-            logger.info("Job SSE stream cancelled")
-        except Exception as e:
-            logger.error("Job SSE stream error", error=str(e))
-            yield f"event: error\ndata: {safe_json_dumps({'error': str(e)})}\n\n"
-        finally:
-            # Cleanup Redis listener task
-            if "listener_task" in locals():
-                listener_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await listener_task
-
-            logger.info("Job SSE stream cleanup completed")
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control",
-        },
-    )
 
 
 @router.post("/trigger-event")

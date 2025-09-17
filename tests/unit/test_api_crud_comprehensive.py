@@ -75,10 +75,9 @@ class TestJobCRUD:
         job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com/test",
-            domain="example.com",
-            slug="test",
+            job_type="single",
+            target_format="html",
             priority="normal",
-            output_directory="converted_content/example.com_test",
             max_retries=3,
             status="pending",
             options={"format": "markdown"},
@@ -98,10 +97,9 @@ class TestJobCRUD:
             # Verify job creation
             assert isinstance(result, ScrapingJob)
             assert result.source_url == "https://example.com/test-page"
-            assert result.domain == "example.com"
-            assert result.slug == "test-page"  # Auto-generated from URL
+            assert result.job_type == "single"  # Default job type
+            assert result.target_format == "html"  # Default target format
             assert result.priority == "normal"  # Enum value converted to string
-            assert result.output_directory == "converted_content/example.com_test-page"
             assert result.max_retries == 3
             assert result.options == {"convert_images": True, "format": "markdown"}
 
@@ -121,10 +119,9 @@ class TestJobCRUD:
             result = await JobCRUD.create_job(mock_db_session, sample_job_create_with_custom_values)
 
             # Verify custom values are used
-            assert result.slug == "custom-slug-name"
-            assert result.output_directory == "custom_output/dir"
+            assert result.job_type == "single"  # Default job type
+            assert result.target_format == "html"  # Default target format
             assert result.priority == "high"
-            assert result.domain == "custom.com"
 
             mock_publish.assert_called_once()
 
@@ -160,8 +157,8 @@ class TestJobCRUD:
 
                 result = await JobCRUD.create_job(mock_db_session, job_data)
 
-                assert result.domain == case["expected_domain"]
-                assert result.slug == case["expected_slug"]
+                assert result.job_type == "single"  # Default job type
+                assert result.target_format == "html"  # Default target format
 
     @pytest.mark.asyncio
     async def test_get_job_found(self, mock_db_session, sample_scraping_job):
@@ -295,10 +292,14 @@ class TestJobCRUD:
 
             assert result is True
             mock_db_session.delete.assert_called_once_with(sample_scraping_job)
+            # Domain is extracted from source_url at runtime
+            from urllib.parse import urlparse
+
+            expected_domain = urlparse(sample_scraping_job.source_url).netloc
             mock_publish.assert_called_once_with(
                 job_id=sample_scraping_job.id,
                 url=sample_scraping_job.source_url,
-                domain=sample_scraping_job.domain,
+                domain=expected_domain,
             )
 
     @pytest.mark.asyncio
@@ -316,7 +317,7 @@ class TestJobCRUD:
         job_with_none_domain = MagicMock(spec=ScrapingJob)
         job_with_none_domain.id = "test-id"
         job_with_none_domain.source_url = "https://example.com"
-        job_with_none_domain.domain = None
+        # Domain field doesn't exist in ScrapingJob - it's extracted from source_url
 
         with (
             patch.object(JobCRUD, "get_job", return_value=job_with_none_domain),
@@ -325,10 +326,11 @@ class TestJobCRUD:
             result = await JobCRUD.delete_job(mock_db_session, "test-id")
 
             assert result is True
+            # Domain is extracted from source_url, so it should be 'example.com'
             mock_publish.assert_called_once_with(
                 job_id="test-id",
                 url="https://example.com",
-                domain="",  # None converted to empty string
+                domain="example.com",
             )
 
     @pytest.mark.asyncio
@@ -343,13 +345,12 @@ class TestJobCRUD:
                 sample_scraping_job.id,
                 JobStatus.RUNNING,
                 error_message="Test error",
-                error_type="TestError",
             )
 
             assert result == sample_scraping_job
             assert result.status == "running"
             assert result.error_message == "Test error"
-            assert result.error_type == "TestError"
+            # error_type field doesn't exist in ScrapingJob model
             mock_db_session.flush.assert_called_once()
             mock_publish.assert_called_once()
 
@@ -388,7 +389,7 @@ class TestJobCRUD:
     ):
         """Test that COMPLETED status sets completed_at and success flag."""
         sample_scraping_job.completed_at = None
-        sample_scraping_job.success = None
+        # success field doesn't exist in ScrapingJob model
 
         with (
             patch.object(JobCRUD, "get_job", return_value=sample_scraping_job),
@@ -399,7 +400,8 @@ class TestJobCRUD:
             )
 
             assert result.completed_at is not None
-            assert result.success is True
+            # success field doesn't exist in ScrapingJob model
+            assert result.status == JobStatus.COMPLETED.value
 
     @pytest.mark.asyncio
     async def test_update_job_status_failed_sets_timestamps_and_success(
@@ -407,7 +409,7 @@ class TestJobCRUD:
     ):
         """Test that FAILED status sets completed_at and success flag."""
         sample_scraping_job.completed_at = None
-        sample_scraping_job.success = None
+        # success field doesn't exist in ScrapingJob model
 
         with (
             patch.object(JobCRUD, "get_job", return_value=sample_scraping_job),
@@ -418,7 +420,8 @@ class TestJobCRUD:
             )
 
             assert result.completed_at is not None
-            assert result.success is False
+            # success field doesn't exist in ScrapingJob model
+            assert result.status == JobStatus.FAILED.value
 
     @pytest.mark.asyncio
     async def test_update_job_status_cancelled_sets_timestamps_and_success(
@@ -426,7 +429,7 @@ class TestJobCRUD:
     ):
         """Test that CANCELLED status sets completed_at and success flag."""
         sample_scraping_job.completed_at = None
-        sample_scraping_job.success = None
+        # success field doesn't exist in ScrapingJob model
 
         with (
             patch.object(JobCRUD, "get_job", return_value=sample_scraping_job),
@@ -437,7 +440,8 @@ class TestJobCRUD:
             )
 
             assert result.completed_at is not None
-            assert result.success is False
+            # success field doesn't exist in ScrapingJob model
+            assert result.status == JobStatus.CANCELLED.value
 
     @pytest.mark.asyncio
     async def test_update_job_status_no_duplicate_timestamp_setting(
@@ -640,8 +644,8 @@ class TestCRUDIntegration:
         created_job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com/integration-test",
-            domain="example.com",
-            slug="integration-test",
+            job_type="single",
+            target_format="html",
             priority="high",
             status="pending",
             max_retries=3,
@@ -670,7 +674,8 @@ class TestCRUDIntegration:
             completed_job = await JobCRUD.update_job_status(
                 mock_db_session, created_job.id, JobStatus.COMPLETED
             )
-            assert completed_job.success is True
+            # success field doesn't exist in ScrapingJob model
+            assert completed_job.status == JobStatus.COMPLETED.value
 
         # Clean up - delete job
         with (
@@ -768,8 +773,8 @@ class TestCRUDEdgeCases:
         job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com",
-            domain="example.com",
-            slug="test",
+            job_type="single",
+            target_format="html",
             priority="normal",
             status="pending",
         )
@@ -823,6 +828,8 @@ class TestCRUDEdgeCases:
         job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com",
+            job_type="single",
+            target_format="html",
             status="pending",
         )
 
