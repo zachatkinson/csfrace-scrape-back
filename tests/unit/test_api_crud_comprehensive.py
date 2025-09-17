@@ -75,10 +75,9 @@ class TestJobCRUD:
         job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com/test",
-            domain="example.com",
-            slug="test",
+            job_type="single",
+            target_format="html",
             priority="normal",
-            output_directory="converted_content/example.com_test",
             max_retries=3,
             status="pending",
             options={"format": "markdown"},
@@ -640,8 +639,8 @@ class TestCRUDIntegration:
         created_job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com/integration-test",
-            domain="example.com",
-            slug="integration-test",
+            job_type="single",
+            target_format="html",
             priority="high",
             status="pending",
             max_retries=3,
@@ -768,8 +767,8 @@ class TestCRUDEdgeCases:
         job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com",
-            domain="example.com",
-            slug="test",
+            job_type="single",
+            target_format="html",
             priority="normal",
             status="pending",
         )
@@ -823,6 +822,8 @@ class TestCRUDEdgeCases:
         job = ScrapingJob(
             id=str(uuid.uuid4()),
             source_url="https://example.com",
+            job_type="single",
+            target_format="html",
             status="pending",
         )
 
