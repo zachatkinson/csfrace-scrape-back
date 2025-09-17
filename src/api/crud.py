@@ -51,10 +51,9 @@ class JobCRUD:
 
         job = ScrapingJob(
             source_url=str(job_data.url),  # Required field
-            domain=domain,
-            slug=slug,
+            job_type="single",  # Default job type
+            target_format="html",  # Default target format
             priority=job_data.priority.value,  # Fixed: Use enum string value
-            output_directory=output_directory,
             max_retries=job_data.max_retries,
             options=job_data.options,
         )

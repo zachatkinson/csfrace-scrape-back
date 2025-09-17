@@ -531,7 +531,7 @@ class DatabaseService:
                         job_type="single",
                         target_format="html",
                         batch_id=batch_id,
-                        **job_config
+                        **job_config,
                     )
                     jobs.append(job)
                     session.add(job)
