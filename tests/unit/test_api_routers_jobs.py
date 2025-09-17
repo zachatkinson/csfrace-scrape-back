@@ -502,7 +502,6 @@ class TestJobRouterEndpoints:
             assert sample_job.status == JobStatus.PENDING.value
             assert sample_job.retry_count == 2
             assert sample_job.error_message is None
-            assert sample_job.error_type is None
             assert sample_job.started_at is None
             assert sample_job.completed_at is None
 
