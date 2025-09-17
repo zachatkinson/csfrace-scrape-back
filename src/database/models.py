@@ -64,29 +64,30 @@ class ScrapingJob(Base):
 
     __tablename__ = "jobs"
 
-    # Primary identification
+    # Primary identification - match actual database schema
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
 
-    # Additional identification fields expected by tests
-    domain: Mapped[str | None] = mapped_column(String(255))
-    slug: Mapped[str | None] = mapped_column(String(255))
-    output_directory: Mapped[str | None] = mapped_column(String(1024))
-
-    # Job management - Using PostgreSQL native enums for better concurrent handling
+    # Job management
     status: Mapped[str] = mapped_column(
         String,
         default="pending",
         nullable=False,
         index=True,
     )
-    priority: Mapped[str] = mapped_column(
-        String,
-        default="normal",  # JobPriority.NORMAL.value
-        nullable=False,
-    )
+    priority: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+
+    # Execution tracking
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+
+    # Configuration and options (includes metadata)
+    options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
+
+    # Results and errors
+    error_message: Mapped[str | None] = mapped_column(Text)
 
     # Timing information
     created_at: Mapped[datetime] = mapped_column(
@@ -98,36 +99,13 @@ class ScrapingJob(Base):
         DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), nullable=False
     )
 
-    # Additional timing fields expected by tests
-    start_time: Mapped[float | None] = mapped_column()  # Unix timestamp
-    end_time: Mapped[float | None] = mapped_column()  # Unix timestamp
-
-    # Execution tracking
-    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
-    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    # Configuration and metadata
-    options: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
-    job_metadata: Mapped[dict[str, Any] | None] = mapped_column(
-        "metadata", JSON, server_default="{}"
-    )
-
-    # Results and errors
-    error_message: Mapped[str | None] = mapped_column(Text)
-    success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    error_type: Mapped[str | None] = mapped_column(String(100))
-    images_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-
     # Performance metrics
     processing_time_ms: Mapped[int | None] = mapped_column(Integer)
-    duration_seconds: Mapped[float | None] = mapped_column()
     download_size_bytes: Mapped[int | None] = mapped_column(Integer)
     output_size_bytes: Mapped[int | None] = mapped_column(Integer)
-    content_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
-    # Batch grouping (simplified from complex Batch table relationship)
-    batch_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    # Batch grouping
+    batch_id: Mapped[str | None] = mapped_column(String)
 
     content_results: Mapped[list["ContentResult"]] = relationship(
         "ContentResult", back_populates="job", cascade="all, delete-orphan", passive_deletes=True
@@ -159,9 +137,10 @@ class ScrapingJob(Base):
 
     @property
     def duration(self) -> float | None:
-        """Calculate job duration from start and end times."""
-        if self.start_time is not None and self.end_time is not None:
-            return self.end_time - self.start_time
+        """Calculate job duration from start and completion times."""
+        if self.started_at is not None and self.completed_at is not None:
+            delta = self.completed_at - self.started_at
+            return delta.total_seconds()
         return None
 
     @property

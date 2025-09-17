@@ -53,7 +53,6 @@ class JobResponse(BaseSchema):
 
     id: str  # String ID in database model
     source_url: str  # Required field in model
-    url: str = Field(alias="source_url")  # API compatibility - maps source_url to url
     domain: str | None = None
     slug: str | None = None
     status: str  # String status in database model
