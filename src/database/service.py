@@ -285,9 +285,8 @@ class DatabaseService:
 
                 job = ScrapingJob(
                     source_url=request.url,  # Required field
-                    domain=domain,
-                    slug=slug,
-                    output_directory=request.output_directory,
+                    job_type="single",  # Default job type
+                    target_format="html",  # Default target format
                     batch_id=request.batch_id,
                     priority=priority_enum,
                     **filtered_kwargs,
@@ -527,7 +526,13 @@ class DatabaseService:
 
                 jobs = []
                 for url in urls:
-                    job = ScrapingJob(source_url=url, batch_id=batch_id, **job_config)
+                    job = ScrapingJob(
+                        source_url=url,
+                        job_type="single",
+                        target_format="html",
+                        batch_id=batch_id,
+                        **job_config
+                    )
                     jobs.append(job)
                     session.add(job)
 
