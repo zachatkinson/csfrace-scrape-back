@@ -781,7 +781,8 @@ class DatabaseService:
                     "failed_jobs": stats.failed_jobs or 0,
                     "pending_jobs": stats.pending_jobs or 0,
                     "success_rate_percent": round(success_rate, 2),
-                    "avg_duration_seconds": float(stats.avg_duration or 0),
+                    "avg_duration_seconds": float(stats.avg_duration or 0)
+                    / 1000.0,  # Convert ms to seconds
                     "total_content_size_bytes": stats.total_content_size or 0,
                     "total_download_size_bytes": stats.total_download_size or 0,
                 }

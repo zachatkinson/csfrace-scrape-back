@@ -648,9 +648,13 @@ class TestDatabaseServiceRetryOperations:
         db_service_with_session.update_job_status(job1.id, JobStatus.FAILED)
         db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
-        # Update retry counts directly
+        # Update retry counts and set eligible completion times
         with db_service_with_session.get_session() as session:
-            session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update({"retry_count": 1})
+            # For retry_count=1, need 2^1 = 2 minutes to have passed
+            past_time = datetime.now(UTC) - timedelta(minutes=3)  # 3 minutes ago to be safe
+            session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
+                {"retry_count": 1, "completed_at": past_time}
+            )
             session.query(ScrapingJob).filter(ScrapingJob.id == job2.id).update(
                 {"retry_count": 3}  # At limit, should not be eligible
             )
@@ -703,8 +707,10 @@ class TestDatabaseServiceRetryOperations:
 
         # Ensure retry is eligible by setting completed_at to past time
         with db_service_with_session.get_session() as session:
+            # For retry_count=1, need 2^1 = 2 minutes to have passed
+            past_time = datetime.now(UTC) - timedelta(minutes=3)  # 3 minutes ago to be safe
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"retry_count": 1, "completed_at": datetime.now(UTC) - timedelta(minutes=1)}
+                {"retry_count": 1, "completed_at": past_time}
             )
 
         retry_jobs = db_service_with_session.get_retry_jobs()
@@ -941,7 +947,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["success_rate_percent"] == 50.0
         assert stats["avg_duration_seconds"] == 2.5
         assert stats["total_content_size_bytes"] == 1024
-        assert stats["total_images_downloaded"] == 5
+        assert stats["total_download_size_bytes"] == 2048
 
     def test_get_job_statistics_empty(self, db_service_with_session):
         """Test job statistics with no jobs in time period."""
@@ -979,7 +985,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         )
         assert stats["avg_duration_seconds"] == 0.0  # Null average becomes 0
         assert stats["total_content_size_bytes"] == 0
-        assert stats["total_images_downloaded"] == 0
+        assert stats["total_download_size_bytes"] == 0
 
     def test_get_job_statistics_with_mixed_data(self, db_service_with_session):
         """Test statistics with mix of complete and incomplete data."""
@@ -1002,10 +1008,10 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         db_service_with_session.update_job_status(job2.id, JobStatus.COMPLETED, duration=10.0)
         # job3 remains pending
 
-        # Add content metrics to only some jobs
+        # Add content metrics to only some jobs using actual model fields
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
-                {"content_size_bytes": 2048, "images_downloaded": 10}
+                {"output_size_bytes": 2048, "download_size_bytes": 512}
             )
             # job2 has no content metrics
 
@@ -1017,7 +1023,7 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         assert stats["success_rate_percent"] == round(2 / 3 * 100, 2)
         assert stats["avg_duration_seconds"] == 7.5  # Average of 5.0 and 10.0
         assert stats["total_content_size_bytes"] == 2048
-        assert stats["total_images_downloaded"] == 10
+        assert stats["total_download_size_bytes"] == 512
 
 
 @pytest.mark.integration
