@@ -11,7 +11,7 @@ from typing import Any, overload
 from uuid import uuid4
 
 import structlog
-from sqlalchemy import and_, case, desc, func, or_, select, update
+from sqlalchemy import and_, case, desc, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
@@ -473,8 +473,8 @@ class DatabaseService:
         """
         try:
             with self.get_session() as session:
-                now = datetime.now(UTC)
-
+                # Calculate retry delay: exponential backoff (2^retry_count minutes)
+                # Jobs are eligible if enough time has passed since completion
                 stmt = (
                     select(ScrapingJob)
                     .where(
@@ -482,12 +482,13 @@ class DatabaseService:
                             ScrapingJob.status == "failed",
                             ScrapingJob.retry_count < ScrapingJob.max_retries,
                             or_(
-                                ScrapingJob.next_retry_at.is_(None),
-                                ScrapingJob.next_retry_at <= now,
+                                ScrapingJob.completed_at.is_(None),
+                                ScrapingJob.completed_at
+                                <= func.now() - text("INTERVAL '1 minute' * POW(2, retry_count)"),
                             ),
                         )
                     )
-                    .order_by(ScrapingJob.next_retry_at.asc().nullsfirst())
+                    .order_by(ScrapingJob.completed_at.asc().nullsfirst())
                     .limit(max_jobs)
                 )
 
@@ -738,9 +739,11 @@ class DatabaseService:
                     func.count(ScrapingJob.id)  # pylint: disable=not-callable
                     .filter(ScrapingJob.status == "pending")
                     .label("pending_jobs"),
-                    func.avg(ScrapingJob.duration_seconds).label("avg_duration"),
-                    func.sum(ScrapingJob.content_size_bytes).label("total_content_size"),
-                    func.sum(ScrapingJob.images_downloaded).label("total_images"),
+                    func.avg(ScrapingJob.processing_time_ms).label("avg_duration"),
+                    func.sum(ScrapingJob.output_size_bytes).label("total_content_size"),
+                    func.count(ScrapingJob.id)
+                    .filter(ScrapingJob.output_size_bytes.isnot(None))
+                    .label("total_processed"),
                 ).where(ScrapingJob.created_at >= cutoff_date)
 
                 stats = session.execute(stats_stmt).one()

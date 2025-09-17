@@ -5,6 +5,7 @@ import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import asyncio
 
@@ -80,26 +81,25 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str):
             # Mark job as completed
             job = await JobCRUD.update_job_status(db, job_id, JobStatus.COMPLETED)
             if job:
-                job.success = True
+                # Note: success field doesn't exist on ScrapingJob model
+                # Success is determined by status == JobStatus.COMPLETED
                 # Update additional completion metadata
                 if output_path.exists():
                     # Calculate content size
                     total_size = sum(
                         f.stat().st_size for f in output_path.rglob("*") if f.is_file()
                     )
-                    job.content_size_bytes = total_size
+                    job.output_size_bytes = total_size
 
-                    # Count images downloaded
-                    images_dir = output_path / "images"
-                    if images_dir.exists():
-                        job.images_downloaded = len(list(images_dir.glob("*")))
+                    # Note: images_downloaded field doesn't exist on ScrapingJob model
+                    # Image count can be tracked separately if needed
 
                 await db.commit()
 
         except Exception as e:
             # Mark job as failed with error details
             await JobCRUD.update_job_status(
-                db, job_id, JobStatus.FAILED, error_message=str(e), error_type=type(e).__name__
+                db, job_id, JobStatus.FAILED, error_message=f"{type(e).__name__}: {str(e)}"
             )
             # Re-raise to ensure it's logged
             raise
@@ -157,9 +157,14 @@ async def create_jobs(
 
         # Add background tasks for all jobs
         for job in jobs:
-            background_tasks.add_task(
-                execute_conversion_job, job.id, job.source_url, job.output_directory or ""
-            )
+            # Note: output_directory field doesn't exist on ScrapingJob model
+            # Use default output directory generation (same logic as in crud.py)
+            parsed_url = urlparse(job.source_url)
+            path = parsed_url.path.strip("/")
+            slug = path.split("/")[-1] if path else "index"
+            output_dir = f"converted_content/{parsed_url.netloc}_{slug}"
+
+            background_tasks.add_task(execute_conversion_job, job.id, job.source_url, output_dir)
 
         # Prepare response
         job_responses = [JobResponse.model_validate(job) for job in jobs]
@@ -253,13 +258,13 @@ async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
                     {
                         "id": job.id,
                         "url": job.source_url,
-                        "domain": job.domain,
+                        "domain": urlparse(job.source_url).netloc,
                         "status": job.status,
                         "created_at": job.created_at.isoformat() if job.created_at else None,
                         "started_at": job.started_at.isoformat() if job.started_at else None,
                         "completed_at": job.completed_at.isoformat() if job.completed_at else None,
                         "error_message": job.error_message,
-                        "success": job.success,
+                        "success": job.status == "completed",
                         "processing_time_ms": job.processing_time_ms,
                     }
                     for job in jobs_result
@@ -525,7 +530,7 @@ async def retry_job(job_id: str, db: DBSession) -> JobResponse:
         job.status = JobStatus.PENDING.value
         job.retry_count += 1
         job.error_message = None
-        job.error_type = None
+        # Note: error_type field doesn't exist on ScrapingJob model
         job.started_at = None
         job.completed_at = None
 
