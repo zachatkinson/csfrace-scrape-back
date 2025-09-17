@@ -373,7 +373,8 @@ class DatabaseService:
                 elif status_value in {"completed", "failed", "cancelled"}:
                     update_data["completed_at"] = now
                     if duration is not None:
-                        update_data["duration_seconds"] = duration
+                        # Convert duration from seconds to milliseconds for processing_time_ms field
+                        update_data["processing_time_ms"] = int(duration * 1000)
                     if error_message:
                         update_data["error_message"] = error_message
 
@@ -405,12 +406,14 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 # Order by priority (URGENT -> HIGH -> NORMAL -> LOW) then by creation time
+                # Use database integer values for priority comparison
+                from ..common.status import PRIORITY_TO_DB_MAP
 
                 priority_order = {
-                    JobPriority.URGENT: 4,
-                    JobPriority.HIGH: 3,
-                    JobPriority.NORMAL: 2,
-                    JobPriority.LOW: 1,
+                    PRIORITY_TO_DB_MAP[JobPriority.URGENT]: 4,
+                    PRIORITY_TO_DB_MAP[JobPriority.HIGH]: 3,
+                    PRIORITY_TO_DB_MAP[JobPriority.NORMAL]: 2,
+                    PRIORITY_TO_DB_MAP[JobPriority.LOW]: 1,
                 }
 
                 stmt = (

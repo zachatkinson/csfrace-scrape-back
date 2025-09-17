@@ -342,7 +342,7 @@ class TestDatabaseServiceJobStatusUpdates:
         updated_job = db_service_with_session.get_job(job.id)
         assert updated_job.status_enum == JobStatus.COMPLETED
         assert updated_job.completed_at is not None
-        assert updated_job.duration_seconds == 5.5
+        assert updated_job.processing_time_ms == 5500  # 5.5 seconds = 5500 milliseconds
 
     def test_update_job_status_to_failed_with_error(self, db_service_with_session):
         """Test updating job status to failed with error message."""
