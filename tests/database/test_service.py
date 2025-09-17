@@ -661,7 +661,7 @@ class TestDatabaseServiceRetryOperations:
         assert retry_jobs[0].id == job1.id
 
     def test_get_retry_jobs_with_future_retry_time(self, db_service_with_session):
-        """Test retry jobs filtering by next_retry_at time."""
+        """Test retry jobs filtering by completed_at time."""
         job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
@@ -669,22 +669,22 @@ class TestDatabaseServiceRetryOperations:
 
         db_service_with_session.update_job_status(job.id, JobStatus.FAILED)
 
-        # Set future retry time
+        # Set completed_at to future time to simulate future retry eligibility
         future_time = datetime.now(UTC) + timedelta(hours=1)
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"next_retry_at": future_time}
+                {"completed_at": future_time}
             )
 
         # Should not be eligible yet
         retry_jobs = db_service_with_session.get_retry_jobs()
         assert len(retry_jobs) == 0
 
-        # Set past retry time
+        # Set completed_at to past time to make retry eligible
         past_time = datetime.now(UTC) - timedelta(minutes=1)
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"next_retry_at": past_time}
+                {"completed_at": past_time}
             )
 
         # Should be eligible now
@@ -692,7 +692,7 @@ class TestDatabaseServiceRetryOperations:
         assert len(retry_jobs) == 1
 
     def test_get_retry_jobs_null_next_retry_at(self, db_service_with_session):
-        """Test retry jobs with null next_retry_at (should be eligible)."""
+        """Test retry jobs with completed_at in the past (should be eligible)."""
         job = db_service_with_session.create_job(
             url="https://example.com/test",
             output_directory="/tmp/output",
@@ -701,10 +701,10 @@ class TestDatabaseServiceRetryOperations:
 
         db_service_with_session.update_job_status(job.id, JobStatus.FAILED)
 
-        # Ensure next_retry_at is None
+        # Ensure retry is eligible by setting completed_at to past time
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job.id).update(
-                {"retry_count": 1, "next_retry_at": None}
+                {"retry_count": 1, "completed_at": datetime.now(UTC) - timedelta(minutes=1)}
             )
 
         retry_jobs = db_service_with_session.get_retry_jobs()
@@ -921,12 +921,12 @@ class TestDatabaseServiceStatisticsAndAnalytics:
         db_service_with_session.update_job_status(job1.id, JobStatus.COMPLETED, duration=2.5)
         db_service_with_session.update_job_status(job2.id, JobStatus.FAILED)
 
-        # Add content metrics
+        # Add content metrics using actual model fields
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == job1.id).update(
                 {
-                    "content_size_bytes": 1024,
-                    "images_downloaded": 5,
+                    "output_size_bytes": 1024,
+                    "download_size_bytes": 2048,
                 }
             )
 

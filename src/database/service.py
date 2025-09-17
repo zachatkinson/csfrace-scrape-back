@@ -761,6 +761,7 @@ class DatabaseService:
                     .label("pending_jobs"),
                     func.avg(ScrapingJob.processing_time_ms).label("avg_duration"),
                     func.sum(ScrapingJob.output_size_bytes).label("total_content_size"),
+                    func.sum(ScrapingJob.download_size_bytes).label("total_download_size"),
                     func.count(ScrapingJob.id)
                     .filter(ScrapingJob.output_size_bytes.isnot(None))
                     .label("total_processed"),
@@ -782,7 +783,7 @@ class DatabaseService:
                     "success_rate_percent": round(success_rate, 2),
                     "avg_duration_seconds": float(stats.avg_duration or 0),
                     "total_content_size_bytes": stats.total_content_size or 0,
-                    "total_images_downloaded": stats.total_images or 0,
+                    "total_download_size_bytes": stats.total_download_size or 0,
                 }
 
         except SQLAlchemyError as e:
