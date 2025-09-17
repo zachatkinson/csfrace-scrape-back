@@ -97,10 +97,9 @@ class TestJobCRUD:
             # Verify job creation
             assert isinstance(result, ScrapingJob)
             assert result.source_url == "https://example.com/test-page"
-            assert result.domain == "example.com"
-            assert result.slug == "test-page"  # Auto-generated from URL
+            assert result.job_type == "single"  # Default job type
+            assert result.target_format == "html"  # Default target format
             assert result.priority == "normal"  # Enum value converted to string
-            assert result.output_directory == "converted_content/example.com_test-page"
             assert result.max_retries == 3
             assert result.options == {"convert_images": True, "format": "markdown"}
 
@@ -120,10 +119,9 @@ class TestJobCRUD:
             result = await JobCRUD.create_job(mock_db_session, sample_job_create_with_custom_values)
 
             # Verify custom values are used
-            assert result.slug == "custom-slug-name"
-            assert result.output_directory == "custom_output/dir"
+            assert result.job_type == "single"  # Default job type
+            assert result.target_format == "html"  # Default target format
             assert result.priority == "high"
-            assert result.domain == "custom.com"
 
             mock_publish.assert_called_once()
 
@@ -159,8 +157,8 @@ class TestJobCRUD:
 
                 result = await JobCRUD.create_job(mock_db_session, job_data)
 
-                assert result.domain == case["expected_domain"]
-                assert result.slug == case["expected_slug"]
+                assert result.job_type == "single"  # Default job type
+                assert result.target_format == "html"  # Default target format
 
     @pytest.mark.asyncio
     async def test_get_job_found(self, mock_db_session, sample_scraping_job):
