@@ -233,7 +233,10 @@ class JobCRUD:
         now = datetime.now(UTC)
         if status == JobStatus.RUNNING and not job.started_at:
             job.started_at = now
-        elif status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED} and not job.completed_at:
+        elif (
+            status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}
+            and not job.completed_at
+        ):
             job.completed_at = now
             # Note: success field doesn't exist on ScrapingJob model
             # Success is determined by status == JobStatus.COMPLETED
