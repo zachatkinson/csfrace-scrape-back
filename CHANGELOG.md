@@ -2,6 +2,320 @@
 
 <!-- version list -->
 
+## v5.5.0 (2025-09-17)
+
+### Bug Fixes
+
+- **ci**: Resolve JSON parsing error in repository dispatch action
+  ([#10](https://github.com/zachatkinson/csfrace-scrape-back/pull/10),
+  [`e0a8bdf`](https://github.com/zachatkinson/csfrace-scrape-back/commit/e0a8bdf2b73ffe50781c785d696526d883235836))
+
+* feat(jobs): enhance job management with batch processing and SSE streaming
+
+- Add job batch processing capabilities * Implement batch_id field in Job model for grouping related
+  jobs * Add batch metadata and statistics tracking * Support both individual and batch job creation
+  workflows
+
+- Implement Server-Sent Events (SSE) for real-time job monitoring * Add /jobs/stream endpoint for
+  live job status updates * Redis pub/sub integration for event-driven job notifications * Real-time
+  progress tracking and status change broadcasting
+
+- Enhance job creation and management * Improved job validation and error handling * Better status
+  transition management * Enhanced job filtering and pagination capabilities
+
+- Update dependencies and package locks * Latest package versions for improved stability * Security
+  updates and performance optimizations
+
+Provides robust foundation for frontend real-time job monitoring and batch operations.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* fix(typing): resolve all MyPy attribute errors in database and API layers
+
+- Fix ScrapingJob model attribute mismatches in database/service.py: * Replace non-existent
+  next_retry_at with exponential backoff logic * Update duration_seconds → processing_time_ms *
+  Update content_size_bytes → output_size_bytes
+
+- Fix ScrapingJob model attribute mismatches in api/crud.py: * Extract domain from source_url
+  instead of using non-existent domain field * Remove references to non-existent error_type and
+  success fields * Add proper URL parsing for domain extraction in event publishing
+
+- Fix ScrapingJob model attribute mismatches in api/routers/jobs.py: * Replace content_size_bytes
+  with output_size_bytes * Remove references to non-existent success, images_downloaded,
+  output_directory fields * Generate slug from URL path for output directory creation * Combine
+  error_type info into error_message for better error tracking
+
+All changes maintain functional equivalence while ensuring type safety. Validated with: uv run mypy
+  src/ && uv run ruff check --fix src/
+
+* style(format): fix line length formatting in crud.py
+
+Wrap long conditional statement to meet line length requirements for CI
+
+* fix: resolve test failures and improve code quality
+
+- Fix ScrapingJob model test failures by removing non-existent field references - Replace 'domain'
+  and 'output_directory' parameters with actual model fields - Configure pytest warning filters for
+  third-party dependency warnings - All tests now pass with proper model field validation - Maintain
+  DRY/SOLID principles with no bandaid solutions
+
+* fix: update TestDataFactory.create_sample_job() to use valid ScrapingJob fields
+
+- Remove invalid fields: domain, output_directory, slug, success, images_downloaded - Add valid
+  fields: job_type, target_format, processing_time_ms, output_size_bytes - Resolves TypeError:
+  'domain' is an invalid keyword argument for ScrapingJob
+
+* fix: remove invalid ScrapingJob fields from comprehensive test fixtures
+
+- Replace domain, slug, output_directory with valid fields - Use job_type and target_format instead
+  of removed fields - Fixes TypeError: invalid keyword argument in ScrapingJob constructor
+
+* fix: remove invalid ScrapingJob fields from database service
+
+- Replace domain, slug, output_directory with valid fields in ScrapingJob constructors - Use
+  job_type='single' and target_format='html' as required fields - Fixes final TypeError: 'domain' is
+  an invalid keyword argument for ScrapingJob - Resolves
+  tests/database/test_service.py::TestDatabaseServiceErrorHandling::test_integrity_error_handling
+
+* fix: format trailing comma in database service ScrapingJob constructor
+
+- Add missing trailing comma for Ruff formatting compliance - Ensures CI formatting checks pass
+
+* fix(tests): update test assertions to use valid ScrapingJob model fields
+
+- Fixed test_api_crud_comprehensive.py assertions expecting non-existent fields - Replaced
+  domain/slug assertions with job_type/target_format checks - Ensures all tests align with actual
+  ScrapingJob model structure
+
+* fix(tests): resolve all ScrapingJob model field mismatches in comprehensive tests
+
+- Fixed domain extraction to use urlparse from source_url (runtime behavior) - Removed error_type
+  parameter not supported by JobCRUD.update_job_status() - Replaced success field assertions with
+  status checks (field doesn't exist) - Aligned all test expectations with actual ScrapingJob model
+  structure - All previously failing tests now pass ✅
+
+* fix(format): apply Ruff formatting to comprehensive test file
+
+* fix(tests): resolve API router tests with proper ScrapingJob model alignment
+
+- Fix JobResponse schema to use actual ScrapingJob model fields - Replace invalid fields (domain,
+  slug, output_directory, error_type, duration_seconds, content_size_bytes) with actual fields
+  (job_type, target_format, processing_time_ms, output_size_bytes) - Add computed properties for
+  backward compatibility (url, domain) - Fix list_jobs API parameter mismatches in tests - Clean up
+  malformed ScrapingJob constructor calls in test fixtures - Remove all commented-out invalid field
+  references - All tests now pass with proper Pydantic validation
+
+* fix(tests): remove non-existent error_type field reference in retry job test
+
+- Remove assertion for error_type field that doesn't exist in ScrapingJob model - Fixes final test
+  failure in API router tests - All tests now pass with proper model field validation
+
+* fix(database): resolve priority field schema mismatch
+
+- Fixed critical database schema mismatch where priority field expects INTEGER but code was sending
+  string enum values - Added proper mapping utilities between JobPriority enum strings and database
+  integer values - Updated ScrapingJob model to correctly convert database integers to enum
+  instances - Fixed API schema validation to convert database integers to string responses - Updated
+  database service to normalize priority values before storage - Fixed all related tests to use
+  correct model field assertions - All originally failing database tests now pass without schema
+  errors
+
+* fix: resolve database schema issues for priority enum and duration field
+
+- Fix priority enum values in SQL queries by using database integer values instead of enum objects -
+  Fix missing duration_seconds field by using processing_time_ms with proper conversion - Update
+  test to check processing_time_ms field instead of non-existent duration_seconds
+
+Resolves CI failures: - invalid input syntax for type integer: "URGENT" in SQL ORDER BY clauses -
+  Unconsumed column names: duration_seconds in update operations
+
+* fix: resolve additional database schema mismatches in tests and service
+
+- Replace next_retry_at references with completed_at for retry logic consistency - Replace
+  content_size_bytes/images_downloaded with output_size_bytes/download_size_bytes - Update
+  statistics query to use actual model fields (total_download_size vs total_images) - Align test
+  descriptions with actual implementation details
+
+Resolves remaining CI test failures: - Unconsumed column names: next_retry_at - Unconsumed column
+  names: content_size_bytes, images_downloaded - AttributeError: total_images
+
+* fix: resolve final database schema test failures and logic issues
+
+- Fix retry jobs logic by setting proper exponential backoff timing (3+ minutes for retry_count=1) -
+  Fix duration conversion in statistics (milliseconds to seconds: /1000.0) - Replace all remaining
+  total_images_downloaded references with total_download_size_bytes - Replace
+  content_size_bytes/images_downloaded with actual model fields in mixed data test
+
+Resolves final CI test failures: - Retry jobs returning empty results due to insufficient backoff
+  time - Duration assertion 2500.0 vs 2.5 (ms vs seconds conversion) - KeyError:
+  total_images_downloaded - Unconsumed column names in statistics tests
+
+* fix(ci): resolve JSON parsing error in repository dispatch action
+
+- Fix "Bad control character in string literal in JSON" error in CI - Use toJSON() function to
+  properly escape commit message in client-payload - Ensures commit messages with newlines, quotes,
+  and control characters are handled safely - Prevents CI failures when commit messages contain
+  special characters
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+### Features
+
+- **jobs**: Enhance job management with batch processing and SSE streaming
+  ([#9](https://github.com/zachatkinson/csfrace-scrape-back/pull/9),
+  [`8e9f7ee`](https://github.com/zachatkinson/csfrace-scrape-back/commit/8e9f7ee4ac976cdbe196bf32aeff12e8ce437ee3))
+
+* feat(jobs): enhance job management with batch processing and SSE streaming
+
+- Add job batch processing capabilities * Implement batch_id field in Job model for grouping related
+  jobs * Add batch metadata and statistics tracking * Support both individual and batch job creation
+  workflows
+
+- Implement Server-Sent Events (SSE) for real-time job monitoring * Add /jobs/stream endpoint for
+  live job status updates * Redis pub/sub integration for event-driven job notifications * Real-time
+  progress tracking and status change broadcasting
+
+- Enhance job creation and management * Improved job validation and error handling * Better status
+  transition management * Enhanced job filtering and pagination capabilities
+
+- Update dependencies and package locks * Latest package versions for improved stability * Security
+  updates and performance optimizations
+
+Provides robust foundation for frontend real-time job monitoring and batch operations.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* fix(typing): resolve all MyPy attribute errors in database and API layers
+
+- Fix ScrapingJob model attribute mismatches in database/service.py: * Replace non-existent
+  next_retry_at with exponential backoff logic * Update duration_seconds → processing_time_ms *
+  Update content_size_bytes → output_size_bytes
+
+- Fix ScrapingJob model attribute mismatches in api/crud.py: * Extract domain from source_url
+  instead of using non-existent domain field * Remove references to non-existent error_type and
+  success fields * Add proper URL parsing for domain extraction in event publishing
+
+- Fix ScrapingJob model attribute mismatches in api/routers/jobs.py: * Replace content_size_bytes
+  with output_size_bytes * Remove references to non-existent success, images_downloaded,
+  output_directory fields * Generate slug from URL path for output directory creation * Combine
+  error_type info into error_message for better error tracking
+
+All changes maintain functional equivalence while ensuring type safety. Validated with: uv run mypy
+  src/ && uv run ruff check --fix src/
+
+* style(format): fix line length formatting in crud.py
+
+Wrap long conditional statement to meet line length requirements for CI
+
+* fix: resolve test failures and improve code quality
+
+- Fix ScrapingJob model test failures by removing non-existent field references - Replace 'domain'
+  and 'output_directory' parameters with actual model fields - Configure pytest warning filters for
+  third-party dependency warnings - All tests now pass with proper model field validation - Maintain
+  DRY/SOLID principles with no bandaid solutions
+
+* fix: update TestDataFactory.create_sample_job() to use valid ScrapingJob fields
+
+- Remove invalid fields: domain, output_directory, slug, success, images_downloaded - Add valid
+  fields: job_type, target_format, processing_time_ms, output_size_bytes - Resolves TypeError:
+  'domain' is an invalid keyword argument for ScrapingJob
+
+* fix: remove invalid ScrapingJob fields from comprehensive test fixtures
+
+- Replace domain, slug, output_directory with valid fields - Use job_type and target_format instead
+  of removed fields - Fixes TypeError: invalid keyword argument in ScrapingJob constructor
+
+* fix: remove invalid ScrapingJob fields from database service
+
+- Replace domain, slug, output_directory with valid fields in ScrapingJob constructors - Use
+  job_type='single' and target_format='html' as required fields - Fixes final TypeError: 'domain' is
+  an invalid keyword argument for ScrapingJob - Resolves
+  tests/database/test_service.py::TestDatabaseServiceErrorHandling::test_integrity_error_handling
+
+* fix: format trailing comma in database service ScrapingJob constructor
+
+- Add missing trailing comma for Ruff formatting compliance - Ensures CI formatting checks pass
+
+* fix(tests): update test assertions to use valid ScrapingJob model fields
+
+- Fixed test_api_crud_comprehensive.py assertions expecting non-existent fields - Replaced
+  domain/slug assertions with job_type/target_format checks - Ensures all tests align with actual
+  ScrapingJob model structure
+
+* fix(tests): resolve all ScrapingJob model field mismatches in comprehensive tests
+
+- Fixed domain extraction to use urlparse from source_url (runtime behavior) - Removed error_type
+  parameter not supported by JobCRUD.update_job_status() - Replaced success field assertions with
+  status checks (field doesn't exist) - Aligned all test expectations with actual ScrapingJob model
+  structure - All previously failing tests now pass ✅
+
+* fix(format): apply Ruff formatting to comprehensive test file
+
+* fix(tests): resolve API router tests with proper ScrapingJob model alignment
+
+- Fix JobResponse schema to use actual ScrapingJob model fields - Replace invalid fields (domain,
+  slug, output_directory, error_type, duration_seconds, content_size_bytes) with actual fields
+  (job_type, target_format, processing_time_ms, output_size_bytes) - Add computed properties for
+  backward compatibility (url, domain) - Fix list_jobs API parameter mismatches in tests - Clean up
+  malformed ScrapingJob constructor calls in test fixtures - Remove all commented-out invalid field
+  references - All tests now pass with proper Pydantic validation
+
+* fix(tests): remove non-existent error_type field reference in retry job test
+
+- Remove assertion for error_type field that doesn't exist in ScrapingJob model - Fixes final test
+  failure in API router tests - All tests now pass with proper model field validation
+
+* fix(database): resolve priority field schema mismatch
+
+- Fixed critical database schema mismatch where priority field expects INTEGER but code was sending
+  string enum values - Added proper mapping utilities between JobPriority enum strings and database
+  integer values - Updated ScrapingJob model to correctly convert database integers to enum
+  instances - Fixed API schema validation to convert database integers to string responses - Updated
+  database service to normalize priority values before storage - Fixed all related tests to use
+  correct model field assertions - All originally failing database tests now pass without schema
+  errors
+
+* fix: resolve database schema issues for priority enum and duration field
+
+- Fix priority enum values in SQL queries by using database integer values instead of enum objects -
+  Fix missing duration_seconds field by using processing_time_ms with proper conversion - Update
+  test to check processing_time_ms field instead of non-existent duration_seconds
+
+Resolves CI failures: - invalid input syntax for type integer: "URGENT" in SQL ORDER BY clauses -
+  Unconsumed column names: duration_seconds in update operations
+
+* fix: resolve additional database schema mismatches in tests and service
+
+- Replace next_retry_at references with completed_at for retry logic consistency - Replace
+  content_size_bytes/images_downloaded with output_size_bytes/download_size_bytes - Update
+  statistics query to use actual model fields (total_download_size vs total_images) - Align test
+  descriptions with actual implementation details
+
+Resolves remaining CI test failures: - Unconsumed column names: next_retry_at - Unconsumed column
+  names: content_size_bytes, images_downloaded - AttributeError: total_images
+
+* fix: resolve final database schema test failures and logic issues
+
+- Fix retry jobs logic by setting proper exponential backoff timing (3+ minutes for retry_count=1) -
+  Fix duration conversion in statistics (milliseconds to seconds: /1000.0) - Replace all remaining
+  total_images_downloaded references with total_download_size_bytes - Replace
+  content_size_bytes/images_downloaded with actual model fields in mixed data test
+
+Resolves final CI test failures: - Retry jobs returning empty results due to insufficient backoff
+  time - Duration assertion 2500.0 vs 2.5 (ms vs seconds conversion) - KeyError:
+  total_images_downloaded - Unconsumed column names in statistics tests
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.4.0 (2025-09-16)
 
 ### Bug Fixes
