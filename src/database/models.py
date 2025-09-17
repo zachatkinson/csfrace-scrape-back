@@ -128,7 +128,9 @@ class ScrapingJob(Base):
     @property
     def priority_enum(self) -> JobPriority:
         """Return priority as enum instance."""
-        return JobPriority(self.priority)
+        from ..common.status import db_to_priority
+
+        return db_to_priority(self.priority)
 
     @property
     def is_finished(self) -> bool:

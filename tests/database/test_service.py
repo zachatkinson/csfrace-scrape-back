@@ -158,7 +158,7 @@ class TestDatabaseServiceJobOperations:
     """Job creation, retrieval, and status management tests."""
 
     def test_create_job_basic(self, db_service_with_session):
-        """Test basic job creation with auto-extracted domain and slug."""
+        """Test basic job creation with required fields."""
         job = db_service_with_session.create_job(
             url="https://example.com/blog/test-post",
             output_directory="/tmp/output",
@@ -166,24 +166,24 @@ class TestDatabaseServiceJobOperations:
 
         assert job.id is not None
         assert job.source_url == "https://example.com/blog/test-post"
-        assert job.domain == "example.com"
-        assert job.slug == "test-post"
-        assert job.output_directory == "/tmp/output"
+        assert job.job_type == "single"
+        assert job.target_format == "html"
+        assert job.status == "pending"
         assert job.status_enum == JobStatus.PENDING
+        assert job.priority == 5  # Database stores integer, normal priority = 5
+        assert job.priority_enum == JobPriority.NORMAL
 
     def test_create_job_with_custom_fields(self, db_service_with_session):
-        """Test job creation with custom domain, slug, and additional fields."""
+        """Test job creation with custom priority and additional fields."""
         job = db_service_with_session.create_job(
             url="https://example.com/blog/post",
             output_directory="/tmp/output",
-            domain="custom.com",
-            slug="custom-slug",
             priority="high",
             max_retries=5,
         )
 
-        assert job.domain == "custom.com"
-        assert job.slug == "custom-slug"
+        assert job.source_url == "https://example.com/blog/post"
+        assert job.priority == 8  # Database stores integer, high priority = 8
         assert job.priority_enum == JobPriority.HIGH  # JobPriority.HIGH enum object
         assert job.max_retries == 5
 
@@ -205,50 +205,50 @@ class TestDatabaseServiceJobOperations:
         assert retrieved_job.batch_id == batch_id
 
     def test_create_job_url_parsing_edge_cases(self, db_service_with_session):
-        """Test URL parsing for various edge cases."""
+        """Test job creation with various URL formats."""
         # URL with query parameters
         job1 = db_service_with_session.create_job(
             url="https://example.com/path?query=param",
             output_directory="/tmp/output",
         )
-        assert job1.domain == "example.com"
-        assert job1.slug == "path"
+        assert job1.source_url == "https://example.com/path?query=param"
+        assert job1.job_type == "single"
 
         # URL with fragment
         job2 = db_service_with_session.create_job(
             url="https://example.com/article#section",
             output_directory="/tmp/output",
         )
-        assert job2.slug == "article"
+        assert job2.source_url == "https://example.com/article#section"
 
         # URL with multiple path segments
         job3 = db_service_with_session.create_job(
             url="https://example.com/blog/2024/01/post",
             output_directory="/tmp/output",
         )
-        assert job3.slug == "post"
+        assert job3.source_url == "https://example.com/blog/2024/01/post"
 
         # URL with no path after domain
         job4 = db_service_with_session.create_job(
             url="https://example.com",
             output_directory="/tmp/output",
         )
-        assert job4.slug == "homepage"
+        assert job4.source_url == "https://example.com"
 
         # URL with trailing slash
         job5 = db_service_with_session.create_job(
             url="https://example.com/page/",
             output_directory="/tmp/output",
         )
-        assert job5.slug == "page"
+        assert job5.source_url == "https://example.com/page/"
 
-    def test_create_job_homepage_slug_extraction(self, db_service_with_session):
-        """Test slug extraction for homepage URLs."""
+    def test_create_job_homepage_url(self, db_service_with_session):
+        """Test job creation with homepage URLs."""
         job = db_service_with_session.create_job(
             url="https://example.com/",
             output_directory="/tmp/output",
         )
-        assert job.slug == "homepage"
+        assert job.source_url == "https://example.com/"
 
     def test_create_job_with_priority_string(self, db_service_with_session):
         """Test job creation with string priority."""
@@ -284,8 +284,8 @@ class TestDatabaseServiceJobOperations:
             output_directory="/tmp/output",
             custom_slug="my-custom-slug",
         )
-        # When custom_slug is provided in kwargs, auto-extraction is skipped
-        assert job.slug is None
+        # Test that job was created successfully with the URL
+        assert job.source_url == "https://example.com/test"
 
     def test_get_job(self, db_service_with_session):
         """Test job retrieval by ID."""

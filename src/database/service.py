@@ -190,21 +190,33 @@ class DatabaseService:
         path_parts = parsed.path.strip("/").split("/")
         return path_parts[-1] if path_parts and path_parts[-1] else "homepage"
 
-    def _normalize_priority(self, priority: str | object) -> str:
-        """Convert priority to string value for database storage."""
+    def _normalize_priority(self, priority: str | object) -> int:
+        """Convert priority to integer value for database storage."""
+        from ..common.status import priority_to_db
 
         if isinstance(priority, str):
             try:
-                return JobPriority(priority.lower()).value  # Return string value
+                return priority_to_db(priority)
             except ValueError:
-                return JobPriority.NORMAL.value  # Return default string value
+                return priority_to_db(JobPriority.NORMAL)
         if isinstance(priority, JobPriority):
-            return priority.value  # Convert enum to string value
+            return priority_to_db(priority)
         if isinstance(priority, int):
-            # Convert old integer priorities to string equivalents
-            priority_map = {1: "low", 5: "normal", 10: "high", 15: "urgent"}
-            return priority_map.get(priority, "normal")  # Default to normal
-        return JobPriority.NORMAL.value  # Default fallback
+            # If already an integer, validate it's in our mapping
+            from ..common.status import DB_TO_PRIORITY_MAP
+
+            if priority in DB_TO_PRIORITY_MAP:
+                return priority
+            # Convert old integer priorities to our new mapping
+            priority_map = {
+                1: JobPriority.LOW,
+                5: JobPriority.NORMAL,
+                10: JobPriority.HIGH,
+                15: JobPriority.URGENT,
+            }
+            mapped_enum = priority_map.get(priority, JobPriority.NORMAL)
+            return priority_to_db(mapped_enum)
+        return priority_to_db(JobPriority.NORMAL)  # Default fallback
 
     @overload
     def create_job(
@@ -265,7 +277,7 @@ class DatabaseService:
                     if not kwargs.get("custom_slug")
                     else None
                 )
-                priority_enum = self._normalize_priority(request.priority)
+                priority_db_value = self._normalize_priority(request.priority)
 
                 # Filter out kwargs that are already handled explicitly to avoid conflicts
                 filtered_kwargs = {
@@ -288,7 +300,7 @@ class DatabaseService:
                     job_type="single",  # Default job type
                     target_format="html",  # Default target format
                     batch_id=request.batch_id,
-                    priority=priority_enum,
+                    priority=priority_db_value,
                     **filtered_kwargs,
                 )
 
