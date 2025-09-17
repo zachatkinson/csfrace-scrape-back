@@ -53,8 +53,8 @@ class JobResponse(BaseSchema):
 
     id: str  # String ID in database model
     source_url: str  # Required field in model
-    domain: str | None = None
-    slug: str | None = None
+    job_type: str  # Actual field in model
+    target_format: str  # Actual field in model
     status: str  # String status in database model
     priority: str  # String priority in database model
     created_at: datetime
@@ -62,13 +62,25 @@ class JobResponse(BaseSchema):
     completed_at: datetime | None = None
     retry_count: int
     max_retries: int
-    output_directory: str | None = None
     error_message: str | None = None
-    error_type: str | None = None
-    duration_seconds: float | None = None
-    content_size_bytes: int | None = None
+    processing_time_ms: int | None = None  # Actual field in model
+    output_size_bytes: int | None = None  # Actual field in model
     batch_id: str | None = None  # String ID in database model
     options: dict[str, Any] | None = None
+
+    # Computed fields for backward compatibility - these will be derived
+    # from source_url rather than stored as separate fields
+    @property
+    def url(self) -> str:
+        """Alias for source_url for backward compatibility."""
+        return self.source_url
+
+    @property
+    def domain(self) -> str:
+        """Extract domain from source_url."""
+        from urllib.parse import urlparse
+
+        return urlparse(self.source_url).netloc
 
 
 class JobListResponse(BaseModel):

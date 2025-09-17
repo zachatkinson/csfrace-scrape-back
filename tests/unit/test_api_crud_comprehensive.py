@@ -674,7 +674,8 @@ class TestCRUDIntegration:
             completed_job = await JobCRUD.update_job_status(
                 mock_db_session, created_job.id, JobStatus.COMPLETED
             )
-            assert completed_job.success is True
+            # success field doesn't exist in ScrapingJob model
+            assert completed_job.status == JobStatus.COMPLETED.value
 
         # Clean up - delete job
         with (
