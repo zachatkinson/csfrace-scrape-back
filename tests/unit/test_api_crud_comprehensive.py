@@ -294,6 +294,7 @@ class TestJobCRUD:
             mock_db_session.delete.assert_called_once_with(sample_scraping_job)
             # Domain is extracted from source_url at runtime
             from urllib.parse import urlparse
+
             expected_domain = urlparse(sample_scraping_job.source_url).netloc
             mock_publish.assert_called_once_with(
                 job_id=sample_scraping_job.id,
