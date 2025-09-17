@@ -1577,7 +1577,7 @@ jobs:
               "repository": "${{ github.repository }}",
               "ref": "${{ github.ref }}",
               "sha": "${{ github.sha }}",
-              "message": "${{ github.event.head_commit.message }}",
+              "message": ${{ toJSON(github.event.head_commit.message) }},
               "actor": "${{ github.actor }}",
               "workflow": "${{ github.workflow }}",
               "timestamp": "${{ github.event.head_commit.timestamp }}"
