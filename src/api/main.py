@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import time
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -35,6 +37,8 @@ from .routers import health, health_stream, jobs, performance_stream
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -128,6 +132,58 @@ app.add_middleware(
 
 # Attach rate limiter to app
 app.state.limiter = limiter
+
+
+# Application Metrics Middleware
+@app.middleware("http")
+async def collect_metrics_middleware(request: Request, call_next: Any) -> Any:
+    """Collect application metrics for monitoring and observability."""
+    from ..monitoring.metrics import metrics_collector
+
+    start_time = time.time()
+    method = request.method
+    path = request.url.path
+
+    # Skip metrics collection for static assets and health checks
+    if path.startswith(("/static/", "/favicon.ico")) or path == "/health":
+        return await call_next(request)
+
+    # Increment active requests and connections
+    metrics_collector.increment_active_connections()
+    if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+        try:
+            metrics_collector.metrics["active_requests"].inc()
+        except (KeyError, AttributeError) as e:
+            logger.warning(f"Failed to increment active_requests metric: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error in metrics collection: {e}")
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+
+        # Record successful request
+        duration = time.time() - start_time
+        metrics_collector.record_request(method, path, status_code, duration)
+
+        return response
+
+    except Exception:
+        # Record failed request
+        duration = time.time() - start_time
+        metrics_collector.record_request(method, path, 500, duration)
+        raise
+
+    finally:
+        # Decrement active requests and connections
+        metrics_collector.decrement_active_connections()
+        if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+            try:
+                metrics_collector.metrics["active_requests"].dec()
+            except (KeyError, AttributeError) as e:
+                logger.warning(f"Failed to decrement active_requests metric: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error in metrics cleanup: {e}")
 
 
 # Security Headers Middleware

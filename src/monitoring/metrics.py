@@ -59,13 +59,41 @@ class MetricsCollector:
         self.registry: CollectorRegistry | None = None
         self.metrics: dict[str, Any] = {}
         self.system_metrics: dict[str, float] = {}
-        self.application_metrics: dict[str, float] = {}
+        self.application_metrics: dict[str, float | str | int] = {}
         self._collection_task: asyncio.Task[None] | None = None
         self._collecting = False
         self._lock = threading.Lock()
+        self._start_time = time.time()  # Track application start time
+
+        # Response time tracking for application metrics
+        self._response_times: list[float] = []
+        self._max_response_time = 0.0
+        self._active_connections = 0
+
+        # Initialize application metrics with default values
+        self._initialize_application_metrics()
 
         if self.config.enabled and PROMETHEUS_AVAILABLE:
             self._initialize_prometheus()
+
+    def _initialize_application_metrics(self) -> None:
+        """Initialize application metrics with default values."""
+        uptime_seconds = time.time() - self._start_time
+        uptime_hours = uptime_seconds / 3600
+        uptime_str = f"{int(uptime_hours)}h {int((uptime_seconds % 3600) / 60)}m"
+
+        self.application_metrics.update(
+            {
+                "avg_response": 0.0,
+                "p95_response": 0.0,
+                "max_response": 0.0,
+                "active_connections": 0,
+                "queue_length": 0,
+                "uptime": uptime_str,
+                "total_requests": 0,
+                "timestamp": time.time(),
+            }
+        )
 
         logger.info(
             "Metrics collector initialized",
@@ -256,6 +284,50 @@ class MetricsCollector:
             status_code: HTTP status code
             duration: Request duration in seconds
         """
+        # Update application metrics data for frontend consumption
+        with self._lock:
+            # Track response times (convert to milliseconds)
+            duration_ms = duration * 1000
+            self._response_times.append(duration_ms)
+
+            # Keep only last 100 response times for sliding window calculations
+            if len(self._response_times) > 100:
+                self._response_times = self._response_times[-100:]
+
+            # Update max response time
+            self._max_response_time = max(self._max_response_time, duration_ms)
+
+            # Calculate application metrics
+            if self._response_times:
+                avg_response = sum(self._response_times) / len(self._response_times)
+                # Calculate P95 (95th percentile)
+                sorted_times = sorted(self._response_times)
+                p95_index = int(0.95 * len(sorted_times))
+                p95_response = (
+                    sorted_times[p95_index] if p95_index < len(sorted_times) else sorted_times[-1]
+                )
+            else:
+                avg_response = 0
+                p95_response = 0
+
+            # Update application metrics dictionary
+            uptime_seconds = time.time() - self._start_time
+            uptime_hours = uptime_seconds / 3600
+            uptime_str = f"{int(uptime_hours)}h {int((uptime_seconds % 3600) / 60)}m"
+
+            self.application_metrics.update(
+                {
+                    "avg_response": avg_response,
+                    "p95_response": p95_response,
+                    "max_response": self._max_response_time,
+                    "active_connections": self._active_connections,
+                    "queue_length": 0,  # TODO: Implement actual queue tracking
+                    "uptime": uptime_str,
+                    "total_requests": len(self._response_times),
+                    "timestamp": time.time(),
+                }
+            )
+
         if not self.config.application_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
@@ -270,6 +342,16 @@ class MetricsCollector:
 
         except Exception as e:
             logger.error("Failed to record request metrics", error=str(e))
+
+    def increment_active_connections(self) -> None:
+        """Increment active connections counter."""
+        with self._lock:
+            self._active_connections += 1
+
+    def decrement_active_connections(self) -> None:
+        """Decrement active connections counter."""
+        with self._lock:
+            self._active_connections = max(0, self._active_connections - 1)
 
     def record_batch_job(self, status: str, duration: float | None = None) -> None:
         """Record batch job metrics.
@@ -364,6 +446,10 @@ class MetricsCollector:
             Dictionary containing current metrics
         """
         with self._lock:
+            # Ensure application metrics are always populated
+            if not self.application_metrics:
+                self._initialize_application_metrics()
+
             return {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "system_metrics": self.system_metrics.copy(),
