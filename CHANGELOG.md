@@ -2,6 +2,76 @@
 
 <!-- version list -->
 
+## v5.7.1 (2025-09-18)
+
+### Bug Fixes
+
+- **metrics**: Resolve linting and type checking issues for production deployment
+  ([#13](https://github.com/zachatkinson/csfrace-scrape-back/pull/13),
+  [`49cb07f`](https://github.com/zachatkinson/csfrace-scrape-back/commit/49cb07f404d9c2b0eeb030192725c362608e5173))
+
+* feat: add performance metrics to SSE health stream
+
+- Add performance metrics to initial SSE connection event - Add periodic performance metrics updates
+  every 30 seconds - Reuse existing metrics_collector following DRY principles - Support
+  performance-update events for real-time frontend updates - Maintain SOLID principles with single
+  responsibility pattern - Follow existing SSE event format for consistency
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* feat: add dedicated /performance/stream SSE endpoint
+
+- Create new performance_stream.py router following SOLID principles - Single Responsibility:
+  dedicated endpoint for performance metrics only - Interface Segregation: clients get only
+  performance data they need - Dependency Inversion: depends on metrics_collector abstraction -
+  30-second update intervals for real-time performance monitoring - Follows existing SSE patterns
+  from health_stream router - JSON serialization handles Decimal and datetime objects safely -
+  Comprehensive error handling with client disconnect detection - Register performance_stream router
+  in main.py
+
+🚀 Generated with [Claude Code](https://claude.ai/code)
+
+* fix(metrics): resolve linting and type checking issues
+
+Backend improvements for production deployment:
+
+- Fix contextlib usage by replacing try-except-pass with suppress() - Resolve MyPy type checking
+  errors in metrics.py - Update application_metrics type annotation to allow mixed types
+  (float|str|int) - Remove unused exception variable in middleware - Apply consistent code
+  formatting with Ruff
+
+Technical changes: - Added contextlib.suppress import to main.py - Updated metrics collection to use
+  suppress() instead of bare except blocks - Fixed type annotations in
+  MetricsCollector.application_metrics - Ensured all linting and type checking passes cleanly
+
+Quality gates passed: - ✅ Ruff formatting and linting (0 issues) - ✅ MyPy type checking (0 errors) -
+  ✅ Python syntax validation
+
+* refactor(metrics): replace contextlib.suppress with proper error handling
+
+Replace bandaid solution with production-ready error handling:
+
+- Remove contextlib.suppress() usage (anti-pattern) - Implement specific exception handling for
+  KeyError and AttributeError - Add structured logging for metrics failures using structlog -
+  Provide meaningful error messages for debugging and monitoring - Maintain application stability
+  while capturing error details
+
+Technical improvements: - Added structlog import and logger initialization - Specific exception
+  types (KeyError, AttributeError) for metrics key issues - Fallback Exception handler for
+  unexpected errors - Warning level for expected issues, error level for unexpected ones - Proper
+  logging context for production debugging
+
+This follows SOLID principles and production best practices: - Single Responsibility: Each exception
+  type handled appropriately - Open/Closed: Extensible error handling without breaking existing code
+  - Dependency Inversion: Abstracts error handling through logging interface
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.7.0 (2025-09-18)
 
 ### Features
