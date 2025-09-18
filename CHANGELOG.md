@@ -2,6 +2,42 @@
 
 <!-- version list -->
 
+## v5.7.0 (2025-09-18)
+
+### Features
+
+- Add dedicated /performance/stream SSE endpoint
+  ([#12](https://github.com/zachatkinson/csfrace-scrape-back/pull/12),
+  [`3ea9d30`](https://github.com/zachatkinson/csfrace-scrape-back/commit/3ea9d309457e47221c76d04038ff3f779ea1c927))
+
+* feat: add performance metrics to SSE health stream
+
+- Add performance metrics to initial SSE connection event - Add periodic performance metrics updates
+  every 30 seconds - Reuse existing metrics_collector following DRY principles - Support
+  performance-update events for real-time frontend updates - Maintain SOLID principles with single
+  responsibility pattern - Follow existing SSE event format for consistency
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* feat: add dedicated /performance/stream SSE endpoint
+
+- Create new performance_stream.py router following SOLID principles - Single Responsibility:
+  dedicated endpoint for performance metrics only - Interface Segregation: clients get only
+  performance data they need - Dependency Inversion: depends on metrics_collector abstraction -
+  30-second update intervals for real-time performance monitoring - Follows existing SSE patterns
+  from health_stream router - JSON serialization handles Decimal and datetime objects safely -
+  Comprehensive error handling with client disconnect detection - Register performance_stream router
+  in main.py
+
+🚀 Generated with [Claude Code](https://claude.ai/code)
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.6.0 (2025-09-18)
 
 ### Features
