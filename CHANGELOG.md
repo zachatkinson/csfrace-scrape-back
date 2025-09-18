@@ -2,6 +2,36 @@
 
 <!-- version list -->
 
+## v5.6.0 (2025-09-18)
+
+### Features
+
+- Add performance metrics to SSE health stream
+  ([`b2112c6`](https://github.com/zachatkinson/csfrace-scrape-back/commit/b2112c64c6c7a8e60f9755fc777f009ef2a6fe47))
+
+- Add performance metrics to initial SSE connection event - Add periodic performance metrics updates
+  every 30 seconds - Reuse existing metrics_collector following DRY principles - Support
+  performance-update events for real-time frontend updates - Maintain SOLID principles with single
+  responsibility pattern - Follow existing SSE event format for consistency
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+- Add performance metrics to SSE health stream
+  ([#11](https://github.com/zachatkinson/csfrace-scrape-back/pull/11),
+  [`2559f27`](https://github.com/zachatkinson/csfrace-scrape-back/commit/2559f277f4de0acf19c1fe3c189022e31be842bc))
+
+- Add performance metrics to initial SSE connection event - Add periodic performance metrics updates
+  every 30 seconds - Reuse existing metrics_collector following DRY principles - Support
+  performance-update events for real-time frontend updates - Maintain SOLID principles with single
+  responsibility pattern - Follow existing SSE event format for consistency
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.5.0 (2025-09-17)
 
 ### Bug Fixes
