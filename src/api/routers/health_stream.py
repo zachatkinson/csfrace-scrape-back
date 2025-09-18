@@ -17,6 +17,7 @@ from ...monitoring.health_events import (
     health_event_subscriber,
     initialize_health_events,
 )
+from ...monitoring.metrics import metrics_collector
 from ..dependencies import DBSession
 from ..services.health_service import health_service
 
@@ -78,6 +79,26 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
         try:
             current_health = await health_service.get_comprehensive_health_status(db)
             logger.debug("Raw health data retrieved", health_keys=list(current_health.keys()))
+
+            # Send initial performance metrics event (DRY: reusing existing metrics collector)
+            try:
+                metrics_snapshot = metrics_collector.get_metrics_snapshot()
+                performance_event = {
+                    "type": "performance_metrics",
+                    "timestamp": (
+                        current_health["timestamp"].isoformat()
+                        if hasattr(current_health["timestamp"], "isoformat")
+                        else str(current_health["timestamp"])
+                    ),
+                    "data": {
+                        "system_metrics": metrics_snapshot.get("system_metrics", {}),
+                        "application_metrics": metrics_snapshot.get("application_metrics", {}),
+                        "database_metrics": metrics_snapshot.get("database_metrics", {}),
+                    },
+                }
+                yield f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+            except Exception as e:
+                logger.warning("Failed to get initial performance metrics", error=str(e))
 
             # Send initial service status events
             services = ["frontend", "backend", "database", "cache"]
@@ -216,8 +237,27 @@ async def health_stream(request: Request, db: DBSession) -> StreamingResponse:
                     yield f"event: service-update\ndata: {safe_json_dumps(service_update)}\n\n"
 
                 except TimeoutError:
-                    # Send keepalive ping every 30 seconds
+                    # Send keepalive ping and performance metrics every 30 seconds (SOLID: Single Responsibility)
                     yield f"event: keepalive\ndata: {safe_json_dumps({'timestamp': '2023-01-01T00:00:00Z'})}\n\n"
+
+                    # Send periodic performance metrics update (DRY: reusing existing metrics collector)
+                    try:
+                        metrics_snapshot = metrics_collector.get_metrics_snapshot()
+                        performance_event = {
+                            "type": "performance_metrics",
+                            "timestamp": "2023-01-01T00:00:00Z",
+                            "data": {
+                                "system_metrics": metrics_snapshot.get("system_metrics", {}),
+                                "application_metrics": metrics_snapshot.get(
+                                    "application_metrics", {}
+                                ),
+                                "database_metrics": metrics_snapshot.get("database_metrics", {}),
+                            },
+                        }
+                        yield f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+                    except Exception as e:
+                        logger.warning("Failed to send periodic performance metrics", error=str(e))
+
                     continue
 
         except asyncio.CancelledError:
