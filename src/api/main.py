@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
-import time
-from contextlib import asynccontextmanager
-||||||| parent of 5634f4f (fix(metrics): resolve linting and type checking issues)
-from contextlib import asynccontextmanager
-=======
 import time
 from contextlib import asynccontextmanager, suppress
->>>>>>> 5634f4f (fix(metrics): resolve linting and type checking issues)
 from typing import TYPE_CHECKING, Any
 
 import structlog
