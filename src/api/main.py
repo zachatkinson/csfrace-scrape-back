@@ -31,7 +31,7 @@ from ..monitoring.health_service_registry import (
 from ..monitoring.metrics import metrics_collector
 from ..monitoring.observability import observability_manager
 from .errors import APIErrorFactory
-from .routers import health, health_stream, jobs
+from .routers import health, health_stream, jobs, performance_stream
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -236,6 +236,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 # Include routers
 app.include_router(health.router)
 app.include_router(health_stream.router)  # Real-time health events via SSE
+app.include_router(performance_stream.router)  # Real-time performance metrics via SSE
 app.include_router(auth_router)  # Authentication endpoints
 app.include_router(jobs.router)
 
