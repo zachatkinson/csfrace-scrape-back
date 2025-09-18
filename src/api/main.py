@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import time
+from contextlib import asynccontextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
@@ -128,6 +129,50 @@ app.add_middleware(
 
 # Attach rate limiter to app
 app.state.limiter = limiter
+
+
+# Application Metrics Middleware
+@app.middleware("http")
+async def collect_metrics_middleware(request: Request, call_next: Any) -> Any:
+    """Collect application metrics for monitoring and observability."""
+    from ..monitoring.metrics import metrics_collector
+
+    start_time = time.time()
+    method = request.method
+    path = request.url.path
+
+    # Skip metrics collection for static assets and health checks
+    if path.startswith(("/static/", "/favicon.ico")) or path == "/health":
+        return await call_next(request)
+
+    # Increment active requests and connections
+    metrics_collector.increment_active_connections()
+    if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+        with suppress(Exception):
+            metrics_collector.metrics["active_requests"].inc()
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+
+        # Record successful request
+        duration = time.time() - start_time
+        metrics_collector.record_request(method, path, status_code, duration)
+
+        return response
+
+    except Exception:
+        # Record failed request
+        duration = time.time() - start_time
+        metrics_collector.record_request(method, path, 500, duration)
+        raise
+
+    finally:
+        # Decrement active requests and connections
+        metrics_collector.decrement_active_connections()
+        if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+            with suppress(Exception):
+                metrics_collector.metrics["active_requests"].dec()
 
 
 # Security Headers Middleware
