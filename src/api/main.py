@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+<<<<<<< HEAD
 import time
 from contextlib import asynccontextmanager
+||||||| parent of 5634f4f (fix(metrics): resolve linting and type checking issues)
+from contextlib import asynccontextmanager
+=======
+import time
+from contextlib import asynccontextmanager, suppress
+>>>>>>> 5634f4f (fix(metrics): resolve linting and type checking issues)
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -151,12 +158,8 @@ async def collect_metrics_middleware(request: Request, call_next: Any) -> Any:
     # Increment active requests and connections
     metrics_collector.increment_active_connections()
     if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
-        try:
+        with suppress(Exception):
             metrics_collector.metrics["active_requests"].inc()
-        except (KeyError, AttributeError) as e:
-            logger.warning(f"Failed to increment active_requests metric: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error in metrics collection: {e}")
 
     try:
         response = await call_next(request)
@@ -178,12 +181,8 @@ async def collect_metrics_middleware(request: Request, call_next: Any) -> Any:
         # Decrement active requests and connections
         metrics_collector.decrement_active_connections()
         if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
-            try:
+            with suppress(Exception):
                 metrics_collector.metrics["active_requests"].dec()
-            except (KeyError, AttributeError) as e:
-                logger.warning(f"Failed to decrement active_requests metric: {e}")
-            except Exception as e:
-                logger.error(f"Unexpected error in metrics cleanup: {e}")
 
 
 # Security Headers Middleware
