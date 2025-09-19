@@ -108,7 +108,14 @@ def postgres_container():
         or os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
     )
     has_database_vars = all(
-        env_var in os.environ for env_var in ["DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME", "DATABASE_USER", "DATABASE_PASSWORD"]
+        env_var in os.environ
+        for env_var in [
+            "DATABASE_HOST",
+            "DATABASE_PORT",
+            "DATABASE_NAME",
+            "DATABASE_USER",
+            "DATABASE_PASSWORD",
+        ]
     )
 
     if is_ci and has_database_vars:
