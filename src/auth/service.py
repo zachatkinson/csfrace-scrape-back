@@ -1,17 +1,15 @@
 """Authentication service layer for database operations."""
 
 from datetime import UTC, datetime
-from typing import Union
 from uuid import uuid4
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..constants import API_DEFAULT_LIMIT
 from ..database.models import User as UserTable
-from ..database.models import LinkedAccount as LinkedAccountTable
-from .models import User, UserCreate, OAuthUserCreate, UserInDB, UserUpdate
+from .models import OAuthUserCreate, User, UserCreate, UserInDB, UserUpdate
 from .security import security_manager
 
 logger = structlog.get_logger(__name__)
@@ -89,19 +87,23 @@ class AuthService:
             logger.error("Error fetching user by id", user_id=user_id, error=str(e))
             return None
 
-    def create_user(self, user_create: Union[UserCreate, OAuthUserCreate]) -> User:
+    def create_user(self, user_create: UserCreate | OAuthUserCreate) -> User:
         """Create new user (supports both password and OAuth users)."""
         try:
             # Check if user already exists
             existing = self.get_user_by_email(user_create.email)
             if existing:
-                logger.warning("Attempt to create user with existing email", email=user_create.email)
+                logger.warning(
+                    "Attempt to create user with existing email", email=user_create.email
+                )
                 raise ValueError(f"User with email {user_create.email} already exists")
 
             # Check username uniqueness
             existing = self.get_user_by_username(user_create.username)
             if existing:
-                logger.warning("Attempt to create user with existing username", username=user_create.username)
+                logger.warning(
+                    "Attempt to create user with existing username", username=user_create.username
+                )
                 raise ValueError(f"Username {user_create.username} already taken")
 
             # Generate user ID

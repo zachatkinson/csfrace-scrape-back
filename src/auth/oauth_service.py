@@ -1,12 +1,10 @@
 """OAuth2 SSO service with SOLID principles and DRY validation."""
 
-import secrets
 import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlencode
-import jwt
 
 import httpx
 import structlog
@@ -27,9 +25,15 @@ from ..constants import (
     OAUTH_REDIRECT_URI_BASE,
 )
 from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
-from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, OAuthUserCreate, SSOLoginResponse, User
+from .models import (
+    LinkedAccount,
+    OAuthProvider,
+    OAuthUserCreate,
+    OAuthUserInfo,
+    SSOLoginResponse,
+    User,
+)
 from .service import AuthService
-from .security import security_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -50,78 +54,166 @@ class OAuthProviderInterface(ABC):
         """Fetch user information using access token."""
 
 
-class GoogleOAuthProvider(OAuthProviderInterface):
-    """Google OAuth2 provider implementation - Single Responsibility with DRY constants."""
+class BaseOAuthProvider(OAuthProviderInterface):
+    """DRY Base OAuth provider - eliminates duplication across all providers.
 
-    def __init__(self, client_id: str, client_secret: str):
+    Template Method Pattern: Concrete providers only override specific behavior.
+    Following SOLID principles for maximum code reuse.
+    """
+
+    def __init__(self, client_id: str, client_secret: str, provider: OAuthProvider):
         self.client_id = client_id
         self.client_secret = client_secret
-        self.authorization_base_url = OAUTH_CONSTANTS.GOOGLE_AUTHORIZATION_URL
-        self.token_url = OAUTH_CONSTANTS.GOOGLE_TOKEN_URL
-        self.user_info_url = OAUTH_CONSTANTS.GOOGLE_USER_INFO_URL
-        self.scope = OAUTH_CONSTANTS.GOOGLE_SCOPES
+        self.provider = provider
+        self.logger = logger.bind(provider=provider.value)
 
+    # Template Method Pattern - DRY implementation for all providers
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:
-        """Generate Google OAuth authorization URL."""
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": redirect_uri,
-            "scope": " ".join(self.scope),
-            "response_type": "code",
-            "state": state,
-            "access_type": "offline",
-            "prompt": "consent",
-        }
-        return f"{self.authorization_base_url}?{urlencode(params)}"
+        """DRY authorization URL generation for all providers."""
+        base_params = self._get_base_auth_params(state, redirect_uri)
+        provider_params = self._get_provider_auth_params()
+
+        # Merge base and provider-specific parameters
+        params = {**base_params, **provider_params}
+        return f"{self._get_auth_base_url()}?{urlencode(params)}"
 
     async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
-        """Exchange Google authorization code for access token."""
+        """DRY token exchange logic for all providers."""
         async with httpx.AsyncClient() as client:
-            token_data = {
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "code": code,
-                "grant_type": "authorization_code",
-                "redirect_uri": redirect_uri,
-            }
+            token_data = self._get_token_exchange_data(code, redirect_uri)
+            headers = self._get_token_exchange_headers()
 
-            # Enhanced logging for debugging Google OAuth token exchange
-            logger.debug(
-                "Google token exchange request",
+            # Enhanced logging for debugging - DRY across all providers
+            self.logger.debug(
+                "OAuth token exchange request",
                 redirect_uri=redirect_uri,
                 code_length=len(code),
-                client_id=self.client_id[:8] + "...",  # Only log partial client ID for security
-                token_url=self.token_url,
+                client_id=self.client_id[:8] + "...",
+                token_url=self._get_token_url(),
             )
 
-            response = await client.post(self.token_url, data=token_data)
+            response = await client.post(self._get_token_url(), data=token_data, headers=headers)
 
-            # Log response details for debugging
-            logger.debug(
-                "Google token exchange response",
+            # DRY response logging
+            self.logger.debug(
+                "OAuth token exchange response",
                 status_code=response.status_code,
-                response_headers=dict(response.headers),
-                response_content_preview=response.text[:200] if response.status_code != 200 else "Success"
+                response_content_preview=response.text[:200]
+                if response.status_code != 200
+                else "Success",
             )
 
             response.raise_for_status()
-            return response.json()["access_token"]
+            return self._extract_access_token(response.json())
 
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
-        """Fetch Google user information."""
+        """DRY user info fetching for all providers."""
         async with httpx.AsyncClient() as client:
-            headers = {"Authorization": f"Bearer {access_token}"}
-            response = await client.get(self.user_info_url, headers=headers)
-            response.raise_for_status()
+            headers = self._get_user_info_headers(access_token)
 
-            user_data = response.json()
-            return OAuthUserInfo(
-                provider=OAuthProvider.GOOGLE,
-                provider_id=user_data["id"],
-                email=user_data["email"],
-                name=user_data["name"],
-                avatar_url=user_data.get("picture"),
-            )
+            # Some providers need multiple requests (e.g., GitHub for email)
+            user_data = await self._fetch_user_data(client, headers)
+
+            return self._map_user_info(user_data)
+
+    # Abstract methods that providers must implement (Template Method Pattern)
+    @abstractmethod
+    def _get_auth_base_url(self) -> str:
+        """Return provider's authorization URL."""
+
+    @abstractmethod
+    def _get_token_url(self) -> str:
+        """Return provider's token exchange URL."""
+
+    @abstractmethod
+    def _get_user_info_url(self) -> str:
+        """Return provider's user info URL."""
+
+    @abstractmethod
+    def _get_provider_auth_params(self) -> dict[str, str]:
+        """Return provider-specific authorization parameters."""
+
+    @abstractmethod
+    def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
+        """Map provider-specific user data to OAuthUserInfo."""
+
+    # DRY helper methods with sensible defaults (Open/Closed Principle)
+    def _get_base_auth_params(self, state: str, redirect_uri: str) -> dict[str, str]:
+        """Base authorization parameters common to most providers."""
+        return {
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "state": state,
+        }
+
+    def _get_token_exchange_data(self, code: str, redirect_uri: str) -> dict[str, str]:
+        """Base token exchange data common to most providers."""
+        return {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+        }
+
+    def _get_token_exchange_headers(self) -> dict[str, str]:
+        """Default headers for token exchange."""
+        return {"Content-Type": "application/x-www-form-urlencoded"}
+
+    def _get_user_info_headers(self, access_token: str) -> dict[str, str]:
+        """Default headers for user info requests."""
+        return {"Authorization": f"Bearer {access_token}"}
+
+    def _extract_access_token(self, token_response: dict[str, Any]) -> str:
+        """Extract access token from provider response."""
+        return token_response["access_token"]
+
+    async def _fetch_user_data(
+        self, client: httpx.AsyncClient, headers: dict[str, str]
+    ) -> dict[str, Any]:
+        """Default user data fetching - single request."""
+        response = await client.get(self._get_user_info_url(), headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+
+class GoogleOAuthProvider(BaseOAuthProvider):
+    """Google OAuth2 provider implementation - Now DRY using BaseOAuthProvider Template Method Pattern."""
+
+    def __init__(self, client_id: str, client_secret: str):
+        super().__init__(client_id, client_secret, OAuthProvider.GOOGLE)
+
+    # Required abstract method implementations
+    def _get_auth_base_url(self) -> str:
+        """Return Google's authorization URL."""
+        return OAUTH_CONSTANTS.GOOGLE_AUTHORIZATION_URL
+
+    def _get_token_url(self) -> str:
+        """Return Google's token exchange URL."""
+        return OAUTH_CONSTANTS.GOOGLE_TOKEN_URL
+
+    def _get_user_info_url(self) -> str:
+        """Return Google's user info URL."""
+        return OAUTH_CONSTANTS.GOOGLE_USER_INFO_URL
+
+    def _get_provider_auth_params(self) -> dict[str, str]:
+        """Return Google-specific authorization parameters."""
+        return {
+            "access_type": "offline",
+            "prompt": "consent",
+            "scope": " ".join(OAUTH_CONSTANTS.GOOGLE_SCOPES),
+        }
+
+    def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
+        """Map Google user data to standardized format."""
+        return OAuthUserInfo(
+            provider=OAuthProvider.GOOGLE,
+            provider_id=user_data["id"],
+            email=user_data["email"],
+            name=user_data["name"],
+            avatar_url=user_data.get("picture"),
+        )
 
 
 class GitHubOAuthProvider(OAuthProviderInterface):
@@ -289,7 +381,7 @@ class FacebookOAuthProvider(OAuthProviderInterface):
             response.raise_for_status()
 
             user_data = response.json()
-            
+
             # Facebook email is optional - use fallback if not provided
             email = user_data.get("email")
             if not email:
@@ -299,9 +391,9 @@ class FacebookOAuthProvider(OAuthProviderInterface):
                 logger.warning(
                     "Facebook user without email, using placeholder",
                     facebook_id=user_data["id"],
-                    placeholder_email=email
+                    placeholder_email=email,
                 )
-            
+
             return OAuthUserInfo(
                 provider=OAuthProvider.FACEBOOK,
                 provider_id=user_data["id"],
@@ -361,11 +453,12 @@ class AppleOAuthProvider(OAuthProviderInterface):
         # For now, generate consistent placeholder data
         # Real implementation would decode JWT and extract: sub, email, name
         import hashlib
+
         unique_id = hashlib.md5(access_token.encode()).hexdigest()[:12]
 
         logger.warning(
             "Apple OAuth using placeholder implementation",
-            message="Production should decode JWT ID token for real user data"
+            message="Production should decode JWT ID token for real user data",
         )
 
         return OAuthUserInfo(
@@ -750,7 +843,6 @@ class OAuthService:
     def _create_oauth_state_jwt(self, provider: OAuthProvider, redirect_uri: str) -> str:
         """Create JWT-based OAuth state token - Stateless and CSRF-secure."""
         from ..auth.security import security_manager
-        from datetime import timedelta
 
         state_data = {
             "provider": get_oauth_provider_value(provider),
@@ -758,8 +850,7 @@ class OAuthService:
             "purpose": "oauth_state",
         }
         state_jwt, _ = security_manager.create_access_token(
-            data=state_data,
-            expires_delta=timedelta(minutes=10)
+            data=state_data, expires_delta=timedelta(minutes=10)
         )
         logger.debug("JWT OAuth state created", provider=get_oauth_provider_value(provider))
         return state_jwt
@@ -774,17 +865,20 @@ class OAuthService:
 
             # Validate state token purpose
             if state_data.get("purpose") != "oauth_state":
-                logger.warning("Invalid OAuth state token purpose",
-                             purpose=state_data.get("purpose"))
+                logger.warning(
+                    "Invalid OAuth state token purpose", purpose=state_data.get("purpose")
+                )
                 raise ValueError("Invalid state token purpose")
 
             # Validate provider matches
             token_provider = state_data.get("provider")
             expected_provider = get_oauth_provider_value(provider)
             if token_provider != expected_provider:
-                logger.warning("OAuth state provider mismatch",
-                             token_provider=token_provider,
-                             expected_provider=expected_provider)
+                logger.warning(
+                    "OAuth state provider mismatch",
+                    token_provider=token_provider,
+                    expected_provider=expected_provider,
+                )
                 raise ValueError("Provider mismatch in state token")
 
             # Extract and return original redirect URI
@@ -793,8 +887,7 @@ class OAuthService:
                 logger.warning("Missing redirect_uri in OAuth state token")
                 raise ValueError("Missing redirect_uri in state token")
 
-            logger.debug("JWT OAuth state validated successfully",
-                        provider=expected_provider)
+            logger.debug("JWT OAuth state validated successfully", provider=expected_provider)
             return redirect_uri
 
         except Exception as e:

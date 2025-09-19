@@ -42,7 +42,11 @@ class Token(BaseModel):
     token_type: str = AUTH_CONSTANTS.BEARER_TOKEN_TYPE
     expires_in: int  # seconds until expiration
     refresh_token: str | None = None
-    is_new_user: bool = False  # Indicates if this is a newly created user
+    is_new_user: bool = Field(
+        False,
+        description="Indicates if this is a newly created user",
+        json_schema_extra={"include_in_schema": True},
+    )
 
 
 class TokenData(BaseModel):
@@ -103,7 +107,9 @@ class OAuthUserCreate(BaseModel):
         if len(v) < 3:
             raise ValueError("Username must be at least 3 characters")
         if not v.replace("_", "").replace("-", "").replace(".", "").isalnum():
-            raise ValueError("Username can only contain letters, numbers, hyphens, underscores, and dots")
+            raise ValueError(
+                "Username can only contain letters, numbers, hyphens, underscores, and dots"
+            )
         return v
 
 

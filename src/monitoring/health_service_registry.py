@@ -243,9 +243,10 @@ class PostgreSQLHealthEmitter(HealthEmitter):
                 # Simple query to test connectivity and get version
                 from sqlalchemy import text
 
-                result = session.execute(
+                result_obj = session.execute(
                     text("SELECT version(), current_database(), current_user")
-                ).fetchone()
+                )
+                result = result_obj.fetchone()
                 response_time_ms = (time.time() - start_time) * 1000
 
                 if result:
@@ -254,14 +255,15 @@ class PostgreSQLHealthEmitter(HealthEmitter):
                     current_user = result[2] if result[2] else "unknown"
 
                     # Get additional stats
-                    stats_result = session.execute(
+                    stats_result_obj = session.execute(
                         text("""
                         SELECT
                             pg_database_size(current_database()) as db_size,
                             (SELECT count(*) FROM pg_stat_activity WHERE state = 'active') as active_connections,
                             (SELECT setting FROM pg_settings WHERE name = 'max_connections') as max_connections
                     """)
-                    ).fetchone()
+                    )
+                    stats_result = stats_result_obj.fetchone()
 
                     db_size = stats_result[0] if stats_result and stats_result[0] else 0
                     active_connections = stats_result[1] if stats_result and stats_result[1] else 0

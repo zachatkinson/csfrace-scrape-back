@@ -69,13 +69,15 @@ class ScrapingJob(Base):
     __tablename__ = "jobs"
 
     # Primary identification - match actual database schema (UUID type)
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    
-    # User association 
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+    )
+
+    # User association
     user_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=False), ForeignKey("users.id"), nullable=True, index=True
     )
-    
+
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
@@ -320,49 +322,53 @@ class SystemMetrics(Base):
 
 class User(Base):
     """User model for authentication and authorization.
-    
+
     Follows best practices for user management with support for:
     - OAuth SSO providers (Google, GitHub, Microsoft, Facebook, Apple)
     - Traditional username/password authentication
     - WebAuthn/passkeys for passwordless auth
     - Account status tracking and security features
     """
-    
+
     __tablename__ = "users"
-    
+
     # Primary key
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    
+
     # User credentials
     username: Mapped[str] = mapped_column(String(150), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
-    hashed_password: Mapped[str | None] = mapped_column(Text, nullable=True)  # Nullable for OAuth users
-    
+    hashed_password: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Nullable for OAuth users
+
     # Profile information
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+
     # Account status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    
+
     # Security tracking
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
-        default=lambda: datetime.now(UTC), 
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
-        nullable=False
+        nullable=False,
     )
-    
+
     # Relationships
     linked_accounts: Mapped[list["LinkedAccount"]] = relationship(
         "LinkedAccount", back_populates="user", cascade="all, delete-orphan"
@@ -373,7 +379,7 @@ class User(Base):
     scraping_jobs: Mapped[list["ScrapingJob"]] = relationship(
         "ScrapingJob", back_populates="user"
     )  # No cascade delete - preserve jobs when user is deleted
-    
+
     def __repr__(self) -> str:
         """String representation of user."""
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
@@ -381,33 +387,41 @@ class User(Base):
 
 class LinkedAccount(Base):
     """OAuth linked account model for SSO providers.
-    
+
     Tracks OAuth accounts linked to users for multiple provider support.
     Allows users to sign in with multiple OAuth providers.
     """
-    
+
     __tablename__ = "linked_accounts"
-    
+
     # Primary key
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    
+
     # Foreign key to user
-    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+
     # OAuth provider information
-    provider: Mapped[str] = mapped_column(String(50), nullable=False)  # google, github, microsoft, etc.
-    provider_account_id: Mapped[str] = mapped_column(String(255), nullable=False)  # Provider's user ID
-    
+    provider: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # google, github, microsoft, etc.
+    provider_account_id: Mapped[str] = mapped_column(
+        String(255), nullable=False
+    )  # Provider's user ID
+
     # OAuth tokens (encrypted in production)
     access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
-    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    
+    token_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     # Provider data
     email: Mapped[str] = mapped_column(String(320), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -416,20 +430,24 @@ class LinkedAccount(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
-        nullable=False
+        nullable=False,
     )
-    
+
     # Unique constraint: One provider account per user
     __table_args__ = (
-        UniqueConstraint("user_id", "provider", "provider_account_id", name="uq_user_provider_account"),
+        UniqueConstraint(
+            "user_id", "provider", "provider_account_id", name="uq_user_provider_account"
+        ),
     )
-    
+
     # Relationship back to user
     user: Mapped["User"] = relationship("User", back_populates="linked_accounts")
-    
+
     def __repr__(self) -> str:
         """String representation of linked account."""
-        return f"<LinkedAccount(id={self.id}, provider='{self.provider}', user_id='{self.user_id}')>"
+        return (
+            f"<LinkedAccount(id={self.id}, provider='{self.provider}', user_id='{self.user_id}')>"
+        )
 
 
 class WebAuthnCredential(Base):
@@ -498,7 +516,7 @@ class WebAuthnCredential(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )  # When credential was revoked
-    
+
     # Relationship back to user
     user: Mapped["User"] = relationship("User", back_populates="webauthn_credentials")
 

@@ -20,6 +20,40 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+class SafeJSONEncoder(json.JSONEncoder):
+    """Enterprise-grade JSON encoder that handles datetime and other objects safely.
+
+    This follows DRY principles by centralizing all datetime serialization logic
+    and SOLID principles by having a single responsibility for JSON encoding.
+    """
+
+    def default(self, obj: Any) -> Any:
+        """Convert objects to JSON-serializable format.
+
+        This method handles all common non-serializable objects in one place,
+        following the DRY principle and ensuring consistent serialization.
+        """
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif hasattr(obj, "__dict__"):
+            # Handle dataclasses and other objects with __dict__
+            return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+        elif isinstance(obj, Enum):
+            return obj.value
+        else:
+            # Let the base class handle any other types
+            return super().default(obj)
+
+
+def safe_json_dumps(obj: Any, **kwargs) -> str:
+    """Safely serialize objects to JSON using the SafeJSONEncoder.
+
+    This is the DRY way to handle JSON serialization throughout the application.
+    Always use this instead of json.dumps() directly when datetime objects might be present.
+    """
+    return json.dumps(obj, cls=SafeJSONEncoder, **kwargs)
+
+
 class HealthEventType(Enum):
     """Health event types."""
 
@@ -48,14 +82,38 @@ class HealthEvent:
             self.event_id = f"{self.service_name}_{int(time.time() * 1000)}"
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert event to dictionary for JSON serialization."""
+        """Convert event to dictionary for JSON serialization.
+
+        Uses the SafeJSONEncoder logic to ensure consistent serialization
+        following DRY principles.
+        """
+
+        def serialize_value(value: Any) -> Any:
+            """Recursively serialize objects using SafeJSONEncoder logic."""
+            if isinstance(value, datetime):
+                return value.isoformat()
+            elif isinstance(value, Enum):
+                return value.value
+            elif isinstance(value, dict):
+                return {k: serialize_value(v) for k, v in value.items()}
+            elif isinstance(value, (list, tuple)):
+                return [serialize_value(item) for item in value]
+            elif hasattr(value, "__dict__"):
+                # Handle dataclasses and other objects consistently
+                return {
+                    k: serialize_value(v)
+                    for k, v in value.__dict__.items()
+                    if not k.startswith("_")
+                }
+            return value
+
         return {
             "event_type": self.event_type.value,
             "service_name": self.service_name,
             "status": self.status,
             "timestamp": self.timestamp.isoformat(),
             "message": self.message,
-            "data": self.data,
+            "data": serialize_value(self.data),
             "event_id": self.event_id,
             "correlation_id": self.correlation_id,
         }
@@ -214,7 +272,7 @@ class HealthEventPublisher:
             True if event was published successfully
         """
         try:
-            event_json = json.dumps(event.to_dict())
+            event_json = safe_json_dumps(event.to_dict())
             subscribers = await self.redis_client.publish(self.HEALTH_EVENTS_CHANNEL, event_json)
 
             self._logger.debug(

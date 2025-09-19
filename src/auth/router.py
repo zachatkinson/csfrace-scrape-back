@@ -14,7 +14,7 @@ from webauthn.helpers.structs import AuthenticationCredential, RegistrationCrede
 from ..api.errors import APIErrorFactory
 from ..api.utils import maybe_none
 from ..config.rate_limits import rate_limits
-from ..constants import API_DEFAULT_LIMIT, AUTH_CONSTANTS, OAUTH_REDIRECT_URI_BASE
+from ..constants import API_DEFAULT_LIMIT, AUTH_CONSTANTS
 from ..database.service import DatabaseService
 from .config import auth_config
 from .dependencies import (
@@ -158,6 +158,7 @@ async def login_for_access_token(
         token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
         expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         refresh_token=refresh_token,
+        is_new_user=False,
     )
 
 
@@ -215,6 +216,7 @@ async def refresh_access_token(
         access_token=access_token,
         token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
         expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        is_new_user=True,
     )
 
 
@@ -736,6 +738,7 @@ def complete_passkey_authentication(
             token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
             expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
             refresh_token=jwt_refresh_token,
+            is_new_user=False,
         )
 
     except ValueError as e:
