@@ -249,15 +249,21 @@ addopts = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests", 
+    "integration: marks tests as integration tests",
     "performance: marks tests as performance tests",
     "e2e: marks tests as end-to-end tests",
     "unit: marks tests as unit tests",
+    "ratelimit: marks tests that verify rate limiting behavior (run in separate shard)",
+    "redis: marks tests that require Redis server",
 ]
 asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:bs4",
+    "ignore::RuntimeWarning:.*coroutine.*never awaited.*",
+    "ignore::RuntimeWarning:.*Enable tracemalloc.*",
+    "ignore:Benchmarks are automatically disabled:pytest_benchmark.logger.PytestBenchmarkWarning",
 ]
 
 # Coverage configuration

@@ -16,7 +16,7 @@ except ImportError:
 
     structlog = logging  # type: ignore[misc]
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 from ..caching.manager import cache_manager
 
@@ -43,10 +43,12 @@ class JobEvent(BaseModel):
     data: dict[str, Any]
     message: str | None = None
 
-    class Config:
-        """Pydantic configuration."""
+    model_config = ConfigDict()
 
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, value: datetime) -> str:
+        """Serialize datetime to ISO format string."""
+        return value.isoformat()
 
 
 class JobEventPublisher:

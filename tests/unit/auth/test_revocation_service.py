@@ -17,8 +17,13 @@ def mock_db_session():
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
     session.close = AsyncMock()
-    session.execute = AsyncMock()
     session.delete = AsyncMock()
+
+    # Configure execute to return a mock result with scalar_one_or_none
+    mock_result = AsyncMock()
+    mock_result.scalar_one_or_none = MagicMock()
+    session.execute = AsyncMock(return_value=mock_result)
+
     return session
 
 
@@ -370,7 +375,9 @@ class TestTokenRevocationServiceEdgeCases:
     ):
         """Test that concurrent revocation attempts are handled safely."""
         # Arrange - Simulate race condition where token gets revoked between check and insert
-        mock_db_session.execute.return_value.scalar_one_or_none.side_effect = [
+        # Configure the mock result that execute returns
+        mock_result = mock_db_session.execute.return_value
+        mock_result.scalar_one_or_none.side_effect = [
             None,  # First check: not revoked
             MagicMock(spec=RevokedToken),  # Second check: already revoked
         ]
