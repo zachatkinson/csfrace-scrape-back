@@ -387,23 +387,19 @@ def _validate_oauth_callback_parameters(
 
 async def _process_oauth_token_exchange(
     provider: OAuthProvider, oauth_callback: OAuthCallback, oauth_service: OAuthService
-) -> tuple[str, bool]:
-    """Process OAuth token exchange and return access token."""
-    # Build redirect URI for token exchange (must match the one used in authorization)
-    redirect_uri = (
-        f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{get_oauth_provider_value(provider)}/callback"
-    )
-
-    # Handle OAuth callback and get user information
+) -> tuple[User, bool]:
+    """Process OAuth token exchange and return user."""
+    # OAuth service will extract the original redirect URI from JWT state and use it
+    # for token exchange (as required by OAuth2 spec)
     return await oauth_service.handle_oauth_callback(
         provider=provider,
         code=oauth_callback.code,
         state=oauth_callback.state,
-        redirect_uri=redirect_uri,
+        redirect_uri="",  # Not used - OAuth service extracts from JWT state
     )
 
 
-def _create_jwt_tokens_for_user(user: User) -> Token:
+def _create_jwt_tokens_for_user(user: User, is_new_user: bool = False) -> Token:
     """Create JWT access and refresh tokens for authenticated user."""
     access_token_expires = timedelta(minutes=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES)
     jwt_access_token, access_jti = security_manager.create_access_token(
@@ -420,6 +416,7 @@ def _create_jwt_tokens_for_user(user: User) -> Token:
         token_type=AUTH_CONSTANTS.BEARER_TOKEN_TYPE,
         expires_in=auth_config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
         refresh_token=jwt_refresh_token,
+        is_new_user=is_new_user,
     )
 
 
@@ -475,18 +472,10 @@ async def handle_oauth_callback(
             state_present=bool(oauth_callback.state),
         )
 
-        # Exchange authorization code for access token
-        access_token, is_new_user = await _process_oauth_token_exchange(
+        # Exchange authorization code for access token and get user
+        user, is_new_user = await _process_oauth_token_exchange(
             provider, oauth_callback, oauth_service
         )
-
-        # Get user information and retrieve user from database
-        user_info = await oauth_service.get_cached_user_info(access_token)
-        user = maybe_none(auth_service.get_user_by_email, user_info.email)
-
-        if not user:
-            logger.error("User not found after OAuth callback processing")
-            raise APIErrorFactory.internal_server_error("User account creation or retrieval failed")
 
         # Log successful OAuth authentication
         logger.info(
@@ -498,7 +487,7 @@ async def handle_oauth_callback(
         )
 
         # Generate and return JWT tokens
-        return _create_jwt_tokens_for_user(user)
+        return _create_jwt_tokens_for_user(user, is_new_user)
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is

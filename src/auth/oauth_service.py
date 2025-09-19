@@ -3,9 +3,10 @@
 import secrets
 import time
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlencode
+import jwt
 
 import httpx
 import structlog
@@ -26,8 +27,9 @@ from ..constants import (
     OAUTH_REDIRECT_URI_BASE,
 )
 from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
-from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, SSOLoginResponse, User, UserCreate
+from .models import LinkedAccount, OAuthProvider, OAuthUserInfo, OAuthUserCreate, SSOLoginResponse, User
 from .service import AuthService
+from .security import security_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -82,7 +84,26 @@ class GoogleOAuthProvider(OAuthProviderInterface):
                 "grant_type": "authorization_code",
                 "redirect_uri": redirect_uri,
             }
+
+            # Enhanced logging for debugging Google OAuth token exchange
+            logger.debug(
+                "Google token exchange request",
+                redirect_uri=redirect_uri,
+                code_length=len(code),
+                client_id=self.client_id[:8] + "...",  # Only log partial client ID for security
+                token_url=self.token_url,
+            )
+
             response = await client.post(self.token_url, data=token_data)
+
+            # Log response details for debugging
+            logger.debug(
+                "Google token exchange response",
+                status_code=response.status_code,
+                response_headers=dict(response.headers),
+                response_content_preview=response.text[:200] if response.status_code != 200 else "Success"
+            )
+
             response.raise_for_status()
             return response.json()["access_token"]
 
@@ -268,10 +289,23 @@ class FacebookOAuthProvider(OAuthProviderInterface):
             response.raise_for_status()
 
             user_data = response.json()
+            
+            # Facebook email is optional - use fallback if not provided
+            email = user_data.get("email")
+            if not email:
+                # Generate a placeholder email using Facebook ID
+                # User will need to update this later for email features
+                email = f"fb_{user_data['id']}@users.csfrace.local"
+                logger.warning(
+                    "Facebook user without email, using placeholder",
+                    facebook_id=user_data["id"],
+                    placeholder_email=email
+                )
+            
             return OAuthUserInfo(
                 provider=OAuthProvider.FACEBOOK,
                 provider_id=user_data["id"],
-                email=user_data.get("email"),
+                email=email,
                 name=user_data["name"],
                 avatar_url=user_data.get("picture", {}).get("data", {}).get("url"),
             )
@@ -321,13 +355,23 @@ class AppleOAuthProvider(OAuthProviderInterface):
         Note: Apple provides user info in the ID token, not via separate API.
         This is a simplified implementation - production should decode JWT ID token.
         """
-        # Apple doesn't provide a separate user info endpoint
-        # User info comes from the ID token which should be decoded
-        # For now, we'll return minimal info that would come from the token
+        # TODO: In production, decode the ID token (access_token) as JWT
+        # to extract actual user info from claims
+
+        # For now, generate consistent placeholder data
+        # Real implementation would decode JWT and extract: sub, email, name
+        import hashlib
+        unique_id = hashlib.md5(access_token.encode()).hexdigest()[:12]
+
+        logger.warning(
+            "Apple OAuth using placeholder implementation",
+            message="Production should decode JWT ID token for real user data"
+        )
+
         return OAuthUserInfo(
             provider=OAuthProvider.APPLE,
-            provider_id="apple_user_id",  # Would come from JWT sub claim
-            email="user@privaterelay.appleid.com",  # Would come from JWT email claim
+            provider_id=f"apple_{unique_id}",  # Would come from JWT sub claim
+            email=f"apple_{unique_id}@privaterelay.appleid.com",  # Would come from JWT email claim
             name="Apple User",  # Would come from JWT name claim if provided
             avatar_url=None,  # Apple doesn't provide avatars
         )
@@ -469,36 +513,37 @@ class OAuthService:
 
         oauth_provider = self.provider_factory.create_provider(provider)
 
-        # Generate secure state parameter using DRY constant
-        state = secrets.token_urlsafe(OAUTH_CONSTANTS.STATE_TOKEN_LENGTH)
-
+        # Generate secure JWT state parameter for stateless validation
         # Use default redirect URI if not provided - DRY enum value extraction
         if redirect_uri is None:
             provider_value = get_oauth_provider_value(provider)
             redirect_uri = f"{OAUTH_REDIRECT_URI_BASE}/auth/oauth/{provider_value}/callback"
 
+        # Create JWT state with the actual redirect_uri that will be used for authorization
+        state = self._create_oauth_state_jwt(provider, redirect_uri)
+
         authorization_url = oauth_provider.get_authorization_url(state, redirect_uri)
 
-        # Store state in cache for validation (CSRF protection)
-        self._store_oauth_state(state, provider, redirect_uri)
+        # State is now JWT-encoded and stateless, no need to store
 
         return SSOLoginResponse(authorization_url=authorization_url, state=state, provider=provider)
 
     async def handle_oauth_callback(
         self, provider: OAuthProvider, code: str, state: str, redirect_uri: str
-    ) -> tuple[str, bool]:
-        """Handle OAuth callback and return access token and whether user is new.
+    ) -> tuple[User, bool]:
+        """Handle OAuth callback and return user and whether user is new.
 
         Implements OAuth2 Authorization Code Flow with proper validation and security checks.
         """
-        # Step 1: Validate state parameter (CSRF protection)
-        await self._validate_oauth_state(state, provider)
+        # Step 1: Validate JWT state parameter (CSRF protection)
+        original_redirect_uri = await self._validate_oauth_state_jwt(state, provider)
 
         oauth_provider = self.provider_factory.create_provider(provider)
 
         try:
-            # Step 2: Exchange authorization code for access token
-            access_token = await oauth_provider.exchange_code_for_token(code, redirect_uri)
+            # Step 2: Exchange authorization code for access token using original redirect URI
+            # This must match the redirect URI used during authorization (OAuth2 spec requirement)
+            access_token = await oauth_provider.exchange_code_for_token(code, original_redirect_uri)
 
             # Step 3: Get user information from OAuth provider
             oauth_user_info = await oauth_provider.get_user_info(access_token)
@@ -520,7 +565,7 @@ class OAuthService:
                 linked_account_id=getattr(linked_account, "id", None),
             )
 
-            return access_token, is_new_user
+            return user, is_new_user
 
         except Exception as e:
             logger.error(
@@ -540,15 +585,46 @@ class OAuthService:
             return existing_user, False
 
         # Create new user from OAuth info
-        user_create = UserCreate(
-            username=oauth_user_info.email.split("@")[0],  # Use email prefix as username
-            email=oauth_user_info.email,
-            password=secrets.token_urlsafe(32),  # Random password for OAuth users
-            full_name=oauth_user_info.name,
-        )
+        try:
+            # Generate unique username from email
+            base_username = oauth_user_info.email.split("@")[0]
+            username = self._generate_unique_username(base_username)
 
-        new_user = self.auth_service.create_user(user_create)
-        return new_user, True
+            user_create = OAuthUserCreate(
+                username=username,
+                email=oauth_user_info.email,
+                full_name=oauth_user_info.name,
+            )
+
+            new_user = self.auth_service.create_user(user_create)
+            logger.info(
+                "New user created from OAuth",
+                user_id=new_user.id,
+                email=oauth_user_info.email,
+                username=user_create.username,
+            )
+            return new_user, True
+
+        except Exception as e:
+            logger.error(
+                "Failed to create user from OAuth info",
+                email=oauth_user_info.email,
+                username=oauth_user_info.email.split("@")[0],
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise RuntimeError(f"User creation failed: {str(e)}") from e
+
+    def _generate_unique_username(self, base_username: str) -> str:
+        """Generate a unique username by appending numbers if needed."""
+        username = base_username
+        counter = 1
+
+        while self.auth_service.get_user_by_username(username):
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        return username
 
     def _link_oauth_account(self, user_id: str, oauth_user_info: OAuthUserInfo) -> LinkedAccount:
         """Link OAuth account to user."""
@@ -670,3 +746,57 @@ class OAuthService:
 
         # No cache available, raise error
         raise ValueError("No cached OAuth user information available")
+
+    def _create_oauth_state_jwt(self, provider: OAuthProvider, redirect_uri: str) -> str:
+        """Create JWT-based OAuth state token - Stateless and CSRF-secure."""
+        from ..auth.security import security_manager
+        from datetime import timedelta
+
+        state_data = {
+            "provider": get_oauth_provider_value(provider),
+            "redirect_uri": redirect_uri,
+            "purpose": "oauth_state",
+        }
+        state_jwt, _ = security_manager.create_access_token(
+            data=state_data,
+            expires_delta=timedelta(minutes=10)
+        )
+        logger.debug("JWT OAuth state created", provider=get_oauth_provider_value(provider))
+        return state_jwt
+
+    async def _validate_oauth_state_jwt(self, state: str, provider: OAuthProvider) -> str:
+        """Validate JWT-based OAuth state token and return original redirect_uri."""
+        from ..auth.security import security_manager
+
+        try:
+            # Decode and validate JWT state token
+            state_data = security_manager.decode_access_token(state)
+
+            # Validate state token purpose
+            if state_data.get("purpose") != "oauth_state":
+                logger.warning("Invalid OAuth state token purpose",
+                             purpose=state_data.get("purpose"))
+                raise ValueError("Invalid state token purpose")
+
+            # Validate provider matches
+            token_provider = state_data.get("provider")
+            expected_provider = get_oauth_provider_value(provider)
+            if token_provider != expected_provider:
+                logger.warning("OAuth state provider mismatch",
+                             token_provider=token_provider,
+                             expected_provider=expected_provider)
+                raise ValueError("Provider mismatch in state token")
+
+            # Extract and return original redirect URI
+            redirect_uri = state_data.get("redirect_uri")
+            if not redirect_uri:
+                logger.warning("Missing redirect_uri in OAuth state token")
+                raise ValueError("Missing redirect_uri in state token")
+
+            logger.debug("JWT OAuth state validated successfully",
+                        provider=expected_provider)
+            return redirect_uri
+
+        except Exception as e:
+            logger.error("OAuth state validation failed", error=str(e))
+            raise ValueError("Invalid or expired state parameter")
