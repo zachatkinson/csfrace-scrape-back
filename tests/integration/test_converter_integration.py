@@ -1,4 +1,7 @@
-"""Integration tests for the full conversion workflow."""
+"""Integration tests for the full conversion workflow.
+
+Note: This test ensures database schema changes are properly validated.
+"""
 
 from unittest.mock import patch
 

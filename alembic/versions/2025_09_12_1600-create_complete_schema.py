@@ -86,11 +86,13 @@ def upgrade() -> None:
         sa.Column("download_size_bytes", sa.Integer(), nullable=True),
         sa.Column("output_size_bytes", sa.Integer(), nullable=True),
         sa.Column("batch_id", sa.String(), nullable=True),
+        sa.Column("user_id", sa.String(length=255), nullable=True),
         sa.ForeignKeyConstraint(["batch_id"], ["batches.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_jobs_status"), "jobs", ["status"], unique=False)
     op.create_index(op.f("ix_jobs_batch_id"), "jobs", ["batch_id"], unique=False)
+    op.create_index(op.f("ix_jobs_user_id"), "jobs", ["user_id"], unique=False)
 
     # Create content_results table with foreign key to jobs
     op.create_table(
