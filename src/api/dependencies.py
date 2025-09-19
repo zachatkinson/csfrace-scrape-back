@@ -7,11 +7,11 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from ..constants import DATABASE_MAX_OVERFLOW, DATABASE_POOL_SIZE
-from ..database.utils import get_database_url
+from ..database.utils import get_asyncpg_database_url
 
 # Database engine and session factory
 engine = create_async_engine(
-    get_database_url().replace("postgresql+psycopg://", "postgresql+asyncpg://"),
+    get_asyncpg_database_url(),
     echo=False,  # Set to True for SQL debugging
     pool_size=DATABASE_POOL_SIZE,
     max_overflow=DATABASE_MAX_OVERFLOW,
