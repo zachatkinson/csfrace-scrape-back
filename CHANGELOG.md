@@ -2,6 +2,139 @@
 
 <!-- version list -->
 
+## v5.7.3 (2025-09-19)
+
+### Bug Fixes
+
+- Improve code quality and achieve 100% MyPy compliance
+  ([#14](https://github.com/zachatkinson/csfrace-scrape-back/pull/14),
+  [`8bb1f5b`](https://github.com/zachatkinson/csfrace-scrape-back/commit/8bb1f5b8df31832ad24751727fada75c59b8bc90))
+
+* fix(metrics): resolve linting and type checking issues
+
+Backend improvements for production deployment:
+
+- Fix contextlib usage by replacing try-except-pass with suppress() - Resolve MyPy type checking
+  errors in metrics.py - Update application_metrics type annotation to allow mixed types
+  (float|str|int) - Remove unused exception variable in middleware - Apply consistent code
+  formatting with Ruff
+
+Technical changes: - Added contextlib.suppress import to main.py - Updated metrics collection to use
+  suppress() instead of bare except blocks - Fixed type annotations in
+  MetricsCollector.application_metrics - Ensured all linting and type checking passes cleanly
+
+Quality gates passed: - ✅ Ruff formatting and linting (0 issues) - ✅ MyPy type checking (0 errors) -
+  ✅ Python syntax validation
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* refactor(metrics): replace contextlib.suppress with proper error handling
+
+Replace bandaid solution with production-ready error handling:
+
+- Remove contextlib.suppress() usage (anti-pattern) - Implement specific exception handling for
+  KeyError and AttributeError - Add structured logging for metrics failures using structlog -
+  Provide meaningful error messages for debugging and monitoring - Maintain application stability
+  while capturing error details
+
+Technical improvements: - Added structlog import and logger initialization - Specific exception
+  types (KeyError, AttributeError) for metrics key issues - Fallback Exception handler for
+  unexpected errors - Warning level for expected issues, error level for unexpected ones - Proper
+  logging context for production debugging
+
+This follows SOLID principles and production best practices: - Single Responsibility: Each exception
+  type handled appropriately - Open/Closed: Extensible error handling without breaking existing code
+  - Dependency Inversion: Abstracts error handling through logging interface
+
+* feat(auth): complete OAuth SSO authentication with user creation support
+
+- Add is_new_user flag to Token model for frontend success message differentiation - Implement
+  complete User and LinkedAccount SQLAlchemy models with OAuth support - Create database migration
+  for user authentication tables - Update OAuth service to handle both new user creation and
+  existing user login - Add OAuthUserCreate schema for passwordless authentication flow - Enhance
+  JWT token creation to include user creation status - Implement proper error handling and
+  transaction management in auth services - Add support for multiple OAuth providers (Google,
+  GitHub, Microsoft, Facebook, Apple) - Enable linking multiple OAuth accounts to single user
+  account - Complete passwordless authentication system (OAuth + WebAuthn only)
+
+* fix: improve code quality and fix MyPy type errors
+
+- Applied DRY principles to OAuth provider architecture using Template Method Pattern - Fixed
+  GoogleOAuthProvider to properly implement abstract methods from BaseOAuthProvider - Applied
+  enterprise-grade JSON serialization patterns to health monitoring system - Fixed Token model
+  Field() syntax for MyPy compliance - Added missing is_new_user parameters to all Token
+  instantiations - Achieved 100% Python code formatting compliance (ruff format) - Achieved 0
+  linting errors (ruff check) - Achieved 0 type checking errors (mypy)
+
+* fix(models): remove duplicate user_id field definition
+
+- Remove duplicate user_id field at line 123 (String type) - Keep proper user_id field at line 77-79
+  (UUID type with foreign key) - Fix MyPy type checking error for duplicate field definition -
+  Maintain relationship definition for SQLAlchemy convenience
+
+* ci: force full test suite execution [force ci]
+
+Database schema and authentication changes require complete test coverage including: - Integration
+  tests for OAuth flow - Database migration validation - End-to-end authentication testing -
+  Cross-platform compatibility checks
+
+* fix: change user_id from UUID to String(255) for database compatibility
+
+- Fix foreign key constraint error: jobs.user_id (UUID) vs users.id (VARCHAR) - Change jobs.user_id
+  from UUID(as_uuid=False) to String(255) to match users.id type - Maintains foreign key
+  relationship integrity - Ensures database schema compatibility across all tests
+
+Resolves test failures in Shards 1 and 2 where foreign key constraint 'jobs_user_id_fkey' could not
+  be implemented due to incompatible types.
+
+* fix(oauth): resolve Shard 2 test failures with backward compatibility
+
+- Add backward compatibility properties to BaseOAuthProvider for test compatibility - Fix Mock
+  object subscriptable error by using str() wrapper - Update OAuth test patches from secrets to
+  JWT-based state generation - Fix Google OAuth scope return type to join list into string -
+  Maintain DRY BaseOAuthProvider architecture while fixing test issues
+
+[force ci]
+
+* fix(tests): resolve database UUID and OAuth JWT state validation errors
+
+**Database Test Fixes:** - Replace invalid string UUIDs with proper UUID format in test_service.py -
+  Use "00000000-0000-0000-0000-000000000000" for nonexistent job tests - Ensures PostgreSQL UUID
+  validation compatibility
+
+**OAuth Test Fixes:** - Replace manual _store_oauth_state calls with _create_oauth_state_jwt() -
+  Generate proper JWT tokens for OAuth state validation tests - Fix Google provider scope assertion
+  to expect joined string - Maintains JWT-based OAuth security while fixing test compatibility
+
+**Impact:** - Resolves 2 database integration test failures in CI Shard - Resolves 4 OAuth unit test
+  failures in CI Shard 2 - All 6 failing tests now use proper data formats for PostgreSQL/JWT
+  validation
+
+* fix(tests): update OAuth callback test to match refactored return type
+
+The test was expecting (access_token, is_new_user) but the refactored handle_oauth_callback method
+  returns (User, bool). Updated test to match the new interface.
+
+Resolves last failing test from CI Shard 2.
+
+* fix(tests): update OAuth state management tests for JWT implementation
+
+Updated two OAuth tests that were still using the old in-memory cache approach: -
+  test_oauth_state_storage_and_retrieval: Now validates JWT token structure instead of cache -
+  test_validate_oauth_state_success: Now uses _validate_oauth_state_jwt() method
+
+These tests were failing because they expected the legacy state cache system, but the implementation
+  was refactored to use JWT tokens for better security.
+
+Resolves final Shard 2 CI failures.
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.7.2 (2025-09-19)
 
 ### Bug Fixes
