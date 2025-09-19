@@ -2,6 +2,37 @@
 
 <!-- version list -->
 
+## v5.7.2 (2025-09-19)
+
+### Bug Fixes
+
+- **database**: Add missing user_id field to ScrapingJob model
+  ([#15](https://github.com/zachatkinson/csfrace-scrape-back/pull/15),
+  [`3720c22`](https://github.com/zachatkinson/csfrace-scrape-back/commit/3720c22b2bff3d22b75f44a2c0f29fbf647a1da9))
+
+* fix(database): add missing user_id field to ScrapingJob model [force ci]
+
+- Add user_id field to ScrapingJob model with proper VARCHAR(255) type - Create migration for
+  existing databases to add user_id column - Update main schema migration for fresh installations -
+  Ensures type compatibility between jobs.user_id and users.id - Resolves CI test failures related
+  to foreign key constraints
+
+[force ci] - Database schema changes require full integration testing
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* test: trigger integration tests for database schema validation
+
+This change ensures that database schema modifications get proper integration test coverage, which
+  was being skipped by progressive CI despite [force ci] flag.
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.7.1 (2025-09-18)
 
 ### Bug Fixes
