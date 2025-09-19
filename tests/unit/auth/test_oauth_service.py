@@ -631,12 +631,12 @@ class TestOAuthCallbackHandling:
         state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         # Handle callback
-        access_token, is_new_user = await oauth_service.handle_oauth_callback(
+        user, is_new_user = await oauth_service.handle_oauth_callback(
             provider, code, state, redirect_uri
         )
 
         # Verify results
-        assert access_token == "access_token_123"
+        assert user == sample_user  # Should return the user object
         assert is_new_user is True
         assert oauth_service._cached_oauth_user_info == sample_oauth_user_info
 
