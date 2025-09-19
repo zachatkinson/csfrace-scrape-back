@@ -119,9 +119,6 @@ class ScrapingJob(Base):
     # Batch grouping
     batch_id: Mapped[str | None] = mapped_column(String)
 
-    # User association for job ownership
-    user_id: Mapped[str | None] = mapped_column(String(255), index=True)
-
     # Relationships
     user: Mapped["User | None"] = relationship("User", back_populates="scraping_jobs")
     content_results: Mapped[list["ContentResult"]] = relationship(
