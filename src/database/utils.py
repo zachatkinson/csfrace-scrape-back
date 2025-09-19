@@ -108,6 +108,35 @@ def get_database_url() -> str:
     return f"postgresql+psycopg://{username}:{password}@{host}:{port}/{database}"
 
 
+def get_asyncpg_database_url() -> str:
+    """Get asyncpg-compatible database URL with proper fallbacks.
+
+    Ensures all connection parameters are explicitly provided to prevent
+    asyncpg from falling back to system defaults like getpass.getuser().
+
+    Returns:
+        str: PostgreSQL database URL with asyncpg driver
+    """
+    # Check for full DATABASE_URL first
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # Convert psycopg URL to asyncpg URL
+        if "postgresql+psycopg://" in database_url:
+            return database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+        if "postgresql://" in database_url:
+            return database_url.replace("postgresql://", "postgresql+asyncpg://")
+        return database_url
+
+    # Fallback: build from individual environment variables
+    host = os.getenv("DATABASE_HOST", "localhost")
+    port = os.getenv("DATABASE_PORT", "5432")
+    database = os.getenv("DATABASE_NAME", "scraper_db")
+    username = os.getenv("DATABASE_USER", "postgres")
+    password = os.getenv("DATABASE_PASSWORD", "scraper_password")
+
+    return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{database}"
+
+
 def test_database_connection() -> bool:
     """Test database connection for startup scripts.
 
