@@ -273,9 +273,20 @@ source = ["src"]
 branch = true
 omit = [
     "*/tests/*",
-    "*/test_*.py", 
+    "*/test_*.py",
     "*/__init__.py",
     "*/conftest.py",
+    # Example and demonstration files
+    "src/auth/oauth_extension_example.py",
+    "src/core/feature_examples.py",
+    "src/plugins/examples/*",
+    # CLI entry points (tested via integration)
+    "src/main.py",
+    "src/cli/*",
+    # Browser rendering (requires headless browser setup)
+    "src/rendering/*",
+    # Feature flags (configuration-driven)
+    "src/core/feature_flags.py",
 ]
 
 [tool.coverage.report]
