@@ -330,12 +330,12 @@ class TestOAuthService:
         assert service.db_session == self.mock_db_session
         assert hasattr(service, "auth_service")
 
-    @patch("src.auth.oauth_service.secrets.token_urlsafe")
+    @patch("src.auth.oauth_service.OAuthService._create_oauth_state_jwt")
     @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")
-    def test_initiate_oauth_login(self, mock_create_provider, mock_token_urlsafe):
+    def test_initiate_oauth_login(self, mock_create_provider, mock_create_state_jwt):
         """Test OAuth login initiation - generates authorization URL with secure state."""
         # Mock dependencies
-        mock_token_urlsafe.return_value = "secure_random_state_123"
+        mock_create_state_jwt.return_value = "jwt_state_token_123"
         mock_provider = Mock()
         mock_provider.get_authorization_url.return_value = (
             "https://oauth.provider.com/authorize?params"
@@ -345,22 +345,22 @@ class TestOAuthService:
         # Test initiate login
         response = self.oauth_service.initiate_oauth_login(OAuthProvider.GOOGLE)
 
-        # Verify state token generation uses DRY constant
-        mock_token_urlsafe.assert_called_once_with(OAUTH_CONSTANTS.STATE_TOKEN_LENGTH)
+        # Verify state JWT generation is called
+        mock_create_state_jwt.assert_called_once()
 
         # Verify response
         assert isinstance(response, SSOLoginResponse)
         assert response.authorization_url == "https://oauth.provider.com/authorize?params"
-        assert response.state == "secure_random_state_123"
+        assert response.state == "jwt_state_token_123"
         assert response.provider == OAuthProvider.GOOGLE
 
     def test_initiate_oauth_login_with_custom_redirect_uri(self):
         """Test OAuth login initiation with custom redirect URI."""
         with (
-            patch("src.auth.oauth_service.secrets.token_urlsafe") as mock_token,
+            patch("src.auth.oauth_service.OAuthService._create_oauth_state_jwt") as mock_create_jwt,
             patch("src.auth.oauth_service.OAuthProviderFactory.create_provider") as mock_factory,
         ):
-            mock_token.return_value = "state_456"
+            mock_create_jwt.return_value = "jwt_state_456"
             mock_provider = Mock()
             mock_provider.get_authorization_url.return_value = "https://auth.url"
             mock_factory.return_value = mock_provider
@@ -372,16 +372,16 @@ class TestOAuthService:
 
             # Verify custom redirect URI is used
             mock_provider.get_authorization_url.assert_called_once_with(
-                "state_456", custom_redirect
+                "jwt_state_456", custom_redirect
             )
 
     def test_initiate_oauth_login_uses_default_redirect_uri(self):
         """Test OAuth login initiation uses default redirect URI when none provided."""
         with (
-            patch("src.auth.oauth_service.secrets.token_urlsafe") as mock_token,
+            patch("src.auth.oauth_service.OAuthService._create_oauth_state_jwt") as mock_create_jwt,
             patch("src.auth.oauth_service.OAuthProviderFactory.create_provider") as mock_factory,
         ):
-            mock_token.return_value = "default_state"
+            mock_create_jwt.return_value = "jwt_default_state"
             mock_provider = Mock()
             mock_provider.get_authorization_url.return_value = "https://default.auth.url"
             mock_factory.return_value = mock_provider
@@ -393,7 +393,7 @@ class TestOAuthService:
                 f"{OAUTH_CONSTANTS.OAUTH_REDIRECT_URI_BASE}/auth/oauth/microsoft/callback"
             )
             mock_provider.get_authorization_url.assert_called_once_with(
-                "default_state", expected_redirect
+                "jwt_default_state", expected_redirect
             )
 
 

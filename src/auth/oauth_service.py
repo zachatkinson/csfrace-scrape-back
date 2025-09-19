@@ -67,6 +67,28 @@ class BaseOAuthProvider(OAuthProviderInterface):
         self.provider = provider
         self.logger = logger.bind(provider=provider.value)
 
+    # Properties for backward compatibility with tests
+    @property
+    def authorization_base_url(self) -> str:
+        """Authorization URL for backward compatibility."""
+        return self._get_auth_base_url()
+
+    @property
+    def token_url(self) -> str:
+        """Token URL for backward compatibility."""
+        return self._get_token_url()
+
+    @property
+    def user_info_url(self) -> str:
+        """User info URL for backward compatibility."""
+        return self._get_user_info_url()
+
+    @property
+    def scope(self) -> str:
+        """OAuth scope for backward compatibility."""
+        # Default implementation - providers can override
+        return "openid email profile"
+
     # Template Method Pattern - DRY implementation for all providers
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:
         """DRY authorization URL generation for all providers."""
@@ -98,7 +120,7 @@ class BaseOAuthProvider(OAuthProviderInterface):
             self.logger.debug(
                 "OAuth token exchange response",
                 status_code=response.status_code,
-                response_content_preview=response.text[:200]
+                response_content_preview=str(response.text)[:200]
                 if response.status_code != 200
                 else "Success",
             )
@@ -183,6 +205,11 @@ class GoogleOAuthProvider(BaseOAuthProvider):
 
     def __init__(self, client_id: str, client_secret: str):
         super().__init__(client_id, client_secret, OAuthProvider.GOOGLE)
+
+    @property
+    def scope(self) -> str:
+        """Google-specific OAuth scopes."""
+        return " ".join(OAUTH_CONSTANTS.GOOGLE_SCOPES)
 
     # Required abstract method implementations
     def _get_auth_base_url(self) -> str:
