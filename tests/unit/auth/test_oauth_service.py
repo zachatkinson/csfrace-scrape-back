@@ -128,7 +128,7 @@ class TestGoogleOAuthProvider:
         assert self.provider.authorization_base_url == OAUTH_CONSTANTS.GOOGLE_AUTHORIZATION_URL
         assert self.provider.token_url == OAUTH_CONSTANTS.GOOGLE_TOKEN_URL
         assert self.provider.user_info_url == OAUTH_CONSTANTS.GOOGLE_USER_INFO_URL
-        assert self.provider.scope == OAUTH_CONSTANTS.GOOGLE_SCOPES
+        assert self.provider.scope == " ".join(OAUTH_CONSTANTS.GOOGLE_SCOPES)
 
     def test_google_get_authorization_url(self):
         """Test Google authorization URL generation."""
@@ -330,12 +330,12 @@ class TestOAuthService:
         assert service.db_session == self.mock_db_session
         assert hasattr(service, "auth_service")
 
-    @patch("src.auth.oauth_service.secrets.token_urlsafe")
+    @patch("src.auth.oauth_service.OAuthService._create_oauth_state_jwt")
     @patch("src.auth.oauth_service.OAuthProviderFactory.create_provider")
-    def test_initiate_oauth_login(self, mock_create_provider, mock_token_urlsafe):
+    def test_initiate_oauth_login(self, mock_create_provider, mock_create_state_jwt):
         """Test OAuth login initiation - generates authorization URL with secure state."""
         # Mock dependencies
-        mock_token_urlsafe.return_value = "secure_random_state_123"
+        mock_create_state_jwt.return_value = "jwt_state_token_123"
         mock_provider = Mock()
         mock_provider.get_authorization_url.return_value = (
             "https://oauth.provider.com/authorize?params"
@@ -345,22 +345,22 @@ class TestOAuthService:
         # Test initiate login
         response = self.oauth_service.initiate_oauth_login(OAuthProvider.GOOGLE)
 
-        # Verify state token generation uses DRY constant
-        mock_token_urlsafe.assert_called_once_with(OAUTH_CONSTANTS.STATE_TOKEN_LENGTH)
+        # Verify state JWT generation is called
+        mock_create_state_jwt.assert_called_once()
 
         # Verify response
         assert isinstance(response, SSOLoginResponse)
         assert response.authorization_url == "https://oauth.provider.com/authorize?params"
-        assert response.state == "secure_random_state_123"
+        assert response.state == "jwt_state_token_123"
         assert response.provider == OAuthProvider.GOOGLE
 
     def test_initiate_oauth_login_with_custom_redirect_uri(self):
         """Test OAuth login initiation with custom redirect URI."""
         with (
-            patch("src.auth.oauth_service.secrets.token_urlsafe") as mock_token,
+            patch("src.auth.oauth_service.OAuthService._create_oauth_state_jwt") as mock_create_jwt,
             patch("src.auth.oauth_service.OAuthProviderFactory.create_provider") as mock_factory,
         ):
-            mock_token.return_value = "state_456"
+            mock_create_jwt.return_value = "jwt_state_456"
             mock_provider = Mock()
             mock_provider.get_authorization_url.return_value = "https://auth.url"
             mock_factory.return_value = mock_provider
@@ -372,16 +372,16 @@ class TestOAuthService:
 
             # Verify custom redirect URI is used
             mock_provider.get_authorization_url.assert_called_once_with(
-                "state_456", custom_redirect
+                "jwt_state_456", custom_redirect
             )
 
     def test_initiate_oauth_login_uses_default_redirect_uri(self):
         """Test OAuth login initiation uses default redirect URI when none provided."""
         with (
-            patch("src.auth.oauth_service.secrets.token_urlsafe") as mock_token,
+            patch("src.auth.oauth_service.OAuthService._create_oauth_state_jwt") as mock_create_jwt,
             patch("src.auth.oauth_service.OAuthProviderFactory.create_provider") as mock_factory,
         ):
-            mock_token.return_value = "default_state"
+            mock_create_jwt.return_value = "jwt_default_state"
             mock_provider = Mock()
             mock_provider.get_authorization_url.return_value = "https://default.auth.url"
             mock_factory.return_value = mock_provider
@@ -393,7 +393,7 @@ class TestOAuthService:
                 f"{OAUTH_CONSTANTS.OAUTH_REDIRECT_URI_BASE}/auth/oauth/microsoft/callback"
             )
             mock_provider.get_authorization_url.assert_called_once_with(
-                "default_state", expected_redirect
+                "jwt_default_state", expected_redirect
             )
 
 
@@ -473,20 +473,27 @@ class TestOAuthCallbackHandling:
         )
 
     def test_oauth_state_storage_and_retrieval(self, oauth_service):
-        """Test OAuth state storage and retrieval for CSRF protection."""
+        """Test OAuth JWT state creation and validation for CSRF protection."""
         provider = OAuthProvider.GOOGLE
-        state = "test_state_123"
         redirect_uri = "https://example.com/callback"
 
-        # Store state
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        # Create JWT state token
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
-        # Verify state is stored
-        assert state in oauth_service._oauth_state_cache
-        cached_data = oauth_service._oauth_state_cache[state]
-        assert cached_data["provider"] == provider
-        assert cached_data["redirect_uri"] == redirect_uri
-        assert "created_at" in cached_data
+        # Verify state is a valid JWT token (starts with JWT header)
+        assert state is not None
+        assert isinstance(state, str)
+        assert len(state.split(".")) == 3  # JWT has 3 parts separated by dots
+
+        # Verify the JWT contains the expected provider and redirect_uri
+        import jwt
+
+        decoded = jwt.decode(state, options={"verify_signature": False})
+        assert decoded["provider"] == provider.value
+        assert decoded["redirect_uri"] == redirect_uri
+        assert decoded["purpose"] == "oauth_state"
+        assert "exp" in decoded  # Has expiration
+        assert "iat" in decoded  # Has issued at
 
     def test_oauth_state_cleanup_expired_states(self, oauth_service):
         """Test automatic cleanup of expired OAuth states."""
@@ -513,19 +520,18 @@ class TestOAuthCallbackHandling:
 
     @pytest.mark.asyncio
     async def test_validate_oauth_state_success(self, oauth_service):
-        """Test successful OAuth state validation."""
+        """Test successful OAuth JWT state validation."""
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         redirect_uri = "https://example.com/callback"
 
-        # Store state first
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        # Create JWT state token
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
-        # Should validate successfully and clean up state
-        await oauth_service._validate_oauth_state(state, provider)
+        # Should validate successfully (JWT validation)
+        validated_redirect_uri = await oauth_service._validate_oauth_state_jwt(state, provider)
 
-        # State should be removed after validation (one-time use)
-        assert state not in oauth_service._oauth_state_cache
+        # Should return the original redirect URI
+        assert validated_redirect_uri == redirect_uri
 
     @pytest.mark.asyncio
     async def test_validate_oauth_state_missing_state(self, oauth_service):
@@ -627,18 +633,17 @@ class TestOAuthCallbackHandling:
 
         # Store valid state
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         code = "auth_code_123"
         redirect_uri = "https://example.com/callback"
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         # Handle callback
-        access_token, is_new_user = await oauth_service.handle_oauth_callback(
+        user, is_new_user = await oauth_service.handle_oauth_callback(
             provider, code, state, redirect_uri
         )
 
         # Verify results
-        assert access_token == "access_token_123"
+        assert user == sample_user  # Should return the user object
         assert is_new_user is True
         assert oauth_service._cached_oauth_user_info == sample_oauth_user_info
 
@@ -675,10 +680,9 @@ class TestOAuthCallbackHandling:
 
         # Store valid state
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         code = "invalid_code_123"
         redirect_uri = "https://example.com/callback"
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         with pytest.raises(Exception, match="Token exchange failed"):
             await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)
@@ -697,10 +701,9 @@ class TestOAuthCallbackHandling:
 
         # Store valid state
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         code = "auth_code_123"
         redirect_uri = "https://example.com/callback"
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         with pytest.raises(Exception, match="User info retrieval failed"):
             await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)

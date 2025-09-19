@@ -132,6 +132,14 @@ class SecurityManager:
 
         return await token_revocation_service.is_token_revoked(jti)
 
+    def decode_access_token(self, token: str) -> dict:
+        """Decode JWT token without revocation checking - for OAuth state tokens."""
+        try:
+            payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
+            return payload
+        except jwt.PyJWTError as e:
+            raise ValueError(f"Invalid token: {e}")
+
     def is_token_expired(self, token: str) -> bool:
         """Check if token is expired."""
         try:

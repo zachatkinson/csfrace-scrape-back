@@ -101,8 +101,7 @@ class HealthService:
             start_time = time.time()
 
             # Basic connectivity test
-            result = await db_session.execute(text("SELECT 1"))
-            scalar_result = result.scalar()
+            scalar_result = await db_session.scalar(text("SELECT 1"))
 
             if scalar_result != 1:
                 return {
@@ -131,7 +130,7 @@ class HealthService:
             )
 
             metrics_result = await db_session.execute(metrics_query)
-            metrics_row = metrics_result.fetchone()
+            metrics_row = metrics_result.first()
 
             response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
 

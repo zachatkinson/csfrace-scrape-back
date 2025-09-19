@@ -42,6 +42,11 @@ class Token(BaseModel):
     token_type: str = AUTH_CONSTANTS.BEARER_TOKEN_TYPE
     expires_in: int  # seconds until expiration
     refresh_token: str | None = None
+    is_new_user: bool = Field(
+        False,
+        description="Indicates if this is a newly created user",
+        json_schema_extra={"include_in_schema": True},
+    )
 
 
 class TokenData(BaseModel):
@@ -86,6 +91,26 @@ class UserCreate(BaseModel, PasswordValidatorMixin):
     def validate_password(cls, v: str) -> str:
         """DRY: Use shared password validation."""
         return cls.validate_password_strength(v)
+
+
+class OAuthUserCreate(BaseModel):
+    """OAuth user creation model for passwordless authentication."""
+
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+    full_name: str | None = Field(None, max_length=100)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        """Validate username format for OAuth users."""
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if not v.replace("_", "").replace("-", "").replace(".", "").isalnum():
+            raise ValueError(
+                "Username can only contain letters, numbers, hyphens, underscores, and dots"
+            )
+        return v
 
 
 class UserLogin(BaseModel):
