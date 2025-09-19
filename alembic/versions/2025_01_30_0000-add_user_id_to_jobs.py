@@ -22,18 +22,10 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Add user_id column to jobs table."""
     # Add user_id column as VARCHAR(255) to match User.id type
-    op.add_column(
-        "jobs",
-        sa.Column("user_id", sa.String(length=255), nullable=True)
-    )
+    op.add_column("jobs", sa.Column("user_id", sa.String(length=255), nullable=True))
 
     # Add index for performance
-    op.create_index(
-        op.f("ix_jobs_user_id"),
-        "jobs",
-        ["user_id"],
-        unique=False
-    )
+    op.create_index(op.f("ix_jobs_user_id"), "jobs", ["user_id"], unique=False)
 
 
 def downgrade() -> None:
