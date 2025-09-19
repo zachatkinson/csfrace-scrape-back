@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v5.7.4 (2025-09-19)
+
+### Bug Fixes
+
+- Remove individual shard coverage threshold to allow sharded CI
+  ([#17](https://github.com/zachatkinson/csfrace-scrape-back/pull/17),
+  [`fd0b455`](https://github.com/zachatkinson/csfrace-scrape-back/commit/fd0b45500b6742d38b5f4c5022a87850c08a4c2f))
+
+This removes the --cov-fail-under=85 option from pyproject.toml pytest configuration that was
+  causing individual test shards to fail when they didn't meet the 85% coverage threshold for the
+  entire codebase.
+
+Individual shards only test subsets of the code and cannot be expected to achieve full codebase
+  coverage. This change allows Codecov to handle the combined coverage threshold checking across all
+  shards while individual shards can run successfully.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.7.3 (2025-09-19)
 
 ### Bug Fixes
