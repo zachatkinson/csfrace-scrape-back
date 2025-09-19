@@ -699,8 +699,8 @@ jobs:
               --maxfail=3
           fi
           
-          # Verify minimum coverage threshold
-          uv run coverage report --fail-under=28
+          # Verify minimum coverage threshold (uses 80% from pyproject.toml)
+          uv run coverage report
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
