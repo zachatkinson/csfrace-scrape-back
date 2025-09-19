@@ -128,7 +128,7 @@ class TestGoogleOAuthProvider:
         assert self.provider.authorization_base_url == OAUTH_CONSTANTS.GOOGLE_AUTHORIZATION_URL
         assert self.provider.token_url == OAUTH_CONSTANTS.GOOGLE_TOKEN_URL
         assert self.provider.user_info_url == OAUTH_CONSTANTS.GOOGLE_USER_INFO_URL
-        assert self.provider.scope == OAUTH_CONSTANTS.GOOGLE_SCOPES
+        assert self.provider.scope == " ".join(OAUTH_CONSTANTS.GOOGLE_SCOPES)
 
     def test_google_get_authorization_url(self):
         """Test Google authorization URL generation."""
@@ -479,7 +479,7 @@ class TestOAuthCallbackHandling:
         redirect_uri = "https://example.com/callback"
 
         # Store state
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         # Verify state is stored
         assert state in oauth_service._oauth_state_cache
@@ -515,11 +515,10 @@ class TestOAuthCallbackHandling:
     async def test_validate_oauth_state_success(self, oauth_service):
         """Test successful OAuth state validation."""
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         redirect_uri = "https://example.com/callback"
 
         # Store state first
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         # Should validate successfully and clean up state
         await oauth_service._validate_oauth_state(state, provider)
@@ -627,10 +626,9 @@ class TestOAuthCallbackHandling:
 
         # Store valid state
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         code = "auth_code_123"
         redirect_uri = "https://example.com/callback"
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         # Handle callback
         access_token, is_new_user = await oauth_service.handle_oauth_callback(
@@ -675,10 +673,9 @@ class TestOAuthCallbackHandling:
 
         # Store valid state
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         code = "invalid_code_123"
         redirect_uri = "https://example.com/callback"
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         with pytest.raises(Exception, match="Token exchange failed"):
             await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)
@@ -697,10 +694,9 @@ class TestOAuthCallbackHandling:
 
         # Store valid state
         provider = OAuthProvider.GOOGLE
-        state = "valid_state_123"
         code = "auth_code_123"
         redirect_uri = "https://example.com/callback"
-        oauth_service._store_oauth_state(state, provider, redirect_uri)
+        state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
         with pytest.raises(Exception, match="User info retrieval failed"):
             await oauth_service.handle_oauth_callback(provider, code, state, redirect_uri)

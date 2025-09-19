@@ -303,7 +303,8 @@ class TestDatabaseServiceJobOperations:
 
     def test_get_job_nonexistent(self, db_service_with_session):
         """Test retrieval of non-existent job."""
-        job = db_service_with_session.get_job("nonexistent-job-id")
+        # Use a valid UUID format for PostgreSQL compatibility
+        job = db_service_with_session.get_job("00000000-0000-0000-0000-000000000000")
         assert job is None
 
 
@@ -389,8 +390,9 @@ class TestDatabaseServiceJobStatusUpdates:
 
     def test_update_job_status_nonexistent(self, db_service_with_session):
         """Test updating status of non-existent job."""
+        # Use a valid UUID format for PostgreSQL compatibility
         success = db_service_with_session.update_job_status(
-            "nonexistent-job-uuid", JobStatus.COMPLETED
+            "00000000-0000-0000-0000-000000000001", JobStatus.COMPLETED
         )
         assert success is False
 
