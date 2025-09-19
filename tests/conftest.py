@@ -91,12 +91,8 @@ def mock_time_sleep(monkeypatch):
     return instant_sleep
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Note: event_loop fixture removed - pytest-asyncio with asyncio_mode="auto"
+# provides this automatically and conflicts with custom event_loop fixtures
 
 
 @pytest.fixture(scope="session")
