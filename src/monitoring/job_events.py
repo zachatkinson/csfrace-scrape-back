@@ -45,7 +45,7 @@ class JobEvent(BaseModel):
 
     model_config = ConfigDict()
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, value: datetime) -> str:
         """Serialize datetime to ISO format string."""
         return value.isoformat()
