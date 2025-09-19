@@ -75,7 +75,7 @@ class ScrapingJob(Base):
 
     # User association
     user_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("users.id"), nullable=True, index=True
+        String(255), ForeignKey("users.id"), nullable=True, index=True
     )
 
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
