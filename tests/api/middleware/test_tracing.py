@@ -459,8 +459,16 @@ class TestMiddlewareIntegration:
 
         with (
             patch("src.api.middleware.tracing.performance_monitor"),
-            patch("src.api.middleware.tracing.distributed_tracer"),
+            patch("src.api.middleware.tracing.distributed_tracer") as mock_tracer,
         ):
+            # Configure mock span properly to avoid AsyncMock warnings
+            span_mock = MagicMock()
+            span_mock.set_attribute = MagicMock()  # Ensure set_attribute is sync
+            mock_tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=span_mock)
+            mock_tracer.trace_operation.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_tracer.get_current_trace_id.return_value = "trace123"
+            mock_tracer.set_attribute.return_value = None
+
             # Both middleware should handle the same correlation ID
             enhanced_response = await enhanced_middleware.dispatch(request, call_next)
             correlation_response = await correlation_middleware.dispatch(request, call_next)
