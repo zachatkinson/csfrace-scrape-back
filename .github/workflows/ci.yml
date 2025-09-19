@@ -699,8 +699,8 @@ jobs:
               --maxfail=3
           fi
           
-          # Verify minimum coverage threshold (uses 80% from pyproject.toml)
-          uv run coverage report
+          # Skip individual shard coverage check - let Codecov handle combined threshold
+          echo "Coverage data generated for shard ${{ matrix.shard }}"
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
