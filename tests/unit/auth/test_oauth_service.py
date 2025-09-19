@@ -473,20 +473,27 @@ class TestOAuthCallbackHandling:
         )
 
     def test_oauth_state_storage_and_retrieval(self, oauth_service):
-        """Test OAuth state storage and retrieval for CSRF protection."""
+        """Test OAuth JWT state creation and validation for CSRF protection."""
         provider = OAuthProvider.GOOGLE
-        state = "test_state_123"
         redirect_uri = "https://example.com/callback"
 
-        # Store state
+        # Create JWT state token
         state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
-        # Verify state is stored
-        assert state in oauth_service._oauth_state_cache
-        cached_data = oauth_service._oauth_state_cache[state]
-        assert cached_data["provider"] == provider
-        assert cached_data["redirect_uri"] == redirect_uri
-        assert "created_at" in cached_data
+        # Verify state is a valid JWT token (starts with JWT header)
+        assert state is not None
+        assert isinstance(state, str)
+        assert len(state.split(".")) == 3  # JWT has 3 parts separated by dots
+
+        # Verify the JWT contains the expected provider and redirect_uri
+        import jwt
+
+        decoded = jwt.decode(state, options={"verify_signature": False})
+        assert decoded["provider"] == provider.value
+        assert decoded["redirect_uri"] == redirect_uri
+        assert decoded["purpose"] == "oauth_state"
+        assert "exp" in decoded  # Has expiration
+        assert "iat" in decoded  # Has issued at
 
     def test_oauth_state_cleanup_expired_states(self, oauth_service):
         """Test automatic cleanup of expired OAuth states."""
@@ -513,18 +520,18 @@ class TestOAuthCallbackHandling:
 
     @pytest.mark.asyncio
     async def test_validate_oauth_state_success(self, oauth_service):
-        """Test successful OAuth state validation."""
+        """Test successful OAuth JWT state validation."""
         provider = OAuthProvider.GOOGLE
         redirect_uri = "https://example.com/callback"
 
-        # Store state first
+        # Create JWT state token
         state = oauth_service._create_oauth_state_jwt(provider, redirect_uri)
 
-        # Should validate successfully and clean up state
-        await oauth_service._validate_oauth_state(state, provider)
+        # Should validate successfully (JWT validation)
+        validated_redirect_uri = await oauth_service._validate_oauth_state_jwt(state, provider)
 
-        # State should be removed after validation (one-time use)
-        assert state not in oauth_service._oauth_state_cache
+        # Should return the original redirect URI
+        assert validated_redirect_uri == redirect_uri
 
     @pytest.mark.asyncio
     async def test_validate_oauth_state_missing_state(self, oauth_service):
