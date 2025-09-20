@@ -69,7 +69,11 @@ async def init_db(engine=None) -> None:
 
 
 async def _run_alembic_migrations() -> None:
-    """Run Alembic migrations to upgrade database to latest schema."""
+    """Run Alembic migrations to upgrade database to latest schema.
+
+    Handles multiple head revisions properly to ensure all migrations
+    are applied when using branched migration structures.
+    """
     if not ALEMBIC_AVAILABLE:
         raise ImportError("Alembic is not available - cannot run migrations")
 
@@ -86,8 +90,23 @@ async def _run_alembic_migrations() -> None:
     # Set the script location relative to the config file
     alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))
 
-    # Run the upgrade command
-    command.upgrade(alembic_cfg, "head")
+    try:
+        # Run the upgrade command to all heads (handles branched migrations)
+        command.upgrade(alembic_cfg, "heads")
+        logger.info("All Alembic migrations applied successfully")
+    except Exception as e:
+        # If migration fails, log specific heads that need to be applied
+        try:
+            # Get current revision and all heads for debugging
+            current_rev = command.current(alembic_cfg)
+            heads = command.heads(alembic_cfg)
+            logger.error(
+                "Migration failed - current revision: %s, heads: %s, error: %s",
+                current_rev, heads, str(e)
+            )
+        except Exception:
+            pass  # Don't let debugging code cause additional failures
+        raise
 
 
 async def _create_enums_safely(engine) -> None:
