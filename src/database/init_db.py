@@ -97,13 +97,12 @@ async def _run_alembic_migrations() -> None:
     except Exception as e:
         # If migration fails, log specific heads that need to be applied
         try:
-            # Get current revision and all heads for debugging
-            current_rev = command.current(alembic_cfg)
-            heads = command.heads(alembic_cfg)
-            logger.error(
-                "Migration failed - current revision: %s, heads: %s, error: %s",
-                current_rev, heads, str(e)
-            )
+            # Log current revision and all heads for debugging
+            logger.error("Migration failed - error: %s", str(e))
+            logger.error("Current revision:")
+            command.current(alembic_cfg)
+            logger.error("Available heads:")
+            command.heads(alembic_cfg)
         except Exception:
             pass  # Don't let debugging code cause additional failures
         raise
