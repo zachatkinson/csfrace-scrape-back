@@ -179,3 +179,73 @@ class ErrorResponse(BaseModel):
     detail: str
     error_code: str | None = None
     timestamp: datetime
+
+
+# User Settings schemas
+class UserSettingsResponse(BaseSchema):
+    """Schema for user settings responses."""
+
+    id: str
+    user_id: str
+
+    # Job Defaults
+    default_priority: str
+    max_retries: int
+    job_timeout: int
+
+    # API Configuration
+    api_url: str
+    api_timeout: int
+    refresh_interval: int
+    retry_attempts: int
+    enable_caching: bool
+
+    # Display Options
+    dark_mode: bool
+    show_job_ids: bool
+    compact_mode: bool
+    jobs_per_page: int
+    timezone: str
+
+    # Notification Settings
+    completion_alerts: bool
+    error_notifications: bool
+    browser_notifications: bool
+
+    # Additional settings
+    custom_settings: dict[str, Any] | None = None
+
+    # Timestamps
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserSettingsUpdate(BaseModel):
+    """Schema for updating user settings."""
+
+    # Job Defaults
+    default_priority: str | None = None
+    max_retries: int | None = Field(None, ge=0, le=10)
+    job_timeout: int | None = Field(None, ge=10, le=3600)
+
+    # API Configuration
+    api_url: str | None = None
+    api_timeout: int | None = Field(None, ge=5, le=300)
+    refresh_interval: int | None = Field(None, ge=5, le=300)
+    retry_attempts: int | None = Field(None, ge=0, le=10)
+    enable_caching: bool | None = None
+
+    # Display Options
+    dark_mode: bool | None = None
+    show_job_ids: bool | None = None
+    compact_mode: bool | None = None
+    jobs_per_page: int | None = Field(None, ge=5, le=100)
+    timezone: str | None = None
+
+    # Notification Settings
+    completion_alerts: bool | None = None
+    error_notifications: bool | None = None
+    browser_notifications: bool | None = None
+
+    # Additional settings
+    custom_settings: dict[str, Any] | None = None

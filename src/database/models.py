@@ -48,6 +48,7 @@ __all__ = [
     "AccountLockout",
     "RevokedToken",
     "User",
+    "UserSettings",
     "LinkedAccount",
     "JobStatus",
     "JobPriority",
@@ -376,10 +377,81 @@ class User(Base):
     scraping_jobs: Mapped[list["ScrapingJob"]] = relationship(
         "ScrapingJob", back_populates="user"
     )  # No cascade delete - preserve jobs when user is deleted
+    user_settings: Mapped["UserSettings | None"] = relationship(
+        "UserSettings", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         """String representation of user."""
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
+
+
+class UserSettings(Base):
+    """User-specific application settings.
+
+    Stores personalized configuration for each user including:
+    - Job execution defaults (priority, timeout, retries)
+    - Display preferences (UI settings, pagination)
+    - API configuration (endpoints, timeouts)
+    - Notification preferences
+    """
+
+    __tablename__ = "user_settings"
+
+    # Primary key
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+
+    # Foreign key to user (one-to-one relationship)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, unique=True, index=True
+    )
+
+    # Job Defaults
+    default_priority: Mapped[str] = mapped_column(String(20), default="normal", nullable=False)
+    max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    job_timeout: Mapped[int] = mapped_column(Integer, default=30, nullable=False)  # seconds
+
+    # API Configuration
+    api_url: Mapped[str] = mapped_column(
+        String(255), default="http://localhost:8000", nullable=False
+    )
+    api_timeout: Mapped[int] = mapped_column(Integer, default=30, nullable=False)  # seconds
+    refresh_interval: Mapped[int] = mapped_column(Integer, default=10, nullable=False)  # seconds
+    retry_attempts: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    enable_caching: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Display Options
+    dark_mode: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    show_job_ids: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    compact_mode: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    jobs_per_page: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    timezone: Mapped[str] = mapped_column(String(50), default="auto", nullable=False)
+
+    # Notification Settings
+    completion_alerts: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    error_notifications: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    browser_notifications: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Additional settings stored as JSON for flexibility
+    custom_settings: Mapped[dict[str, Any] | None] = mapped_column(JSON, server_default="{}")
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="user_settings")
+
+    def __repr__(self) -> str:
+        """String representation of user settings."""
+        return f"<UserSettings(id={self.id}, user_id='{self.user_id}')>"
 
 
 class LinkedAccount(Base):
