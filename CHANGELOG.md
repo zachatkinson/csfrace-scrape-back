@@ -2,6 +2,48 @@
 
 <!-- version list -->
 
+## v5.7.5 (2025-09-20)
+
+### Bug Fixes
+
+- **migrations**: Ensure all migration branches execute on startup
+  ([#18](https://github.com/zachatkinson/csfrace-scrape-back/pull/18),
+  [`e715e34`](https://github.com/zachatkinson/csfrace-scrape-back/commit/e715e3492c6b3eef4848ca2eeeb28db7e211b95c))
+
+* fix: remove individual shard coverage threshold to allow sharded CI
+
+This removes the --cov-fail-under=85 option from pyproject.toml pytest configuration that was
+  causing individual test shards to fail when they didn't meet the 85% coverage threshold for the
+  entire codebase.
+
+Individual shards only test subsets of the code and cannot be expected to achieve full codebase
+  coverage. This change allows Codecov to handle the combined coverage threshold checking across all
+  shards while individual shards can run successfully.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* fix(migrations): ensure all migration branches execute on startup
+
+- Changed upgrade command from 'head' to 'heads' to handle branched migrations - Added merge
+  migration to combine OAuth and user_id branches - Fixes issue where fresh databases were missing
+  schema elements - Ensures reliable development workflow when wiping data
+
+This follows Alembic best practices for handling multiple head revisions
+
+* fix(database): resolve MyPy type checking errors in init_db.py
+
+- Fixed debugging code that attempted to assign return values from command.current() and
+  command.heads() which don't return values - These functions only print to stdout for debugging -
+  Updated code to call functions without assignment for cleaner debugging - All formatting, linting,
+  and type checking now pass
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.7.4 (2025-09-19)
 
 ### Bug Fixes
