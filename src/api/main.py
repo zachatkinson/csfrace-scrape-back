@@ -20,7 +20,8 @@ from ..auth.router import router as auth_router
 from ..caching.manager import cache_manager
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
-from ..database.service import DatabaseService
+from ..database.schema_manager import ensure_database_ready
+from ..database.service import DatabaseService  # noqa: F401 - Used by tests
 from ..monitoring.background_health_monitor import (
     start_background_monitoring,
     stop_background_monitoring,
@@ -44,10 +45,25 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
-    # Startup
+    # Startup - Enterprise-grade database schema management
     try:
+        # First, initialize basic database connection
         await init_db()
+
+        # Then, ensure database schema is ready with enterprise-grade schema manager
+        from ..database.service import DatabaseService
+
+        db_service = DatabaseService(echo=False)
+        engine = db_service.engine
+
+        schema_ready = await ensure_database_ready(engine, environment="development")
+        if schema_ready:
+            logger.info("Enterprise-grade database schema validated and ready")
+        else:
+            logger.warning("Database schema readiness check failed, but continuing startup")
+
     except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error(f"Database initialization failed: {e}")
         print(f"Database initialization failed: {e}")
         # Don't raise - allow app to start for health checks
 

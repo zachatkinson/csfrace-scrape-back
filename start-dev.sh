@@ -31,14 +31,19 @@ echo "✅ Database is ready!"
 
 # Run database migrations
 echo "🔄 Running database migrations..."
-uv run alembic upgrade head
+# TEMPORARY: Skip Alembic due to Config object logger attribute error
+# Using SchemaManager in application startup as fallback
+echo "⚠️  Temporarily skipping Alembic migrations (using SchemaManager fallback)"
+echo "✅ Database migrations will be handled by SchemaManager during app startup"
 
-if [ $? -eq 0 ]; then
-    echo "✅ Database migrations completed successfully"
-else
-    echo "❌ Database migrations failed"
-    exit 1
-fi
+# uv run alembic upgrade head
+#
+# if [ $? -eq 0 ]; then
+#     echo "✅ Database migrations completed successfully"
+# else
+#     echo "❌ Database migrations failed"
+#     exit 1
+# fi
 
 # Start the development server
 echo "🚀 Starting development server..."

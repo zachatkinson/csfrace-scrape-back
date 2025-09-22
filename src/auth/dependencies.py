@@ -1,9 +1,11 @@
 """FastAPI dependencies for authentication following official patterns."""
 
-from fastapi import Depends, HTTPException, status
+import jwt
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
 from ..database.service import DatabaseService
+from .config import auth_config
 from .models import TokenData, User
 from .oauth_service import OAuthService
 from .security import security_manager
@@ -117,3 +119,56 @@ def require_scopes(*required_scopes: str):
         return token_data
 
     return check_scopes
+
+
+async def get_current_user_from_cookie(
+    request: Request, db_service: DatabaseService = Depends(get_database_service)
+) -> User:
+    """Get current authenticated user from HTTP-only cookie (for Astro best practices)."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    # Try to get auth token from HTTP-only cookie
+    auth_token = request.cookies.get("auth_token")
+    if not auth_token:
+        raise credentials_exception
+
+    try:
+        # Verify JWT token from cookie
+        payload = jwt.decode(auth_token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+
+        token_data = TokenData(username=username)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError:
+        raise credentials_exception
+
+    # Get user from database
+    with db_service.get_session() as session:
+        auth_service = AuthService(session)
+        from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
+
+        user = maybe_none(auth_service.get_user_by_username, token_data.username)
+        if user is None:
+            raise credentials_exception
+
+    return user
+
+
+def get_current_active_user_from_cookie(
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> User:
+    """Get current active user from cookie (not disabled)."""
+    if not current_user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return current_user
