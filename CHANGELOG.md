@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v5.8.0 (2025-09-20)
+
+### Features
+
+- **api**: Add user settings API endpoints
+  ([#19](https://github.com/zachatkinson/csfrace-scrape-back/pull/19),
+  [`382d4c5`](https://github.com/zachatkinson/csfrace-scrape-back/commit/382d4c5c3c48e004d54c4e999913538a0e6d0700))
+
+- Add comprehensive UserSettings database model with all required fields - Create complete REST API
+  endpoints (GET, PUT, DELETE) for user settings - Auto-create default settings for new users -
+  Implement proper authentication and authorization - Add Pydantic schemas with field validation -
+  Include foreign key relationship to users table - Follow established API patterns and error
+  handling
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.7.5 (2025-09-20)
 
 ### Bug Fixes
