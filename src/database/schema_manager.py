@@ -169,7 +169,9 @@ class SchemaManager:
                     identifier.replace("_", "").isalnum()
                     for identifier in [index_name, table_name, column_name]
                 ):
-                    logger.error(f"Invalid identifier in index creation: {index_name}, {table_name}, {column_name}")
+                    logger.error(
+                        f"Invalid identifier in index creation: {index_name}, {table_name}, {column_name}"
+                    )
                     continue
 
                 await conn.execute(

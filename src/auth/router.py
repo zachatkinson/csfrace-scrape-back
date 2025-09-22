@@ -1020,7 +1020,9 @@ async def revoke_all_user_tokens(
         # CRITICAL: Use EXACT same cookie settings as when they were created
         secure_cookies = is_production
         cookie_domain = None if is_production else "localhost"
-        samesite_policy: Literal["strict", "lax"] = "strict" if is_production else "lax"  # Must match creation settings!
+        samesite_policy: Literal["strict", "lax"] = (
+            "strict" if is_production else "lax"
+        )  # Must match creation settings!
 
         # Safari-compatible cookie clearing: Set to empty value with past expiration
         # Based on Safari research: Use explicit past date instead of max_age=0
