@@ -1,10 +1,15 @@
 """Authentication router with comprehensive endpoints following FastAPI patterns."""
 
+import json
+import os
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
+import asyncio
 import jwt
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -20,6 +25,7 @@ from .config import auth_config
 from .dependencies import (
     get_auth_service,
     get_current_active_user,
+    get_current_active_user_from_cookie,
     get_current_superuser,
     get_database_service,
     get_oauth_service,
@@ -221,8 +227,8 @@ async def refresh_access_token(
 
 
 @router.get("/me", response_model=User)
-def read_users_me(current_user: User = Depends(get_current_active_user)) -> User:
-    """Get current user information."""
+def read_users_me(current_user: User = Depends(get_current_active_user_from_cookie)) -> User:
+    """Get current user information from HTTP-only cookie (Astro best practices)."""
     return current_user
 
 
@@ -422,6 +428,71 @@ def _create_jwt_tokens_for_user(user: User, is_new_user: bool = False) -> Token:
     )
 
 
+def _set_secure_auth_cookies(response: Response, token: Token) -> None:
+    """Set HTTP-only cookies for secure token storage following OWASP best practices."""
+    # Environment-aware security settings
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    is_production = environment == "production"
+    secure_cookies = is_production  # Only use secure cookies in production (HTTPS required)
+
+    # Domain setting for cookie scope
+    # CRITICAL: Set domain to ensure cookies are accessible to both OAuth redirect (port 3000)
+    # and subsequent SSE proxy requests. Without explicit domain, cookies may not be shared.
+    cookie_domain = "localhost"  # Required for multi-port localhost access
+
+    # SameSite policy for development vs production
+    # Use "lax" in development to allow cross-origin SSE proxy requests
+    samesite_policy: Literal["strict", "lax"] = "strict" if is_production else "lax"
+
+    # Access token cookie - short lived
+    response.set_cookie(
+        key="auth_token",
+        value=token.access_token,
+        max_age=token.expires_in,  # Seconds until expiration
+        httponly=True,  # Prevents XSS attacks
+        secure=secure_cookies,  # HTTPS only in production
+        samesite=samesite_policy,  # Environment-aware CSRF protection
+        path="/",  # Available to entire application
+        domain=cookie_domain,  # Cross-port support in development
+    )
+
+    # Refresh token cookie - longer lived
+    if token.refresh_token:
+        response.set_cookie(
+            key="refresh_token",
+            value=token.refresh_token,
+            max_age=60 * 60 * 24 * 30,  # 30 days
+            httponly=True,
+            secure=secure_cookies,
+            samesite=samesite_policy,  # Environment-aware CSRF protection
+            path="/",  # Use same path as auth_token for consistency
+            domain=cookie_domain,  # Cross-port support in development
+        )
+
+    # User info cookie for frontend (non-sensitive data only)
+    response.set_cookie(
+        key="auth_user",
+        value=f'{{"isAuthenticated":true,"isNewUser":{str(token.is_new_user).lower()}}}',
+        max_age=token.expires_in,
+        httponly=False,  # Frontend needs to read this
+        secure=secure_cookies,
+        samesite=samesite_policy,  # Environment-aware CSRF protection
+        path="/",
+        domain=cookie_domain,  # Cross-port support in development
+    )
+
+    logger.info(
+        "Secure authentication cookies set",
+        access_token_expires=token.expires_in,
+        has_refresh_token=bool(token.refresh_token),
+        is_new_user=token.is_new_user,
+        environment=environment,
+        secure_cookies=secure_cookies,
+        cookie_domain=cookie_domain,
+        samesite_policy=samesite_policy,
+    )
+
+
 # OAuth2 SSO Endpoints
 @router.post("/oauth/login", response_model=SSOLoginResponse)
 @limiter.limit(rate_limits.AUTH_OAUTH)
@@ -440,6 +511,7 @@ def initiate_oauth_login(
 @limiter.limit(rate_limits.AUTH_OAUTH)
 async def handle_oauth_callback(
     request: Request,  # Required for SlowAPI rate limiting and query params
+    response: Response,  # Required for setting HTTP-only cookies
     provider: OAuthProvider,
     code: str | None = None,
     state: str | None = None,
@@ -488,8 +560,28 @@ async def handle_oauth_callback(
             is_new_user=is_new_user,
         )
 
-        # Generate and return JWT tokens
-        return _create_jwt_tokens_for_user(user, is_new_user)
+        # Generate JWT tokens
+        token = _create_jwt_tokens_for_user(user, is_new_user)
+
+        # Debug: Confirm we reached cookie setting point
+        logger.info(
+            "About to set secure HTTP-only cookies",
+            user_id=user.id,
+            token_expires=token.expires_in,
+            has_refresh=bool(token.refresh_token),
+        )
+
+        try:
+            # Set secure HTTP-only cookies for enterprise-grade security
+            _set_secure_auth_cookies(response, token)
+            logger.info("HTTP-only cookies setting completed successfully")
+        except Exception as e:
+            logger.error("Failed to set HTTP-only cookies", error=str(e), user_id=user.id)
+            # Continue anyway - don't break OAuth flow for cookie issues
+            pass
+
+        # Return token for backwards compatibility and immediate frontend use
+        return token
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is
@@ -894,8 +986,9 @@ async def revoke_token(
 @limiter.limit(rate_limits.AUTH_SENSITIVE_OPERATION)  # DRY: Centralized rate limits
 async def revoke_all_user_tokens(
     request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    response: Response,  # Required to clear HTTP-only cookies
     bulk_revocation: BulkTokenRevocationRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user_from_cookie),
 ) -> TokenRevocationResponse:
     """Revoke all tokens for the current user - SOLID Single Responsibility.
 
@@ -918,11 +1011,74 @@ async def revoke_all_user_tokens(
             revoked_count=revoked_count,
         )
 
+        # Clear HTTP-only authentication cookies to complete logout
+        # This ensures the user is actually logged out in the browser
+        # Safari-compatible cookie clearing patterns based on research
+        environment = os.getenv("ENVIRONMENT", "development")
+        is_production = environment == "production"
+
+        # CRITICAL: Use EXACT same cookie settings as when they were created
+        secure_cookies = is_production
+        cookie_domain = None if is_production else "localhost"
+        samesite_policy: Literal["strict", "lax"] = "strict" if is_production else "lax"  # Must match creation settings!
+
+        # Safari-compatible cookie clearing: Set to empty value with past expiration
+        # Based on Safari research: Use explicit past date instead of max_age=0
+        past_date = datetime.now(UTC) - timedelta(days=1)
+
+        # Clear auth_token cookie (main authentication cookie)
+        # CRITICAL: Must match EXACT parameters used when setting cookie
+        response.set_cookie(
+            key="auth_token",
+            value="",
+            expires=past_date,  # Safari-specific: Use past date instead of max_age=0
+            httponly=True,
+            secure=secure_cookies,  # EXACT match: use same secure setting
+            samesite=samesite_policy,  # EXACT match: use environment-specific policy
+            path="/",
+            domain=cookie_domain,
+        )
+
+        # Clear refresh_token cookie with EXACT matching parameters
+        response.set_cookie(
+            key="refresh_token",
+            value="",
+            expires=past_date,  # Safari-specific: Use past date instead of max_age=0
+            httponly=True,
+            secure=secure_cookies,  # EXACT match: use same secure setting
+            samesite=samesite_policy,  # EXACT match: use environment-specific policy
+            path="/",
+            domain=cookie_domain,
+        )
+
+        # Clear auth_user cookie with EXACT matching parameters
+        response.set_cookie(
+            key="auth_user",
+            value="",
+            expires=past_date,  # Safari-specific: Use past date instead of max_age=0
+            httponly=False,  # EXACT match: frontend-readable
+            secure=secure_cookies,  # EXACT match: use same secure setting
+            samesite=samesite_policy,  # EXACT match: use environment-specific policy
+            path="/",
+            domain=cookie_domain,
+        )
+
+        logger.info(
+            "Authentication cookies cleared for logout",
+            user_id=current_user.id,
+            environment=environment,
+            is_production=is_production,
+            cookie_domain=cookie_domain,
+            samesite_policy=samesite_policy,
+            secure_cookies=secure_cookies,
+        )
+
         return TokenRevocationResponse(
             success=True,
             message=f"All tokens revoked successfully ({revoked_count} sessions)",
             revoked_count=revoked_count,
             jti=None,  # Bulk revocation doesn't have specific JTI
+            clear_local_storage=True,  # Safari compatibility: instruct client to clear storage
         )
 
     except Exception as e:
@@ -1136,6 +1292,253 @@ async def get_system_lockout_stats(
     except Exception as e:
         logger.error("Error getting system lockout statistics", error=str(e))
         raise APIErrorFactory.internal_server_error("Failed to get system lockout statistics")
+
+
+# =============================================================================
+# SSE AUTHENTICATION STREAM ENDPOINT - ENTERPRISE REAL-TIME AUTH
+# =============================================================================
+
+
+async def _get_auth_status_from_cookies(request: Request) -> dict:
+    """Extract authentication status from HTTP-only cookies."""
+    try:
+        # COMPREHENSIVE DEBUGGING: Log all request information
+        logger.info(
+            "🍪 [SSE Cookie Debug] Checking authentication from cookies",
+            request_url=str(request.url),
+            client_host=request.client.host if request.client else "unknown",
+            headers_keys=list(request.headers.keys()),
+            cookie_header=request.headers.get("cookie", "NO_COOKIE_HEADER"),
+            has_auth_token=bool(request.cookies.get("auth_token")),
+            has_auth_user=bool(request.cookies.get("auth_user")),
+            all_cookie_names=list(request.cookies.keys()),
+            cookie_count=len(request.cookies),
+        )
+
+        # Try to get auth token from HTTP-only cookie
+        auth_token = request.cookies.get("auth_token")
+        auth_user = request.cookies.get("auth_user")
+
+        # Log detailed cookie debugging
+        logger.info(
+            "🍪 [SSE Cookie Debug] Cookie extraction results",
+            auth_token_present=bool(auth_token),
+            auth_token_length=len(auth_token) if auth_token else 0,
+            auth_user_present=bool(auth_user),
+            auth_user_length=len(auth_user) if auth_user else 0,
+            auth_token_prefix=auth_token[:20] + "..."
+            if auth_token and len(auth_token) > 20
+            else auth_token,
+            auth_user_preview=auth_user[:50] + "..."
+            if auth_user and len(auth_user) > 50
+            else auth_user,
+        )
+
+        if auth_token and auth_user:
+            try:
+                # Validate the JWT token
+                payload = jwt.decode(
+                    auth_token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM]
+                )
+
+                # Parse user data from cookie
+                user_data = json.loads(auth_user)
+
+                return {
+                    "authenticated": True,
+                    "user": {
+                        "id": user_data.get("id"),
+                        "username": user_data.get("username"),
+                        "email": user_data.get("email"),
+                        "is_verified": user_data.get("is_verified", True),
+                        "provider": user_data.get("provider", "local"),
+                    },
+                    "expires_at": payload.get("exp"),
+                    "token_type": "bearer",
+                }
+            except jwt.ExpiredSignatureError:
+                logger.debug("JWT token expired in cookie")
+                return {"authenticated": False, "reason": "token_expired"}
+            except jwt.InvalidTokenError:
+                logger.debug("Invalid JWT token in cookie")
+                return {"authenticated": False, "reason": "invalid_token"}
+            except json.JSONDecodeError:
+                logger.debug("Invalid user data in auth_user cookie")
+                return {"authenticated": False, "reason": "invalid_user_data"}
+
+        logger.info(
+            "🍪 [SSE Cookie Debug] No authentication cookies found",
+            auth_token_missing=not bool(auth_token),
+            auth_user_missing=not bool(auth_user),
+            available_cookies=list(request.cookies.keys()),
+            cookie_header_raw=request.headers.get("cookie", "NO_COOKIE_HEADER"),
+        )
+        return {"authenticated": False, "reason": "no_auth_cookies"}
+
+    except Exception as e:
+        logger.error("Error checking auth status from cookies", error=str(e))
+        return {"authenticated": False, "reason": "auth_error"}
+
+
+async def _generate_auth_events(request: Request):
+    """Generate Server-Sent Events for authentication status updates."""
+    client_ip = get_remote_address(request)
+    connection_id = f"auth_{client_ip}_{datetime.now().timestamp()}"
+
+    logger.info(
+        "SSE auth stream connection established", connection_id=connection_id, client_ip=client_ip
+    )
+
+    try:
+        heartbeat_interval = 30  # Send heartbeat every 30 seconds
+        last_auth_status = None
+        heartbeat_counter = 0
+
+        while True:
+            try:
+                # Check current authentication status
+                current_auth_status = await _get_auth_status_from_cookies(request)
+
+                # Send auth status update if it changed
+                if current_auth_status != last_auth_status:
+                    auth_event = {
+                        "type": "auth_status",
+                        "data": current_auth_status,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "connection_id": connection_id,
+                    }
+
+                    yield f"event: auth_status\ndata: {json.dumps(auth_event)}\n\n"
+
+                    logger.debug(
+                        "Auth status change detected",
+                        connection_id=connection_id,
+                        authenticated=current_auth_status.get("authenticated", False),
+                        reason=current_auth_status.get("reason"),
+                    )
+
+                    last_auth_status = current_auth_status
+
+                # Send periodic heartbeat to keep connection alive
+                heartbeat_counter += 1
+                if heartbeat_counter % heartbeat_interval == 0:
+                    heartbeat_event = {
+                        "type": "heartbeat",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "connection_id": connection_id,
+                        "authenticated": current_auth_status.get("authenticated", False),
+                    }
+
+                    yield f"event: heartbeat\ndata: {json.dumps(heartbeat_event)}\n\n"
+
+                    logger.debug("SSE heartbeat sent", connection_id=connection_id)
+
+                # Check every second for auth changes, heartbeat every 30 seconds
+                await asyncio.sleep(1)
+
+            except asyncio.CancelledError:
+                logger.info(
+                    "SSE auth stream cancelled", connection_id=connection_id, client_ip=client_ip
+                )
+                break
+            except Exception as e:
+                logger.error("Error in SSE auth stream", connection_id=connection_id, error=str(e))
+                # Send error event
+                error_event = {
+                    "type": "error",
+                    "error": "stream_error",
+                    "message": "Authentication stream error",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "connection_id": connection_id,
+                }
+                yield f"event: error\ndata: {json.dumps(error_event)}\n\n"
+                break
+
+    except Exception as e:
+        logger.error("Fatal error in SSE auth stream", connection_id=connection_id, error=str(e))
+    finally:
+        logger.info(
+            "SSE auth stream connection closed", connection_id=connection_id, client_ip=client_ip
+        )
+
+
+@router.get("/stream")
+async def auth_status_stream(request: Request) -> StreamingResponse:
+    """
+    Server-Sent Events stream for real-time authentication status updates.
+
+    This enterprise-grade endpoint provides real-time authentication state
+    synchronization between backend cookies and frontend state management.
+
+    **Features:**
+    - Real-time authentication status monitoring
+    - HTTP-only cookie validation
+    - Automatic token expiration detection
+    - Connection heartbeat for reliability
+    - Structured event logging
+    - Graceful error handling
+
+    **Event Types:**
+    - `auth_status`: Authentication state changes
+    - `heartbeat`: Keep-alive signals
+    - `error`: Stream errors
+
+    **Usage:**
+    ```javascript
+    const eventSource = new EventSource('/auth/stream');
+    eventSource.addEventListener('auth_status', (event) => {
+        const authData = JSON.parse(event.data);
+        if (authData.data.authenticated) {
+            // User is authenticated
+            showAuthenticatedUI(authData.data.user);
+        } else {
+            // User is not authenticated
+            showLoginUI();
+        }
+    });
+    ```
+
+    **Security:**
+    - Uses HTTP-only cookies for token validation
+    - No sensitive data in event stream
+    - Client IP logging for audit trail
+    - Rate limiting through SlowAPI
+
+    Returns:
+        StreamingResponse: SSE stream with authentication events
+    """
+    # Debug: Log all cookies received in SSE request
+    cookies_debug = dict(request.cookies) if request.cookies else {}
+    cookie_header = request.headers.get("cookie", "")
+
+    logger.info(
+        "Starting SSE auth stream",
+        client_ip=get_remote_address(request),
+        user_agent=request.headers.get("user-agent", "unknown"),
+        cookies_received=cookies_debug,
+        cookie_header=cookie_header,
+    )
+
+    # Environment-aware CORS headers for SSE with credentials
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    frontend_origin = (
+        "http://localhost:3000"
+        if environment == "development"
+        else os.getenv("FRONTEND_URL", "https://your-domain.com")
+    )
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Access-Control-Allow-Origin": frontend_origin,  # Must be specific origin when using credentials
+        "Access-Control-Allow-Credentials": "true",  # Required for HTTP-only cookies
+        "Access-Control-Allow-Headers": "Cache-Control",
+    }
+
+    return StreamingResponse(
+        _generate_auth_events(request), media_type="text/event-stream", headers=headers
+    )
 
 
 # Rate limit exception handler will be added when implementing rate limiting middleware

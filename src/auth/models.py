@@ -432,6 +432,10 @@ class TokenRevocationResponse(BaseModel):
     message: str
     revoked_count: int = Field(default=1, description="Number of tokens revoked")
     jti: str | None = Field(None, description="JWT ID of revoked token")
+    clear_local_storage: bool = Field(
+        default=False,
+        description="Instructs client to clear localStorage/sessionStorage for Safari compatibility",
+    )
 
 
 class RevocationStatsResponse(BaseModel):
