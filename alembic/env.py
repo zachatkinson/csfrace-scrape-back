@@ -12,10 +12,10 @@ SQLAlchemy Best Practices Implementation:
 
 import os
 from logging.config import fileConfig
-from typing import Optional
 
-from sqlalchemy import engine_from_config, pool, text, inspect
+from sqlalchemy import engine_from_config, inspect, pool, text
 from sqlalchemy.exc import SQLAlchemyError
+
 from alembic import context
 
 # Import our database models and configuration
@@ -60,7 +60,7 @@ MIGRATION_SETTINGS = {
         "transaction_per_migration": True,
         "validate_schema": True,
         "require_confirmation": True,  # Extra safety for production
-    }
+    },
 }
 
 current_settings = MIGRATION_SETTINGS.get(ENVIRONMENT, MIGRATION_SETTINGS["development"])
@@ -73,6 +73,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = Base.metadata
+
 
 # ENTERPRISE PATTERN 2: Schema Validation Functions
 def validate_schema_consistency(connection) -> bool:
@@ -89,21 +90,19 @@ def validate_schema_consistency(connection) -> bool:
 
         missing_tables = expected_tables - existing_tables
         if missing_tables:
-            context.config.logger.warning(
-                f"Missing critical tables: {missing_tables}"
-            )
+            context.config.logger.warning(f"Missing critical tables: {missing_tables}")
             return False
 
         # Check critical columns exist
         try:
             # Validate jobs table has user_id column
-            jobs_columns = {col['name'] for col in inspector.get_columns('jobs')}
-            if 'user_id' not in jobs_columns:
+            jobs_columns = {col["name"] for col in inspector.get_columns("jobs")}
+            if "user_id" not in jobs_columns:
                 context.config.logger.warning("jobs table missing user_id column")
                 return False
 
             # Validate revoked_tokens table exists
-            if 'revoked_tokens' not in existing_tables:
+            if "revoked_tokens" not in existing_tables:
                 context.config.logger.warning("revoked_tokens table missing")
                 return False
 
@@ -126,7 +125,8 @@ def ensure_critical_schema_exists(connection) -> None:
     """
     try:
         # Idempotent: Add user_id column to jobs table if missing
-        connection.execute(text("""
+        connection.execute(
+            text("""
             DO $$ 
             BEGIN 
                 IF NOT EXISTS (
@@ -137,10 +137,12 @@ def ensure_critical_schema_exists(connection) -> None:
                     RAISE NOTICE 'Added user_id column to jobs table';
                 END IF;
             END $$;
-        """))
+        """)
+        )
 
         # Idempotent: Create revoked_tokens table if missing
-        connection.execute(text("""
+        connection.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS revoked_tokens (
                 jti VARCHAR PRIMARY KEY,
                 user_id VARCHAR,
@@ -153,10 +155,12 @@ def ensure_critical_schema_exists(connection) -> None:
                 client_ip VARCHAR,
                 user_agent TEXT
             );
-        """))
+        """)
+        )
 
         # Idempotent: Create oauth_linked_accounts table if missing
-        connection.execute(text("""
+        connection.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS oauth_linked_accounts (
                 id VARCHAR PRIMARY KEY,
                 user_id VARCHAR NOT NULL,
@@ -172,10 +176,12 @@ def ensure_critical_schema_exists(connection) -> None:
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(provider, provider_user_id)
             );
-        """))
+        """)
+        )
 
         # Idempotent: Create indexes if missing
-        connection.execute(text("""
+        connection.execute(
+            text("""
             DO $$ 
             BEGIN 
                 IF NOT EXISTS (
@@ -202,7 +208,8 @@ def ensure_critical_schema_exists(connection) -> None:
                     RAISE NOTICE 'Created index idx_oauth_accounts_user_id';
                 END IF;
             END $$;
-        """))
+        """)
+        )
 
         connection.commit()
         context.config.logger.info("Critical schema elements ensured")
@@ -215,12 +222,14 @@ def ensure_critical_schema_exists(connection) -> None:
 
 def log_migration_context() -> None:
     """Log comprehensive migration context for debugging."""
-    context.config.logger.info(f"=== MIGRATION CONTEXT ===")
+    context.config.logger.info("=== MIGRATION CONTEXT ===")
     context.config.logger.info(f"Environment: {ENVIRONMENT}")
     context.config.logger.info(f"Migration Context: {MIGRATION_CONTEXT}")
-    context.config.logger.info(f"Database URL: {database_url.split('@')[1] if '@' in database_url else 'hidden'}")
+    context.config.logger.info(
+        f"Database URL: {database_url.split('@')[1] if '@' in database_url else 'hidden'}"
+    )
     context.config.logger.info(f"Settings: {current_settings}")
-    context.config.logger.info(f"=========================")
+    context.config.logger.info("=========================")
 
 
 def run_migrations_offline() -> None:
@@ -273,7 +282,7 @@ def run_migrations_online() -> None:
         "server_settings": {
             "application_name": f"alembic-{ENVIRONMENT}",
             "timezone": "UTC",
-        }
+        },
     }
 
     # Enhanced connection pooling for enterprise use
@@ -302,7 +311,9 @@ def run_migrations_online() -> None:
                 schema_valid = validate_schema_consistency(connection)
 
                 if not schema_valid:
-                    context.config.logger.warning("Schema validation failed - applying critical fixes")
+                    context.config.logger.warning(
+                        "Schema validation failed - applying critical fixes"
+                    )
                     ensure_critical_schema_exists(connection)
                     context.config.logger.info("Critical schema fixes applied")
                 else:
@@ -327,7 +338,9 @@ def run_migrations_online() -> None:
                 with context.begin_transaction():
                     context.config.logger.info(f"Starting {ENVIRONMENT} migrations")
                     context.run_migrations()
-                    context.config.logger.info(f"Migrations completed successfully for {ENVIRONMENT}")
+                    context.config.logger.info(
+                        f"Migrations completed successfully for {ENVIRONMENT}"
+                    )
 
                     # Post-migration validation
                     if current_settings.get("validate_schema", True):
@@ -340,7 +353,9 @@ def run_migrations_online() -> None:
                             raise RuntimeError("Post-migration schema validation failed")
 
             except Exception as migration_error:
-                context.config.logger.error(f"Migration failed for {ENVIRONMENT}: {migration_error}")
+                context.config.logger.error(
+                    f"Migration failed for {ENVIRONMENT}: {migration_error}"
+                )
 
                 # Enhanced error recovery for known issues
                 if "user_id does not exist" in str(migration_error):
@@ -354,7 +369,9 @@ def run_migrations_online() -> None:
         context.config.logger.error(f"Database connection failed for {ENVIRONMENT}: {db_error}")
         raise
     except Exception as general_error:
-        context.config.logger.error(f"Unexpected error during {ENVIRONMENT} migration: {general_error}")
+        context.config.logger.error(
+            f"Unexpected error during {ENVIRONMENT} migration: {general_error}"
+        )
         raise
 
 

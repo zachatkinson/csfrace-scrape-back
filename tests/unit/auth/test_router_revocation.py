@@ -65,6 +65,17 @@ def mock_request():
     return Request(scope)
 
 
+@pytest.fixture
+def mock_response():
+    """Create a mock FastAPI Response object for testing."""
+    from fastapi import Response
+
+    response = MagicMock(spec=Response)
+    response.set_cookie = MagicMock()
+    response.delete_cookie = MagicMock()
+    return response
+
+
 class TestRevokeTokenEndpoint:
     """Test /auth/revoke-token endpoint - SOLID Single Responsibility testing."""
 
@@ -89,7 +100,6 @@ class TestRevokeTokenEndpoint:
 
         with (
             patch("src.auth.router.security_manager", mock_security_manager),
-            patch("src.auth.router.get_current_active_user", return_value=mock_current_user),
             patch("src.auth.revocation_service.token_revocation_service", mock_revocation_service),
             patch("src.auth.router.get_remote_address", return_value="192.168.1.1"),
             patch("jwt.decode") as mock_jwt_decode,
@@ -104,7 +114,7 @@ class TestRevokeTokenEndpoint:
             # Import the endpoint function
             from src.auth.router import revoke_token
 
-            # Act
+            # Act - Call with current_user directly (bypassing dependency injection for unit test)
             response = await revoke_token(mock_request, request_data, mock_current_user)
 
             # Assert
@@ -213,7 +223,7 @@ class TestRevokeAllTokensEndpoint:
 
     @pytest.mark.asyncio
     async def test_revoke_all_tokens_success(
-        self, mock_current_user, mock_revocation_service, mock_request
+        self, mock_current_user, mock_revocation_service, mock_request, mock_response
     ):
         """Test successful bulk token revocation."""
         # Arrange
@@ -229,7 +239,9 @@ class TestRevokeAllTokensEndpoint:
             from src.auth.router import revoke_all_user_tokens
 
             # Act
-            response = await revoke_all_user_tokens(mock_request, request_data, mock_current_user)
+            response = await revoke_all_user_tokens(
+                mock_request, mock_response, request_data, mock_current_user
+            )
 
             # Assert
             assert response.success is True
@@ -243,7 +255,7 @@ class TestRevokeAllTokensEndpoint:
 
     @pytest.mark.asyncio
     async def test_revoke_all_tokens_service_error(
-        self, mock_current_user, mock_revocation_service, mock_request
+        self, mock_current_user, mock_revocation_service, mock_request, mock_response
     ):
         """Test bulk revocation when service fails."""
         # Arrange
@@ -256,7 +268,9 @@ class TestRevokeAllTokensEndpoint:
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
-                await revoke_all_user_tokens(mock_request, request_data, mock_current_user)
+                await revoke_all_user_tokens(
+                    mock_request, mock_response, request_data, mock_current_user
+                )
 
             assert "Failed to revoke tokens" in str(exc_info.value)
 

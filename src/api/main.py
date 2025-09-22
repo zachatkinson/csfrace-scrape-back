@@ -21,6 +21,7 @@ from ..caching.manager import cache_manager
 from ..constants import CONSTANTS
 from ..database.init_db import init_db
 from ..database.schema_manager import ensure_database_ready
+from ..database.service import DatabaseService  # noqa: F401 - Used by tests
 from ..monitoring.background_health_monitor import (
     start_background_monitoring,
     stop_background_monitoring,
