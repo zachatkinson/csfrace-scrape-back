@@ -116,7 +116,7 @@ jobs:
         if: steps.semantic.outputs.released == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.UMBRELLA_PAT }}
+          token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
           repository: zachatkinson/csfrace-scrape
           event-type: backend-updated
           client-payload: |
