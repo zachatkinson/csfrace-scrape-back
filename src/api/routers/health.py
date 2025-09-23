@@ -2,6 +2,7 @@
 
 import importlib.metadata
 import json
+import time
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
@@ -36,6 +37,9 @@ try:
     __version__ = importlib.metadata.version("csfrace-scraper")
 except importlib.metadata.PackageNotFoundError:
     __version__ = "1.0.0"  # Fallback version
+
+# Track service startup time for uptime calculation
+_startup_time = time.time()
 
 router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 
@@ -101,9 +105,10 @@ async def liveness_check() -> StatusResponse:
     """Simple liveness check for container orchestration.
 
     Returns:
-        Basic status indicating the service is running
+        Basic status indicating the service is running with uptime information
     """
-    return StatusResponse(status="alive")
+    uptime_seconds = int(time.time() - _startup_time)
+    return StatusResponse(status="alive", uptime_seconds=uptime_seconds)
 
 
 @router.get("/ready", response_model=StatusResponse)
