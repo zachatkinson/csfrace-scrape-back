@@ -108,7 +108,11 @@ async def liveness_check() -> StatusResponse:
         Basic status indicating the service is running with uptime information
     """
     uptime_seconds = int(time.time() - _startup_time)
-    return StatusResponse(status="alive", uptime_seconds=uptime_seconds)
+    return StatusResponse(
+        status="alive",
+        uptime_seconds=uptime_seconds,
+        message=f"Service running for {uptime_seconds} seconds"
+    )
 
 
 @router.get("/ready", response_model=StatusResponse)
