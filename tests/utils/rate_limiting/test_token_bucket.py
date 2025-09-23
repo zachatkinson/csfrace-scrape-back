@@ -357,7 +357,9 @@ class TestTokenBucketEdgeCases:
 
         # Should be empty (allow tolerance for timing drift during rapid sequential operations)
         remaining = await bucket.get_available_tokens()
-        assert remaining < 0.15  # Should be close to 0, allowing for timing drift during 100 rapid operations
+        assert (
+            remaining < 0.15
+        )  # Should be close to 0, allowing for timing drift during 100 rapid operations
 
 
 class TestTokenBucketPerformance:
