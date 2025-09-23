@@ -8,7 +8,6 @@ import asyncio
 import structlog
 
 from ..caching.manager import cache_manager
-from ..database.service import DatabaseService
 from .health_events import (
     initialize_health_events,
 )
@@ -125,8 +124,8 @@ class BackgroundHealthMonitor:
     async def trigger_immediate_check(self) -> dict[str, Any] | None:
         """Trigger an immediate health check outside the normal schedule."""
         try:
-            from ..api.services.health_service import health_service
             from ..api.dependencies import async_session
+            from ..api.services.health_service import health_service
 
             async with async_session() as db_session:
                 current_health = await health_service.get_comprehensive_health_status(db_session)

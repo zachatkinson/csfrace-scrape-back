@@ -34,17 +34,17 @@ def get_db_session(db_service: DatabaseService = Depends(get_database_service)):
 
 
 # Service injection patterns (DRY principle) - Fixed connection pool issue
-def get_auth_service(session = Depends(get_db_session)) -> AuthService:
+def get_auth_service(session=Depends(get_db_session)) -> AuthService:
     """Get auth service with injected database session - eliminates boilerplate."""
     return AuthService(session)
 
 
-def get_oauth_service(session = Depends(get_db_session)) -> OAuthService:
+def get_oauth_service(session=Depends(get_db_session)) -> OAuthService:
     """Get OAuth service with injected database session - eliminates boilerplate."""
     return OAuthService(session)
 
 
-def get_webauthn_service(session = Depends(get_db_session)) -> WebAuthnService:
+def get_webauthn_service(session=Depends(get_db_session)) -> WebAuthnService:
     """Get WebAuthn service with injected database session - eliminates boilerplate."""
     return WebAuthnService(session)
 

@@ -9,7 +9,7 @@ import asyncio
 import jwt
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -1546,7 +1546,7 @@ async def auth_status_stream(request: Request) -> StreamingResponse:
 @router.delete("/account")
 async def delete_user_account(
     current_user: User = Depends(get_current_active_user),
-    auth_service: AuthService = Depends(get_auth_service)
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     """
     Delete the current user's account.
@@ -1573,23 +1573,19 @@ async def delete_user_account(
             logger.info("User account deleted successfully", user_id=current_user.id)
             return JSONResponse(
                 status_code=200,
-                content={
-                    "status": "success",
-                    "message": "Account deleted successfully"
-                }
+                content={"status": "success", "message": "Account deleted successfully"},
             )
         else:
             logger.warning("Failed to delete user account", user_id=current_user.id)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to delete account"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete account"
             )
 
     except Exception as e:
         logger.error("Error deleting user account", user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during account deletion"
+            detail="Internal server error during account deletion",
         )
 
 
