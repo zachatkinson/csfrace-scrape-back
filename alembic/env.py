@@ -127,7 +127,7 @@ def ensure_critical_schema_exists(connection) -> None:
         # Idempotent: Add user_id column to jobs table if missing
         connection.execute(
             text("""
-            DO $$
+            DO $
             BEGIN
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns
@@ -136,7 +136,7 @@ def ensure_critical_schema_exists(connection) -> None:
                     ALTER TABLE jobs ADD COLUMN user_id VARCHAR;
                     RAISE NOTICE 'Added user_id column to jobs table';
                 END IF;
-            END $$;
+            END $;
         """)
         )
 
@@ -182,7 +182,7 @@ def ensure_critical_schema_exists(connection) -> None:
         # Idempotent: Create indexes if missing
         connection.execute(
             text("""
-            DO $$
+            DO $
             BEGIN
                 IF NOT EXISTS (
                     SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -207,7 +207,7 @@ def ensure_critical_schema_exists(connection) -> None:
                     CREATE INDEX idx_oauth_accounts_user_id ON oauth_linked_accounts(user_id);
                     RAISE NOTICE 'Created index idx_oauth_accounts_user_id';
                 END IF;
-            END $$;
+            END $;
         """)
         )
 
