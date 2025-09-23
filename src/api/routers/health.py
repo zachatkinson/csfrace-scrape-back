@@ -2,6 +2,8 @@
 
 import importlib.metadata
 import json
+import platform
+import sys
 import time
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
@@ -10,6 +12,7 @@ from typing import Any
 import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -40,6 +43,22 @@ except importlib.metadata.PackageNotFoundError:
 
 # Track service startup time for uptime calculation
 _startup_time = time.time()
+
+
+class SystemInfoResponse(BaseModel):
+    """System information response model."""
+
+    platform: str
+    platform_release: str
+    platform_version: str
+    architecture: str
+    processor: str
+    python_version: str
+    python_implementation: str
+    app_version: str
+    uptime_seconds: int
+    startup_time: datetime
+
 
 router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 
@@ -111,6 +130,38 @@ async def liveness_check() -> StatusResponse:
     return StatusResponse(
         status="alive",
         uptime_seconds=uptime_seconds,
+    )
+
+
+@router.get("/system", response_model=SystemInfoResponse)
+@handle_api_exceptions("Failed to get system information")
+async def system_info() -> SystemInfoResponse:
+    """Get detailed system information for monitoring and debugging.
+
+    Returns:
+        Comprehensive system and runtime information
+
+    Note:
+        This endpoint is useful for:
+        - Debugging deployment issues
+        - Monitoring Python version compatibility
+        - Tracking application uptime
+        - Verifying deployment configurations
+    """
+    uptime_seconds = int(time.time() - _startup_time)
+    startup_datetime = datetime.fromtimestamp(_startup_time, tz=UTC)
+
+    return SystemInfoResponse(
+        platform=platform.system(),
+        platform_release=platform.release(),
+        platform_version=platform.version(),
+        architecture=platform.machine(),
+        processor=platform.processor() or "Unknown",
+        python_version=sys.version,
+        python_implementation=platform.python_implementation(),
+        app_version=__version__,
+        uptime_seconds=uptime_seconds,
+        startup_time=startup_datetime,
     )
 
 
