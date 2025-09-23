@@ -227,7 +227,7 @@ async def refresh_access_token(
 
 
 @router.get("/me", response_model=User)
-def read_users_me(current_user: User = Depends(get_current_active_user_from_cookie)) -> User:
+async def read_users_me(current_user: User = Depends(get_current_active_user_from_cookie)) -> User:
     """Get current user information from HTTP-only cookie (Astro best practices)."""
     return current_user
 
@@ -342,6 +342,54 @@ def deactivate_user(
     return {"message": "User deactivated successfully"}
 
 
+@router.delete("/delete-account")
+@limiter.limit(rate_limits.AUTH_SENSITIVE_OPERATION)  # Security: Rate limit sensitive operations
+async def delete_user_account(
+    request: Request,  # Required for rate limiting
+    current_user: User = Depends(get_current_active_user_from_cookie),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> dict[str, str]:
+    """Delete current user's account permanently.
+
+    This endpoint allows users to permanently delete their own account and all
+    associated data including:
+    - User profile and credentials
+    - Linked OAuth accounts
+    - WebAuthn/passkey credentials
+    - User settings and preferences
+
+    Note: Scraping jobs are preserved for audit/historical purposes but are
+    no longer associated with the user.
+
+    **This action is irreversible.**
+    """
+    try:
+        # Delete the current user's account
+        success = auth_service.delete_user_account(current_user.id)
+
+        if not success:
+            logger.error("Failed to delete user account", user_id=current_user.id)
+            raise APIErrorFactory.internal_server_error("Failed to delete account")
+
+        # Log successful deletion for audit purposes
+        logger.info(
+            "User account deleted successfully",
+            user_id=current_user.id,
+            username=current_user.username,
+            email=current_user.email,
+        )
+
+        return {"message": "Account deleted successfully"}
+
+    except Exception as e:
+        logger.error(
+            "Error deleting user account",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        raise APIErrorFactory.internal_server_error("Failed to delete account")
+
+
 # OAuth2 SSO Helper Functions
 def _validate_oauth_callback_parameters(
     provider: OAuthProvider, oauth_callback: OAuthCallback
@@ -436,9 +484,9 @@ def _set_secure_auth_cookies(response: Response, token: Token) -> None:
     secure_cookies = is_production  # Only use secure cookies in production (HTTPS required)
 
     # Domain setting for cookie scope
-    # CRITICAL: Set domain to ensure cookies are accessible to both OAuth redirect (port 3000)
-    # and subsequent SSE proxy requests. Without explicit domain, cookies may not be shared.
-    cookie_domain = "localhost"  # Required for multi-port localhost access
+    # CRITICAL: Set domain to "backend" so nginx can rewrite to "localhost"
+    # nginx proxy_cookie_domain rewrites "backend" → "localhost" for browser compatibility
+    cookie_domain = "backend"  # Will be rewritten by nginx proxy
 
     # SameSite policy for development vs production
     # Use "lax" in development to allow cross-origin SSE proxy requests
@@ -858,7 +906,7 @@ def complete_passkey_authentication(
 
 @router.get("/passkeys/summary", response_model=PasskeySummary)
 def get_passkey_summary(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user_from_cookie),
     passkey_manager: PasskeyManager = Depends(get_passkey_manager),
 ) -> PasskeySummary:
     """Get user's passkey summary for dashboard - User management."""
@@ -1019,7 +1067,7 @@ async def revoke_all_user_tokens(
 
         # CRITICAL: Use EXACT same cookie settings as when they were created
         secure_cookies = is_production
-        cookie_domain = None if is_production else "localhost"
+        cookie_domain = None if is_production else "backend"
         samesite_policy: Literal["strict", "lax"] = (
             "strict" if is_production else "lax"
         )  # Must match creation settings!

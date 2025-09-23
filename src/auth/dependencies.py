@@ -125,32 +125,61 @@ async def get_current_user_from_cookie(
     request: Request, db_service: DatabaseService = Depends(get_database_service)
 ) -> User:
     """Get current authenticated user from HTTP-only cookie (for Astro best practices)."""
+    import structlog
+
+    logger = structlog.get_logger(__name__)
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    # Debug: Log all cookies received
+    all_cookies = dict(request.cookies) if request.cookies else {}
+    logger.info(
+        "Cookie authentication attempt",
+        cookies_received=all_cookies,
+        has_auth_token=bool(request.cookies.get("auth_token")),
+    )
+
     # Try to get auth token from HTTP-only cookie
     auth_token = request.cookies.get("auth_token")
     if not auth_token:
+        logger.warning("No auth_token cookie found")
         raise credentials_exception
 
     try:
+        # Debug: Log token details (first/last 10 chars only for security)
+        token_preview = (
+            f"{auth_token[:10]}...{auth_token[-10:]}" if len(auth_token) > 20 else "short_token"
+        )
+        logger.info(
+            "Attempting JWT decode",
+            token_preview=token_preview,
+            secret_key_length=len(auth_config.SECRET_KEY),
+            algorithm=auth_config.ALGORITHM,
+        )
+
         # Verify JWT token from cookie
         payload = jwt.decode(auth_token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
         username: str = payload.get("sub")
+        logger.info("JWT decode successful", username=username, payload_keys=list(payload.keys()))
+
         if username is None:
+            logger.warning("No username (sub) in JWT payload")
             raise credentials_exception
 
         token_data = TokenData(username=username)
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
+        logger.warning("JWT token expired", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.warning("JWT token invalid", error=str(e), error_type=type(e).__name__)
         raise credentials_exception
 
     # Get user from database
@@ -160,7 +189,15 @@ async def get_current_user_from_cookie(
 
         user = maybe_none(auth_service.get_user_by_username, token_data.username)
         if user is None:
+            logger.warning("User not found in database", username=token_data.username)
             raise credentials_exception
+
+        logger.info(
+            "Cookie authentication successful",
+            user_id=user.id,
+            username=user.username,
+            is_active=user.is_active,
+        )
 
     return user
 

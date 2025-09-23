@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..constants import API_DEFAULT_LIMIT
 from ..database.models import User as UserTable
+from .decorators import with_transaction_rollback
 from .models import OAuthUserCreate, User, UserCreate, UserInDB, UserUpdate
 from .security import security_manager
 
@@ -238,3 +239,48 @@ class AuthService:
         # self.db.commit()
         # return True
         return False
+
+    @with_transaction_rollback
+    def delete_user_account(self, user_id: str) -> bool:
+        """Permanently delete user account and all associated data.
+
+        This method performs a complete account deletion including:
+        - User record
+        - Linked OAuth accounts (cascade delete)
+        - WebAuthn credentials (cascade delete)
+        - User settings (cascade delete)
+        - Preserves scraping jobs (for audit/historical purposes)
+
+        Args:
+            user_id: The ID of the user to delete
+
+        Returns:
+            bool: True if user was deleted successfully, False if user not found
+
+        Raises:
+            Exception: If database operation fails
+        """
+        # Find the user first
+        stmt = select(UserTable).where(UserTable.id == user_id)
+        result = self.db.execute(stmt)
+        user_row = result.scalar_one_or_none()
+
+        if not user_row:
+            logger.warning("User not found for deletion", user_id=user_id)
+            return False
+
+        # Log the deletion for audit purposes
+        logger.info(
+            "Deleting user account",
+            user_id=user_id,
+            username=user_row.username,
+            email=user_row.email,
+        )
+
+        # Delete the user - cascades will handle related records
+        # Note: scraping_jobs relationship has no cascade, so jobs are preserved
+        self.db.delete(user_row)
+        self.db.commit()
+
+        logger.info("User account deleted successfully", user_id=user_id)
+        return True
