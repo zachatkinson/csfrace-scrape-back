@@ -5,7 +5,7 @@ using Redis as a shared state store.
 """
 
 import time
-from typing import TYPE_CHECKING, Optional, Dict, Union
+from typing import TYPE_CHECKING, Optional
 
 import asyncio
 import structlog
@@ -68,11 +68,11 @@ class DistributedTokenBucket:
 
         # Local fallback bucket
         from .token_bucket import TokenBucket
-        
+
         if fallback_to_local:
-            self._local_bucket: Optional[TokenBucket] = TokenBucket(config)
+            self._local_bucket: TokenBucket | None = TokenBucket(config)
         else:
-            self._local_bucket: Optional[TokenBucket] = None
+            self._local_bucket: TokenBucket | None = None
 
         # Lua script for atomic token consumption
         self._consume_script = """
@@ -262,9 +262,9 @@ class DistributedTokenBucket:
         if self._local_bucket:
             await self._local_bucket.reset()
 
-    async def health_check(self) -> Dict[str, Union[str, bool, int]]:
+    async def health_check(self) -> dict[str, str | bool | int]:
         """Check health of distributed rate limiting components."""
-        health: Dict[str, Union[str, bool, int]] = {
+        health: dict[str, str | bool | int] = {
             "redis_available": False,
             "local_fallback_available": self._local_bucket is not None,
         }
@@ -339,7 +339,7 @@ class DistributedTokenBucketPool:
         bucket = await self.get_bucket(key)
         await bucket.reset("default")
 
-    async def health_check(self) -> Dict[str, Union[str, bool, int]]:
+    async def health_check(self) -> dict[str, str | bool | int]:
         """Check health of all distributed components."""
         if not self._bucket_cache:
             # Create a test bucket to check health

@@ -5,15 +5,15 @@ rate limiting for external website scraping.
 """
 
 
+
 import asyncio
 import structlog
-from typing import Dict, Union
 
 from .rate_limiting.token_bucket import TokenBucket, TokenBucketConfig, TokenBucketPool
 from .robots import RobotsChecker
 
 # Type for domain statistics - much better than Any
-DomainStats = Dict[str, Union[str, int, float, bool]]
+DomainStats = dict[str, str | int | float | bool]
 
 logger = structlog.get_logger(__name__)
 
@@ -221,7 +221,7 @@ class ScrapingRateLimiter:
         await self._bucket_pool.reset_bucket(domain)
         logger.info("Reset rate limits", domain=domain)
 
-    async def get_all_domain_stats(self) -> Dict[str, DomainStats]:
+    async def get_all_domain_stats(self) -> dict[str, DomainStats]:
         """Get statistics for all configured domains."""
         stats = {}
 

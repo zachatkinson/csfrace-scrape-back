@@ -38,7 +38,7 @@ def handle_auth_errors(operation_name: str) -> Callable[[F], F]:
                     args[0].db.rollback()
                 raise RuntimeError(f"Failed to {operation_name.lower()}: {str(e)}") from e
 
-        return cast(F, wrapper)
+        return cast("F", wrapper)
 
     return decorator
 
@@ -66,4 +66,4 @@ def with_transaction_rollback[F: Callable[..., Any]](func: F) -> F:
                         logger.error("Failed to rollback transaction", error=str(rollback_error))
             raise
 
-    return cast(F, wrapper)
+    return cast("F", wrapper)
