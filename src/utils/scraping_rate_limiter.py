@@ -4,8 +4,6 @@ Integrates with robots.txt compliance and provides burst-friendly
 rate limiting for external website scraping.
 """
 
-
-
 import asyncio
 import structlog
 

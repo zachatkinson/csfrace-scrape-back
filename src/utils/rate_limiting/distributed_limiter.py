@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 try:
-
     REDIS_AVAILABLE = True
 except ImportError:
     logger.warning("Redis not available - distributed rate limiting disabled")
@@ -72,7 +71,7 @@ class DistributedTokenBucket:
         if fallback_to_local:
             self._local_bucket: TokenBucket | None = TokenBucket(config)
         else:
-            self._local_bucket: TokenBucket | None = None
+            self._local_bucket = None
 
         # Lua script for atomic token consumption
         self._consume_script = """
@@ -157,10 +156,13 @@ class DistributedTokenBucket:
 
     async def _consume_redis(self, key: str, tokens: int) -> bool:
         """Consume tokens using Redis atomic script."""
+        if self.redis_client is None:
+            raise RuntimeError("Redis client not available")
+
         redis_key = f"{self.key_prefix}{key}"
         now = time.time()
 
-        result = await self.redis_client.eval(
+        result = await self.redis_client.eval(  # type: ignore[misc]
             self._consume_script,
             1,  # Number of keys
             redis_key,
@@ -204,6 +206,9 @@ class DistributedTokenBucket:
 
     async def _get_available_redis(self, key: str) -> float:
         """Get available tokens from Redis."""
+        if self.redis_client is None:
+            raise RuntimeError("Redis client not available")
+
         redis_key = f"{self.key_prefix}{key}"
         now = time.time()
 
@@ -231,7 +236,7 @@ class DistributedTokenBucket:
         return current_tokens
         """
 
-        result = await self.redis_client.eval(
+        result = await self.redis_client.eval(  # type: ignore[misc]
             get_script,
             1,
             redis_key,
