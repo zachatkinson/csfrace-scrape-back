@@ -4,6 +4,6 @@ A modern Python application for converting WordPress content to Shopify-compatib
 Built with async/await patterns for high performance content migration.
 """
 
-__version__ = "5.9.0"
+__version__ = "5.10.0"
 __author__ = "CSFrace Development Team"
 __email__ = "dev@csfrace.com"

@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v5.10.0 (2025-09-23)
+
+### Features
+
+- **health**: Add uptime tracking to liveness endpoint
+  ([#22](https://github.com/zachatkinson/csfrace-scrape-back/pull/22),
+  [`73870d2`](https://github.com/zachatkinson/csfrace-scrape-back/commit/73870d2c1a60075384dc6c58cd2af62f414d6c26))
+
+* feat(health): add uptime tracking to liveness endpoint
+
+- Add startup time tracking to health router - Enhance StatusResponse model with optional
+  uptime_seconds field - Update liveness endpoint to return service uptime information - Improves
+  container orchestration monitoring capabilities
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* fix(types): make uptime_seconds field properly optional in StatusResponse
+
+- Use explicit default=None in Field() for proper Pydantic typing - Ensures backward compatibility
+  with existing endpoints - Fixes MyPy type checking error in readiness endpoint
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.9.0 (2025-09-23)
 
 ### Features
