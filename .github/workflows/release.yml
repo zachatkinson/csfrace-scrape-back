@@ -112,9 +112,21 @@ jobs:
           echo "image-tag=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> $GITHUB_OUTPUT
           echo "image-digest=${{ steps.container.outputs.digest }}" >> $GITHUB_OUTPUT
 
-      # Note: Umbrella repository updates are handled by the CI workflow
-      # Every push to master (including release commits) triggers an update
-      # This ensures the umbrella always has the latest backend code
+      - name: Update Umbrella Repository
+        if: steps.semantic.outputs.released == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.UMBRELLA_PAT }}
+          repository: zachatkinson/csfrace-scrape
+          event-type: backend-updated
+          client-payload: |
+            {
+              "repository": "${{ github.repository }}",
+              "ref": "${{ github.ref }}",
+              "sha": "${{ github.sha }}",
+              "version": "${{ steps.semantic.outputs.version }}",
+              "release_url": "${{ steps.semantic.outputs.release-url }}"
+            }
           
       - name: Create release success summary
         if: success()

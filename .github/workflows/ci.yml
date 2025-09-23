@@ -1553,44 +1553,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  # Update umbrella repository on successful master branch pushes
-  update-umbrella-repository:
-    name: 📦 Update Umbrella Repository
-    runs-on: ubuntu-latest
-    needs: [finalize-coverage]
-    # ONLY run on master branch pushes (not PRs, not feature branches)
-    # This includes ALL commits to master: features, fixes, and releases
-    if: |
-      github.ref == 'refs/heads/master' &&
-      github.event_name == 'push'
-    timeout-minutes: 5
-
-    steps:
-      - name: Trigger Umbrella Repository Update
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
-          repository: zachatkinson/csfrace-scrape
-          event-type: backend-updated
-          client-payload: |
-            {
-              "repository": "${{ github.repository }}",
-              "ref": "${{ github.ref }}",
-              "sha": "${{ github.sha }}",
-              "message": ${{ toJSON(github.event.head_commit.message) }},
-              "actor": "${{ github.actor }}",
-              "workflow": "${{ github.workflow }}",
-              "timestamp": "${{ github.event.head_commit.timestamp }}"
-            }
-
-      - name: Log umbrella repository update
-        run: |
-          echo "## 📦 Umbrella Repository Update Triggered" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Message:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** master" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The umbrella repository will be updated with the latest backend changes." >> $GITHUB_STEP_SUMMARY
+  # Note: Umbrella repository updates are now triggered by the semantic release workflow
+  # This ensures the umbrella gets the version-tagged commits, not just the pre-release commits
 
   # Note: Semantic release now runs as a separate workflow triggered on push
