@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v5.11.0 (2025-09-23)
+
+### Features
+
+- Add system information endpoint for enhanced monitoring
+  ([#25](https://github.com/zachatkinson/csfrace-scrape-back/pull/25),
+  [`8a3f70a`](https://github.com/zachatkinson/csfrace-scrape-back/commit/8a3f70ad0c18ce1705e3a41695a64723de99092f))
+
+- Add /health/system endpoint providing comprehensive system details - Include platform,
+  architecture, Python version, and uptime info - Useful for debugging deployments and monitoring
+  compatibility - Helps track application runtime across different environments
+
+This feature enhances observability by exposing critical system metrics that are valuable for
+  debugging and monitoring production deployments.
+
+
 ## v5.10.2 (2025-09-23)
 
 ### Bug Fixes
