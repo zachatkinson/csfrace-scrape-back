@@ -55,7 +55,9 @@ class TokenBucket:
     def __init__(self, config: TokenBucketConfig) -> None:
         """Initialize token bucket with configuration."""
         self.config = config
-        self._tokens = float(config.initial_tokens or config.capacity)
+        self._tokens = float(
+            config.initial_tokens if config.initial_tokens is not None else config.capacity
+        )
         self._last_refill = time.monotonic()
         self._lock = asyncio.Lock()
 

@@ -134,6 +134,7 @@ class TestDeleteAccountEndpoint:
         # Assert
         assert result.status_code == 200
         import json
+
         response_body = json.loads(result.body.decode())
         assert response_body == {"status": "success", "message": "Account deleted successfully"}
         mock_auth_service.delete_user_account.assert_called_once_with(mock_user.id)
