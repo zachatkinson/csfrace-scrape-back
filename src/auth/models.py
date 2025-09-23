@@ -408,7 +408,7 @@ class StatusResponse(BaseModel):
     """Standard status response model for health checks."""
 
     status: str
-    uptime_seconds: int | None = Field(None, description="Service uptime in seconds")
+    uptime_seconds: int | None = Field(default=None, description="Service uptime in seconds")
 
 
 # Token Revocation Models - Security Operations
