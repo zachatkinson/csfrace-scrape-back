@@ -2,6 +2,40 @@
 
 <!-- version list -->
 
+## v5.10.1 (2025-09-23)
+
+### Bug Fixes
+
+- Improve umbrella repository update timing
+  ([#23](https://github.com/zachatkinson/csfrace-scrape-back/pull/23),
+  [`08bcf07`](https://github.com/zachatkinson/csfrace-scrape-back/commit/08bcf072787196de9d80963ca2df8c4543fcdf6f))
+
+* fix: improve umbrella repository update timing
+
+- Move umbrella update trigger from CI to release workflow - Ensures umbrella gets tagged commits
+  instead of pre-release commits - Prevents merge conflicts from timing issues - Aligns with
+  enterprise best practices for semantic versioning
+
+The umbrella repository will now receive updates after semantic release completes, ensuring proper
+  version coordination.
+
+* fix: enhance liveness check with uptime message
+
+Adds descriptive message to liveness endpoint showing service uptime. This improves monitoring and
+  debugging capabilities by providing clear uptime information in the health check response.
+
+* style: apply ruff formatting and update dependencies
+
+- Apply consistent code formatting to health endpoint - Update uv.lock with test dependencies -
+  Ensures code passes CI quality checks
+
+* fix: resolve MyPy type error in health endpoint
+
+Remove unsupported 'message' parameter from StatusResponse model. StatusResponse only supports
+  'status' and 'uptime_seconds' fields. This fix ensures MyPy type checking passes for the health
+  endpoint.
+
+
 ## v5.10.0 (2025-09-23)
 
 ### Features
