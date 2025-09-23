@@ -111,7 +111,6 @@ async def liveness_check() -> StatusResponse:
     return StatusResponse(
         status="alive",
         uptime_seconds=uptime_seconds,
-        message=f"Service running for {uptime_seconds} seconds",
     )
 
 
