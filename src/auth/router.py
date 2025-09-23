@@ -9,7 +9,7 @@ import asyncio
 import jwt
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -1541,6 +1541,53 @@ async def auth_status_stream(request: Request) -> StreamingResponse:
     return StreamingResponse(
         _generate_auth_events(request), media_type="text/event-stream", headers=headers
     )
+
+
+@router.delete("/account")
+async def delete_user_account(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> JSONResponse:
+    """
+    Delete the current user's account.
+
+    This endpoint allows authenticated users to permanently delete their account.
+    The operation is irreversible and will remove all user data.
+
+    **Security Features:**
+    - Requires active user authentication
+    - Validates user exists before deletion
+    - Proper error handling and logging
+
+    Returns:
+        JSONResponse: Success message or error details
+
+    Raises:
+        HTTPException: If deletion fails or user not found
+    """
+    try:
+        # Delete the user account using the auth service
+        success = auth_service.delete_user_account(current_user.id)
+
+        if success:
+            logger.info("User account deleted successfully", user_id=current_user.id)
+            return JSONResponse(
+                status_code=200,
+                content={"status": "success", "message": "Account deleted successfully"},
+            )
+        else:
+            logger.warning("Failed to delete user account", user_id=current_user.id)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete account"
+            )
+
+    except Exception as e:
+        logger.error("Error deleting user account", user_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during account deletion",
+        )
 
 
 # Rate limit exception handler will be added when implementing rate limiting middleware

@@ -16,11 +16,12 @@ ENV PYTHONUNBUFFERED=1 \
     UV_CACHE_DIR=/tmp/.uv-cache \
     UV_PROJECT_ENVIRONMENT=/build/.venv
 
-# Install only essential build dependencies with security updates
+# Install essential build dependencies and curl for health checks with security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential=12.* \
     libxml2-dev=2.* \
     libxslt1-dev=1.* \
+    curl=7.* \
     && apt-get upgrade -y \
     && apt-get autoremove -y \
     && apt-get clean \
@@ -84,7 +85,9 @@ USER 65532
 # Expose port for API mode
 EXPOSE 8000
 
-# Note: No healthcheck in distroless (no curl), health checks handled by orchestrator
+# Health check for production (using Python instead of curl for distroless compatibility)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD ["/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=10)"]
 
 # Default to API server mode in production (using venv Python in distroless)
 ENTRYPOINT ["/app/.venv/bin/python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

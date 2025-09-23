@@ -16,7 +16,7 @@ class AuthConfig(BaseSettings):
     SECRET_KEY: str = EnvironmentLoader.get_optional("SECRET_KEY", "")  # Will be validated below
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = EnvironmentLoader.get_int(
-        "ACCESS_TOKEN_EXPIRE_MINUTES", 30, min_value=1, max_value=1440
+        "ACCESS_TOKEN_EXPIRE_MINUTES", 720, min_value=1, max_value=1440
     )
     REFRESH_TOKEN_EXPIRE_DAYS: int = EnvironmentLoader.get_int(
         "REFRESH_TOKEN_EXPIRE_DAYS", 7, min_value=1, max_value=365
