@@ -26,25 +26,27 @@ def get_database_service() -> DatabaseService:
     return DatabaseService()
 
 
-# Service injection patterns (DRY principle)
-def get_auth_service(db_service: DatabaseService = Depends(get_database_service)) -> AuthService:
+# Database session dependency for proper lifecycle management
+def get_db_session(db_service: DatabaseService = Depends(get_database_service)):
+    """Get database session with proper lifecycle management for FastAPI."""
+    with db_service.get_session() as session:
+        yield session
+
+
+# Service injection patterns (DRY principle) - Fixed connection pool issue
+def get_auth_service(session = Depends(get_db_session)) -> AuthService:
     """Get auth service with injected database session - eliminates boilerplate."""
-    with db_service.get_session() as session:
-        return AuthService(session)
+    return AuthService(session)
 
 
-def get_oauth_service(db_service: DatabaseService = Depends(get_database_service)) -> OAuthService:
+def get_oauth_service(session = Depends(get_db_session)) -> OAuthService:
     """Get OAuth service with injected database session - eliminates boilerplate."""
-    with db_service.get_session() as session:
-        return OAuthService(session)
+    return OAuthService(session)
 
 
-def get_webauthn_service(
-    db_service: DatabaseService = Depends(get_database_service),
-) -> WebAuthnService:
+def get_webauthn_service(session = Depends(get_db_session)) -> WebAuthnService:
     """Get WebAuthn service with injected database session - eliminates boilerplate."""
-    with db_service.get_session() as session:
-        return WebAuthnService(session)
+    return WebAuthnService(session)
 
 
 def get_passkey_manager(
@@ -55,7 +57,7 @@ def get_passkey_manager(
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), db_service: DatabaseService = Depends(get_database_service)
+    token: str = Depends(oauth2_scheme), auth_service: AuthService = Depends(get_auth_service)
 ) -> User:
     """Get current authenticated user from JWT token."""
     credentials_exception = HTTPException(
@@ -69,15 +71,13 @@ async def get_current_user(
     if token_data is None or token_data.username is None:
         raise credentials_exception
 
-    # Get user from database using existing session pattern
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
-        # Use maybe_none wrapper (DRY principle) to handle assignment-from-none
-        from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
+    # Get user from database using injected auth service
+    # Use maybe_none wrapper (DRY principle) to handle assignment-from-none
+    from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
 
-        user = maybe_none(auth_service.get_user_by_username, token_data.username)
-        if user is None:
-            raise credentials_exception
+    user = maybe_none(auth_service.get_user_by_username, token_data.username)
+    if user is None:
+        raise credentials_exception
 
     return user
 
@@ -122,7 +122,7 @@ def require_scopes(*required_scopes: str):
 
 
 async def get_current_user_from_cookie(
-    request: Request, db_service: DatabaseService = Depends(get_database_service)
+    request: Request, auth_service: AuthService = Depends(get_auth_service)
 ) -> User:
     """Get current authenticated user from HTTP-only cookie (for Astro best practices)."""
     credentials_exception = HTTPException(
@@ -153,14 +153,12 @@ async def get_current_user_from_cookie(
     except jwt.InvalidTokenError:
         raise credentials_exception
 
-    # Get user from database
-    with db_service.get_session() as session:
-        auth_service = AuthService(session)
-        from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
+    # Get user from database using injected auth service
+    from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
 
-        user = maybe_none(auth_service.get_user_by_username, token_data.username)
-        if user is None:
-            raise credentials_exception
+    user = maybe_none(auth_service.get_user_by_username, token_data.username)
+    if user is None:
+        raise credentials_exception
 
     return user
 
