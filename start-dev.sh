@@ -13,6 +13,9 @@ until uv run python -c "
 import os
 from sqlalchemy import create_engine, text
 database_url = os.environ.get('DATABASE_URL')
+# Convert to psycopg3 URL format if needed
+if database_url.startswith('postgresql://'):
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://')
 print(f'Testing connection to: {database_url.split(\"@\")[0]}@***')
 try:
     engine = create_engine(database_url)
