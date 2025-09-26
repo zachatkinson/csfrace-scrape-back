@@ -88,6 +88,7 @@ class JobService:
 
             self.session.add(job)
             self.session.flush()  # Get the ID
+            self.session.refresh(job)  # Keep job attached to session
 
             logger.info("Job created successfully", job_id=job.id, domain=job.domain)
             return job
@@ -196,6 +197,10 @@ class JobService:
                 jobs.append(job)
 
             self.session.flush()  # Get all IDs
+
+            # Refresh all jobs to keep them attached to session
+            for job in jobs:
+                self.session.refresh(job)
 
             logger.info("Batch jobs created successfully", job_count=len(jobs), batch_id=batch_id)
             return jobs

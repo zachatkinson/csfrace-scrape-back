@@ -233,7 +233,10 @@ class DatabaseService:
                         options=kwargs,
                         batch_id=getattr(request, "batch_id", None),
                     )
-                    return job_service.create_job(service_request)
+                    job = job_service.create_job(service_request)
+                    # Ensure all attributes are loaded before session closes
+                    session.expunge(job)
+                    return job
                 else:
                     # Handle legacy kwargs-only calls by creating JobServiceRequest
                     if "url" not in kwargs or "output_directory" not in kwargs:
@@ -243,14 +246,33 @@ class DatabaseService:
 
                     from ..common.status import JobPriority
 
+                    # Handle priority conversion from kwargs
+                    priority = kwargs.pop("priority", "normal")
+                    if isinstance(priority, str):
+                        # Convert string to enum
+                        priority_map = {
+                            "low": JobPriority.LOW,
+                            "normal": JobPriority.NORMAL,
+                            "high": JobPriority.HIGH,
+                            "urgent": JobPriority.URGENT,
+                        }
+                        priority = priority_map.get(priority.lower(), JobPriority.NORMAL)
+                    elif not hasattr(priority, "value"):
+                        # If it's not a string and not an enum, default to normal
+                        priority = JobPriority.NORMAL
+
                     service_request = JobServiceRequest(
                         url=kwargs.pop("url"),
                         output_directory=kwargs.pop("output_directory"),
-                        priority=JobPriority.NORMAL,
+                        priority=priority,
+                        max_retries=kwargs.pop("max_retries", 3),
                         options=kwargs.copy(),
                         batch_id=kwargs.get("batch_id"),
                     )
-                    return job_service.create_job(service_request)
+                    job = job_service.create_job(service_request)
+                    # Ensure all attributes are loaded before session closes
+                    session.expunge(job)
+                    return job
 
         except SQLAlchemyError as e:
             logger.error("Job creation failed", error=str(e))
@@ -268,7 +290,11 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 job_service = JobService(session)
-                return job_service.get_job(job_id)
+                job = job_service.get_job(job_id)
+                if job:
+                    # Ensure all attributes are loaded before session closes
+                    session.expunge(job)
+                return job
         except SQLAlchemyError as e:
             logger.error("Failed to retrieve job", job_id=job_id, error=str(e))
             raise DatabaseError("job retrieval", e) from e
