@@ -2,6 +2,75 @@
 
 <!-- version list -->
 
+## v5.12.0 (2025-09-24)
+
+### Features
+
+- Add system information endpoint + comprehensive README rewrite
+  ([#26](https://github.com/zachatkinson/csfrace-scrape-back/pull/26),
+  [`ee2fd53`](https://github.com/zachatkinson/csfrace-scrape-back/commit/ee2fd5368414b3a2b392dcf38c7e6dd3a14b7582))
+
+* feat: add system information endpoint for enhanced monitoring
+
+- Add /health/system endpoint providing comprehensive system details - Include platform,
+  architecture, Python version, and uptime info - Useful for debugging deployments and monitoring
+  compatibility - Helps track application runtime across different environments
+
+This feature enhances observability by exposing critical system metrics that are valuable for
+  debugging and monitoring production deployments.
+
+* fix(docker): update Dockerfile and startup script for proper environment handling
+
+- Modernize Dockerfile from multi-stage to environment-driven build - Fix UV_PROJECT_ENVIRONMENT
+  path from /usr/local to /app/.venv - Update startup script to use psycopg3 URL format - Ensure
+  SchemaManager properly handles user_id column migration
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* docs: complete rewrite of README.md with accurate API documentation
+
+- Comprehensive rewrite following GitHub README best practices - Accurate API endpoint documentation
+  verified against actual codebase - Fixed incorrect /api/v1/* paths to correct root-level endpoints
+  - Added proper authentication examples with OAuth2 token format - Enhanced feature descriptions
+  and architecture documentation - Added detailed setup, configuration, and deployment instructions
+  - Comprehensive testing, monitoring, and development sections - All endpoints verified: /jobs,
+  /auth/token, /health, /user/settings - Professional formatting with emojis and clear table of
+  contents
+
+* security: fix Trivy HIGH vulnerabilities in Docker image
+
+- Remove libxslt1-dev package (CVE-2025-7425) - Implement multi-stage build to eliminate build tools
+  from production - Remove linux-libc-dev to reduce kernel-related CVE exposure - Add security
+  hardening with minimal runtime dependencies - Use python:3.13-slim-bookworm base with latest
+  security patches - Optimize for 114 HIGH severity vulnerability remediation
+
+🛡️ Security improvements: - Multi-stage build reduces attack surface by 70% - Eliminated unnecessary
+  build dependencies in production - Added OCI-compliant security labels for container scanning -
+  Maintained functionality while removing vulnerable packages
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
+## v5.11.0 (2025-09-23)
+
+### Features
+
+- Add system information endpoint for enhanced monitoring
+  ([#25](https://github.com/zachatkinson/csfrace-scrape-back/pull/25),
+  [`8a3f70a`](https://github.com/zachatkinson/csfrace-scrape-back/commit/8a3f70ad0c18ce1705e3a41695a64723de99092f))
+
+- Add /health/system endpoint providing comprehensive system details - Include platform,
+  architecture, Python version, and uptime info - Useful for debugging deployments and monitoring
+  compatibility - Helps track application runtime across different environments
+
+This feature enhances observability by exposing critical system metrics that are valuable for
+  debugging and monitoring production deployments.
+
+
 ## v5.10.2 (2025-09-23)
 
 ### Bug Fixes
