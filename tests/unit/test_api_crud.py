@@ -132,6 +132,7 @@ class TestDataFactory:
         defaults = {
             "id": "test-job-id-1",  # String UUID instead of integer
             "source_url": "https://example.com/test",
+            "domain": "example.com",  # Required field
             "job_type": "single",  # Use actual model field
             "target_format": "html",  # Use actual model field
             "priority": JobPriority.HIGH.value,  # Use string value

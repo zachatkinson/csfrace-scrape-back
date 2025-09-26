@@ -30,6 +30,7 @@ class TestDatabaseModels:
         job = ScrapingJob(
             user_id="test-user-id",  # Required field
             source_url="https://example.com/test-post",  # Required field
+            domain="example.com",  # Required field
             job_type="single",
             target_format="html",
         )
@@ -51,6 +52,7 @@ class TestDatabaseModels:
         job = ScrapingJob(
             user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
+            domain="example.com",  # Required field
             job_type="single",
             target_format="html",
         )
@@ -83,6 +85,7 @@ class TestDatabaseModels:
         job = ScrapingJob(
             user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
+            domain="example.com",  # Required field
             job_type="single",
             target_format="html",
             max_retries=3,
@@ -114,13 +117,17 @@ class TestDatabaseModels:
             batch_id = "test-batch-uuid-123"
 
             job1 = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/post1",
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
                 batch_id=batch_id,
             )
             job2 = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/post2",
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
                 batch_id=batch_id,
@@ -139,7 +146,9 @@ class TestDatabaseModels:
         with testcontainers_db_service.get_session() as session:
             # Create job first
             job = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
             )
@@ -174,7 +183,9 @@ class TestDatabaseModels:
         with testcontainers_db_service.get_session() as session:
             # Create job first
             job = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
             )
@@ -279,7 +290,9 @@ class TestDatabaseModels:
         with testcontainers_db_service.get_session() as session:
             # Create job with content and logs
             job = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
                 batch_id="test-batch-uuid",  # Simple batch_id field
@@ -390,6 +403,7 @@ class TestModelConstraintsAndValidation:
         job = ScrapingJob(
             user_id="test-user-id",  # Required field
             source_url=long_url,  # Required field
+            domain="example.com",  # Required field
             job_type="single",
             target_format="html",
         )
@@ -405,6 +419,7 @@ class TestModelConstraintsAndValidation:
         job = ScrapingJob(
             user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
+            domain="example.com",  # Required field
             job_type="single",
             target_format="html",
         )
@@ -435,6 +450,7 @@ class TestModelConstraintsAndValidation:
         job = ScrapingJob(
             user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
+            domain="example.com",  # Required field
             job_type="single",
             target_format="html",
             options=test_config,  # Use the correct field name from the model
@@ -454,7 +470,9 @@ class TestModelConstraintsAndValidation:
         with testcontainers_db_service.get_session() as session:
             # Create job without batch_id (should work)
             job1 = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/test1",  # Required field
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
             )
@@ -465,7 +483,9 @@ class TestModelConstraintsAndValidation:
             # Create job with batch_id (unified batch processing)
             batch_uuid = "test-batch-uuid-456"
             job2 = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 source_url="https://example.com/test2",  # Required field
+                domain="example.com",  # Required field
                 job_type="single",
                 target_format="html",
                 batch_id=batch_uuid,
