@@ -144,7 +144,10 @@ class TestDataFactory:
             "output_size_bytes": None,  # Use actual model field
         }
         defaults.update(overrides)
-        return ScrapingJob(**defaults)
+        return ScrapingJob(
+            user_id="test-user-id",  # Required field
+            **defaults,
+        )
 
 
 # STEP 4: Refactored tests using real async behavior

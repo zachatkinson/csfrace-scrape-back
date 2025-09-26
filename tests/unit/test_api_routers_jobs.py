@@ -7,16 +7,9 @@ import pytest
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.api.routers.jobs import (
-    cancel_job,
-    create_jobs,
-    delete_job,
-    get_job,
-    list_jobs,
-    retry_job,
-    start_job,
-    update_job,
-)
+from src.api.routers.jobs.control import cancel_job, retry_job, start_job
+from src.api.routers.jobs.crud import delete_job, get_job, list_jobs, update_job
+from src.api.routers.jobs.execution import create_jobs
 from src.api.schemas import JobListResponse, JobResponse, JobUpdate
 from src.database.models import JobPriority, JobStatus, ScrapingJob
 
@@ -40,6 +33,7 @@ class TestJobRouterEndpoints:
         from datetime import datetime
 
         return ScrapingJob(
+            user_id="test-user-id",  # Required field
             id="test-job-id-123",  # String UUID instead of integer
             source_url="https://example.com/test",  # Required field
             job_type="single",  # Use actual model field
@@ -152,6 +146,7 @@ class TestJobRouterEndpoints:
 
         jobs = [
             ScrapingJob(
+                user_id="test-user-id",  # Required field
                 id="test-job-1",  # String UUID instead of integer
                 source_url="https://test1.com",  # Required field
                 job_type="single",  # Use actual model field
@@ -163,6 +158,7 @@ class TestJobRouterEndpoints:
                 max_retries=3,
             ),
             ScrapingJob(
+                user_id="test-user-id",  # Required field
                 id="test-job-2",  # String UUID instead of integer
                 source_url="https://test2.com",  # Required field
                 job_type="single",  # Use actual model field
@@ -204,6 +200,7 @@ class TestJobRouterEndpoints:
 
         jobs = [
             ScrapingJob(
+                user_id="test-user-id",  # Required field
                 id="test-pagination-job",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
                 job_type="single",  # Use actual model field
@@ -342,6 +339,7 @@ class TestJobRouterEndpoints:
         sample_job.status = JobStatus.PENDING.value
         # Create a copy of the job with updated status
         updated_job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=sample_job.id,
             source_url=sample_job.source_url,  # Required field
             job_type=sample_job.job_type,
@@ -411,6 +409,7 @@ class TestJobRouterEndpoints:
         sample_job.status = JobStatus.PENDING.value
         # Create a copy of the job with updated status
         updated_job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=sample_job.id,
             source_url=sample_job.source_url,  # Required field
             job_type=sample_job.job_type,
@@ -571,6 +570,7 @@ class TestJobRouterEndpoints:
 
         for invalid_status in invalid_statuses:
             job = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 id="test-job-status-validation",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
                 job_type="single",  # Use actual model field
@@ -594,6 +594,7 @@ class TestJobRouterEndpoints:
 
         for valid_status in valid_statuses:
             job = ScrapingJob(
+                user_id="test-user-id",  # Required field
                 id="test-job-valid-status",  # String UUID instead of integer
                 source_url="https://test.com",  # Required field
                 job_type="single",  # Use actual model field
@@ -635,6 +636,7 @@ class TestJobRouterEndpoints:
 
         jobs = [
             ScrapingJob(
+                user_id="test-user-id",  # Required field
                 id="test-job-1",
                 source_url="https://test.com",  # Required field
                 job_type="single",  # Use actual model field

@@ -204,6 +204,7 @@ class TestJobEndpoints:
         """Test retrying a failed job."""
         # Create a failed job
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url="https://example.com/failed-page",  # Required field
             domain="example.com",
             slug="failed-page",

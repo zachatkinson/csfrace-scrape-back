@@ -103,6 +103,7 @@ async def async_client(override_get_db) -> AsyncGenerator[AsyncClient]:
 async def sample_job(test_db_session: AsyncSession) -> ScrapingJob:
     """Create a sample scraping job for testing."""
     job = ScrapingJob(
+        user_id="test-user-id",  # Required field
         source_url="https://example.com/test-page",  # Required field
         domain="example.com",
         slug="test-page",

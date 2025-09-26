@@ -21,6 +21,7 @@ def sample_job():
     """Sample ScrapingJob instance with all required fields."""
     return ScrapingJob(
         id="sample-job-id-1",  # String UUID instead of integer
+        user_id="test-user-id",  # Required field
         source_url="https://example.com/test",  # Required field
         domain="example.com",
         slug="test",

@@ -51,6 +51,7 @@ class TestJobCRUD:
         """Sample ScrapingJob instance."""
         job_id = str(uuid4())
         return ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=job_id,
             source_url="https://example.com/test",
             domain="example.com",

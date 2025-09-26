@@ -28,6 +28,7 @@ class TestDatabaseModels:
     def test_scraping_job_model_creation(self, testcontainers_db_service):
         """Test ScrapingJob model creation with required fields."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url="https://example.com/test-post",  # Required field
             job_type="single",
             target_format="html",
@@ -48,6 +49,7 @@ class TestDatabaseModels:
     def test_scraping_job_properties(self, testcontainers_db_service):
         """Test ScrapingJob computed properties."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
             job_type="single",
             target_format="html",
@@ -79,6 +81,7 @@ class TestDatabaseModels:
     def test_scraping_job_can_retry_property(self, testcontainers_db_service):
         """Test ScrapingJob retry logic."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
             job_type="single",
             target_format="html",
@@ -372,7 +375,11 @@ class TestModelConstraintsAndValidation:
         # ScrapingJob missing required source_url
         with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError or similar
             with testcontainers_db_service.get_session() as session:
-                job = ScrapingJob(job_type="single", target_format="html")  # Missing source_url
+                job = ScrapingJob(
+                    user_id="test-user-id",  # Required field
+                    job_type="single",
+                    target_format="html",
+                )  # Missing source_url
                 session.add(job)
                 session.commit()
 
@@ -381,6 +388,7 @@ class TestModelConstraintsAndValidation:
         # Test very long URL (should work up to 2048 chars)
         long_url = "https://example.com/" + "a" * 2000
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url=long_url,  # Required field
             job_type="single",
             target_format="html",
@@ -395,6 +403,7 @@ class TestModelConstraintsAndValidation:
     def test_datetime_defaults(self, testcontainers_db_service):
         """Test that datetime fields have proper defaults."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
             job_type="single",
             target_format="html",
@@ -424,6 +433,7 @@ class TestModelConstraintsAndValidation:
         }
 
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             source_url="https://example.com/test",  # Required field
             job_type="single",
             target_format="html",

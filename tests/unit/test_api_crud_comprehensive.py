@@ -73,6 +73,7 @@ class TestJobCRUD:
     def sample_scraping_job(self):
         """Create sample ScrapingJob instance."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=str(uuid.uuid4()),
             source_url="https://example.com/test",
             job_type="single",
@@ -642,6 +643,7 @@ class TestCRUDIntegration:
         )
 
         created_job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=str(uuid.uuid4()),
             source_url="https://example.com/integration-test",
             job_type="single",
@@ -771,6 +773,7 @@ class TestCRUDEdgeCases:
     async def test_job_update_with_partial_data(self, mock_db_session):
         """Test job update with minimal data."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=str(uuid.uuid4()),
             source_url="https://example.com",
             job_type="single",
@@ -826,6 +829,7 @@ class TestCRUDEdgeCases:
     async def test_job_status_update_with_string_status(self, mock_db_session):
         """Test status update when status is passed as string."""
         job = ScrapingJob(
+            user_id="test-user-id",  # Required field
             id=str(uuid.uuid4()),
             source_url="https://example.com",
             job_type="single",
