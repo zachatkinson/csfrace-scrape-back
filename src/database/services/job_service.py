@@ -110,8 +110,9 @@ class JobService:
         """
         try:
             if hasattr(priority, "value"):
-                # Handle enum objects
-                normalized = int(priority.value)
+                # Handle enum objects - map enum string values to integers
+                priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
+                normalized = priority_map.get(priority.value.lower(), 5)
             elif isinstance(priority, str):
                 # Handle string values
                 priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
@@ -179,6 +180,7 @@ class JobService:
                 request = JobCreateRequest(url=url, batch_id=batch_id, **job_config)
 
                 job = ScrapingJob(
+                    user_id="default-user",  # TODO: Replace with actual user ID from request context
                     source_url=request.url,
                     output_directory=request.output_directory,
                     priority=self._normalize_priority(request.priority),

@@ -37,6 +37,7 @@ from src.database.models import (
     JobPriority,
     JobStatus,
 )
+from src.database.models.auth import User
 from src.database.service import DatabaseService
 from src.plugins.base import PluginConfig, PluginType
 
@@ -281,7 +282,21 @@ def db_service_with_session(testcontainers_db_service, db_session):  # pylint: d
 
     This ensures that all database operations through the service
     are rolled back after each test, preventing data bleeding.
+    Also automatically creates the test user that job tests expect.
     """
+    # Create the test user that job tests expect
+    user = User(
+        id="default-user",
+        username="testuser",
+        email="test@example.com",
+        full_name="Test User",
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
     # Replace the service's session factory to use our test session
     original_factory = testcontainers_db_service._session_factory  # pylint: disable=protected-access
 

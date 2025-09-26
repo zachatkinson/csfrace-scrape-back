@@ -173,7 +173,7 @@ class DatabaseService:
         Yields:
             SQLAlchemy Session with transaction management
         """
-        session = self.SessionLocal()
+        session = self._session_factory()
         try:
             yield session
             session.commit()

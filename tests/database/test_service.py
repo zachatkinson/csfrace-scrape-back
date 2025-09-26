@@ -187,7 +187,7 @@ class TestDatabaseServiceJobOperations:
         assert job.priority_enum == JobPriority.HIGH  # JobPriority.HIGH enum object
         assert job.max_retries == 5
 
-    def test_create_job_with_batch_id(self, db_service_with_session):
+    def test_create_job_with_batch_id(self, db_service_with_session, test_user):
         """Test job creation with batch_id for unified batch architecture."""
         # Create job with batch_id (no separate Batch model needed)
         batch_id = "test-batch-uuid-123"
@@ -250,7 +250,7 @@ class TestDatabaseServiceJobOperations:
         )
         assert job.source_url == "https://example.com/"
 
-    def test_create_job_with_priority_string(self, db_service_with_session):
+    def test_create_job_with_priority_string(self, db_service_with_session, test_user):
         """Test job creation with string priority."""
         job = db_service_with_session.create_job(
             url="https://example.com/test",
@@ -268,7 +268,7 @@ class TestDatabaseServiceJobOperations:
         )
         assert job.priority_enum == JobPriority.NORMAL
 
-    def test_create_job_with_priority_enum(self, db_service_with_session):
+    def test_create_job_with_priority_enum(self, db_service_with_session, test_user):
         """Test job creation with JobPriority enum directly."""
         job = db_service_with_session.create_job(
             url="https://example.com/test",
