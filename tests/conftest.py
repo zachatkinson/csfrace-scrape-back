@@ -31,7 +31,7 @@ from src import __version__
 from src.caching.base import CacheConfig
 from src.caching.file_cache import FileCache
 from src.caching.redis_cache import RedisCache
-from src.constants import TEST_CONSTANTS
+from src.constants import TestConstants
 from src.database.models import (
     Base,
     JobPriority,
@@ -339,10 +339,10 @@ def cache_config(temp_dir):  # pylint: disable=redefined-outer-name
         cache_dir=temp_dir / ".test_cache",
         ttl_default=30,  # Short TTL for testing
         max_cache_size_mb=10,  # Small cache for testing
-        redis_host=TEST_CONSTANTS.TEST_REDIS_HOST,
-        redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
-        redis_db=TEST_CONSTANTS.TEST_REDIS_DB,
-        redis_key_prefix=TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX,
+        redis_host=TestConstants.TEST_REDIS_HOST,
+        redis_port=TestConstants.TEST_REDIS_PORT,
+        redis_db=TestConstants.TEST_REDIS_DB,
+        redis_key_prefix=TestConstants.TEST_REDIS_KEY_PREFIX,
         cleanup_on_startup=True,
     )
 
@@ -413,9 +413,9 @@ def sample_soup(sample_html):  # pylint: disable=redefined-outer-name
 def sample_metadata():
     """Sample metadata dictionary."""
     return {
-        "title": TEST_CONSTANTS.SAMPLE_HTML_TITLE,
-        "description": TEST_CONSTANTS.SAMPLE_HTML_DESCRIPTION,
-        "url": TEST_CONSTANTS.SAMPLE_POST_URL,
+        "title": TestConstants.SAMPLE_HTML_TITLE,
+        "description": TestConstants.SAMPLE_HTML_DESCRIPTION,
+        "url": TestConstants.SAMPLE_POST_URL,
         "og_title": "OG Test Title",
         "og_description": "OG test description",
         "word_count": 50,
@@ -427,7 +427,7 @@ def sample_metadata():
 @pytest.fixture
 def sample_image_data():
     """Sample image data for testing."""
-    return TEST_CONSTANTS.TEST_IMAGE_CONTENT
+    return TestConstants.TEST_IMAGE_CONTENT
 
 
 @pytest.fixture
@@ -462,12 +462,12 @@ def mock_wordpress_server(mock_responses):  # pylint: disable=redefined-outer-na
     """Mock WordPress server responses."""
     # Mock robots.txt
     mock_responses.get(
-        f"{TEST_CONSTANTS.BASE_TEST_URL}/robots.txt", body="User-agent: *\nAllow: /\nCrawl-delay: 1"
+        f"{TestConstants.BASE_TEST_URL}/robots.txt", body="User-agent: *\nAllow: /\nCrawl-delay: 1"
     )
 
     # Mock sample post
     mock_responses.get(
-        TEST_CONSTANTS.SAMPLE_POST_URL,
+        TestConstants.SAMPLE_POST_URL,
         body="""
         <!DOCTYPE html>
         <html>
@@ -487,8 +487,8 @@ def mock_wordpress_server(mock_responses):  # pylint: disable=redefined-outer-na
 
     # Mock image
     mock_responses.get(
-        f"{TEST_CONSTANTS.BASE_TEST_URL}{TEST_CONSTANTS.SAMPLE_IMAGE_URL}",
-        body=TEST_CONSTANTS.TEST_IMAGE_CONTENT,
+        f"{TestConstants.BASE_TEST_URL}{TestConstants.SAMPLE_IMAGE_URL}",
+        body=TestConstants.TEST_IMAGE_CONTENT,
         headers={"Content-Type": "image/jpeg"},
     )
 
