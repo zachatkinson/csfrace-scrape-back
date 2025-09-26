@@ -195,15 +195,12 @@ class JobService:
 
             self.session.flush()  # Get all IDs
 
-            logger.info(
-                "Batch jobs created successfully", job_count=len(jobs), batch_id=batch_id
-            )
+            logger.info("Batch jobs created successfully", job_count=len(jobs), batch_id=batch_id)
             return jobs
 
         except Exception as e:
             logger.error("Batch job creation failed", url_count=len(urls), error=str(e))
             raise DatabaseError("create batch jobs", e) from e
-
 
     def get_job(self, job_id: str) -> ScrapingJob | None:
         """Get job by ID.
@@ -217,12 +214,12 @@ class JobService:
         logger.debug("Getting job", job_id=job_id)
 
         try:
-                job = self.session.get(ScrapingJob, job_id)
-                if job:
-                    logger.debug("Job found", job_id=job_id, status=job.status)
-                else:
-                    logger.debug("Job not found", job_id=job_id)
-                return job
+            job = self.session.get(ScrapingJob, job_id)
+            if job:
+                logger.debug("Job found", job_id=job_id, status=job.status)
+            else:
+                logger.debug("Job not found", job_id=job_id)
+            return job
 
         except Exception as e:
             logger.error("Failed to get job", job_id=job_id, error=str(e))
@@ -252,36 +249,36 @@ class JobService:
         logger.info("Updating job status", job_id=job_id, new_status=new_status.name)
 
         try:
-                job = self.session.get(ScrapingJob, job_id)
-                if not job:
-                    logger.warning("Job not found for status update", job_id=job_id)
-                    return None
+            job = self.session.get(ScrapingJob, job_id)
+            if not job:
+                logger.warning("Job not found for status update", job_id=job_id)
+                return None
 
-                old_status = job.status
+            old_status = job.status
 
-                # Update status and metadata
-                job.status = new_status.value
-                job.error_message = error_message
+            # Update status and metadata
+            job.status = new_status.value
+            job.error_message = error_message
 
-                if processing_time_ms is not None:
-                    job.processing_time_ms = processing_time_ms
+            if processing_time_ms is not None:
+                job.processing_time_ms = processing_time_ms
 
-                # Update timestamps based on status
-                now = datetime.now(UTC)
-                if new_status == JobStatus.RUNNING and not job.started_at:
-                    job.started_at = now
-                elif new_status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
-                    job.completed_at = now
+            # Update timestamps based on status
+            now = datetime.now(UTC)
+            if new_status == JobStatus.RUNNING and not job.started_at:
+                job.started_at = now
+            elif new_status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
+                job.completed_at = now
 
-                self.session.flush()
+            self.session.flush()
 
-                logger.info(
-                    "Job status updated successfully",
-                    job_id=job_id,
-                    old_status=old_status,
-                    new_status=new_status.name,
-                )
-                return job
+            logger.info(
+                "Job status updated successfully",
+                job_id=job_id,
+                old_status=old_status,
+                new_status=new_status.name,
+            )
+            return job
 
         except Exception as e:
             logger.error("Failed to update job status", job_id=job_id, error=str(e))
@@ -299,17 +296,17 @@ class JobService:
         logger.debug("Getting pending jobs", limit=limit)
 
         try:
-                stmt = (
-                    select(ScrapingJob)
-                    .where(ScrapingJob.status == JobStatus.PENDING.value)
-                    .order_by(desc(ScrapingJob.priority), ScrapingJob.created_at)
-                    .limit(limit)
-                )
+            stmt = (
+                select(ScrapingJob)
+                .where(ScrapingJob.status == JobStatus.PENDING.value)
+                .order_by(desc(ScrapingJob.priority), ScrapingJob.created_at)
+                .limit(limit)
+            )
 
-                jobs = self.session.execute(stmt).scalars().all()
+            jobs = self.session.execute(stmt).scalars().all()
 
-                logger.debug("Pending jobs retrieved", count=len(jobs))
-                return list(jobs)
+            logger.debug("Pending jobs retrieved", count=len(jobs))
+            return list(jobs)
 
         except Exception as e:
             logger.error("Failed to get pending jobs", error=str(e))
@@ -334,22 +331,22 @@ class JobService:
         logger.debug("Getting jobs by status", status=status.name, limit=limit, domain=domain)
 
         try:
-                stmt = (
-                    select(ScrapingJob)
-                    .where(ScrapingJob.status == status.value)
-                    .order_by(desc(ScrapingJob.created_at))
-                    .limit(limit)
-                )
+            stmt = (
+                select(ScrapingJob)
+                .where(ScrapingJob.status == status.value)
+                .order_by(desc(ScrapingJob.created_at))
+                .limit(limit)
+            )
 
-                if domain:
-                    stmt = stmt.where(ScrapingJob.domain == domain)
+            if domain:
+                stmt = stmt.where(ScrapingJob.domain == domain)
 
-                jobs = self.session.execute(stmt).scalars().all()
+            jobs = self.session.execute(stmt).scalars().all()
 
-                logger.debug(
-                    "Jobs by status retrieved", status=status.name, count=len(jobs), domain=domain
-                )
-                return list(jobs)
+            logger.debug(
+                "Jobs by status retrieved", status=status.name, count=len(jobs), domain=domain
+            )
+            return list(jobs)
 
         except Exception as e:
             logger.error("Failed to get jobs by status", status=status.name, error=str(e))
@@ -367,22 +364,22 @@ class JobService:
         logger.debug("Getting retry jobs", max_jobs=max_jobs)
 
         try:
-                stmt = (
-                    select(ScrapingJob)
-                    .where(
-                        and_(
-                            ScrapingJob.status == JobStatus.FAILED.value,
-                            ScrapingJob.retry_count < ScrapingJob.max_retries,
-                        )
+            stmt = (
+                select(ScrapingJob)
+                .where(
+                    and_(
+                        ScrapingJob.status == JobStatus.FAILED.value,
+                        ScrapingJob.retry_count < ScrapingJob.max_retries,
                     )
-                    .order_by(desc(ScrapingJob.priority), ScrapingJob.created_at)
-                    .limit(max_jobs)
                 )
+                .order_by(desc(ScrapingJob.priority), ScrapingJob.created_at)
+                .limit(max_jobs)
+            )
 
-                jobs = self.session.execute(stmt).scalars().all()
+            jobs = self.session.execute(stmt).scalars().all()
 
-                logger.debug("Retry jobs retrieved", count=len(jobs))
-                return list(jobs)
+            logger.debug("Retry jobs retrieved", count=len(jobs))
+            return list(jobs)
 
         except Exception as e:
             logger.error("Failed to get retry jobs", error=str(e))
@@ -400,16 +397,16 @@ class JobService:
         logger.debug("Getting batch jobs", batch_id=batch_id)
 
         try:
-                stmt = (
-                    select(ScrapingJob)
-                    .where(ScrapingJob.batch_id == batch_id)
-                    .order_by(ScrapingJob.created_at)
-                )
+            stmt = (
+                select(ScrapingJob)
+                .where(ScrapingJob.batch_id == batch_id)
+                .order_by(ScrapingJob.created_at)
+            )
 
-                jobs = self.session.execute(stmt).scalars().all()
+            jobs = self.session.execute(stmt).scalars().all()
 
-                logger.debug("Batch jobs retrieved", batch_id=batch_id, count=len(jobs))
-                return list(jobs)
+            logger.debug("Batch jobs retrieved", batch_id=batch_id, count=len(jobs))
+            return list(jobs)
 
         except Exception as e:
             logger.error("Failed to get batch jobs", batch_id=batch_id, error=str(e))
