@@ -33,6 +33,11 @@ from ..core.exceptions import (
 
 logger = get_logger(__name__)
 
+# Aliases for backward compatibility with existing tests
+BusinessLogicError = APIBusinessLogicError
+ValidationError = APIValidationError
+DatabaseError = APIDatabaseError
+
 
 class APIErrorFactory:
     """Factory for creating consistent API error responses.

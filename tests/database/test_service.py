@@ -1165,11 +1165,8 @@ class TestDatabaseServiceErrorHandling:
             mock_session.side_effect = SQLAlchemyError("Database connection failed")
 
             # Should wrap in DatabaseError
-            with pytest.raises(DatabaseError, match="Job creation failed"):
-                db_service_with_session.create_job(
-                    url="https://example.com/test",
-                    output_directory="/tmp/output",
-                )
+            with pytest.raises(DatabaseError, match="Database operation failed: create job"):
+                db_service_with_session.create_job(url="https://example.com/test")
 
     def test_integrity_error_handling(self, db_service_with_session):
         """Test handling of database integrity constraint violations."""
@@ -1181,10 +1178,9 @@ class TestDatabaseServiceErrorHandling:
             # Mock IntegrityError during flush
             mock_session.flush.side_effect = IntegrityError("UNIQUE constraint failed", None, None)
 
-            with pytest.raises(DatabaseError, match="Job creation failed"):
+            with pytest.raises(DatabaseError, match="Database operation failed: create job"):
                 db_service_with_session.create_job(
-                    url="https://example.com/test",
-                    output_directory="/tmp/output",
+                    url="https://example.com/test", output_directory="/tmp/output"
                 )
 
     def test_database_initialization_error(self):
@@ -1197,7 +1193,9 @@ class TestDatabaseServiceErrorHandling:
 
             service = DatabaseService()
 
-            with pytest.raises(DatabaseError, match="Database initialization failed"):
+            with pytest.raises(
+                DatabaseError, match="Database operation failed: database initialization"
+            ):
                 service.initialize_database()
 
     def test_get_job_database_error(self, db_service_with_session):

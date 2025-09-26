@@ -431,6 +431,11 @@ class AuthConstants:  # pylint: disable=too-few-public-methods
 class OAuthConstants:  # pylint: disable=too-few-public-methods
     """OAuth constants container."""
 
+    # OAuth Client IDs
+    OAUTH_GOOGLE_CLIENT_ID = OAUTH_GOOGLE_CLIENT_ID
+    OAUTH_GITHUB_CLIENT_ID = OAUTH_GITHUB_CLIENT_ID
+    OAUTH_MICROSOFT_CLIENT_ID = OAUTH_MICROSOFT_CLIENT_ID
+
     # Google OAuth2
     GOOGLE_AUTHORIZATION_URL = GOOGLE_AUTHORIZATION_URL
     GOOGLE_TOKEN_URL = GOOGLE_TOKEN_URL
@@ -489,6 +494,13 @@ class WebAuthnConstants:  # pylint: disable=too-few-public-methods
 class ProgressConstants:  # pylint: disable=too-few-public-methods
     """Progress tracking constants container."""
 
+    START = PROGRESS_START
+    SETUP = PROGRESS_SETUP
+    FETCH = PROGRESS_FETCH
+    PROCESS = PROGRESS_PROCESS
+    COMPLETE = PROGRESS_COMPLETE
+
+    # Legacy names for backward compatibility
     PROGRESS_START = PROGRESS_START
     PROGRESS_SETUP = PROGRESS_SETUP
     PROGRESS_FETCH = PROGRESS_FETCH

@@ -75,8 +75,8 @@ class JobService:
         try:
             # Create job with auto-generated metadata
             job = ScrapingJob(
+                user_id="default-user",  # TODO: Replace with actual user ID from request context
                 source_url=request.url,
-                output_directory=request.output_directory,
                 priority=self._normalize_priority(request.priority),
                 max_retries=request.max_retries,
                 options=request.options,

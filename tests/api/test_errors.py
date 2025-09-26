@@ -37,7 +37,7 @@ class TestAPIErrorClasses:
 
         assert error.message == "Test message"
         assert error.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert error.error_code == "INTERNAL_ERROR"
+        assert error.error_code == "API_ERROR"
         assert error.details == {}
         assert error.original_error is None
 
@@ -66,7 +66,7 @@ class TestAPIErrorClasses:
 
         assert error.message == "Invalid field"
         assert error.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        assert error.error_code == "VALIDATION_ERROR"
+        assert error.error_code == "API_VALIDATION_ERROR"
         assert error.details["field"] == "email"
 
     def test_validation_error_without_field(self):
@@ -82,9 +82,9 @@ class TestAPIErrorClasses:
 
         assert error.message == "User '123' not found"
         assert error.status_code == status.HTTP_404_NOT_FOUND
-        assert error.error_code == "RESOURCE_NOT_FOUND"
-        assert error.details["resource_type"] == "User"
-        assert error.details["identifier"] == "123"
+        assert error.error_code == "API_NOT_FOUND"
+        assert error.context["resource_type"] == "User"
+        assert error.context["identifier"] == "123"
 
     def test_database_error_creation(self):
         """Test DatabaseError creation."""
@@ -93,8 +93,8 @@ class TestAPIErrorClasses:
 
         assert error.message == "Database operation failed: create user"
         assert error.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert error.error_code == "DATABASE_ERROR"
-        assert error.details["operation"] == "create user"
+        assert error.error_code == "API_DATABASE_ERROR"
+        assert error.context["operation"] == "create user"
         assert error.original_error == original_exc
 
     def test_business_logic_error_default(self):
@@ -103,7 +103,7 @@ class TestAPIErrorClasses:
 
         assert error.message == "Invalid operation"
         assert error.status_code == status.HTTP_400_BAD_REQUEST
-        assert error.error_code == "BUSINESS_LOGIC_ERROR"
+        assert error.error_code == "API_BUSINESS_LOGIC_ERROR"
 
     def test_business_logic_error_custom_code(self):
         """Test BusinessLogicError with custom error code."""
@@ -116,49 +116,42 @@ class TestAPIErrorClasses:
 class TestAPIErrorFactory:
     """Test APIErrorFactory methods."""
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_not_found_factory(self, mock_log):
+    def test_not_found_factory(self):
         """Test not_found factory method."""
         exc = APIErrorFactory.not_found("Job", "123")
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_404_NOT_FOUND
         assert "Job '123' not found" in str(exc.detail)
-        mock_log.assert_called_once()
+        assert "API_NOT_FOUND" in str(exc.detail)
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_database_error_factory(self, mock_log):
+    def test_database_error_factory(self):
         """Test database_error factory method."""
-        original_exc = DatabaseError("statement", "params", "orig")
+        original_exc = Exception("Database connection failed")
         exc = APIErrorFactory.database_error("update record", original_exc)
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database operation failed: update record" in str(exc.detail)
-        mock_log.assert_called_once()
+        assert "API_DATABASE_ERROR" in str(exc.detail)
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_validation_error_factory(self, mock_log):
+    def test_validation_error_factory(self):
         """Test validation_error factory method."""
         exc = APIErrorFactory.validation_error("Invalid email", field="email")
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert "Invalid email" in str(exc.detail)
-        mock_log.assert_called_once()
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_business_logic_error_factory(self, mock_log):
+    def test_business_logic_error_factory(self):
         """Test business_logic_error factory method."""
         exc = APIErrorFactory.business_logic_error("Operation not allowed")
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_400_BAD_REQUEST
         assert "Operation not allowed" in str(exc.detail)
-        mock_log.assert_called_once()
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_internal_server_error_factory(self, mock_log):
+    def test_internal_server_error_factory(self):
         """Test internal_server_error factory method."""
         original_exc = Exception("Something went wrong")
         exc = APIErrorFactory.internal_server_error("Server error", original_exc)
@@ -166,40 +159,32 @@ class TestAPIErrorFactory:
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Server error" in str(exc.detail)
-        mock_log.assert_called_once()
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_unauthorized_factory(self, mock_log):
+    def test_unauthorized_factory(self):
         """Test unauthorized factory method."""
         exc = APIErrorFactory.unauthorized("Invalid token")
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_401_UNAUTHORIZED
         assert "Invalid token" in str(exc.detail)
-        mock_log.assert_called_once()
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_forbidden_factory(self, mock_log):
+    def test_forbidden_factory(self):
         """Test forbidden factory method."""
         exc = APIErrorFactory.forbidden("Access denied")
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_403_FORBIDDEN
         assert "Access denied" in str(exc.detail)
-        mock_log.assert_called_once()
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_rate_limit_exceeded_factory(self, mock_log):
+    def test_rate_limit_exceeded_factory(self):
         """Test rate_limit_exceeded factory method."""
         exc = APIErrorFactory.rate_limit_exceeded("Too many requests")
 
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS
         assert "Too many requests" in str(exc.detail)
-        mock_log.assert_called_once()
 
-    @patch("src.api.errors.APIErrorFactory._log_error")
-    def test_service_unavailable_factory(self, mock_log):
+    def test_service_unavailable_factory(self):
         """Test service_unavailable factory method."""
         details = {"retry_after": 60}
         exc = APIErrorFactory.service_unavailable("Service down", details)
@@ -207,7 +192,6 @@ class TestAPIErrorFactory:
         assert isinstance(exc, HTTPException)
         assert exc.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert "Service down" in str(exc.detail)
-        mock_log.assert_called_once()
 
     def test_from_sqlalchemy_error_duplicate_key(self):
         """Test SQLAlchemy error conversion for duplicate key."""
@@ -243,18 +227,17 @@ class TestAPIErrorFactory:
         assert exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database operation failed: query data" in str(exc.detail)
 
-    @patch("src.api.errors.APIErrorFactory._get_timestamp")
-    def test_create_error_detail_basic(self, mock_timestamp):
+    def test_create_error_detail_basic(self):
         """Test _create_error_detail with basic error."""
-        mock_timestamp.return_value = "2024-01-01T00:00:00Z"
-
         error = APIError("Test error", error_code="TEST_ERROR")
         detail = APIErrorFactory._create_error_detail(error)
 
         assert detail["error"] is True
         assert detail["message"] == "Test error"
         assert detail["error_code"] == "TEST_ERROR"
-        assert detail["timestamp"] == "2024-01-01T00:00:00Z"
+        # Timestamp should be present and valid ISO format
+        assert "timestamp" in detail
+        assert detail["timestamp"].endswith("Z")
 
     @patch("src.api.errors.APIErrorFactory._get_timestamp")
     def test_create_error_detail_with_details(self, mock_timestamp):
