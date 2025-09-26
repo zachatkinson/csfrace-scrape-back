@@ -8,10 +8,11 @@ import re
 from urllib.parse import urlparse
 
 import bleach
-import structlog
 from bs4 import BeautifulSoup, Tag
 
-logger = structlog.get_logger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class HTMLSanitizer:

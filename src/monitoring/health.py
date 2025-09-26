@@ -10,13 +10,14 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import asyncio
-import structlog
 from sqlalchemy import text
+
+from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class HealthStatus(Enum):

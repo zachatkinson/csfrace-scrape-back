@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 import asyncio
-import structlog
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 from pydantic import BaseModel, Field, field_validator
 
+from src.utils.logging import get_logger
 from src.utils.retry import RetryConfig, with_retry
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class BrowserConfig(BaseModel):

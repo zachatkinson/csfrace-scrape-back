@@ -3,12 +3,12 @@
 import time
 from typing import TYPE_CHECKING, Any
 
-import structlog
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS
 from .base import BaseCacheBackend, CacheConfig, CacheEntry
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # Runtime imports with proper error handling
 try:

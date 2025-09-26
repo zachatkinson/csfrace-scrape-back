@@ -4,10 +4,11 @@ import functools
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
-import structlog
 from sqlalchemy.orm import Session
 
-logger = structlog.get_logger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -24,7 +25,7 @@ def handle_auth_errors(operation_name: str) -> Callable[[F], F]:
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             try:
                 return func(*args, **kwargs)
             except ValueError as e:
@@ -50,7 +51,7 @@ def with_transaction_rollback[F: Callable[..., Any]](func: F) -> F:
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> Any:
         try:
             return func(*args, **kwargs)
         except Exception:

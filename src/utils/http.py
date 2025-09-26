@@ -1,11 +1,12 @@
 """HTTP utilities to eliminate DRY violations in request handling."""
 
 import aiohttp
-import structlog
+
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class HTTPResponse:

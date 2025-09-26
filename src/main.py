@@ -11,11 +11,13 @@ License: MIT
 import argparse
 import sys
 from pathlib import Path
+from typing import Any
 
 import asyncio
-import structlog
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+
+from src.utils.logging import get_logger
 
 from .batch.processor import BatchConfig, BatchProcessor
 from .config.loader import ConfigLoader, load_config_from_file
@@ -25,7 +27,7 @@ from .core.exceptions import ConversionError
 from .utils.logging import setup_logging
 
 console = Console()
-logger = structlog.get_logger()
+logger = get_logger()
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -35,11 +37,11 @@ async def main_async(
     output_dir: str = "converted_content",
     batch_size: int = 3,
     verbose: bool = False,
-    converter_config=None,
-    batch_config=None,
+    converter_config: Any = None,
+    batch_config: Any = None,
 ) -> None:
     """Main async conversion function with batch support."""
-    setup_logging(verbose=verbose)
+    setup_logging(log_level="DEBUG" if verbose else "INFO")
 
     try:
         # Batch processing mode
@@ -67,7 +69,7 @@ async def main_async(
         raise
 
 
-async def run_single_conversion(url: str, output_dir: str, converter_config=None) -> None:
+async def run_single_conversion(url: str, output_dir: str, converter_config: Any = None) -> None:
     """Run single URL conversion with progress tracking."""
     with Progress(
         SpinnerColumn(),
@@ -94,7 +96,7 @@ async def run_batch_processing(
     urls_file: str | None = None,
     output_dir: str = "converted_content",
     batch_size: int = 3,
-    batch_config=None,
+    batch_config: Any = None,
 ) -> None:
     """Run batch processing for multiple URLs."""
     console.print("[bold blue]🚀 Starting Batch Processing[/bold blue]")

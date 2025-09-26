@@ -12,9 +12,10 @@ from enum import Enum
 from typing import Any
 
 import asyncio
-import structlog
 
-logger = structlog.get_logger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class AlertSeverity(Enum):

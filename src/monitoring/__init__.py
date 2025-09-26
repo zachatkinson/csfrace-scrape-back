@@ -33,6 +33,13 @@ except ImportError:
     HealthChecker = HealthConfig = health_checker = None  # type: ignore[misc,assignment]
 
 try:
+    from .health_checks import HealthCheck, HealthCheckResult, HealthStatus, health_registry
+    from .setup import get_health_check_summary, setup_default_health_checks
+except ImportError:
+    HealthCheck = HealthCheckResult = HealthStatus = health_registry = None  # type: ignore
+    get_health_check_summary = setup_default_health_checks = None  # type: ignore
+
+try:
     from .metrics import MetricsCollector, MetricsConfig, metrics_collector
 except ImportError:
     MetricsCollector = MetricsConfig = metrics_collector = None  # type: ignore[misc,assignment]
@@ -59,6 +66,12 @@ __all__ = [
     "HealthChecker",
     "HealthConfig",
     "health_checker",
+    "HealthCheck",
+    "HealthCheckResult",
+    "HealthStatus",
+    "health_registry",
+    "setup_default_health_checks",
+    "get_health_check_summary",
     "AlertManager",
     "AlertConfig",
     "alert_manager",

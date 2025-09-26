@@ -4,7 +4,6 @@ from dataclasses import asdict
 from typing import Any
 
 import asyncio
-import structlog
 from pydantic import BaseModel, Field
 
 from src.rendering.browser import BrowserConfig, JavaScriptRenderer, RenderResult
@@ -13,9 +12,10 @@ from src.rendering.detector import (
     DynamicContentDetector,
     get_recommended_wait_conditions,
 )
+from src.utils.logging import get_logger
 from src.utils.retry import RetryConfig
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class RenderingStrategy(BaseModel):

@@ -3,9 +3,10 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from src.utils.logging import get_logger
 
 from ..constants import API_DEFAULT_LIMIT
 from ..database.models import User as UserTable
@@ -13,7 +14,7 @@ from .decorators import with_transaction_rollback
 from .models import OAuthUserCreate, User, UserCreate, UserInDB, UserUpdate
 from .security import security_manager
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class AuthService:

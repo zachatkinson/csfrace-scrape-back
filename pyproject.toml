@@ -376,6 +376,7 @@ patch_tags = ["fix", "perf"]
 [dependency-groups]
 dev = [
     "types-bleach>=6.2.0.20250809",
+    "types-psutil>=7.0.0.20250822",
     "types-pyyaml>=6.0.12.20250822",
 ]
 

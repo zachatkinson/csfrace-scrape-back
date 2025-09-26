@@ -3,7 +3,7 @@
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-import structlog
+from src.utils.logging import get_logger
 
 from .base import BaseCacheBackend, CacheBackend, CacheConfig
 from .file_cache import FileCache
@@ -20,7 +20,7 @@ except ImportError:
     else:
         RedisCache = None  # type: ignore[assignment,misc]
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class CacheManager:

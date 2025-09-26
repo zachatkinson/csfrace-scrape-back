@@ -6,13 +6,14 @@ from decimal import Decimal
 from typing import Any
 
 import asyncio
-import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from src.utils.logging import get_logger
+
 from ...monitoring.metrics import metrics_collector
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/performance", tags=["Performance Monitoring"])
 

@@ -4,7 +4,6 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import structlog
 from sqlalchemy.orm import Session
 from webauthn import (
     generate_authentication_options,
@@ -23,12 +22,14 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from src.utils.logging import get_logger
+
 from ..constants import WEBAUTHN_CONSTANTS
 from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
 from .models import User
 from .service import AuthService
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

@@ -10,11 +10,12 @@ import time
 from dataclasses import dataclass
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 from .token_bucket import TokenBucket, TokenBucketConfig
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

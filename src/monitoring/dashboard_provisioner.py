@@ -8,12 +8,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-import structlog
 import yaml
+
+from src.utils.logging import get_logger
 
 from .grafana import GrafanaConfig, GrafanaDashboardManager
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class GrafanaDashboardProvisioner:

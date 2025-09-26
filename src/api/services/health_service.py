@@ -4,11 +4,12 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = structlog.get_logger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Get version from package metadata with fallback
 try:

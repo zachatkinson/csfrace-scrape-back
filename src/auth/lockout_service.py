@@ -3,16 +3,17 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-import structlog
 from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.utils.logging import get_logger
 
 from ..api.dependencies import async_session
 from ..core.environment import EnvironmentLoader
 from ..database.models import AccountLockout
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class AccountLockoutConfig:

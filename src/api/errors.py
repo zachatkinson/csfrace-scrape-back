@@ -2,107 +2,36 @@
 
 Eliminates DRY violations in error response creation and ensures
 consistent error handling patterns across all API endpoints.
+
+Updated to use the unified exception hierarchy from core.exceptions.
 """
 
 import traceback
 from collections.abc import Callable
 from typing import Any
 
-import structlog
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from src.utils.logging import get_logger
+
 from ..core.environment import EnvironmentLoader
+from ..core.exceptions import (
+    APIBusinessLogicError,
+    APIDatabaseError,
+    APIError,
+    APINotFoundError,
+    APIValidationError,
+    AuthenticationError,
+    AuthorizationError,
+    BaseApplicationError,
+    ExceptionMapper,
+    RateLimitError,
+    ServiceUnavailableError,
+)
 
-logger = structlog.get_logger(__name__)
-
-
-class APIError(Exception):
-    """Base class for all API-specific errors.
-
-    Provides consistent error structure and context for all
-    application-level errors.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-        error_code: str = "INTERNAL_ERROR",
-        details: dict[str, Any] | None = None,
-        original_error: Exception | None = None,
-    ):
-        super().__init__(message)
-        self.message = message
-        self.status_code = status_code
-        self.error_code = error_code
-        self.details = details or {}
-        self.original_error = original_error
-
-
-class ValidationError(APIError):
-    """Error for request validation failures."""
-
-    def __init__(
-        self, message: str, field: str | None = None, details: dict[str, Any] | None = None
-    ):
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            error_code="VALIDATION_ERROR",
-            details=details or {},
-        )
-        if field:
-            self.details["field"] = field
-
-
-class ResourceNotFoundError(APIError):
-    """Error for resource not found cases."""
-
-    def __init__(self, resource_type: str, identifier: Any, details: dict[str, Any] | None = None):
-        message = f"{resource_type} '{identifier}' not found"
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_404_NOT_FOUND,
-            error_code="RESOURCE_NOT_FOUND",
-            details=details or {},
-        )
-        self.details.update({"resource_type": resource_type, "identifier": str(identifier)})
-
-
-class DatabaseError(APIError):
-    """Error for database operation failures."""
-
-    def __init__(
-        self, operation: str, original_error: Exception, details: dict[str, Any] | None = None
-    ):
-        message = f"Database operation failed: {operation}"
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_code="DATABASE_ERROR",
-            details=details or {},
-            original_error=original_error,
-        )
-        self.details["operation"] = operation
-
-
-class BusinessLogicError(APIError):
-    """Error for business logic violations."""
-
-    def __init__(
-        self,
-        message: str,
-        error_code: str = "BUSINESS_LOGIC_ERROR",
-        details: dict[str, Any] | None = None,
-    ):
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            error_code=error_code,
-            details=details or {},
-        )
+logger = get_logger(__name__)
 
 
 class APIErrorFactory:
@@ -110,6 +39,8 @@ class APIErrorFactory:
 
     Eliminates DRY violations by centralizing all error response
     creation with consistent structure and logging.
+
+    Updated to use unified exception hierarchy for better consistency.
     """
 
     # Enable debug mode for detailed error information
@@ -126,9 +57,8 @@ class APIErrorFactory:
         Returns:
             HTTPException with consistent 404 structure
         """
-        error = ResourceNotFoundError(resource, identifier)
-        cls._log_error(error)
-
+        error = APINotFoundError(resource, identifier)
+        error.log_error("warning")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
@@ -142,9 +72,8 @@ class APIErrorFactory:
         Returns:
             HTTPException with consistent database error structure
         """
-        error = DatabaseError(operation, original_error)
-        cls._log_error(error)
-
+        error = APIDatabaseError(operation, original_error)
+        error.log_error("error")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
@@ -161,9 +90,8 @@ class APIErrorFactory:
         Returns:
             HTTPException with consistent validation error structure
         """
-        error = ValidationError(message, field, details)
-        cls._log_error(error)
-
+        error = APIValidationError(message, field, details=details)
+        error.log_error("warning")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
@@ -177,9 +105,8 @@ class APIErrorFactory:
         Returns:
             HTTPException with consistent business logic error structure
         """
-        error = BusinessLogicError(message, error_code or "BUSINESS_LOGIC_ERROR")
-        cls._log_error(error)
-
+        error = APIBusinessLogicError(message, error_code or "API_BUSINESS_LOGIC_ERROR")
+        error.log_error("warning")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
@@ -201,40 +128,34 @@ class APIErrorFactory:
             error_code="INTERNAL_SERVER_ERROR",
             original_error=original_error,
         )
-        cls._log_error(error)
-
+        error.log_error("error")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
     def unauthorized(cls, message: str = "Authentication required") -> HTTPException:
         """Create a standardized unauthorized error response."""
-        error = APIError(
-            message=message, status_code=status.HTTP_401_UNAUTHORIZED, error_code="UNAUTHORIZED"
-        )
-        cls._log_error(error)
-
+        # Use base AuthenticationError and convert to API error
+        auth_error = AuthenticationError(message)
+        error = ExceptionMapper.to_api_error(auth_error)
+        error.log_error("warning")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
     def forbidden(cls, message: str = "Access denied") -> HTTPException:
         """Create a standardized forbidden error response."""
-        error = APIError(
-            message=message, status_code=status.HTTP_403_FORBIDDEN, error_code="FORBIDDEN"
-        )
-        cls._log_error(error)
-
+        # Use base AuthorizationError and convert to API error
+        authz_error = AuthorizationError(message)
+        error = ExceptionMapper.to_api_error(authz_error)
+        error.log_error("warning")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
     def rate_limit_exceeded(cls, message: str = "Rate limit exceeded") -> HTTPException:
         """Create a standardized rate limit error response."""
-        error = APIError(
-            message=message,
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            error_code="RATE_LIMIT_EXCEEDED",
-        )
-        cls._log_error(error)
-
+        # Use base RateLimitError and convert to API error
+        rate_error = RateLimitError(message)
+        error = ExceptionMapper.to_api_error(rate_error)
+        error.log_error("warning")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
@@ -242,14 +163,10 @@ class APIErrorFactory:
         cls, message: str = "Service temporarily unavailable", details: dict[Any, Any] | None = None
     ) -> HTTPException:
         """Create a standardized service unavailable error response."""
-        error = APIError(
-            message=message,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            error_code="SERVICE_UNAVAILABLE",
-            details=details or {},
-        )
-        cls._log_error(error)
-
+        # Use base ServiceUnavailableError and convert to API error
+        service_error = ServiceUnavailableError(message, details=details)
+        error = ExceptionMapper.to_api_error(service_error)
+        error.log_error("error")
         return HTTPException(status_code=error.status_code, detail=cls._create_error_detail(error))
 
     @classmethod
@@ -263,38 +180,44 @@ class APIErrorFactory:
         Returns:
             HTTPException with appropriate error type
         """
-        # Map specific SQLAlchemy errors to appropriate HTTP responses
-        error_message = str(sql_error)
-
-        if "duplicate key" in error_message.lower() or "unique constraint" in error_message.lower():
-            return cls.validation_error(f"Duplicate resource in {operation}")
-        elif "foreign key" in error_message.lower():
-            return cls.validation_error(f"Invalid reference in {operation}")
-        elif "not null" in error_message.lower():
-            return cls.validation_error(f"Required field missing in {operation}")
-        else:
-            return cls.database_error(operation, sql_error)
+        # Use the unified exception mapper
+        base_error = ExceptionMapper.from_sqlalchemy_error(operation, sql_error)
+        api_error = ExceptionMapper.to_api_error(base_error)
+        api_error.log_error("error" if api_error.status_code >= 500 else "warning")
+        return HTTPException(
+            status_code=api_error.status_code, detail=cls._create_error_detail(api_error)
+        )
 
     @classmethod
-    def _create_error_detail(cls, error: APIError) -> dict[str, Any]:
+    def from_application_error(cls, app_error: BaseApplicationError) -> HTTPException:
+        """Convert any application error to an HTTP exception.
+
+        This is the new unified method for handling all application errors.
+
+        Args:
+            app_error: Any application error from the unified hierarchy
+
+        Returns:
+            HTTPException with appropriate status and structure
+        """
+        api_error = ExceptionMapper.to_api_error(app_error)
+        log_level = "error" if api_error.status_code >= 500 else "warning"
+        api_error.log_error(log_level)
+        return HTTPException(
+            status_code=api_error.status_code, detail=cls._create_error_detail(api_error)
+        )
+
+    @classmethod
+    def _create_error_detail(cls, error: BaseApplicationError) -> dict[str, Any]:
         """Create standardized error detail structure.
 
         Args:
-            error: API error instance
+            error: Application error instance
 
         Returns:
             Standardized error detail dictionary
         """
-        detail = {
-            "error": True,
-            "message": error.message,
-            "error_code": error.error_code,
-            "timestamp": cls._get_timestamp(),
-        }
-
-        # Add details if present
-        if error.details:
-            detail["details"] = error.details
+        detail = error.to_dict()
 
         # Add debug information if enabled (development only)
         if cls._debug_mode and error.original_error:
@@ -306,33 +229,6 @@ class APIErrorFactory:
 
         return detail
 
-    @classmethod
-    def _log_error(cls, error: APIError) -> None:
-        """Log error with consistent structure.
-
-        Args:
-            error: API error to log
-        """
-        log_data = {
-            "error_code": error.error_code,
-            "status_code": error.status_code,
-            "message": error.message,
-        }
-
-        if error.details:
-            log_data["details"] = error.details
-
-        if error.original_error:
-            log_data["original_error"] = str(error.original_error)
-            log_data["original_error_type"] = type(error.original_error).__name__
-
-        if error.status_code >= 500:
-            logger.error("API error occurred", **log_data)
-        elif error.status_code >= 400:
-            logger.warning("Client error occurred", **log_data)
-        else:
-            logger.info("API response", **log_data)
-
     @staticmethod
     def _get_timestamp() -> str:
         """Get current timestamp in ISO format."""
@@ -341,7 +237,11 @@ class APIErrorFactory:
         return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-# Convenience functions for backward compatibility and common patterns
+# =============================================================================
+# CONVENIENCE FUNCTIONS FOR BACKWARD COMPATIBILITY
+# =============================================================================
+
+
 def not_found(resource: str, identifier: Any) -> HTTPException:
     """Convenience function for 404 errors."""
     return APIErrorFactory.not_found(resource, identifier)
@@ -367,12 +267,16 @@ def business_logic_error(message: str, error_code: str | None = None) -> HTTPExc
     return APIErrorFactory.business_logic_error(message, error_code)
 
 
-# Error handler for uncaught exceptions
+# =============================================================================
+# GLOBAL EXCEPTION HANDLER
+# =============================================================================
+
+
 def create_global_exception_handler() -> Callable[[Any, Exception], Any]:
     """Create global exception handler for FastAPI application.
 
     Returns:
-        Exception handler function
+        Exception handler function that uses unified exception system
     """
 
     async def global_exception_handler(request: Any, exc: Exception) -> JSONResponse:
@@ -382,11 +286,53 @@ def create_global_exception_handler() -> Callable[[Any, Exception], Any]:
             path=request.url.path,
             method=request.method,
             error=str(exc),
+            error_type=type(exc).__name__,
         )
 
-        http_exception = APIErrorFactory.internal_server_error(
-            "An unexpected error occurred", original_error=exc
-        )
+        # Handle application errors with unified system
+        if isinstance(exc, BaseApplicationError):
+            http_exception = APIErrorFactory.from_application_error(exc)
+        else:
+            # Handle unexpected exceptions
+            http_exception = APIErrorFactory.internal_server_error(
+                "An unexpected error occurred", original_error=exc
+            )
+
         return JSONResponse(status_code=http_exception.status_code, content=http_exception.detail)
 
     return global_exception_handler
+
+
+# =============================================================================
+# EXCEPTION MIDDLEWARE FOR AUTOMATIC CONVERSION
+# =============================================================================
+
+
+class UnifiedExceptionMiddleware:
+    """Middleware to automatically convert application errors to HTTP responses."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        """ASGI middleware for exception handling."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def exception_handler(exc: Exception) -> None:
+            """Handle exceptions and convert to appropriate HTTP responses."""
+            if isinstance(exc, BaseApplicationError):
+                http_exception = APIErrorFactory.from_application_error(exc)
+                response = JSONResponse(
+                    status_code=http_exception.status_code, content=http_exception.detail
+                )
+                await response(scope, receive, send)
+            else:
+                # Let other exceptions bubble up
+                raise exc
+
+        try:
+            await self.app(scope, receive, send)
+        except BaseApplicationError as e:
+            await exception_handler(e)

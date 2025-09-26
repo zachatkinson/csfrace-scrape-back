@@ -7,14 +7,15 @@ Grafana dashboards following CLAUDE.md standards.
 import json
 from pathlib import Path
 
-import structlog
 import typer
 import yaml
+
+from src.utils.logging import get_logger
 
 from ..constants import CLI_CONSTANTS
 from ..monitoring import GrafanaConfig, GrafanaDashboardProvisioner
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 app = typer.Typer(
     name="grafana", help="Manage Grafana dashboards and provisioning", no_args_is_help=True

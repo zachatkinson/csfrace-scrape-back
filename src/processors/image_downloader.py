@@ -6,8 +6,9 @@ from urllib.parse import urlparse
 
 import aiohttp
 import asyncio
-import structlog
 from aiofiles import open as aopen
+
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS
 from ..core.config import config
@@ -15,7 +16,7 @@ from ..core.exceptions import ConversionError
 from ..utils.retry import with_retry
 from ..utils.robots import robots_checker
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class AsyncImageDownloader:

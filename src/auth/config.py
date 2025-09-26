@@ -1,81 +1,177 @@
-"""Authentication configuration following security best practices."""
+"""Authentication configuration following security best practices.
+
+This module has been refactored to use the unified configuration system.
+Import the unified configuration from the config package for backward compatibility.
+"""
 
 from datetime import timedelta
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
-
-from ..constants import AUTH_CONSTANTS
-from ..core.environment import EnvironmentLoader
+# Import from unified config system
+from ..config import AuthConfig as NewAuthConfig, get_settings
 
 
-class AuthConfig(BaseSettings):
-    """Authentication configuration with environment variable support."""
+class AuthConfig:
+    """Authentication configuration with environment variable support.
 
-    # JWT Configuration - SECURE, no insecure defaults
-    SECRET_KEY: str = EnvironmentLoader.get_optional("SECRET_KEY", "")  # Will be validated below
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = EnvironmentLoader.get_int(
-        "ACCESS_TOKEN_EXPIRE_MINUTES", 720, min_value=1, max_value=1440
-    )
-    REFRESH_TOKEN_EXPIRE_DAYS: int = EnvironmentLoader.get_int(
-        "REFRESH_TOKEN_EXPIRE_DAYS", 7, min_value=1, max_value=365
-    )
+    Maintains backward compatibility while delegating to the new unified system.
+    """
 
-    # Password Configuration
-    PWD_CONTEXT_SCHEMES: list[str] = ["bcrypt"]
-    PWD_CONTEXT_DEPRECATED: str = AUTH_CONSTANTS.PASSWORD_CONTEXT_DEPRECATED
+    def __init__(self):
+        """Initialize auth configuration."""
+        try:
+            # Use the new unified configuration system
+            settings = get_settings()
+            self._config = settings.auth
+        except Exception:
+            # Fallback to creating a new instance if unified system fails
+            self._config = NewAuthConfig()
 
-    # Rate Limiting - configurable for different environments
-    AUTH_RATE_LIMIT: str = EnvironmentLoader.get_optional(
-        "AUTH_RATE_LIMIT", "5/minute"
-    )  # Login attempts
-    REGISTER_RATE_LIMIT: str = EnvironmentLoader.get_optional(
-        "REGISTER_RATE_LIMIT", "3/hour"
-    )  # Registration attempts
-    PASSWORD_RESET_RATE_LIMIT: str = EnvironmentLoader.get_optional(
-        "PASSWORD_RESET_RATE_LIMIT", "3/hour"
-    )  # noqa: S105
+    # JWT Configuration properties
+    @property
+    def SECRET_KEY(self) -> str:
+        """JWT secret key."""
+        return self._config.SECRET_KEY
 
-    # Security Headers - configurable for different environments
-    SECURE_COOKIES: bool = EnvironmentLoader.get_bool("SECURE_COOKIES", True)
-    SAME_SITE_COOKIES: str = EnvironmentLoader.get_optional("SAME_SITE_COOKIES", "strict")
+    @property
+    def ALGORITHM(self) -> str:
+        """JWT algorithm."""
+        return self._config.ALGORITHM
 
-    # OAuth2 Configuration (will be populated later)
-    GOOGLE_CLIENT_ID: str | None = None
-    GOOGLE_CLIENT_SECRET: str | None = None
-    GITHUB_CLIENT_ID: str | None = None
-    GITHUB_CLIENT_SECRET: str | None = None
-    MICROSOFT_CLIENT_ID: str | None = None
-    MICROSOFT_CLIENT_SECRET: str | None = None
+    @property
+    def ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
+        """Access token expiration in minutes."""
+        return self._config.ACCESS_TOKEN_EXPIRE_MINUTES
 
-    # WebAuthn Configuration
-    WEBAUTHN_RP_ID: str | None = None  # Relying Party ID (usually domain)
-    WEBAUTHN_RP_NAME: str = "CSFrace Scraper"
-    WEBAUTHN_ORIGIN: str | None = None
+    @property
+    def REFRESH_TOKEN_EXPIRE_DAYS(self) -> int:
+        """Refresh token expiration in days."""
+        return self._config.REFRESH_TOKEN_EXPIRE_DAYS
 
-    @field_validator("SECRET_KEY", mode="before")
-    @classmethod
-    def validate_secret_key(cls, v):
-        """Ensure SECRET_KEY is properly configured."""
-        if not v:
-            raise ValueError("SECRET_KEY must be set. Generate one with: openssl rand -hex 32")
-        if len(v) < 32:
-            raise ValueError("SECRET_KEY must be at least 32 characters long")
-        return v
+    # Password Configuration properties
+    @property
+    def PWD_CONTEXT_SCHEMES(self) -> list[str]:
+        """Password hashing schemes."""
+        return self._config.PWD_CONTEXT_SCHEMES
 
+    @property
+    def PWD_CONTEXT_DEPRECATED(self) -> str:
+        """Deprecated password schemes."""
+        return self._config.PWD_CONTEXT_DEPRECATED
+
+    # Rate Limiting properties
+    @property
+    def AUTH_RATE_LIMIT(self) -> str:
+        """Login attempts rate limit."""
+        return self._config.AUTH_RATE_LIMIT
+
+    @property
+    def REGISTER_RATE_LIMIT(self) -> str:
+        """Registration attempts rate limit."""
+        return self._config.REGISTER_RATE_LIMIT
+
+    @property
+    def PASSWORD_RESET_RATE_LIMIT(self) -> str:
+        """Password reset attempts rate limit."""
+        return self._config.PASSWORD_RESET_RATE_LIMIT
+
+    # Security Headers properties
+    @property
+    def SECURE_COOKIES(self) -> bool:
+        """Use secure cookies."""
+        return self._config.SECURE_COOKIES
+
+    @property
+    def SAME_SITE_COOKIES(self) -> str:
+        """SameSite cookie policy."""
+        return self._config.SAME_SITE_COOKIES
+
+    # OAuth2 Configuration properties
+    @property
+    def GOOGLE_CLIENT_ID(self) -> str | None:
+        """Google OAuth client ID."""
+        return self._config.GOOGLE_CLIENT_ID
+
+    @property
+    def GOOGLE_CLIENT_SECRET(self) -> str | None:
+        """Google OAuth client secret."""
+        return self._config.GOOGLE_CLIENT_SECRET
+
+    @property
+    def GITHUB_CLIENT_ID(self) -> str | None:
+        """GitHub OAuth client ID."""
+        return self._config.GITHUB_CLIENT_ID
+
+    @property
+    def GITHUB_CLIENT_SECRET(self) -> str | None:
+        """GitHub OAuth client secret."""
+        return self._config.GITHUB_CLIENT_SECRET
+
+    @property
+    def MICROSOFT_CLIENT_ID(self) -> str | None:
+        """Microsoft OAuth client ID."""
+        return self._config.MICROSOFT_CLIENT_ID
+
+    @property
+    def MICROSOFT_CLIENT_SECRET(self) -> str | None:
+        """Microsoft OAuth client secret."""
+        return self._config.MICROSOFT_CLIENT_SECRET
+
+    # WebAuthn Configuration properties
+    @property
+    def WEBAUTHN_RP_ID(self) -> str | None:
+        """WebAuthn Relying Party ID."""
+        return self._config.WEBAUTHN_RP_ID
+
+    @property
+    def WEBAUTHN_RP_NAME(self) -> str:
+        """WebAuthn Relying Party name."""
+        return self._config.WEBAUTHN_RP_NAME
+
+    @property
+    def WEBAUTHN_ORIGIN(self) -> str | None:
+        """WebAuthn origin URL."""
+        return self._config.WEBAUTHN_ORIGIN
+
+    # Account Security properties
+    @property
+    def MAX_LOGIN_ATTEMPTS(self) -> int:
+        """Max failed login attempts."""
+        return getattr(self._config, "MAX_LOGIN_ATTEMPTS", 5)
+
+    @property
+    def LOCKOUT_DURATION_MINUTES(self) -> int:
+        """Account lockout duration in minutes."""
+        return getattr(self._config, "LOCKOUT_DURATION_MINUTES", 15)
+
+    # Computed properties
     @property
     def access_token_expire_delta(self) -> timedelta:
         """Get access token expiration timedelta."""
-        return timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
+        return self._config.access_token_expire_delta
 
     @property
     def refresh_token_expire_delta(self) -> timedelta:
         """Get refresh token expiration timedelta."""
-        return timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS)
+        return self._config.refresh_token_expire_delta
 
-    model_config = {"env_prefix": "AUTH_", "case_sensitive": False}
+    @property
+    def lockout_duration_delta(self) -> timedelta:
+        """Get lockout duration timedelta."""
+        return getattr(self._config, "lockout_duration_delta", timedelta(minutes=15))
+
+    # Methods
+    def has_oauth_provider(self, provider: str) -> bool:
+        """Check if OAuth provider is configured."""
+        return self._config.has_oauth_provider(provider)
+
+    def get_enabled_oauth_providers(self) -> list[str]:
+        """Get list of enabled OAuth providers."""
+        return self._config.get_enabled_oauth_providers()
 
 
-# Global auth config instance
-auth_config = AuthConfig()
+# Global auth config instance - uses unified system
+try:
+    auth_config = AuthConfig()  # type: ignore
+except Exception:
+    # Fallback if unified system is not available
+    auth_config = None  # type: ignore

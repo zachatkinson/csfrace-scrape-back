@@ -12,14 +12,15 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
-import structlog
 from aiohttp import BasicAuth, ClientSession, TCPConnector
 from bs4 import BeautifulSoup
+
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS
 from ..core.exceptions import ConfigurationError, FetchError
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ class PersistentCookieJar:
 
         logger.debug("Initialized persistent cookie jar", path=str(file_path))
 
-    def _ensure_directory(self):
+    def _ensure_directory(self) -> None:
         """Ensure cookie storage directory exists."""
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -148,7 +149,7 @@ class PersistentCookieJar:
             logger.warning("Failed to load cookies, starting fresh", error=str(e))
             return {}
 
-    def save_cookies(self, cookie_jar: aiohttp.CookieJar):
+    def save_cookies(self, cookie_jar: aiohttp.CookieJar) -> None:
         """Save cookies to persistent storage.
 
         Args:
@@ -271,7 +272,7 @@ class EnhancedSessionManager:
         """Async context manager entry."""
         return await self.get_session()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -344,7 +345,7 @@ class EnhancedSessionManager:
 
         return self._session
 
-    async def _load_persistent_cookies(self):
+    async def _load_persistent_cookies(self) -> None:
         """Load persistent cookies into the session."""
         if not self.persistent_jar or not self.cookie_jar:
             return
@@ -359,7 +360,7 @@ class EnhancedSessionManager:
 
         logger.debug("Loaded persistent cookies into session")
 
-    async def _authenticate(self):
+    async def _authenticate(self) -> None:
         """Perform authentication based on configuration."""
         if not self._session:
             raise RuntimeError("Session not initialized")
@@ -379,8 +380,11 @@ class EnhancedSessionManager:
             logger.error("Authentication failed", auth_type=self.config.auth_type, error=str(e))
             raise FetchError(f"Authentication failed: {e}")
 
-    async def _perform_basic_auth(self):
+    async def _perform_basic_auth(self) -> None:
         """Perform HTTP Basic Authentication."""
+        if not self._session:
+            raise RuntimeError("Session not initialized")
+
         # For WordPress, we might need to authenticate against wp-login.php
         login_url = f"{self.base_url.rstrip('/')}/wp-login.php"
 
@@ -395,7 +399,7 @@ class EnhancedSessionManager:
 
             # Look for WordPress login form
             login_form = soup.find("form", {"id": "loginform"})
-            if login_form:
+            if login_form and hasattr(login_form, "get"):
                 # Extract form action and hidden fields
                 action = login_form.get("action", login_url)
 
@@ -408,11 +412,13 @@ class EnhancedSessionManager:
                 }
 
                 # Add any hidden fields
-                for hidden_input in login_form.find_all("input", {"type": "hidden"}):
-                    name = hidden_input.get("name")
-                    value = hidden_input.get("value")
-                    if name:
-                        form_data[name] = value or ""
+                if hasattr(login_form, "find_all"):
+                    for hidden_input in login_form.find_all("input", {"type": "hidden"}):
+                        if hasattr(hidden_input, "get"):
+                            name = hidden_input.get("name")
+                            value = hidden_input.get("value")
+                            if name:
+                                form_data[name] = value or ""
 
                 # Submit login form
                 async with self._session.post(action, data=form_data) as response:
@@ -421,11 +427,14 @@ class EnhancedSessionManager:
                         return
 
             # Fallback to HTTP Basic Auth
-            auth = BasicAuth(self.config.username, self.config.password)
-            async with self._session.get(self.base_url, auth=auth) as response:
-                if response.status == 200:
-                    logger.info("HTTP Basic Auth successful")
-                    return
+            username = self.config.username
+            password = self.config.password
+            if username is not None and password is not None:
+                auth = BasicAuth(username, password)
+                async with self._session.get(self.base_url, auth=auth) as response:
+                    if response.status == 200:
+                        logger.info("HTTP Basic Auth successful")
+                        return
 
             raise FetchError("Basic authentication failed")
 
@@ -433,7 +442,7 @@ class EnhancedSessionManager:
             logger.error("Basic authentication error", error=str(e))
             raise
 
-    async def _perform_bearer_auth(self):
+    async def _perform_bearer_auth(self) -> None:
         """Perform Bearer Token Authentication."""
         if not self._session:
             raise RuntimeError("Session not initialized")
@@ -454,7 +463,7 @@ class EnhancedSessionManager:
         except aiohttp.ClientError as e:
             raise FetchError(f"Bearer token validation error: {e}")
 
-    async def _perform_custom_auth(self):
+    async def _perform_custom_auth(self) -> None:
         """Perform custom authentication (placeholder for extensibility)."""
         logger.warning("Custom authentication requested but not implemented")
         # This would be implemented based on specific site requirements
@@ -506,7 +515,7 @@ class EnhancedSessionManager:
             logger.warning("Authentication validation failed", error=str(e))
             return False
 
-    async def close(self):
+    async def close(self) -> None:
         """Close session and save cookies if configured."""
         if self._session and not self._session.closed:
             # Save cookies before closing

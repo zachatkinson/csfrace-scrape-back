@@ -4,15 +4,16 @@ import os
 from enum import Enum
 
 import sqlalchemy.exc
-import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+
+from src.utils.logging import get_logger
 
 from ..common.status import JobPriority, JobStatus
 
 # Import for type checking only to avoid circular dependencies
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def create_postgresql_enums(

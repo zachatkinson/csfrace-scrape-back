@@ -1,17 +1,20 @@
 """Configuration settings for the converter.
 
-This module provides configuration dataclasses for HTTP settings,
-output settings, and other converter options.
+This module has been refactored to use the unified configuration system.
+Import the unified configuration from the config package for backward compatibility.
 """
 
 from dataclasses import dataclass, field
 
+# Import from unified config system
+from ..config import get_settings
 from ..constants import CONSTANTS
 
 
+# Maintain backward compatibility with the old dataclass-based approach
 @dataclass(frozen=True)
 class HttpConfig:
-    """HTTP-related configuration."""
+    """HTTP-related configuration - backward compatibility wrapper."""
 
     timeout: int = CONSTANTS.DEFAULT_TIMEOUT
     max_concurrent: int = CONSTANTS.MAX_CONCURRENT
@@ -23,7 +26,7 @@ class HttpConfig:
 
 @dataclass(frozen=True)
 class OutputConfig:
-    """Output-related configuration."""
+    """Output-related configuration - backward compatibility wrapper."""
 
     default_dir: str = CONSTANTS.DEFAULT_OUTPUT_DIR
     images_subdir: str = CONSTANTS.DEFAULT_IMAGES_DIR
@@ -34,7 +37,7 @@ class OutputConfig:
 
 @dataclass(frozen=True)
 class RobotsConfig:
-    """Robots.txt configuration."""
+    """Robots.txt configuration - backward compatibility wrapper."""
 
     respect_robots_txt: bool = CONSTANTS.RESPECT_ROBOTS_TXT
     cache_duration: int = CONSTANTS.ROBOTS_CACHE_DURATION
@@ -42,7 +45,7 @@ class RobotsConfig:
 
 @dataclass(frozen=True)
 class ShopifyConfig:
-    """Shopify-specific configuration."""
+    """Shopify-specific configuration - backward compatibility wrapper."""
 
     preserve_classes: frozenset[str] = CONSTANTS.SHOPIFY_PRESERVE_CLASSES
     content_type_extensions: dict[str, str] = field(
@@ -54,7 +57,7 @@ class ShopifyConfig:
 class ConverterConfig:
     """Configuration for the WordPress to Shopify converter.
 
-    Organized into logical groups to maintain clean separation of concerns.
+    Maintains backward compatibility while delegating to the new unified system.
     """
 
     http: HttpConfig = field(default_factory=HttpConfig)
@@ -63,52 +66,93 @@ class ConverterConfig:
     shopify: ShopifyConfig = field(default_factory=ShopifyConfig)
 
     def __init__(self, **kwargs):
-        """Initialize converter configuration with backward compatibility.
+        """Initialize converter configuration with backward compatibility."""
+        # Delegate to the new system while maintaining the old interface
+        try:
+            settings = get_settings()
+            new_config = settings.converter
 
-        Args:
-            **kwargs: Configuration parameters including:
-                - default_timeout: Default timeout for HTTP requests
-                - max_concurrent_downloads: Maximum concurrent downloads
-                - max_concurrent: Alias for max_concurrent_downloads
-                - rate_limit_delay: Rate limiting delay between requests
-                - images_subdir: Images subdirectory name
-                - preserve_classes: Classes to preserve in HTML
-        """
-        # Handle backward compatibility for max_concurrent vs max_concurrent_downloads
-        max_concurrent_downloads = kwargs.get("max_concurrent_downloads")
-        max_concurrent = kwargs.get("max_concurrent")
-        max_concurrent_final = (
-            max_concurrent_downloads or max_concurrent or CONSTANTS.MAX_CONCURRENT
-        )
-
-        # Initialize nested configurations with provided values or defaults
-        object.__setattr__(
-            self,
-            "http",
-            HttpConfig(
-                timeout=kwargs.get("default_timeout", CONSTANTS.DEFAULT_TIMEOUT),
-                max_concurrent=max_concurrent_final,
-                rate_limit_delay=kwargs.get("rate_limit_delay", CONSTANTS.RATE_LIMIT_DELAY),
-            ),
-        )
-
-        object.__setattr__(
-            self,
-            "output",
-            OutputConfig(
-                images_subdir=kwargs.get("images_subdir", CONSTANTS.DEFAULT_IMAGES_DIR),
-            ),
-        )
-
-        object.__setattr__(self, "robots", RobotsConfig())
-
-        preserve_classes = kwargs.get("preserve_classes")
-        if preserve_classes:
+            # Map new config to old dataclass structure
             object.__setattr__(
-                self, "shopify", ShopifyConfig(preserve_classes=frozenset(preserve_classes))
+                self,
+                "http",
+                HttpConfig(
+                    timeout=new_config.http.timeout,
+                    max_concurrent=new_config.http.max_concurrent,
+                    rate_limit_delay=new_config.http.rate_limit_delay,
+                    max_retries=new_config.http.max_retries,
+                    backoff_factor=new_config.http.backoff_factor,
+                    user_agent=new_config.http.user_agent,
+                ),
             )
-        else:
-            object.__setattr__(self, "shopify", ShopifyConfig())
+
+            object.__setattr__(
+                self,
+                "output",
+                OutputConfig(
+                    default_dir=new_config.output.default_dir,
+                    images_subdir=new_config.output.images_subdir,
+                    metadata_file=new_config.output.metadata_file,
+                    html_file=new_config.output.html_file,
+                    shopify_file=new_config.output.shopify_file,
+                ),
+            )
+
+            object.__setattr__(
+                self,
+                "robots",
+                RobotsConfig(
+                    respect_robots_txt=new_config.robots.respect_robots_txt,
+                    cache_duration=new_config.robots.cache_duration,
+                ),
+            )
+
+            object.__setattr__(
+                self,
+                "shopify",
+                ShopifyConfig(
+                    preserve_classes=frozenset(new_config.shopify.preserve_classes),
+                    content_type_extensions=dict(new_config.shopify.content_type_extensions),
+                ),
+            )
+
+        except Exception:
+            # Fallback to original logic if new system fails
+            # Handle backward compatibility for max_concurrent vs max_concurrent_downloads
+            max_concurrent_downloads = kwargs.get("max_concurrent_downloads")
+            max_concurrent = kwargs.get("max_concurrent")
+            max_concurrent_final = (
+                max_concurrent_downloads or max_concurrent or CONSTANTS.MAX_CONCURRENT
+            )
+
+            # Initialize nested configurations with provided values or defaults
+            object.__setattr__(
+                self,
+                "http",
+                HttpConfig(
+                    timeout=kwargs.get("default_timeout", CONSTANTS.DEFAULT_TIMEOUT),
+                    max_concurrent=max_concurrent_final,
+                    rate_limit_delay=kwargs.get("rate_limit_delay", CONSTANTS.RATE_LIMIT_DELAY),
+                ),
+            )
+
+            object.__setattr__(
+                self,
+                "output",
+                OutputConfig(
+                    images_subdir=kwargs.get("images_subdir", CONSTANTS.DEFAULT_IMAGES_DIR),
+                ),
+            )
+
+            object.__setattr__(self, "robots", RobotsConfig())
+
+            preserve_classes = kwargs.get("preserve_classes")
+            if preserve_classes:
+                object.__setattr__(
+                    self, "shopify", ShopifyConfig(preserve_classes=frozenset(preserve_classes))
+                )
+            else:
+                object.__setattr__(self, "shopify", ShopifyConfig())
 
     # Backward compatibility properties
     @property
@@ -147,5 +191,10 @@ class ConverterConfig:
         return self.http.rate_limit_delay
 
 
-# Global config instance
-config = ConverterConfig()
+# Global config instance - tries to use new system, falls back to old
+try:
+    settings = get_settings()
+    config = ConverterConfig()
+except Exception:
+    # Fallback if new system is not available
+    config = ConverterConfig()

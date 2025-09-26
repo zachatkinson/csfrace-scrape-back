@@ -7,13 +7,14 @@ for metrics visualization and dashboard management.
 from pathlib import Path
 from typing import Any
 
-import structlog
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.utils.logging import get_logger
+
 from ..constants import CONSTANTS
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class GrafanaConfig(BaseSettings):

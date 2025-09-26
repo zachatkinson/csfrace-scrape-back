@@ -4,8 +4,9 @@ This addresses the critical SRP violation identified in the audit by
 separating concerns into focused, single-responsibility processors.
 """
 
-import structlog
 from bs4 import BeautifulSoup
+
+from src.utils.logging import get_logger
 
 from ..core.exceptions import ProcessingError
 from ..security.sanitization import HTMLSanitizer
@@ -19,7 +20,7 @@ from .content_extractors import (
     MediaProcessor,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class HTMLProcessorOrchestrator:

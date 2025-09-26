@@ -1,1 +1,1 @@
-"""Utility modules for the WordPress to Shopify converter."""
+"""Shared utilities for the application."""

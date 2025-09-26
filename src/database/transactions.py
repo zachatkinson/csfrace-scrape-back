@@ -9,13 +9,14 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import asyncio
-import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.utils.logging import get_logger
+
 from ..api.dependencies import async_session
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class TransactionError(Exception):

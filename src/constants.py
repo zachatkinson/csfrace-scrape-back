@@ -4,6 +4,7 @@ This module contains ALL constants used throughout the application.
 NO hardcoded values should exist in business logic - everything must be here.
 """
 
+from enum import Enum
 from typing import Any
 
 from .core.environment import EnvironmentLoader
@@ -360,16 +361,9 @@ SUCCESS_AUTHENTICATION: str = "Authentication successful"
 SUCCESS_CREDENTIAL_REVOKED: str = "Passkey revoked successfully"
 
 
-# Create constant class instances for backward compatibility
-class AuthConstants:  # pylint: disable=too-few-public-methods
-    """Authentication constants container."""
-
-    BEARER_TOKEN_TYPE = BEARER_TOKEN_TYPE
-    PASSWORD_CONTEXT_DEPRECATED = PASSWORD_CONTEXT_DEPRECATED
-
-
-class ProgressConstants:  # pylint: disable=too-few-public-methods
-    """Progress constants container."""
+# Progress tracking as proper Enum
+class ProgressStage(Enum):
+    """Progress stages for conversion operations."""
 
     START = PROGRESS_START
     SETUP = PROGRESS_SETUP
@@ -378,72 +372,28 @@ class ProgressConstants:  # pylint: disable=too-few-public-methods
     COMPLETE = PROGRESS_COMPLETE
 
 
-class OAuthConstants:  # pylint: disable=too-few-public-methods
-    """OAuth constants container."""
+# Authentication types as Enum
+class AuthTokenType(Enum):
+    """Authentication token types."""
 
-    OAUTH_GOOGLE_CLIENT_ID = OAUTH_GOOGLE_CLIENT_ID
-    OAUTH_GOOGLE_CLIENT_SECRET = OAUTH_GOOGLE_CLIENT_SECRET
-    OAUTH_GITHUB_CLIENT_ID = OAUTH_GITHUB_CLIENT_ID
-    OAUTH_GITHUB_CLIENT_SECRET = OAUTH_GITHUB_CLIENT_SECRET
-    OAUTH_MICROSOFT_CLIENT_ID = OAUTH_MICROSOFT_CLIENT_ID
-    OAUTH_MICROSOFT_CLIENT_SECRET = OAUTH_MICROSOFT_CLIENT_SECRET
-    OAUTH_FACEBOOK_CLIENT_ID = OAUTH_FACEBOOK_CLIENT_ID
-    OAUTH_FACEBOOK_CLIENT_SECRET = OAUTH_FACEBOOK_CLIENT_SECRET
-    OAUTH_APPLE_CLIENT_ID = OAUTH_APPLE_CLIENT_ID
-    OAUTH_APPLE_CLIENT_SECRET = OAUTH_APPLE_CLIENT_SECRET
-    OAUTH_REDIRECT_URI_BASE = OAUTH_REDIRECT_URI_BASE
-
-    # Google OAuth2 Configuration
-    GOOGLE_AUTHORIZATION_URL = GOOGLE_AUTHORIZATION_URL
-    GOOGLE_TOKEN_URL = GOOGLE_TOKEN_URL
-    GOOGLE_USER_INFO_URL = GOOGLE_USER_INFO_URL
-    GOOGLE_SCOPES = GOOGLE_SCOPES
-
-    # GitHub OAuth2 Configuration
-    GITHUB_AUTHORIZATION_URL = GITHUB_AUTHORIZATION_URL
-    GITHUB_TOKEN_URL = GITHUB_TOKEN_URL
-    GITHUB_USER_INFO_URL = GITHUB_USER_INFO_URL
-    GITHUB_USER_EMAILS_URL = GITHUB_USER_EMAILS_URL
-    GITHUB_SCOPES = GITHUB_SCOPES
-
-    # Microsoft OAuth2 Configuration
-    MICROSOFT_AUTHORIZATION_URL = MICROSOFT_AUTHORIZATION_URL
-    MICROSOFT_TOKEN_URL = MICROSOFT_TOKEN_URL
-    MICROSOFT_USER_INFO_URL = MICROSOFT_USER_INFO_URL
-    MICROSOFT_SCOPES = MICROSOFT_SCOPES
-
-    # OAuth2 Security Settings
-    STATE_TOKEN_LENGTH = STATE_TOKEN_LENGTH
+    BEARER = BEARER_TOKEN_TYPE
 
 
-class WebAuthnConstants:  # pylint: disable=too-few-public-methods
-    """WebAuthn constants container."""
+# Exit codes as Enum
+class ExitCode(Enum):
+    """Application exit codes."""
 
-    WEBAUTHN_RP_ID = WEBAUTHN_RP_ID
-    WEBAUTHN_RP_NAME = WEBAUTHN_RP_NAME
-    WEBAUTHN_ORIGIN = WEBAUTHN_ORIGIN
-    CHALLENGE_TIMEOUT_MS = CHALLENGE_TIMEOUT_MS
-    CHALLENGE_LENGTH_BYTES = CHALLENGE_LENGTH_BYTES
-
-
-class CLIConstants:  # pylint: disable=too-few-public-methods
-    """CLI constants container."""
-
-    DEFAULT_PROMETHEUS_URL = DEFAULT_PROMETHEUS_URL
-    DEFAULT_GRAFANA_PORT = DEFAULT_GRAFANA_PORT
-    EXAMPLE_CSFRACE_URL = EXAMPLE_CSFRACE_URL
-    EXAMPLE_SITE_URL = EXAMPLE_SITE_URL
-    PROGRESS_SEPARATOR = PROGRESS_SEPARATOR
-    EXIT_CODE_KEYBOARD_INTERRUPT = EXIT_CODE_KEYBOARD_INTERRUPT
+    SUCCESS = 0
+    KEYBOARD_INTERRUPT = EXIT_CODE_KEYBOARD_INTERRUPT
 
 
 # Legacy constants class for backward compatibility (deprecated - use module level constants)
-class AppConstants:  # pylint: disable=too-few-public-methods
+class AppConstants:
     """Deprecated - use module level constants instead."""
 
     def __getattr__(self, name: str) -> Any:
         """Redirect to module level constants."""
-        import sys  # pylint: disable=import-outside-toplevel
+        import sys
 
         return getattr(sys.modules[__name__], name)
 
@@ -470,11 +420,104 @@ class TestConstants:  # pylint: disable=too-few-public-methods
     SAMPLE_HTML_DESCRIPTION = SAMPLE_HTML_DESCRIPTION
 
 
-# Global instances for backward compatibility
+# Auth-specific constants for organized access
+class AuthConstants:  # pylint: disable=too-few-public-methods
+    """Authentication constants container."""
+
+    BEARER_TOKEN_TYPE = BEARER_TOKEN_TYPE
+    PASSWORD_CONTEXT_DEPRECATED = PASSWORD_CONTEXT_DEPRECATED
+
+
+class OAuthConstants:  # pylint: disable=too-few-public-methods
+    """OAuth constants container."""
+
+    # Google OAuth2
+    GOOGLE_AUTHORIZATION_URL = GOOGLE_AUTHORIZATION_URL
+    GOOGLE_TOKEN_URL = GOOGLE_TOKEN_URL
+    GOOGLE_USER_INFO_URL = GOOGLE_USER_INFO_URL
+    GOOGLE_SCOPES = GOOGLE_SCOPES
+
+    # GitHub OAuth2
+    GITHUB_AUTHORIZATION_URL = GITHUB_AUTHORIZATION_URL
+    GITHUB_TOKEN_URL = GITHUB_TOKEN_URL
+    GITHUB_USER_INFO_URL = GITHUB_USER_INFO_URL
+    GITHUB_USER_EMAILS_URL = GITHUB_USER_EMAILS_URL
+    GITHUB_SCOPES = GITHUB_SCOPES
+
+    # Microsoft OAuth2
+    MICROSOFT_AUTHORIZATION_URL = MICROSOFT_AUTHORIZATION_URL
+    MICROSOFT_TOKEN_URL = MICROSOFT_TOKEN_URL
+    MICROSOFT_USER_INFO_URL = MICROSOFT_USER_INFO_URL
+    MICROSOFT_SCOPES = MICROSOFT_SCOPES
+
+
+class WebAuthnConstants:  # pylint: disable=too-few-public-methods
+    """WebAuthn constants container."""
+
+    # WebAuthn Configuration
+    WEBAUTHN_RP_ID = WEBAUTHN_RP_ID
+    WEBAUTHN_RP_NAME = WEBAUTHN_RP_NAME
+    WEBAUTHN_ORIGIN = WEBAUTHN_ORIGIN
+
+    # Challenge Configuration
+    CHALLENGE_LENGTH_BYTES = CHALLENGE_LENGTH_BYTES
+    CHALLENGE_TIMEOUT_MS = CHALLENGE_TIMEOUT_MS
+    CHALLENGE_MAX_AGE_MINUTES = CHALLENGE_MAX_AGE_MINUTES
+
+    # Credential Configuration
+    MAX_CREDENTIALS_PER_USER = MAX_CREDENTIALS_PER_USER
+    DEVICE_NAME_MAX_LENGTH = DEVICE_NAME_MAX_LENGTH
+    CREDENTIAL_ID_LENGTH = CREDENTIAL_ID_LENGTH
+
+    # Timeout Configuration
+    REGISTRATION_TIMEOUT_MS = REGISTRATION_TIMEOUT_MS
+    AUTHENTICATION_TIMEOUT_MS = AUTHENTICATION_TIMEOUT_MS
+
+    # Error Messages
+    ERROR_INVALID_CHALLENGE = ERROR_INVALID_CHALLENGE
+    ERROR_VERIFICATION_FAILED = ERROR_VERIFICATION_FAILED
+    ERROR_CREDENTIAL_NOT_FOUND = ERROR_CREDENTIAL_NOT_FOUND
+    ERROR_USER_NOT_FOUND = ERROR_USER_NOT_FOUND
+    ERROR_MAX_CREDENTIALS_EXCEEDED = ERROR_MAX_CREDENTIALS_EXCEEDED
+
+    # Success Messages
+    SUCCESS_CREDENTIAL_REGISTERED = SUCCESS_CREDENTIAL_REGISTERED
+    SUCCESS_AUTHENTICATION = SUCCESS_AUTHENTICATION
+    SUCCESS_CREDENTIAL_REVOKED = SUCCESS_CREDENTIAL_REVOKED
+
+
+class ProgressConstants:  # pylint: disable=too-few-public-methods
+    """Progress tracking constants container."""
+
+    PROGRESS_START = PROGRESS_START
+    PROGRESS_SETUP = PROGRESS_SETUP
+    PROGRESS_FETCH = PROGRESS_FETCH
+    PROGRESS_PROCESS = PROGRESS_PROCESS
+    PROGRESS_COMPLETE = PROGRESS_COMPLETE
+
+
+class CLIConstants:  # pylint: disable=too-few-public-methods
+    """CLI constants container."""
+
+    # Example URLs for help text
+    EXAMPLE_CSFRACE_URL = EXAMPLE_CSFRACE_URL
+    EXAMPLE_SITE_URL = EXAMPLE_SITE_URL
+
+    # Progress display
+    PROGRESS_SEPARATOR = PROGRESS_SEPARATOR
+
+    # Exit codes
+    EXIT_CODE_KEYBOARD_INTERRUPT = EXIT_CODE_KEYBOARD_INTERRUPT
+
+    # CLI service configuration
+    DEFAULT_PROMETHEUS_URL = DEFAULT_PROMETHEUS_URL
+    DEFAULT_GRAFANA_PORT = DEFAULT_GRAFANA_PORT
+
+
+# Legacy constants - for backward compatibility only
 AUTH_CONSTANTS = AuthConstants()
-PROGRESS_CONSTANTS = ProgressConstants()
 OAUTH_CONSTANTS = OAuthConstants()
 WEBAUTHN_CONSTANTS = WebAuthnConstants()
+PROGRESS_CONSTANTS = ProgressConstants()
 CLI_CONSTANTS = CLIConstants()
-TEST_CONSTANTS = TestConstants()
-CONSTANTS = AppConstants()
+CONSTANTS = AppConstants()  # Keep only the main backward compatibility class

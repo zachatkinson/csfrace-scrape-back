@@ -11,6 +11,7 @@ SQLAlchemy Best Practices Implementation:
 """
 
 import os
+import logging
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, inspect, pool, text
@@ -25,6 +26,9 @@ from src.database.utils import get_database_url
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Set up proper logger for Alembic
+logger = logging.getLogger('alembic.env')
 
 # ENTERPRISE PATTERN 1: Environment Isolation
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -90,7 +94,7 @@ def validate_schema_consistency(connection) -> bool:
 
         missing_tables = expected_tables - existing_tables
         if missing_tables:
-            context.config.logger.warning(f"Missing critical tables: {missing_tables}")
+            logger.warning(f"Missing critical tables: {missing_tables}")
             return False
 
         # Check critical columns exist
@@ -98,23 +102,23 @@ def validate_schema_consistency(connection) -> bool:
             # Validate jobs table has user_id column
             jobs_columns = {col["name"] for col in inspector.get_columns("jobs")}
             if "user_id" not in jobs_columns:
-                context.config.logger.warning("jobs table missing user_id column")
+                logger.warning("jobs table missing user_id column")
                 return False
 
             # Validate revoked_tokens table exists
             if "revoked_tokens" not in existing_tables:
-                context.config.logger.warning("revoked_tokens table missing")
+                logger.warning("revoked_tokens table missing")
                 return False
 
         except Exception as e:
-            context.config.logger.warning(f"Schema validation error: {e}")
+            logger.warning(f"Schema validation error: {e}")
             return False
 
-        context.config.logger.info("Schema validation passed")
+        logger.info("Schema validation passed")
         return True
 
     except Exception as e:
-        context.config.logger.error(f"Schema validation failed: {e}")
+        logger.error(f"Schema validation failed: {e}")
         return False
 
 
@@ -212,24 +216,24 @@ def ensure_critical_schema_exists(connection) -> None:
         )
 
         connection.commit()
-        context.config.logger.info("Critical schema elements ensured")
+        logger.info("Critical schema elements ensured")
 
     except Exception as e:
-        context.config.logger.error(f"Failed to ensure critical schema: {e}")
+        logger.error(f"Failed to ensure critical schema: {e}")
         connection.rollback()
         raise
 
 
 def log_migration_context() -> None:
     """Log comprehensive migration context for debugging."""
-    context.config.logger.info("=== MIGRATION CONTEXT ===")
-    context.config.logger.info(f"Environment: {ENVIRONMENT}")
-    context.config.logger.info(f"Migration Context: {MIGRATION_CONTEXT}")
-    context.config.logger.info(
+    logger.info("=== MIGRATION CONTEXT ===")
+    logger.info(f"Environment: {ENVIRONMENT}")
+    logger.info(f"Migration Context: {MIGRATION_CONTEXT}")
+    logger.info(
         f"Database URL: {database_url.split('@')[1] if '@' in database_url else 'hidden'}"
     )
-    context.config.logger.info(f"Settings: {current_settings}")
-    context.config.logger.info("=========================")
+    logger.info(f"Settings: {current_settings}")
+    logger.info("=========================")
 
 
 def run_migrations_offline() -> None:
@@ -254,9 +258,9 @@ def run_migrations_offline() -> None:
     )
 
     with context.begin_transaction():
-        context.config.logger.info(f"Running offline migrations for {ENVIRONMENT}")
+        logger.info(f"Running offline migrations for {ENVIRONMENT}")
         context.run_migrations()
-        context.config.logger.info("Offline migrations completed successfully")
+        logger.info("Offline migrations completed successfully")
 
 
 def run_migrations_online() -> None:
@@ -279,10 +283,7 @@ def run_migrations_online() -> None:
     connect_args = {
         "connect_timeout": 30 if ENVIRONMENT == "production" else 10,
         "application_name": f"csfrace-scraper-migrations-{ENVIRONMENT}",
-        "server_settings": {
-            "application_name": f"alembic-{ENVIRONMENT}",
-            "timezone": "UTC",
-        },
+        "options": f"-c timezone=UTC -c application_name=alembic-{ENVIRONMENT}",
     }
 
     # Enhanced connection pooling for enterprise use
@@ -303,21 +304,21 @@ def run_migrations_online() -> None:
         )
 
         with connectable.connect() as connection:
-            context.config.logger.info(f"Connected to database for {ENVIRONMENT} migrations")
+            logger.info(f"Connected to database for {ENVIRONMENT} migrations")
 
             # ENTERPRISE PATTERN 2: Pre-migration schema validation
             if current_settings.get("validate_schema", True):
-                context.config.logger.info("Performing pre-migration schema validation")
+                logger.info("Performing pre-migration schema validation")
                 schema_valid = validate_schema_consistency(connection)
 
                 if not schema_valid:
-                    context.config.logger.warning(
+                    logger.warning(
                         "Schema validation failed - applying critical fixes"
                     )
                     ensure_critical_schema_exists(connection)
-                    context.config.logger.info("Critical schema fixes applied")
+                    logger.info("Critical schema fixes applied")
                 else:
-                    context.config.logger.info("Schema validation passed")
+                    logger.info("Schema validation passed")
 
             # Configure migration context with environment-specific settings
             context.configure(
@@ -336,40 +337,40 @@ def run_migrations_online() -> None:
             # Execute migrations with enhanced error handling
             try:
                 with context.begin_transaction():
-                    context.config.logger.info(f"Starting {ENVIRONMENT} migrations")
+                    logger.info(f"Starting {ENVIRONMENT} migrations")
                     context.run_migrations()
-                    context.config.logger.info(
+                    logger.info(
                         f"Migrations completed successfully for {ENVIRONMENT}"
                     )
 
                     # Post-migration validation
                     if current_settings.get("validate_schema", True):
-                        context.config.logger.info("Performing post-migration schema validation")
+                        logger.info("Performing post-migration schema validation")
                         post_migration_valid = validate_schema_consistency(connection)
                         if post_migration_valid:
-                            context.config.logger.info("Post-migration schema validation passed")
+                            logger.info("Post-migration schema validation passed")
                         else:
-                            context.config.logger.error("Post-migration schema validation failed")
+                            logger.error("Post-migration schema validation failed")
                             raise RuntimeError("Post-migration schema validation failed")
 
             except Exception as migration_error:
-                context.config.logger.error(
+                logger.error(
                     f"Migration failed for {ENVIRONMENT}: {migration_error}"
                 )
 
                 # Enhanced error recovery for known issues
                 if "user_id does not exist" in str(migration_error):
-                    context.config.logger.info("Attempting recovery for missing user_id column")
+                    logger.info("Attempting recovery for missing user_id column")
                     ensure_critical_schema_exists(connection)
-                    context.config.logger.info("Recovery completed - please retry migration")
+                    logger.info("Recovery completed - please retry migration")
 
                 raise migration_error
 
     except SQLAlchemyError as db_error:
-        context.config.logger.error(f"Database connection failed for {ENVIRONMENT}: {db_error}")
+        logger.error(f"Database connection failed for {ENVIRONMENT}: {db_error}")
         raise
     except Exception as general_error:
-        context.config.logger.error(
+        logger.error(
             f"Unexpected error during {ENVIRONMENT} migration: {general_error}"
         )
         raise
@@ -393,8 +394,8 @@ def render_item_with_environment(type_: str, _obj, _autogen_context):
 
 # ENTERPRISE PATTERN 4: Enhanced migration execution with environment detection
 if context.is_offline_mode():
-    context.config.logger.info(f"Starting offline migration mode for {ENVIRONMENT}")
+    logger.info(f"Starting offline migration mode for {ENVIRONMENT}")
     run_migrations_offline()
 else:
-    context.config.logger.info(f"Starting online migration mode for {ENVIRONMENT}")
+    logger.info(f"Starting online migration mode for {ENVIRONMENT}")
     run_migrations_online()

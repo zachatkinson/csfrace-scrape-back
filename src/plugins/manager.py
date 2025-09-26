@@ -6,12 +6,13 @@ from pathlib import Path
 from typing import Any
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 from .base import BasePlugin, PluginType
 from .registry import PluginRegistry, plugin_registry
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class PluginExecutionContext:
@@ -108,7 +109,7 @@ class PluginManager:
         for plugin in self._plugins.values():
             try:
                 await plugin.cleanup()
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except Exception as e:  # pylint: disable=broad-exception-caught  # Intentional: ensure all plugins cleanup even if some fail
                 logger.warning("Plugin cleanup failed", plugin=plugin.config.name, error=str(e))
 
         self._plugins.clear()

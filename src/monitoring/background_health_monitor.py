@@ -5,14 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 from ..caching.manager import cache_manager
 from .health_events import (
     initialize_health_events,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class BackgroundHealthMonitor:

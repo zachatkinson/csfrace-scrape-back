@@ -10,27 +10,26 @@ from fastapi import HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from .errors import APIErrorFactory
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 T = TypeVar("T", bound=BaseModel)
 
 
-def handle_database_error(operation: str) -> Callable[[SQLAlchemyError], HTTPException]:
-    """Create a standardized HTTPException for database errors.
+def handle_database_error(operation: str):
+    """Create a standardized API error for database errors.
 
     Args:
         operation: The operation that failed (e.g., 'create job', 'retrieve batches')
 
     Returns:
-        Standardized HTTPException for database errors
+        Function that raises standardized API error for database errors
     """
 
-    def error_handler(e: SQLAlchemyError) -> HTTPException:
-        return HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to {operation}: {str(e)}",
-        )
+    def error_handler(e: SQLAlchemyError):
+        raise APIErrorFactory.internal_server_error(f"Failed to {operation}: {str(e)}")
 
     return error_handler
 
@@ -117,38 +116,30 @@ def rate_limited_endpoint(
     return decorator
 
 
-# Authentication error utilities (DRY principle)
-def unauthorized_error(detail: str) -> HTTPException:
-    """Create standardized 401 Unauthorized response."""
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=detail,
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+# Deprecated error utilities - Use APIErrorFactory directly instead
+# These are kept for backward compatibility but should be migrated
+def unauthorized_error(detail: str):
+    """Create standardized 401 Unauthorized response. DEPRECATED: Use APIErrorFactory.unauthorized instead."""
+    raise APIErrorFactory.unauthorized(detail)
 
 
-def bad_request_error(detail: str) -> HTTPException:
-    """Create standardized 400 Bad Request response."""
-    return HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail=detail,
-    )
+def bad_request_error(detail: str):
+    """Create standardized 400 Bad Request response. DEPRECATED: Use APIErrorFactory.bad_request instead."""
+
+    # TODO: Fix APIError class to have bad_request method
+    raise HTTPException(status_code=400, detail=detail)
 
 
-def internal_server_error(detail: str) -> HTTPException:
-    """Create standardized 500 Internal Server Error response."""
-    return HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=detail,
-    )
+def internal_server_error(detail: str):
+    """Create standardized 500 Internal Server Error response. DEPRECATED: Use APIErrorFactory.internal_server_error instead."""
+
+    # TODO: Fix APIError class to have internal_server_error method
+    raise HTTPException(status_code=500, detail=detail)
 
 
-def validation_error(detail: str) -> HTTPException:
-    """Create standardized 422 Unprocessable Entity response for validation errors."""
-    return HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail=detail,
-    )
+def validation_error(detail: str):
+    """Create standardized 422 Unprocessable Entity response for validation errors. DEPRECATED: Use APIErrorFactory.validation_error instead."""
+    raise APIErrorFactory.validation_error(detail)
 
 
 # Assignment-from-none wrapper (DRY principle)

@@ -17,13 +17,14 @@ from enum import Enum
 from typing import Any, TypeVar
 
 import asyncio
-import structlog
 from aiohttp import ClientError, ServerTimeoutError
+
+from src.utils.logging import get_logger
 
 from ..core.config import config
 from ..core.exceptions import RateLimitError
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 

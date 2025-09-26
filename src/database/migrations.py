@@ -8,7 +8,7 @@ from alembic.runtime.migration import MigrationContext  # pylint: disable=no-nam
 from alembic.script import ScriptDirectory  # pylint: disable=no-name-in-module
 from sqlalchemy import create_engine
 
-from alembic import command  # type: ignore[attr-defined]  # pylint: disable=no-name-in-module
+from alembic import command  # pylint: disable=no-name-in-module
 
 from .utils import get_database_url
 

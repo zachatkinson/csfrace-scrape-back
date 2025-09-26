@@ -3,11 +3,11 @@
 from pathlib import Path
 from typing import Any
 
-import structlog
+from src.utils.logging import get_logger
 
 from ..plugins.manager import PluginManager, plugin_manager
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class PluginIntegration:

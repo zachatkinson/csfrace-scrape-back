@@ -5,15 +5,16 @@ from urllib.robotparser import RobotFileParser
 
 import aiohttp
 import asyncio
-import structlog
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
+
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS
 from ..core.config import config
 from ..core.exceptions import RateLimitError
 from ..utils.http import safe_http_get
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class RobotsChecker:

@@ -11,9 +11,10 @@ from typing import Any
 
 import asyncio
 import psutil
-import structlog
 
-logger = structlog.get_logger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from prometheus_client import (

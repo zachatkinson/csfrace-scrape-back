@@ -7,12 +7,13 @@ and conversion, eliminating SOLID principle violations.
 import re
 from abc import ABC, abstractmethod
 
-import structlog
 from bs4 import Tag
+
+from src.utils.logging import get_logger
 
 from ..core.exceptions import ProcessingError
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ContentExtractorBase(ABC):

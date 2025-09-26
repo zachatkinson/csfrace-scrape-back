@@ -24,12 +24,13 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def serialize_health_data(data: dict[str, Any]) -> dict[str, Any]:

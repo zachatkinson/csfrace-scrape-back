@@ -4,11 +4,12 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-import structlog
 from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field
 
-logger = structlog.get_logger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class DynamicContentIndicators(BaseModel):

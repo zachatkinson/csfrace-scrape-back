@@ -6,13 +6,14 @@ import time
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+
+from src.utils.logging import get_logger
 
 from .. import __version__
 from ..auth.models import MessageResponse
@@ -39,7 +40,7 @@ from .routers import health, health_stream, jobs, performance_stream, user_setti
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager

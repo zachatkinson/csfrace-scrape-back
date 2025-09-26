@@ -6,8 +6,9 @@ from urllib.parse import urljoin, urlparse
 
 import aiohttp
 import asyncio
-import structlog
 from bs4 import BeautifulSoup
+
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS, PROGRESS_CONSTANTS
 from ..processors.html_processor import HTMLProcessorOrchestrator
@@ -19,7 +20,7 @@ from ..utils.robots import robots_checker
 from .config import ConverterConfig, config as default_config
 from .exceptions import ConversionError, FetchError, ProcessingError, SaveError
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class AsyncWordPressConverter:
@@ -122,9 +123,11 @@ class AsyncWordPressConverter:
             return content
 
         except aiohttp.ClientError as e:
-            raise FetchError(f"Failed to fetch content: {e}", url=self.base_url, cause=e) from e
+            raise FetchError(
+                f"Failed to fetch content: {e}", url=self.base_url, original_error=e
+            ) from e
         except TimeoutError as e:
-            raise FetchError(f"Request timed out: {e}", url=self.base_url, cause=e) from e
+            raise FetchError(f"Request timed out: {e}", url=self.base_url, original_error=e) from e
 
     async def _process_content(self, html_content: str) -> tuple[dict[str, str], str, list[str]]:
         """Process HTML content and extract components.
@@ -164,7 +167,7 @@ class AsyncWordPressConverter:
 
         except Exception as e:
             raise ProcessingError(
-                f"Failed to process content: {e}", url=self.base_url, cause=e
+                f"Failed to process content: {e}", url=self.base_url, original_error=e
             ) from e
 
     def _extract_image_urls(self, html_content: str) -> list[str]:
@@ -231,7 +234,7 @@ class AsyncWordPressConverter:
             )
 
         except OSError as e:
-            raise SaveError(f"Failed to save content: {e}", cause=e) from e
+            raise SaveError(f"Failed to save content: {e}", original_error=e) from e
 
     async def _write_metadata_file(self, path: Path, metadata: dict[str, str]) -> None:
         """Write metadata to text file."""
@@ -281,7 +284,7 @@ class AsyncWordPressConverter:
             await self._setup_directories()
 
             if progress_callback:
-                progress_callback(PROGRESS_CONSTANTS.SETUP)
+                progress_callback(PROGRESS_CONSTANTS.PROGRESS_SETUP)
 
             # Create HTTP session with proper headers
             connector = aiohttp.TCPConnector(limit=self.config.http.max_concurrent)
@@ -293,7 +296,7 @@ class AsyncWordPressConverter:
                 headers={"User-Agent": self.config.http.user_agent},
             ) as session:
                 if progress_callback:
-                    progress_callback(PROGRESS_CONSTANTS.FETCH)
+                    progress_callback(PROGRESS_CONSTANTS.PROGRESS_FETCH)
 
                 # Fetch webpage content
                 html_content = await self._fetch_content(session)
@@ -305,7 +308,7 @@ class AsyncWordPressConverter:
                 metadata, processed_html, image_urls = await self._process_content(html_content)
 
                 if progress_callback:
-                    progress_callback(PROGRESS_CONSTANTS.PROCESS)
+                    progress_callback(PROGRESS_CONSTANTS.PROGRESS_PROCESS)
 
                 # Save converted content
                 await self._save_content(metadata, processed_html)
@@ -324,7 +327,7 @@ class AsyncWordPressConverter:
                     )
 
                 if progress_callback:
-                    progress_callback(PROGRESS_CONSTANTS.COMPLETE)
+                    progress_callback(PROGRESS_CONSTANTS.PROGRESS_COMPLETE)
 
             logger.info(
                 "Conversion completed successfully",
@@ -336,4 +339,6 @@ class AsyncWordPressConverter:
             raise
         except Exception as e:
             logger.exception("Unexpected error during conversion", error=str(e))
-            raise ConversionError(f"Conversion failed: {e}", url=self.base_url, cause=e) from e
+            raise ConversionError(
+                f"Conversion failed: {e}", url=self.base_url, original_error=e
+            ) from e

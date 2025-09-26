@@ -5,8 +5,9 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, TypedDict
 
-import structlog
 import yaml
+
+from src.utils.logging import get_logger
 
 from ..batch.processor import BatchConfig
 from ..constants import CONSTANTS
@@ -53,7 +54,7 @@ class ConverterConfigDict(TypedDict, total=False):
     preserve_ids: list[str]
 
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ConfigLoader:

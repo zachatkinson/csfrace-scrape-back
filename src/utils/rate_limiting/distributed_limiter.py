@@ -8,14 +8,15 @@ import time
 from typing import TYPE_CHECKING, Optional
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 from .token_bucket import TokenBucketConfig
 
 if TYPE_CHECKING:
     import redis.asyncio as redis
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 try:
     REDIS_AVAILABLE = True

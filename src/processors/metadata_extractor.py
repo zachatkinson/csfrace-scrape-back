@@ -2,13 +2,14 @@
 
 from urllib.parse import urlparse
 
-import structlog
 from bs4 import BeautifulSoup
+
+from src.utils.logging import get_logger
 
 from ..core.exceptions import ProcessingError
 from ..utils.html import find_meta_content
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class MetadataExtractor:

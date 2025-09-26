@@ -7,8 +7,10 @@ from typing import Any, cast
 from urllib.parse import urlencode
 
 import httpx
-import structlog
 from sqlalchemy.orm import Session
+
+from src.database.models.auth import LinkedAccount as LinkedAccountDB
+from src.utils.logging import get_logger
 
 from ..constants import (
     OAUTH_APPLE_CLIENT_ID,
@@ -27,6 +29,7 @@ from ..constants import (
 from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
 from .models import (
     LinkedAccount,
+    OAuthConnectionResponse,
     OAuthProvider,
     OAuthUserCreate,
     OAuthUserInfo,
@@ -35,7 +38,7 @@ from .models import (
 )
 from .service import AuthService
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class OAuthProviderInterface(ABC):
@@ -747,23 +750,87 @@ class OAuthService:
         return username
 
     def _link_oauth_account(self, user_id: str, oauth_user_info: OAuthUserInfo) -> LinkedAccount:
-        """Link OAuth account to user."""
-        # Database storage implementation pending - for now return in-memory object
-        # This will create/update a linked_accounts table entry in production
-        linked_account = LinkedAccount(
-            user_id=user_id,
-            provider=oauth_user_info.provider,
-            provider_id=oauth_user_info.provider_id,
-            provider_email=oauth_user_info.email,
-            linked_at=datetime.now(UTC),
-            is_primary=False,  # Could be True if this is the primary login method
-        )
+        """Link OAuth account to user - FIXED: Now properly saves to database."""
+        try:
+            # Check if this OAuth account is already linked to avoid duplicates
+            existing_link = (
+                self.db_session.query(LinkedAccountDB)
+                .filter(
+                    LinkedAccountDB.user_id == user_id,
+                    LinkedAccountDB.provider == oauth_user_info.provider.lower(),
+                )
+                .first()
+            )
 
-        # Database storage will be implemented with linked_accounts table
-        # self.db_session.add(linked_account_db_model)
-        # self.db_session.commit()
+            if existing_link:
+                logger.info(
+                    "OAuth account already linked, updating existing record",
+                    user_id=user_id,
+                    provider=oauth_user_info.provider,
+                    existing_id=existing_link.id,
+                )
+                # Update existing record with latest information
+                existing_link.email = oauth_user_info.email
+                existing_link.name = oauth_user_info.name
+                existing_link.provider_account_id = oauth_user_info.provider_id
+                existing_link.updated_at = datetime.now(UTC)
 
-        return linked_account
+                self.db_session.commit()
+
+                # Return the API model
+                return LinkedAccount(
+                    user_id=user_id,
+                    provider=oauth_user_info.provider,
+                    provider_id=oauth_user_info.provider_id,
+                    provider_email=oauth_user_info.email,
+                    linked_at=existing_link.created_at,
+                    is_primary=False,
+                )
+
+            # Create new linked account record in database
+            linked_account_db = LinkedAccountDB(
+                user_id=user_id,
+                provider=oauth_user_info.provider.lower(),  # Store as lowercase for consistency
+                provider_account_id=oauth_user_info.provider_id,
+                email=oauth_user_info.email,
+                name=oauth_user_info.name,
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+
+            # CRITICAL FIX: Actually save to database
+            self.db_session.add(linked_account_db)
+            self.db_session.commit()
+
+            logger.info(
+                "OAuth account successfully linked to user",
+                user_id=user_id,
+                provider=oauth_user_info.provider,
+                provider_email=oauth_user_info.email,
+                linked_account_id=linked_account_db.id,
+            )
+
+            # Return the API model
+            return LinkedAccount(
+                user_id=user_id,
+                provider=oauth_user_info.provider,
+                provider_id=oauth_user_info.provider_id,
+                provider_email=oauth_user_info.email,
+                linked_at=linked_account_db.created_at,
+                is_primary=False,  # Could be True if this is the primary login method
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to link OAuth account to user",
+                user_id=user_id,
+                provider=oauth_user_info.provider,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            # Rollback transaction on error
+            self.db_session.rollback()
+            raise RuntimeError(f"Failed to link OAuth account: {str(e)}") from e
 
     async def _validate_oauth_state(self, state: str, provider: OAuthProvider) -> None:
         """Validate OAuth state parameter for CSRF protection.
@@ -920,3 +987,80 @@ class OAuthService:
         except Exception as e:
             logger.error("OAuth state validation failed", error=str(e))
             raise ValueError("Invalid or expired state parameter")
+
+    def get_oauth_connections(self, user_id: str) -> list[OAuthConnectionResponse]:
+        """Get OAuth provider connections for a user - Single Responsibility Principle.
+
+        Returns connection status for all supported OAuth providers by querying
+        the database for linked accounts. This is the efficient approach that
+        avoids external API calls to OAuth providers.
+
+        Args:
+            user_id: User ID to get connections for
+
+        Returns:
+            List of OAuth connection responses with provider status
+        """
+        logger.debug("Getting OAuth connections for user", user_id=user_id)
+
+        # Get all linked accounts for this user from database
+        try:
+            linked_accounts = (
+                self.db_session.query(LinkedAccountDB)
+                .filter(LinkedAccountDB.user_id == user_id)
+                .all()
+            )
+
+            # Create a map of connected providers
+            connected_providers = {}
+            for account in linked_accounts:
+                # Convert database provider string to enum for consistency
+                try:
+                    provider_enum = OAuthProvider(account.provider.lower())
+                    connected_providers[provider_enum] = account
+                except ValueError:
+                    # Skip unknown providers for forward compatibility
+                    logger.warning("Unknown OAuth provider in database", provider=account.provider)
+                    continue
+
+            # Build response for all supported providers
+            connections = []
+            for provider in OAuthProviderRegistry.get_supported_providers():
+                if provider in connected_providers:
+                    # Provider is connected
+                    linked_account = connected_providers[provider]
+                    connections.append(
+                        OAuthConnectionResponse(
+                            provider=provider,
+                            connected=True,
+                            email=linked_account.email,
+                            name=linked_account.name,
+                            linked_at=linked_account.created_at,
+                            is_primary=False,  # TODO: Implement primary account logic
+                        )
+                    )
+                else:
+                    # Provider is not connected
+                    connections.append(
+                        OAuthConnectionResponse(
+                            provider=provider,
+                            connected=False,
+                            email=None,
+                            name=None,
+                            linked_at=None,
+                            is_primary=False,
+                        )
+                    )
+
+            logger.info(
+                "OAuth connections retrieved",
+                user_id=user_id,
+                total_providers=len(connections),
+                connected_count=len([c for c in connections if c.connected]),
+            )
+
+            return connections
+
+        except Exception as e:
+            logger.error("Failed to get OAuth connections", user_id=user_id, error=str(e))
+            raise RuntimeError(f"Failed to retrieve OAuth connections: {str(e)}") from e

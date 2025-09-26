@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 from .alerts import AlertConfig, alert_manager
 from .health import HealthConfig, health_checker
@@ -12,7 +13,7 @@ from .metrics import MetricsConfig, metrics_collector
 from .performance import PerformanceConfig, performance_monitor
 from .tracing import TracingConfig, distributed_tracer
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

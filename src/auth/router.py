@@ -7,7 +7,6 @@ from typing import Literal
 
 import asyncio
 import jwt
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
@@ -15,6 +14,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from webauthn.helpers import base64url_to_bytes
 from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
+
+from src.utils.logging import get_logger
 
 from ..api.errors import APIErrorFactory
 from ..api.utils import maybe_none
@@ -38,6 +39,7 @@ from .models import (
     BulkTokenRevocationRequest,
     LockoutStatsResponse,
     OAuthCallback,
+    OAuthConnectionResponse,
     OAuthProvider,
     PasskeyAuthenticationRequest,
     PasskeyAuthenticationResponse,
@@ -64,7 +66,7 @@ from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # Rate limiter for authentication endpoints
 limiter = Limiter(key_func=get_remote_address)
@@ -171,7 +173,7 @@ async def login_for_access_token(
 @router.post("/register", response_model=User)
 @limiter.limit(rate_limits.AUTH_REGISTER)  # DRY: Centralized rate limits
 def register_user(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     user_create: UserCreate,
     auth_service: AuthService = Depends(get_auth_service),  # DRY: Service injection
 ) -> User:
@@ -278,7 +280,7 @@ def change_password(
 @router.post("/password-reset")
 @limiter.limit(rate_limits.AUTH_PASSWORD_RESET)
 def request_password_reset(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     password_reset: PasswordReset,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
@@ -497,7 +499,7 @@ def _set_secure_auth_cookies(response: Response, token: Token) -> None:
 @router.post("/oauth/login", response_model=SSOLoginResponse)
 @limiter.limit(rate_limits.AUTH_OAUTH)
 def initiate_oauth_login(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     sso_request: SSOLoginRequest,
     oauth_service: OAuthService = Depends(get_oauth_service),
 ) -> SSOLoginResponse:
@@ -615,11 +617,60 @@ def list_oauth_providers() -> list[str]:
     return [get_oauth_provider_value(provider) for provider in OAuthProvider]
 
 
+@router.get("/oauth/connections", response_model=list[OAuthConnectionResponse])
+def get_oauth_connections(
+    current_user: User = Depends(get_current_active_user_from_cookie),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> list[OAuthConnectionResponse]:
+    """Get OAuth provider connections for current user - Single Responsibility Principle.
+
+    Returns the connection status for all supported OAuth providers by querying
+    the database for linked accounts. This is the efficient approach that avoids
+    external API calls to OAuth providers.
+
+    **Features:**
+    - Database-driven connection detection (no external API calls)
+    - Returns status for all supported providers
+    - Secure authentication required
+    - Following SOLID principles
+
+    **Security:**
+    - HTTP-only cookie authentication
+    - User can only see their own connections
+    - No sensitive token data exposed
+
+    Returns:
+        List[OAuthConnectionResponse]: Connection status for each provider
+    """
+    try:
+        logger.info("Getting OAuth connections", user_id=current_user.id)
+
+        connections = oauth_service.get_oauth_connections(current_user.id)
+
+        logger.info(
+            "OAuth connections retrieved successfully",
+            user_id=current_user.id,
+            total_providers=len(connections),
+            connected_count=len([c for c in connections if c.connected]),
+        )
+
+        return connections
+
+    except Exception as e:
+        logger.error(
+            "Failed to get OAuth connections",
+            user_id=current_user.id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise APIErrorFactory.internal_server_error("Failed to retrieve OAuth connections") from e
+
+
 # WebAuthn/Passkeys Endpoints - Passwordless Authentication
 @router.post("/passkeys/register/begin", response_model=PasskeyRegistrationResponse)
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 def begin_passkey_registration(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     passkey_request: PasskeyRegistrationRequest,
     current_user: User = Depends(get_current_active_user),
     passkey_manager: PasskeyManager = Depends(get_passkey_manager),
@@ -645,7 +696,7 @@ def begin_passkey_registration(
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 def complete_passkey_registration(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     current_user: User = Depends(get_current_active_user),
     webauthn_service: WebAuthnService = Depends(get_webauthn_service),
@@ -732,7 +783,7 @@ def complete_passkey_registration(
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 def begin_passkey_authentication(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     auth_request: PasskeyAuthenticationRequest,
     auth_service: AuthService = Depends(get_auth_service),
     passkey_manager: PasskeyManager = Depends(get_passkey_manager),
@@ -765,7 +816,7 @@ def begin_passkey_authentication(
 @router.post("/passkeys/authenticate/complete", response_model=Token)
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 def complete_passkey_authentication(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     webauthn_service: WebAuthnService = Depends(get_webauthn_service),
 ) -> Token:
@@ -914,7 +965,7 @@ def revoke_passkey(
 @router.post("/revoke-token", response_model=TokenRevocationResponse)
 @limiter.limit(rate_limits.AUTH_SENSITIVE_OPERATION)  # DRY: Centralized rate limits
 async def revoke_token(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     revocation_request: TokenRevocationRequest,
     current_user: User = Depends(get_current_active_user),
 ) -> TokenRevocationResponse:
@@ -985,7 +1036,7 @@ async def revoke_token(
 @router.post("/revoke-all-tokens", response_model=TokenRevocationResponse)
 @limiter.limit(rate_limits.AUTH_SENSITIVE_OPERATION)  # DRY: Centralized rate limits
 async def revoke_all_user_tokens(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     response: Response,  # Required to clear HTTP-only cookies
     bulk_revocation: BulkTokenRevocationRequest,
     current_user: User = Depends(get_current_active_user_from_cookie),
@@ -1223,7 +1274,7 @@ async def get_lockout_stats(
 @router.post("/admin/unlock-account")
 @limiter.limit(rate_limits.AUTH_SENSITIVE_OPERATION)  # DRY: Centralized rate limits
 async def unlock_user_account(
-    request: Request,  # Required for SlowAPI rate limiting  # pylint: disable=unused-argument
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
     unlock_request: UnlockAccountRequest,
     current_user: User = Depends(get_current_superuser),
 ) -> dict[str, bool | str]:

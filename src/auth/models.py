@@ -240,6 +240,19 @@ class LinkedAccount(BaseModel):
     is_primary: bool = False
 
 
+class OAuthConnectionResponse(BaseModel):
+    """OAuth connection response model for API responses - Single Responsibility."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    provider: OAuthProvider
+    connected: bool
+    email: EmailStr | None = None
+    name: str | None = None
+    linked_at: datetime | None = None
+    is_primary: bool = False
+
+
 class PasskeyRegistrationRequest(BaseModel):
     """Passkey registration initiation request - Single Responsibility."""
 

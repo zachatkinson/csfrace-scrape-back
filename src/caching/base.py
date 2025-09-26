@@ -10,11 +10,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-import structlog
+from src.utils.logging import get_logger
 
 from ..constants import CONSTANTS
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class CacheBackend(Enum):
@@ -125,7 +125,7 @@ class BaseCacheBackend(abc.ABC):
             config: Cache configuration
         """
         self.config = config
-        self.logger = structlog.get_logger(self.__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
 
     @abc.abstractmethod
     async def get(self, key: str) -> CacheEntry | None:

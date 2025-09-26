@@ -13,11 +13,12 @@ from typing import Any, TypedDict
 from urllib.parse import urlparse
 
 import asyncio
-import structlog
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
+
+from src.utils.logging import get_logger
 
 from ..common.status import JobStatus
 from ..constants import CONSTANTS
@@ -27,7 +28,7 @@ from ..utils.path_utils import (
     truncate_path_component,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class JobSummaryData(TypedDict):
@@ -56,7 +57,7 @@ console = Console()
 
 
 @dataclass
-class BatchJob:  # pylint: disable=too-many-instance-attributes
+class BatchJob:  # pylint: disable=too-many-instance-attributes  # Intentional: job state requires comprehensive tracking
     """Individual job in a batch processing operation."""
 
     url: str

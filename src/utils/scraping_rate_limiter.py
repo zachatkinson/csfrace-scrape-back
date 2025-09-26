@@ -5,7 +5,8 @@ rate limiting for external website scraping.
 """
 
 import asyncio
-import structlog
+
+from src.utils.logging import get_logger
 
 from .rate_limiting.token_bucket import TokenBucket, TokenBucketConfig, TokenBucketPool
 from .robots import RobotsChecker
@@ -13,7 +14,7 @@ from .robots import RobotsChecker
 # Type for domain statistics - much better than Any
 DomainStats = dict[str, str | int | float | bool]
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ScrapingRateLimiter:

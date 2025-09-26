@@ -12,15 +12,16 @@ logger = logging.getLogger(__name__)
 
 # Runtime imports with proper error handling
 try:
-    from alembic.config import Config as AlembicConfig  # type: ignore[import-untyped,attr-defined]
+    from alembic.config import Config as AlembicConfig
 
-    from alembic import command  # type: ignore[import-untyped,attr-defined]
+    from alembic import command
 
     ALEMBIC_AVAILABLE = True
 except ImportError:
     ALEMBIC_AVAILABLE = False
-    command = None  # type: ignore[assignment,attr-defined]
-    AlembicConfig = None  # type: ignore[assignment,misc,attr-defined]
+    # Set these to None for type checking - will be checked at runtime
+    command = None  # type: ignore
+    AlembicConfig = None  # type: ignore
     logger.warning("Alembic not available - migrations will use fallback method")
 
 

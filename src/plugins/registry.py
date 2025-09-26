@@ -7,11 +7,11 @@ import json
 import sys
 from pathlib import Path
 
-import structlog
+from src.utils.logging import get_logger
 
 from .base import BasePlugin, PluginConfig, PluginType
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class PluginRegistry:

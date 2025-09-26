@@ -8,19 +8,13 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-try:
-    import structlog
-except ImportError:
-    # Fallback to basic logging if structlog not available
-    import logging
-
-    structlog = logging  # type: ignore[misc]
-
 from pydantic import BaseModel
+
+from src.utils.logging import get_logger
 
 from ..caching.manager import cache_manager
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class JobEventType(Enum):

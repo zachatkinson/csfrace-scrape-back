@@ -10,12 +10,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import structlog
+from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 try:
     from opentelemetry import trace
