@@ -11,6 +11,7 @@ from src.database.models import (
     JobStatus,
     ScrapingJob,
     SystemMetrics,
+    User,
     create_database_engine,
 )
 from src.database.utils import get_database_url
@@ -25,17 +26,42 @@ class TestDatabaseModels:
     - No more skipping tests when database unavailable
     """
 
+    @staticmethod
+    def create_test_user(
+        session, user_id: str = None, username: str = None, email: str = None
+    ) -> User:
+        """DRY helper: Create a test user for foreign key relationships.
+
+        Following DRY principle to avoid repeating user creation across tests.
+        """
+        import uuid
+
+        user_id = user_id or str(uuid.uuid4())
+        username = username or f"testuser_{user_id[-8:]}"
+        email = email or f"test_{user_id[-8:]}@example.com"
+
+        user = User(
+            id=user_id,
+            username=username,
+            email=email,
+        )
+        session.add(user)
+        session.flush()  # Ensure user exists before creating dependent records
+        return user
+
     def test_scraping_job_model_creation(self, testcontainers_db_service):
         """Test ScrapingJob model creation with required fields."""
-        job = ScrapingJob(
-            user_id="test-user-id",  # Required field
-            source_url="https://example.com/test-post",  # Required field
-            domain="example.com",  # Required field
-            job_type="single",
-            target_format="html",
-        )
-
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session, user_id="test-user-id")
+
+            job = ScrapingJob(
+                user_id=user.id,  # Required field
+                source_url="https://example.com/test-post",  # Required field
+                domain="example.com",  # Required field
+                job_type="single",
+                target_format="html",
+            )
             session.add(job)
             session.commit()
 
@@ -49,50 +75,56 @@ class TestDatabaseModels:
 
     def test_scraping_job_properties(self, testcontainers_db_service):
         """Test ScrapingJob computed properties."""
-        job = ScrapingJob(
-            user_id="test-user-id",  # Required field
-            source_url="https://example.com/test",  # Required field
-            domain="example.com",  # Required field
-            job_type="single",
-            target_format="html",
-        )
-
-        # Test processing time calculation (using actual model fields)
-        assert job.processing_time_ms is None  # No processing time set
-
-        # Test timestamps
-        assert job.started_at is None
-        assert job.completed_at is None
-
-        # Test status-based logic (defaults applied after DB save)
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
+            job = ScrapingJob(
+                user_id=user.id,  # Required field
+                source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
+                job_type="single",
+                target_format="html",
+            )
+
+            # Test processing time calculation (using actual model fields)
+            assert job.processing_time_ms is None  # No processing time set
+
+            # Test timestamps
+            assert job.started_at is None
+            assert job.completed_at is None
+
+            # Test status-based logic (defaults applied after DB save)
             session.add(job)
             session.commit()
             session.refresh(job)
             assert job.status == "pending"  # Default status
 
-        job.status = "completed"
-        assert job.status == "completed"
+            job.status = "completed"
+            assert job.status == "completed"
 
-        job.status = "failed"
-        assert job.status == "failed"
+            job.status = "failed"
+            assert job.status == "failed"
 
-        job.status = "running"
-        assert job.status == "running"
+            job.status = "running"
+            assert job.status == "running"
 
     def test_scraping_job_can_retry_property(self, testcontainers_db_service):
         """Test ScrapingJob retry logic."""
-        job = ScrapingJob(
-            user_id="test-user-id",  # Required field
-            source_url="https://example.com/test",  # Required field
-            domain="example.com",  # Required field
-            job_type="single",
-            target_format="html",
-            max_retries=3,
-        )
-
-        # Test retry logic based on actual model fields (defaults applied after DB save)
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
+            job = ScrapingJob(
+                user_id=user.id,  # Required field
+                source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
+                job_type="single",
+                target_format="html",
+                max_retries=3,
+            )
+
+            # Test retry logic based on actual model fields (defaults applied after DB save)
             session.add(job)
             session.commit()
             session.refresh(job)
@@ -101,23 +133,26 @@ class TestDatabaseModels:
             assert job.max_retries == 3
             assert job.status == "pending"  # Default
 
-        # Test retry count logic
-        job.status = "failed"
-        job.retry_count = 1
-        assert job.retry_count < job.max_retries  # Can retry
+            # Test retry count logic
+            job.status = "failed"
+            job.retry_count = 1
+            assert job.retry_count < job.max_retries  # Can retry
 
-        # Test retry limit reached
-        job.retry_count = 3
-        assert job.retry_count >= job.max_retries  # Cannot retry
+            # Test retry limit reached
+            job.retry_count = 3
+            assert job.retry_count >= job.max_retries  # Cannot retry
 
     def test_job_batch_id_field(self, testcontainers_db_service):
         """Test that jobs can have batch_id for unified batch processing."""
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
             # Create jobs with same batch_id (simulating unified batch architecture)
             batch_id = "test-batch-uuid-123"
 
             job1 = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/post1",
                 domain="example.com",  # Required field
                 job_type="single",
@@ -125,7 +160,7 @@ class TestDatabaseModels:
                 batch_id=batch_id,
             )
             job2 = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/post2",
                 domain="example.com",  # Required field
                 job_type="single",
@@ -144,9 +179,12 @@ class TestDatabaseModels:
     def test_content_result_model(self, testcontainers_db_service):
         """Test ContentResult model creation and relationships."""
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
             # Create job first
             job = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/test",  # Required field
                 domain="example.com",  # Required field
                 job_type="single",
@@ -181,9 +219,12 @@ class TestDatabaseModels:
     def test_job_log_model(self, testcontainers_db_service):
         """Test JobLog model creation and relationships."""
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
             # Create job first
             job = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/test",  # Required field
                 domain="example.com",  # Required field
                 job_type="single",
@@ -288,9 +329,12 @@ class TestDatabaseModels:
 
         # Create and delete data in separate session
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
             # Create job with content and logs
             job = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/test",  # Required field
                 domain="example.com",  # Required field
                 job_type="single",
@@ -383,13 +427,38 @@ class TestDatabaseUtilities:
 class TestModelConstraintsAndValidation:
     """Test model constraints and data validation."""
 
+    @staticmethod
+    def create_test_user(
+        session, user_id: str = None, username: str = None, email: str = None
+    ) -> User:
+        """DRY helper: Create a test user for foreign key relationships.
+
+        Following DRY principle to avoid repeating user creation across tests.
+        """
+        import uuid
+
+        user_id = user_id or str(uuid.uuid4())
+        username = username or f"testuser_{user_id[-8:]}"
+        email = email or f"test_{user_id[-8:]}@example.com"
+
+        user = User(
+            id=user_id,
+            username=username,
+            email=email,
+        )
+        session.add(user)
+        session.flush()  # Ensure user exists before creating dependent records
+        return user
+
     def test_required_fields_validation(self, testcontainers_db_service):
         """Test that required fields are enforced."""
         # ScrapingJob missing required source_url
         with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError or similar
             with testcontainers_db_service.get_session() as session:
+                # Create test user using DRY helper
+                user = self.create_test_user(session)
                 job = ScrapingJob(
-                    user_id="test-user-id",  # Required field
+                    user_id=user.id,  # Required field
                     job_type="single",
                     target_format="html",
                 )  # Missing source_url
@@ -398,16 +467,19 @@ class TestModelConstraintsAndValidation:
 
     def test_string_length_limits(self, testcontainers_db_service):
         """Test string field length constraints."""
-        # Test very long URL (should work up to 2048 chars)
-        long_url = "https://example.com/" + "a" * 2000
-        job = ScrapingJob(
-            user_id="test-user-id",  # Required field
-            source_url=long_url,  # Required field
-            domain="example.com",  # Required field
-            job_type="single",
-            target_format="html",
-        )
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
+            # Test very long URL (should work up to 2048 chars)
+            long_url = "https://example.com/" + "a" * 2000
+            job = ScrapingJob(
+                user_id=user.id,  # Required field
+                source_url=long_url,  # Required field
+                domain="example.com",  # Required field
+                job_type="single",
+                target_format="html",
+            )
             session.add(job)
             session.commit()
 
@@ -416,14 +488,17 @@ class TestModelConstraintsAndValidation:
 
     def test_datetime_defaults(self, testcontainers_db_service):
         """Test that datetime fields have proper defaults."""
-        job = ScrapingJob(
-            user_id="test-user-id",  # Required field
-            source_url="https://example.com/test",  # Required field
-            domain="example.com",  # Required field
-            job_type="single",
-            target_format="html",
-        )
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
+            job = ScrapingJob(
+                user_id=user.id,  # Required field
+                source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
+                job_type="single",
+                target_format="html",
+            )
             session.add(job)
             session.commit()
 
@@ -447,15 +522,18 @@ class TestModelConstraintsAndValidation:
             },
         }
 
-        job = ScrapingJob(
-            user_id="test-user-id",  # Required field
-            source_url="https://example.com/test",  # Required field
-            domain="example.com",  # Required field
-            job_type="single",
-            target_format="html",
-            options=test_config,  # Use the correct field name from the model
-        )
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
+
+            job = ScrapingJob(
+                user_id=user.id,  # Required field
+                source_url="https://example.com/test",  # Required field
+                domain="example.com",  # Required field
+                job_type="single",
+                target_format="html",
+                options=test_config,  # Use the correct field name from the model
+            )
             session.add(job)
             session.commit()
 
@@ -468,9 +546,11 @@ class TestModelConstraintsAndValidation:
     def test_batch_id_field_constraints(self, testcontainers_db_service):
         """Test batch_id field behavior in unified architecture."""
         with testcontainers_db_service.get_session() as session:
+            # Create test user using DRY helper
+            user = self.create_test_user(session)
             # Create job without batch_id (should work)
             job1 = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/test1",  # Required field
                 domain="example.com",  # Required field
                 job_type="single",
@@ -483,7 +563,7 @@ class TestModelConstraintsAndValidation:
             # Create job with batch_id (unified batch processing)
             batch_uuid = "test-batch-uuid-456"
             job2 = ScrapingJob(
-                user_id="test-user-id",  # Required field
+                user_id=user.id,  # Required field
                 source_url="https://example.com/test2",  # Required field
                 domain="example.com",  # Required field
                 job_type="single",
