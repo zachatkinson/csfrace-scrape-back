@@ -343,7 +343,9 @@ class JobService:
         Returns:
             List of jobs matching the criteria
         """
-        logger.debug("Getting jobs by status", status=status.name, limit=limit, domain=domain, offset=offset)
+        logger.debug(
+            "Getting jobs by status", status=status.name, limit=limit, domain=domain, offset=offset
+        )
 
         try:
             stmt = (
