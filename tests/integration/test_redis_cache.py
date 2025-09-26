@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from src.caching.base import CacheBackend, CacheConfig
-from src.constants import TEST_CONSTANTS
+from src.constants import TestConstants
 
 # Skip all tests in this module if Redis is not available
 pytestmark = pytest.mark.redis
@@ -26,10 +26,10 @@ class TestRedisCacheIntegration:
 
             config = CacheConfig(
                 backend=CacheBackend.REDIS,
-                redis_host=TEST_CONSTANTS.TEST_REDIS_HOST,
-                redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
-                redis_db=TEST_CONSTANTS.TEST_REDIS_DB,
-                redis_key_prefix=TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX,
+                redis_host=TestConstants.TEST_REDIS_HOST,
+                redis_port=TestConstants.TEST_REDIS_PORT,
+                redis_db=TestConstants.TEST_REDIS_DB,
+                redis_key_prefix=TestConstants.TEST_REDIS_KEY_PREFIX,
                 ttl_default=30,  # Short TTL for testing
             )
 
@@ -143,7 +143,7 @@ class TestRedisCacheIntegration:
         client = await redis_cache._get_client()
         redis_key = redis_cache._make_redis_key("prefix_test")
 
-        assert redis_key.startswith(TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX)
+        assert redis_key.startswith(TestConstants.TEST_REDIS_KEY_PREFIX)
 
         # Verify key exists in Redis
         exists = await client.exists(redis_key)
@@ -246,7 +246,7 @@ class TestRedisCacheIntegration:
         """Test Redis key generation and handling."""
         # Test normal key
         redis_key = redis_cache._make_redis_key("normal_key")
-        expected_prefix = TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX
+        expected_prefix = TestConstants.TEST_REDIS_KEY_PREFIX
         assert redis_key == f"{expected_prefix}normal_key"
 
         # Test key with special characters
@@ -328,7 +328,7 @@ class TestRedisCacheIntegration:
     async def test_redis_database_isolation(self, redis_cache):
         """Test that test Redis database is isolated."""
         # Ensure we're using the test database
-        assert redis_cache.config.redis_db == TEST_CONSTANTS.TEST_REDIS_DB
+        assert redis_cache.config.redis_db == TestConstants.TEST_REDIS_DB
 
         # Add data
         await redis_cache.set("isolation_test", "test_value", ttl=60)
@@ -336,9 +336,9 @@ class TestRedisCacheIntegration:
         # Create cache with different database
         different_config = CacheConfig(
             backend=CacheBackend.REDIS,
-            redis_host=TEST_CONSTANTS.TEST_REDIS_HOST,
-            redis_port=TEST_CONSTANTS.TEST_REDIS_PORT,
-            redis_db=TEST_CONSTANTS.TEST_REDIS_DB + 1,  # Different DB
+            redis_host=TestConstants.TEST_REDIS_HOST,
+            redis_port=TestConstants.TEST_REDIS_PORT,
+            redis_db=TestConstants.TEST_REDIS_DB + 1,  # Different DB
             redis_key_prefix="different:",
         )
 

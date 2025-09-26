@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from src.constants import CONSTANTS, PROGRESS_CONSTANTS, TEST_CONSTANTS, AppConstants
+from src.constants import CONSTANTS, PROGRESS_CONSTANTS, AppConstants, TestConstants
 
 
 class TestAppConstants:
@@ -98,33 +98,33 @@ class TestTestConstants:
     """Test constants specifically for testing."""
 
     def test_test_constants_instance(self):
-        """Test that TEST_CONSTANTS instance exists."""
-        assert TEST_CONSTANTS is not None
+        """Test that TestConstants instance exists."""
+        assert TestConstants is not None
 
     def test_test_urls(self):
         """Test test-specific URLs."""
-        assert TEST_CONSTANTS.BASE_TEST_URL == "https://test.example.com"
-        assert TEST_CONSTANTS.SAMPLE_POST_URL.startswith(TEST_CONSTANTS.BASE_TEST_URL)
-        assert TEST_CONSTANTS.NONEXISTENT_URL == "https://nonexistent.example.com/blog/post"
+        assert TestConstants.BASE_TEST_URL == "https://test.example.com"
+        assert TestConstants.SAMPLE_POST_URL.startswith(TestConstants.BASE_TEST_URL)
+        assert TestConstants.NONEXISTENT_URL == "https://nonexistent.example.com/blog/post"
 
     def test_test_redis_config(self):
         """Test Redis configuration for tests."""
-        assert TEST_CONSTANTS.TEST_REDIS_HOST == "localhost"
-        assert TEST_CONSTANTS.TEST_REDIS_PORT == 6379
-        assert TEST_CONSTANTS.TEST_REDIS_DB == 15  # Separate DB for tests
-        assert TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX == "pytest:"
+        assert TestConstants.TEST_REDIS_HOST == "localhost"
+        assert TestConstants.TEST_REDIS_PORT == 6379
+        assert TestConstants.TEST_REDIS_DB == 15  # Separate DB for tests
+        assert TestConstants.TEST_REDIS_KEY_PREFIX == "pytest:"
 
     def test_test_data(self):
         """Test sample data constants."""
-        assert TEST_CONSTANTS.SAMPLE_HTML_TITLE == "Test Blog Post"
-        assert TEST_CONSTANTS.SAMPLE_HTML_DESCRIPTION == "A test blog post for unit testing"
-        assert TEST_CONSTANTS.TEST_IMAGE_CONTENT == b"fake image data"
+        assert TestConstants.SAMPLE_HTML_TITLE == "Test Blog Post"
+        assert TestConstants.SAMPLE_HTML_DESCRIPTION == "A test blog post for unit testing"
+        assert TestConstants.TEST_IMAGE_CONTENT == b"fake image data"
 
     def test_environment_isolation(self):
         """Test that test constants don't interfere with production."""
         # Test constants should use different values than production
-        assert TEST_CONSTANTS.TEST_REDIS_DB != CONSTANTS.REDIS_DB
-        assert TEST_CONSTANTS.TEST_REDIS_KEY_PREFIX != CONSTANTS.REDIS_KEY_PREFIX
+        assert TestConstants.TEST_REDIS_DB != CONSTANTS.REDIS_DB
+        assert TestConstants.TEST_REDIS_KEY_PREFIX != CONSTANTS.REDIS_KEY_PREFIX
 
 
 class TestEnvironmentVariableHandling:

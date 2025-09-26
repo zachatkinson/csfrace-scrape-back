@@ -17,7 +17,6 @@ from src.api.errors import (
     APIErrorFactory,
     BusinessLogicError,
     DatabaseError as APIDBError,
-    ResourceNotFoundError,
     ValidationError,
     business_logic_error,
     create_global_exception_handler,
@@ -26,6 +25,7 @@ from src.api.errors import (
     not_found,
     validation_error,
 )
+from src.core.exceptions import APINotFoundError
 
 
 class TestAPIErrorClasses:
@@ -77,8 +77,8 @@ class TestAPIErrorClasses:
         assert "field" not in error.details
 
     def test_resource_not_found_error(self):
-        """Test ResourceNotFoundError creation."""
-        error = ResourceNotFoundError("User", "123")
+        """Test APINotFoundError creation."""
+        error = APINotFoundError("User", "123")
 
         assert error.message == "User '123' not found"
         assert error.status_code == status.HTTP_404_NOT_FOUND
@@ -478,7 +478,7 @@ class TestErrorIntegration:
     def test_error_hierarchy_consistency(self):
         """Test that all custom errors inherit from APIError properly."""
         validation_err = ValidationError("Test")
-        not_found_err = ResourceNotFoundError("User", "123")
+        not_found_err = APINotFoundError("User", "123")
         db_err = APIDBError("operation", Exception())
         business_err = BusinessLogicError("Test")
 

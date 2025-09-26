@@ -9,7 +9,7 @@ import aiohttp
 import asyncio
 from bs4 import BeautifulSoup, NavigableString, Tag
 
-from src.constants import TEST_CONSTANTS
+from src.constants import TestConstants
 
 
 class MockHTTPResponse:
@@ -287,7 +287,7 @@ class FileTestHelper:
         """
         image_path = directory / filename
         # Create fake image data
-        image_path.write_bytes(TEST_CONSTANTS.TEST_IMAGE_CONTENT)
+        image_path.write_bytes(TestConstants.TEST_IMAGE_CONTENT)
         return image_path
 
 
@@ -352,7 +352,7 @@ class PluginTestHelper:
             Processing context dictionary
         """
         return {
-            "url": url or TEST_CONSTANTS.SAMPLE_POST_URL,
+            "url": url or TestConstants.SAMPLE_POST_URL,
             "timestamp": "2024-01-15T10:00:00Z",
             "user_agent": "test-converter/1.0",
             "processing_stage": "html_processing",

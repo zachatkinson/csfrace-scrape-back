@@ -8,13 +8,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import text
 
 from src import __version__
-from src.api.routers.health import (
-    get_metrics,
-    health_check,
-    liveness_check,
-    prometheus_metrics,
-    readiness_check,
-)
+from src.api.routers.health.checks import health_check, liveness_check, readiness_check
+from src.api.routers.health.metrics_export import get_metrics, prometheus_metrics
 from src.api.schemas import HealthCheckResponse, MetricsResponse
 from src.auth.models import StatusResponse
 

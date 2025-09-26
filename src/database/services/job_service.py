@@ -22,7 +22,6 @@ from ...common.status import JobPriority, JobStatus
 from ...constants import API_DEFAULT_LIMIT
 from ...core.exceptions import DatabaseError, ValidationError
 from ..models import ScrapingJob
-from .base import BaseService
 
 logger = get_logger(__name__)
 
@@ -51,8 +50,12 @@ class JobCreateRequest:
         self.options = self.options or {}
 
 
-class JobService(BaseService):
+class JobService:
     """Service for job management operations."""
+
+    def __init__(self, session):
+        """Initialize with provided database session."""
+        self.session = session
 
     def create_job(self, request: JobCreateRequest) -> ScrapingJob:
         """Create a new scraping job.
@@ -70,25 +73,24 @@ class JobService(BaseService):
         logger.info("Creating job", url=request.url, priority=request.priority.name)
 
         try:
-            with self.get_session() as session:
-                # Create job with auto-generated metadata
-                job = ScrapingJob(
-                    source_url=request.url,
-                    output_directory=request.output_directory,
-                    priority=self._normalize_priority(request.priority),
-                    max_retries=request.max_retries,
-                    options=request.options,
-                    batch_id=request.batch_id,
-                    domain=self._extract_domain_safely(request.url),
-                    status=JobStatus.PENDING.value,
-                    created_at=datetime.now(UTC),
-                )
+            # Create job with auto-generated metadata
+            job = ScrapingJob(
+                source_url=request.url,
+                output_directory=request.output_directory,
+                priority=self._normalize_priority(request.priority),
+                max_retries=request.max_retries,
+                options=request.options,
+                batch_id=request.batch_id,
+                domain=self._extract_domain_safely(request.url),
+                status=JobStatus.PENDING.value,
+                created_at=datetime.now(UTC),
+            )
 
-                session.add(job)
-                session.flush()  # Get the ID
+            self.session.add(job)
+            self.session.flush()  # Get the ID
 
-                logger.info("Job created successfully", job_id=job.id, domain=job.domain)
-                return job
+            logger.info("Job created successfully", job_id=job.id, domain=job.domain)
+            return job
 
         except IntegrityError as e:
             logger.error("Job creation failed - integrity error", url=request.url, error=str(e))
@@ -96,6 +98,59 @@ class JobService(BaseService):
         except Exception as e:
             logger.error("Job creation failed", url=request.url, error=str(e))
             raise DatabaseError("create job", e) from e
+
+    def _normalize_priority(self, priority: str | object) -> int:
+        """Normalize priority value to integer.
+
+        Args:
+            priority: Priority as string, enum, or object
+
+        Returns:
+            Integer priority value (1-10 scale)
+        """
+        try:
+            if hasattr(priority, "value"):
+                # Handle enum objects
+                normalized = int(priority.value)
+            elif isinstance(priority, str):
+                # Handle string values
+                priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
+                normalized = priority_map.get(priority.lower(), 5)
+            else:
+                # Handle direct integer or other types
+                try:
+                    normalized = (
+                        int(priority) if isinstance(priority, (int, float)) else int(str(priority))
+                    )
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"Unable to parse priority '{priority}', using default", priority=priority
+                    )
+                    normalized = 5  # Default priority
+
+            # Clamp to valid range
+            normalized = max(1, min(10, normalized))
+            logger.debug("Priority normalized", original=priority, normalized=normalized)
+            return normalized
+
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to normalize priority", priority=priority, error=str(e))
+            return 5  # Default to normal priority
+
+    def _extract_domain_safely(self, url: str) -> str:
+        """Extract domain from URL safely.
+
+        Args:
+            url: URL to extract domain from
+
+        Returns:
+            Domain string or 'unknown' if extraction fails
+        """
+        try:
+            return extract_domain(url)
+        except URLError as e:
+            logger.warning("Failed to extract domain", url=url, error=str(e))
+            return "unknown"
 
     def create_jobs(self, urls: list[str], **job_config: Any) -> list[ScrapingJob]:
         """Create multiple jobs in batch with shared configuration.
@@ -117,53 +172,38 @@ class JobService(BaseService):
             raise ValidationError("At least one URL is required", field="urls")
 
         try:
-            with self.get_session() as session:
-                batch_id = str(uuid4()) if len(urls) > 1 else None
-                jobs = []
+            batch_id = str(uuid4()) if len(urls) > 1 else None
+            jobs = []
 
-                for url in urls:
-                    request = JobCreateRequest(url=url, batch_id=batch_id, **job_config)
+            for url in urls:
+                request = JobCreateRequest(url=url, batch_id=batch_id, **job_config)
 
-                    job = ScrapingJob(
-                        source_url=request.url,
-                        output_directory=request.output_directory,
-                        priority=self._normalize_priority(request.priority),
-                        max_retries=request.max_retries,
-                        options=request.options,
-                        batch_id=batch_id,
-                        domain=self._extract_domain_safely(request.url),
-                        status=JobStatus.PENDING.value,
-                        created_at=datetime.now(UTC),
-                    )
-
-                    session.add(job)
-                    jobs.append(job)
-
-                session.flush()  # Get all IDs
-
-                logger.info(
-                    "Batch jobs created successfully", job_count=len(jobs), batch_id=batch_id
+                job = ScrapingJob(
+                    source_url=request.url,
+                    output_directory=request.output_directory,
+                    priority=self._normalize_priority(request.priority),
+                    max_retries=request.max_retries,
+                    options=request.options,
+                    batch_id=batch_id,
+                    domain=self._extract_domain_safely(request.url),
+                    status=JobStatus.PENDING.value,
+                    created_at=datetime.now(UTC),
                 )
-                return jobs
+
+                self.session.add(job)
+                jobs.append(job)
+
+            self.session.flush()  # Get all IDs
+
+            logger.info(
+                "Batch jobs created successfully", job_count=len(jobs), batch_id=batch_id
+            )
+            return jobs
 
         except Exception as e:
             logger.error("Batch job creation failed", url_count=len(urls), error=str(e))
             raise DatabaseError("create batch jobs", e) from e
 
-    def _extract_domain_safely(self, url: str) -> str:
-        """Safely extract domain from URL with proper error handling.
-
-        Args:
-            url: URL to extract domain from
-
-        Returns:
-            Extracted domain or 'unknown' if extraction fails
-        """
-        try:
-            return extract_domain(url)
-        except (URLError, TypeError, ValueError) as e:
-            logger.warning(f"Failed to extract domain from URL '{url}': {e}")
-            return "unknown"
 
     def get_job(self, job_id: str) -> ScrapingJob | None:
         """Get job by ID.
@@ -177,8 +217,7 @@ class JobService(BaseService):
         logger.debug("Getting job", job_id=job_id)
 
         try:
-            with self.get_session() as session:
-                job = session.get(ScrapingJob, job_id)
+                job = self.session.get(ScrapingJob, job_id)
                 if job:
                     logger.debug("Job found", job_id=job_id, status=job.status)
                 else:
@@ -213,8 +252,7 @@ class JobService(BaseService):
         logger.info("Updating job status", job_id=job_id, new_status=new_status.name)
 
         try:
-            with self.get_session() as session:
-                job = session.get(ScrapingJob, job_id)
+                job = self.session.get(ScrapingJob, job_id)
                 if not job:
                     logger.warning("Job not found for status update", job_id=job_id)
                     return None
@@ -235,7 +273,7 @@ class JobService(BaseService):
                 elif new_status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
                     job.completed_at = now
 
-                session.flush()
+                self.session.flush()
 
                 logger.info(
                     "Job status updated successfully",
@@ -261,7 +299,6 @@ class JobService(BaseService):
         logger.debug("Getting pending jobs", limit=limit)
 
         try:
-            with self.get_session() as session:
                 stmt = (
                     select(ScrapingJob)
                     .where(ScrapingJob.status == JobStatus.PENDING.value)
@@ -269,7 +306,7 @@ class JobService(BaseService):
                     .limit(limit)
                 )
 
-                jobs = session.execute(stmt).scalars().all()
+                jobs = self.session.execute(stmt).scalars().all()
 
                 logger.debug("Pending jobs retrieved", count=len(jobs))
                 return list(jobs)
@@ -297,7 +334,6 @@ class JobService(BaseService):
         logger.debug("Getting jobs by status", status=status.name, limit=limit, domain=domain)
 
         try:
-            with self.get_session() as session:
                 stmt = (
                     select(ScrapingJob)
                     .where(ScrapingJob.status == status.value)
@@ -308,7 +344,7 @@ class JobService(BaseService):
                 if domain:
                     stmt = stmt.where(ScrapingJob.domain == domain)
 
-                jobs = session.execute(stmt).scalars().all()
+                jobs = self.session.execute(stmt).scalars().all()
 
                 logger.debug(
                     "Jobs by status retrieved", status=status.name, count=len(jobs), domain=domain
@@ -331,7 +367,6 @@ class JobService(BaseService):
         logger.debug("Getting retry jobs", max_jobs=max_jobs)
 
         try:
-            with self.get_session() as session:
                 stmt = (
                     select(ScrapingJob)
                     .where(
@@ -344,7 +379,7 @@ class JobService(BaseService):
                     .limit(max_jobs)
                 )
 
-                jobs = session.execute(stmt).scalars().all()
+                jobs = self.session.execute(stmt).scalars().all()
 
                 logger.debug("Retry jobs retrieved", count=len(jobs))
                 return list(jobs)
@@ -365,14 +400,13 @@ class JobService(BaseService):
         logger.debug("Getting batch jobs", batch_id=batch_id)
 
         try:
-            with self.get_session() as session:
                 stmt = (
                     select(ScrapingJob)
                     .where(ScrapingJob.batch_id == batch_id)
                     .order_by(ScrapingJob.created_at)
                 )
 
-                jobs = session.execute(stmt).scalars().all()
+                jobs = self.session.execute(stmt).scalars().all()
 
                 logger.debug("Batch jobs retrieved", batch_id=batch_id, count=len(jobs))
                 return list(jobs)

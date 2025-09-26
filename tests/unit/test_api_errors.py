@@ -5,12 +5,15 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from src.api.errors import (
-    APIErrorFactory,
-    ResourceNotFoundError,
-    ValidationError as APIValidationError,
+from src.api.errors import APIErrorFactory
+from src.core.exceptions import (
+    APINotFoundError,
+    APIValidationError,
+    ConfigurationError,
+    ConversionError,
+    ProcessingError,
+    RateLimitError,
 )
-from src.core.exceptions import ConfigurationError, ConversionError, ProcessingError, RateLimitError
 
 
 class TestAPIErrorFactory:
@@ -143,7 +146,7 @@ class TestAPIErrorFactory:
     def test_error_mapping_coverage(self):
         """Test that factory handles all common exception types."""
         test_cases = [
-            (ResourceNotFoundError("User", "123"), 404),
+            (APINotFoundError("User", "123"), 404),
             (APIValidationError("Invalid input"), 422),
             (ConversionError("Failed to convert"), 500),
             (ProcessingError("Processing failed"), 500),
@@ -154,7 +157,7 @@ class TestAPIErrorFactory:
         for error, expected_status in test_cases:
             with patch("src.api.errors.logger"):
                 # Test that factory can handle each exception type appropriately
-                if isinstance(error, ResourceNotFoundError):
+                if isinstance(error, APINotFoundError):
                     exc = APIErrorFactory.not_found(
                         error.details["resource_type"], error.details["identifier"]
                     )
@@ -180,7 +183,7 @@ class TestErrorFactoryIntegration:
 
         app = FastAPI()
 
-        @app.exception_handler(ResourceNotFoundError)
+        @app.exception_handler(APINotFoundError)
         async def handle_not_found(request, exc):
             http_exc = APIErrorFactory.not_found(
                 exc.details["resource_type"], exc.details["identifier"]
@@ -191,7 +194,7 @@ class TestErrorFactoryIntegration:
 
         @app.get("/test-not-found")
         async def test_endpoint():
-            raise ResourceNotFoundError("TestResource", "123")
+            raise APINotFoundError("TestResource", "123")
 
         client = TestClient(app)
         response = client.get("/test-not-found")

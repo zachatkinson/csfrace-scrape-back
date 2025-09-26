@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 from bs4 import BeautifulSoup
 
-from src.constants import TEST_CONSTANTS
+from src.constants import TestConstants
 from src.core.config import config
 
 
@@ -73,7 +73,7 @@ class TestConverterIntegration:
     @pytest.mark.asyncio
     async def test_full_conversion_workflow(self, converter, mock_wordpress_server, temp_dir):
         """Test complete conversion from URL to output files."""
-        url = TEST_CONSTANTS.SAMPLE_POST_URL
+        url = TestConstants.SAMPLE_POST_URL
 
         # Mock the HTTP session
         async with aiohttp.ClientSession() as session:
@@ -112,7 +112,7 @@ class TestConverterIntegration:
     async def test_metadata_extraction_integration(self, converter, sample_html):
         """Test metadata extraction integration."""
         soup = BeautifulSoup(sample_html, "html.parser")
-        url = TEST_CONSTANTS.SAMPLE_POST_URL
+        url = TestConstants.SAMPLE_POST_URL
 
         metadata = await converter.metadata_extractor.extract(soup, url)
 
@@ -130,9 +130,9 @@ class TestConverterIntegration:
         """Test image downloading integration."""
         html_with_images = f"""
         <div>
-            <img src="{TEST_CONSTANTS.BASE_TEST_URL}{TEST_CONSTANTS.SAMPLE_IMAGE_URL}" alt="Test Image">
+            <img src="{TestConstants.BASE_TEST_URL}{TestConstants.SAMPLE_IMAGE_URL}" alt="Test Image">
             <figure>
-                <img src="{TEST_CONSTANTS.BASE_TEST_URL}/another-image.jpg" alt="Another Image">
+                <img src="{TestConstants.BASE_TEST_URL}/another-image.jpg" alt="Another Image">
             </figure>
         </div>
         """
@@ -141,7 +141,7 @@ class TestConverterIntegration:
 
         # Mock additional image
         mock_wordpress_server.get(
-            f"{TEST_CONSTANTS.BASE_TEST_URL}/another-image.jpg",
+            f"{TestConstants.BASE_TEST_URL}/another-image.jpg",
             body=b"another fake image data",
             headers={"Content-Type": "image/jpeg"},
         )
@@ -153,7 +153,7 @@ class TestConverterIntegration:
                     processed_soup,
                     downloaded_images,
                 ) = await converter.image_downloader.process_and_download(
-                    soup, temp_dir, TEST_CONSTANTS.BASE_TEST_URL
+                    soup, temp_dir, TestConstants.BASE_TEST_URL
                 )
 
         # Check that images were processed
@@ -168,7 +168,7 @@ class TestConverterIntegration:
     @pytest.mark.asyncio
     async def test_caching_integration(self, converter, mock_wordpress_server):
         """Test caching integration during conversion."""
-        url = TEST_CONSTANTS.SAMPLE_POST_URL
+        url = TestConstants.SAMPLE_POST_URL
 
         # First conversion - should cache results
         async with aiohttp.ClientSession() as session:
@@ -185,7 +185,7 @@ class TestConverterIntegration:
         """Test robots.txt compliance integration."""
         from src.utils.robots import robots_checker
 
-        url = TEST_CONSTANTS.SAMPLE_POST_URL
+        url = TestConstants.SAMPLE_POST_URL
 
         async with aiohttp.ClientSession() as session:
             # Test robots.txt checking
@@ -230,9 +230,9 @@ class TestConverterIntegration:
     async def test_concurrent_conversion(self, converter, mock_wordpress_server):
         """Test concurrent URL processing."""
         urls = [
-            TEST_CONSTANTS.SAMPLE_POST_URL,
-            f"{TEST_CONSTANTS.BASE_TEST_URL}/page2",
-            f"{TEST_CONSTANTS.BASE_TEST_URL}/page3",
+            TestConstants.SAMPLE_POST_URL,
+            f"{TestConstants.BASE_TEST_URL}/page2",
+            f"{TestConstants.BASE_TEST_URL}/page3",
         ]
 
         # Mock additional pages
@@ -254,7 +254,7 @@ class TestConverterIntegration:
     @pytest.mark.asyncio
     async def test_output_file_structure(self, converter, mock_wordpress_server, temp_dir):
         """Test that conversion processes successfully."""
-        url = TEST_CONSTANTS.SAMPLE_POST_URL
+        url = TestConstants.SAMPLE_POST_URL
 
         result = await converter.convert_url(url)
 
@@ -283,7 +283,7 @@ class TestConverterIntegration:
     @pytest.mark.asyncio
     async def test_logging_integration(self, converter, mock_wordpress_server):
         """Test that logging works throughout the conversion process."""
-        url = TEST_CONSTANTS.SAMPLE_POST_URL
+        url = TestConstants.SAMPLE_POST_URL
 
         with patch("src.utils.logging.get_logger") as mock_get_logger:
             mock_logger = mock_get_logger.return_value
