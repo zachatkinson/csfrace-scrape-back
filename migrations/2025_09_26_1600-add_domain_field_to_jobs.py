@@ -17,17 +17,19 @@ This follows best practices by:
 - Following RFC 2181 domain length limits
 """
 
-from alembic import op
+import logging
+from urllib.parse import urlparse
+
 import sqlalchemy as sa
 from sqlalchemy import text
-from urllib.parse import urlparse
-import logging
+
+from alembic import op
 
 logger = logging.getLogger(__name__)
 
 # revision identifiers
-revision = 'add_domain_field'
-down_revision = 'f21b6337b3fe'  # Last migration from user settings table
+revision = "add_domain_field"
+down_revision = "f21b6337b3fe"  # Last migration from user settings table
 branch_labels = None
 depends_on = None
 
@@ -43,47 +45,50 @@ def extract_domain_from_url(url: str) -> str:
     """
     try:
         if not url or not isinstance(url, str):
-            return 'unknown'
+            return "unknown"
 
         # Normalize URL - add https if no scheme
-        if not url.startswith(('http://', 'https://', 'ftp://')):
+        if not url.startswith(("http://", "https://", "ftp://")):
             url = f"https://{url}"
 
         parsed = urlparse(url)
         if not parsed.netloc:
-            return 'unknown'
+            return "unknown"
 
         domain = parsed.netloc.lower()
 
         # Remove userinfo if present
-        if '@' in domain:
-            domain = domain.split('@')[-1]
+        if "@" in domain:
+            domain = domain.split("@")[-1]
 
         # Remove port if present
-        if ':' in domain:
-            domain = domain.split(':')[0]
+        if ":" in domain:
+            domain = domain.split(":")[0]
 
         # Remove www. prefix for normalization
-        if domain.startswith('www.'):
+        if domain.startswith("www."):
             domain = domain[4:]
 
-        return domain if domain else 'unknown'
+        return domain if domain else "unknown"
 
     except Exception as e:
         logger.warning(f"Failed to extract domain from '{url}': {e}")
-        return 'unknown'
+        return "unknown"
 
 
 def upgrade():
     """Add domain field and populate existing data."""
 
     # Step 1: Add domain column as nullable initially
-    op.add_column('jobs', sa.Column(
-        'domain',
-        sa.String(253),  # RFC 2181 compliant max domain length
-        nullable=True,
-        comment='Extracted domain from source_url for efficient statistics and filtering'
-    ))
+    op.add_column(
+        "jobs",
+        sa.Column(
+            "domain",
+            sa.String(253),  # RFC 2181 compliant max domain length
+            nullable=True,
+            comment="Extracted domain from source_url for efficient statistics and filtering",
+        ),
+    )
 
     # Step 2: Get database connection for data population
     connection = op.get_bind()
@@ -97,14 +102,17 @@ def upgrade():
         # This works for PostgreSQL, MySQL, and SQLite with different approaches
 
         # For PostgreSQL/MySQL - use sophisticated string functions
-        result = connection.execute(text("""
+        result = connection.execute(
+            text("""
             SELECT COUNT(*) FROM information_schema.tables
             WHERE table_name = 'jobs' AND table_schema = DATABASE()
-        """))
+        """)
+        )
 
         if result.scalar() > 0:
             # Use portable SQL that works across database types
-            connection.execute(text("""
+            connection.execute(
+                text("""
                 UPDATE jobs
                 SET domain = CASE
                     WHEN source_url LIKE 'https://www.%' THEN
@@ -134,14 +142,17 @@ def upgrade():
                     ELSE 'unknown'
                 END
                 WHERE domain IS NULL
-            """))
+            """)
+            )
 
             # Clean up any empty domains or domains with ports/userinfo
-            connection.execute(text("""
+            connection.execute(
+                text("""
                 UPDATE jobs
                 SET domain = 'unknown'
                 WHERE domain IS NULL OR domain = '' OR LENGTH(domain) > 253
-            """))
+            """)
+            )
 
     except Exception as e:
         logger.warning(f"Database-specific domain extraction failed: {e}")
@@ -150,7 +161,9 @@ def upgrade():
         # Fallback: Use Python extraction for more complex cases
         try:
             # Fetch all jobs that need domain extraction
-            result = connection.execute(text("SELECT id, source_url FROM jobs WHERE domain IS NULL"))
+            result = connection.execute(
+                text("SELECT id, source_url FROM jobs WHERE domain IS NULL")
+            )
             jobs = result.fetchall()
 
             logger.info(f"Processing {len(jobs)} jobs for domain extraction...")
@@ -158,22 +171,23 @@ def upgrade():
             # Process in batches for better performance
             batch_size = 1000
             for i in range(0, len(jobs), batch_size):
-                batch = jobs[i:i + batch_size]
+                batch = jobs[i : i + batch_size]
 
                 # Prepare batch update
                 updates = []
                 for job_id, source_url in batch:
                     domain = extract_domain_from_url(source_url)
-                    updates.append({'job_id': job_id, 'domain': domain})
+                    updates.append({"job_id": job_id, "domain": domain})
 
                 # Execute batch update
                 if updates:
                     connection.execute(
-                        text("UPDATE jobs SET domain = :domain WHERE id = :job_id"),
-                        updates
+                        text("UPDATE jobs SET domain = :domain WHERE id = :job_id"), updates
                     )
 
-                logger.info(f"Processed batch {i//batch_size + 1}/{(len(jobs)-1)//batch_size + 1}")
+                logger.info(
+                    f"Processed batch {i // batch_size + 1}/{(len(jobs) - 1) // batch_size + 1}"
+                )
 
         except Exception as fallback_error:
             logger.error(f"Python fallback also failed: {fallback_error}")
@@ -181,14 +195,14 @@ def upgrade():
             connection.execute(text("UPDATE jobs SET domain = 'unknown' WHERE domain IS NULL"))
 
     # Step 4: Make domain column non-nullable after population
-    op.alter_column('jobs', 'domain', nullable=False)
+    op.alter_column("jobs", "domain", nullable=False)
 
     # Step 5: Add database index for query performance
-    op.create_index('ix_jobs_domain', 'jobs', ['domain'])
+    op.create_index("ix_jobs_domain", "jobs", ["domain"])
 
     # Step 6: Add composite index for common query patterns
-    op.create_index('ix_jobs_domain_status', 'jobs', ['domain', 'status'])
-    op.create_index('ix_jobs_domain_created_at', 'jobs', ['domain', 'created_at'])
+    op.create_index("ix_jobs_domain_status", "jobs", ["domain", "status"])
+    op.create_index("ix_jobs_domain_created_at", "jobs", ["domain", "created_at"])
 
     logger.info("Domain field migration completed successfully")
 
@@ -197,11 +211,11 @@ def downgrade():
     """Remove domain field and associated indexes."""
 
     # Remove indexes first
-    op.drop_index('ix_jobs_domain_created_at', table_name='jobs')
-    op.drop_index('ix_jobs_domain_status', table_name='jobs')
-    op.drop_index('ix_jobs_domain', table_name='jobs')
+    op.drop_index("ix_jobs_domain_created_at", table_name="jobs")
+    op.drop_index("ix_jobs_domain_status", table_name="jobs")
+    op.drop_index("ix_jobs_domain", table_name="jobs")
 
     # Remove domain column
-    op.drop_column('jobs', 'domain')
+    op.drop_column("jobs", "domain")
 
     logger.info("Domain field migration rolled back successfully")

@@ -10,8 +10,8 @@ SQLAlchemy Best Practices Implementation:
 - Rollback Safety: Ensure all migrations can be safely rolled back
 """
 
-import os
 import logging
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, inspect, pool, text
@@ -28,7 +28,7 @@ from src.database.utils import get_database_url
 config = context.config
 
 # Set up proper logger for Alembic
-logger = logging.getLogger('alembic.env')
+logger = logging.getLogger("alembic.env")
 
 # ENTERPRISE PATTERN 1: Environment Isolation
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -229,9 +229,7 @@ def log_migration_context() -> None:
     logger.info("=== MIGRATION CONTEXT ===")
     logger.info(f"Environment: {ENVIRONMENT}")
     logger.info(f"Migration Context: {MIGRATION_CONTEXT}")
-    logger.info(
-        f"Database URL: {database_url.split('@')[1] if '@' in database_url else 'hidden'}"
-    )
+    logger.info(f"Database URL: {database_url.split('@')[1] if '@' in database_url else 'hidden'}")
     logger.info(f"Settings: {current_settings}")
     logger.info("=========================")
 
@@ -312,9 +310,7 @@ def run_migrations_online() -> None:
                 schema_valid = validate_schema_consistency(connection)
 
                 if not schema_valid:
-                    logger.warning(
-                        "Schema validation failed - applying critical fixes"
-                    )
+                    logger.warning("Schema validation failed - applying critical fixes")
                     ensure_critical_schema_exists(connection)
                     logger.info("Critical schema fixes applied")
                 else:
@@ -339,9 +335,7 @@ def run_migrations_online() -> None:
                 with context.begin_transaction():
                     logger.info(f"Starting {ENVIRONMENT} migrations")
                     context.run_migrations()
-                    logger.info(
-                        f"Migrations completed successfully for {ENVIRONMENT}"
-                    )
+                    logger.info(f"Migrations completed successfully for {ENVIRONMENT}")
 
                     # Post-migration validation
                     if current_settings.get("validate_schema", True):
@@ -354,9 +348,7 @@ def run_migrations_online() -> None:
                             raise RuntimeError("Post-migration schema validation failed")
 
             except Exception as migration_error:
-                logger.error(
-                    f"Migration failed for {ENVIRONMENT}: {migration_error}"
-                )
+                logger.error(f"Migration failed for {ENVIRONMENT}: {migration_error}")
 
                 # Enhanced error recovery for known issues
                 if "user_id does not exist" in str(migration_error):
@@ -370,9 +362,7 @@ def run_migrations_online() -> None:
         logger.error(f"Database connection failed for {ENVIRONMENT}: {db_error}")
         raise
     except Exception as general_error:
-        logger.error(
-            f"Unexpected error during {ENVIRONMENT} migration: {general_error}"
-        )
+        logger.error(f"Unexpected error during {ENVIRONMENT} migration: {general_error}")
         raise
 
 

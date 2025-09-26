@@ -84,6 +84,7 @@ class DatabaseService:
         Args:
             echo: Whether to echo SQL statements for debugging
         """
+        self.echo = echo  # Store echo parameter for ContentService initialization
         self.engine = create_database_engine(echo=echo)
         self.SessionLocal = sessionmaker(  # pylint: disable=invalid-name
             bind=self.engine,
@@ -103,6 +104,7 @@ class DatabaseService:
             DatabaseService instance using the provided engine
         """
         service = cls.__new__(cls)  # Create instance without calling __init__
+        service.echo = False  # Default echo value for test instances
         service.engine = engine
         service.SessionLocal = sessionmaker(
             bind=engine,
@@ -364,10 +366,9 @@ class DatabaseService:
         try:
             with self.get_session() as session:
                 job_service = JobService(session)
-                # Convert status to proper type and use domain parameter instead of offset
+                # Convert status to proper type and pass offset correctly
                 job_status = status if isinstance(status, JobStatus) else JobStatus(status)
-                domain_filter = str(offset) if offset > 0 else None  # Use offset as domain filter
-                return job_service.get_jobs_by_status(job_status, limit, domain_filter)
+                return job_service.get_jobs_by_status(job_status, limit, None, offset)
         except SQLAlchemyError as e:
             status_value = status.value if hasattr(status, "value") else str(status)
             logger.error("Failed to retrieve jobs by status", status=status_value, error=str(e))
@@ -471,11 +472,10 @@ class DatabaseService:
             Created ContentResult instance
         """
         try:
-            with self.get_session() as session:
-                content_service = ContentService(session)
-                # Convert parameters to match ContentService signature
-                content_str = html_content or ""
-                return content_service.save_content_result(job_id, content_str, "html", metadata)
+            content_service = ContentService(echo=self.echo)
+            # Convert parameters to match ContentService signature
+            content_str = html_content or ""
+            return content_service.save_content_result(job_id, content_str, "html", metadata)
         except SQLAlchemyError as e:
             logger.error("Failed to save content result", job_id=job_id, error=str(e))
             raise DatabaseError("content result save", e) from e
