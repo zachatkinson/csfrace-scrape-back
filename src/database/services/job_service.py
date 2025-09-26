@@ -312,6 +312,12 @@ class JobService:
 
             jobs = self.session.execute(stmt).scalars().all()
 
+            # Eagerly load attributes to prevent DetachedInstanceError
+            for job in jobs:
+                # Access all attributes to load them into the session
+                _ = job.source_url, job.domain, job.status, job.priority
+                self.session.expunge(job)  # Detach from session for safe return
+
             logger.debug("Pending jobs retrieved", count=len(jobs))
             return list(jobs)
 
@@ -324,6 +330,7 @@ class JobService:
         status: JobStatus,
         limit: int = API_DEFAULT_LIMIT,
         domain: str | None = None,
+        offset: int = 0,
     ) -> list[ScrapingJob]:
         """Get jobs filtered by status and optionally by domain.
 
@@ -331,11 +338,12 @@ class JobService:
             status: Job status to filter by
             limit: Maximum number of jobs to return
             domain: Optional domain filter
+            offset: Number of records to skip for pagination
 
         Returns:
             List of jobs matching the criteria
         """
-        logger.debug("Getting jobs by status", status=status.name, limit=limit, domain=domain)
+        logger.debug("Getting jobs by status", status=status.name, limit=limit, domain=domain, offset=offset)
 
         try:
             stmt = (
@@ -343,12 +351,19 @@ class JobService:
                 .where(ScrapingJob.status == status.value)
                 .order_by(desc(ScrapingJob.created_at))
                 .limit(limit)
+                .offset(offset)
             )
 
             if domain:
                 stmt = stmt.where(ScrapingJob.domain == domain)
 
             jobs = self.session.execute(stmt).scalars().all()
+
+            # Eagerly load attributes to prevent DetachedInstanceError
+            for job in jobs:
+                # Access all attributes to load them into the session
+                _ = job.source_url, job.domain, job.status, job.priority
+                self.session.expunge(job)  # Detach from session for safe return
 
             logger.debug(
                 "Jobs by status retrieved", status=status.name, count=len(jobs), domain=domain
@@ -385,6 +400,12 @@ class JobService:
 
             jobs = self.session.execute(stmt).scalars().all()
 
+            # Eagerly load attributes to prevent DetachedInstanceError
+            for job in jobs:
+                # Access all attributes to load them into the session
+                _ = job.source_url, job.domain, job.status, job.priority
+                self.session.expunge(job)  # Detach from session for safe return
+
             logger.debug("Retry jobs retrieved", count=len(jobs))
             return list(jobs)
 
@@ -411,6 +432,12 @@ class JobService:
             )
 
             jobs = self.session.execute(stmt).scalars().all()
+
+            # Eagerly load attributes to prevent DetachedInstanceError
+            for job in jobs:
+                # Access all attributes to load them into the session
+                _ = job.source_url, job.domain, job.status, job.priority
+                self.session.expunge(job)  # Detach from session for safe return
 
             logger.debug("Batch jobs retrieved", batch_id=batch_id, count=len(jobs))
             return list(jobs)
