@@ -1284,7 +1284,9 @@ class TestDatabaseServiceErrorHandling:
 class TestDatabaseServiceConcurrency:
     """Concurrency and thread safety tests."""
 
-    @pytest.mark.skip(reason="Requires session management architecture redesign - SQLAlchemy concurrent session handling")
+    @pytest.mark.skip(
+        reason="Requires session management architecture redesign - SQLAlchemy concurrent session handling"
+    )
     def test_concurrent_access_handling(self, db_service_with_session, mock_time_sleep):
         """Test handling of concurrent database access."""
         # PostgreSQL supports concurrent access - this test should pass
