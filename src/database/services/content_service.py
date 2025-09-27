@@ -10,18 +10,26 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from src.utils.logging import get_logger
 
 from ...core.exceptions import DatabaseError, ValidationError
 from ..models import ContentResult
-from .base import BaseService
 
 logger = get_logger(__name__)
 
 
-class ContentService(BaseService):
+class ContentService:
     """Service for content results management."""
+
+    def __init__(self, session: Session):
+        """Initialize with provided database session.
+
+        Args:
+            session: SQLAlchemy session to use for database operations
+        """
+        self.session = session
 
     def save_content_result(
         self,
@@ -50,62 +58,94 @@ class ContentService(BaseService):
         if not job_id:
             raise ValidationError("Job ID is required", field="job_id")
 
-        if not content:
-            raise ValidationError("Content cannot be empty", field="content")
+        # Allow empty content for minimal saves
+        # if not content:
+        #     raise ValidationError("Content cannot be empty", field="content")
 
         try:
-            with self.get_session() as session:
-                # Check if content result already exists for this job
-                existing = session.query(ContentResult).filter_by(job_id=job_id).first()
+            # Check if content result already exists for this job
+            existing = self.session.query(ContentResult).filter_by(job_id=job_id).first()
 
-                if existing:
-                    # Update existing content result
-                    logger.debug("Updating existing content result", job_id=job_id)
-                    # Map content to appropriate field based on content type
-                    if content_type == "original":
-                        existing.original_html = content
-                    elif content_type == "converted":
-                        existing.converted_html = content
-                    elif content_type == "shopify":
-                        existing.shopify_html = content
-                    else:
-                        existing.converted_html = content  # Default to converted
-
-                    existing.extra_metadata = metadata or {}
-                    existing.updated_at = datetime.now(UTC)
-                    result = existing
+            if existing:
+                # Update existing content result
+                logger.debug("Updating existing content result", job_id=job_id)
+                # Map content to appropriate field based on content type
+                if content_type == "original":
+                    existing.original_html = content
+                elif content_type == "converted":
+                    existing.converted_html = content
+                elif content_type == "shopify":
+                    existing.shopify_html = content
                 else:
-                    # Create new content result
-                    logger.debug("Creating new content result", job_id=job_id)
-                    # Map content to appropriate field based on content type
-                    html_fields = {}
-                    if content_type == "original":
-                        html_fields["original_html"] = content
-                    elif content_type == "converted":
-                        html_fields["converted_html"] = content
-                    elif content_type == "shopify":
-                        html_fields["shopify_html"] = content
-                    else:
-                        html_fields["converted_html"] = content  # Default to converted
+                    existing.converted_html = content  # Default to converted
 
-                    result = ContentResult(
-                        job_id=job_id,
-                        extra_metadata=metadata or {},
-                        created_at=datetime.now(UTC),
-                        **html_fields,
-                    )
-                    session.add(result)
-
-                session.flush()
-
-                # Calculate content size for logging
-                content_size = len(content.encode("utf-8")) if content else 0
-                logger.info(
-                    "Content result saved successfully",
-                    job_id=job_id,
-                    content_size=content_size,
+                # Update metadata fields
+                metadata = metadata or {}
+                existing.title = metadata.get("title", existing.title)
+                existing.meta_description = metadata.get(
+                    "meta_description", existing.meta_description
                 )
-                return result
+                existing.author = metadata.get("author", existing.author)
+                existing.tags = metadata.get("tags", existing.tags)
+                existing.categories = metadata.get("categories", existing.categories)
+                existing.word_count = metadata.get("word_count", existing.word_count)
+                existing.image_count = metadata.get("image_count", existing.image_count)
+                existing.link_count = metadata.get("link_count", existing.link_count)
+                existing.html_file_path = metadata.get("html_file_path", existing.html_file_path)
+                existing.metadata_file_path = metadata.get(
+                    "metadata_file_path", existing.metadata_file_path
+                )
+                existing.images_directory = metadata.get(
+                    "images_directory", existing.images_directory
+                )
+                existing.extra_metadata = metadata
+                existing.updated_at = datetime.now(UTC)
+                result = existing
+            else:
+                # Create new content result
+                logger.debug("Creating new content result", job_id=job_id)
+                # Map content to appropriate field based on content type
+                html_fields = {}
+                if content_type == "original":
+                    html_fields["original_html"] = content
+                elif content_type == "converted":
+                    html_fields["converted_html"] = content
+                elif content_type == "shopify":
+                    html_fields["shopify_html"] = content
+                else:
+                    html_fields["converted_html"] = content  # Default to converted
+
+                # Extract specific metadata fields to model attributes
+                metadata = metadata or {}
+                result = ContentResult(
+                    job_id=job_id,
+                    title=metadata.get("title"),
+                    meta_description=metadata.get("meta_description"),
+                    author=metadata.get("author"),
+                    tags=metadata.get("tags"),
+                    categories=metadata.get("categories"),
+                    word_count=metadata.get("word_count"),
+                    image_count=metadata.get("image_count"),
+                    link_count=metadata.get("link_count"),
+                    html_file_path=metadata.get("html_file_path"),
+                    metadata_file_path=metadata.get("metadata_file_path"),
+                    images_directory=metadata.get("images_directory"),
+                    extra_metadata=metadata,
+                    created_at=datetime.now(UTC),
+                    **html_fields,
+                )
+                self.session.add(result)
+
+            self.session.flush()
+
+            # Calculate content size for logging
+            content_size = len(content.encode("utf-8")) if content else 0
+            logger.info(
+                "Content result saved successfully",
+                job_id=job_id,
+                content_size=content_size,
+            )
+            return result
 
         except IntegrityError as e:
             logger.error("Content save failed - integrity error", job_id=job_id, error=str(e))
@@ -126,33 +166,32 @@ class ContentService(BaseService):
         logger.debug("Getting content for job", job_id=job_id)
 
         try:
-            with self.get_session() as session:
-                result = session.query(ContentResult).filter_by(job_id=job_id).first()
+            result = self.session.query(ContentResult).filter_by(job_id=job_id).first()
 
-                if result:
-                    # Determine content type based on which field has data
-                    content_type = "unknown"
-                    size_bytes = 0
-                    if result.original_html:
-                        content_type = "original"
-                        size_bytes = len(result.original_html.encode("utf-8"))
-                    elif result.converted_html:
-                        content_type = "converted"
-                        size_bytes = len(result.converted_html.encode("utf-8"))
-                    elif result.shopify_html:
-                        content_type = "shopify"
-                        size_bytes = len(result.shopify_html.encode("utf-8"))
+            if result:
+                # Determine content type based on which field has data
+                content_type = "unknown"
+                size_bytes = 0
+                if result.original_html:
+                    content_type = "original"
+                    size_bytes = len(result.original_html.encode("utf-8"))
+                elif result.converted_html:
+                    content_type = "converted"
+                    size_bytes = len(result.converted_html.encode("utf-8"))
+                elif result.shopify_html:
+                    content_type = "shopify"
+                    size_bytes = len(result.shopify_html.encode("utf-8"))
 
-                    logger.debug(
-                        "Content found",
-                        job_id=job_id,
-                        content_type=content_type,
-                        size_bytes=size_bytes,
-                    )
-                else:
-                    logger.debug("No content found for job", job_id=job_id)
+                logger.debug(
+                    "Content found",
+                    job_id=job_id,
+                    content_type=content_type,
+                    size_bytes=size_bytes,
+                )
+            else:
+                logger.debug("No content found for job", job_id=job_id)
 
-                return result
+            return result
 
         except Exception as e:
             logger.error("Failed to get content", job_id=job_id, error=str(e))
@@ -170,44 +209,43 @@ class ContentService(BaseService):
         logger.debug("Getting content metadata", job_id=job_id)
 
         try:
-            with self.get_session() as session:
-                result = session.query(ContentResult).filter_by(job_id=job_id).first()
+            result = self.session.query(ContentResult).filter_by(job_id=job_id).first()
 
-                if result:
-                    # Determine content type and size from available fields
-                    content_type = "unknown"
-                    content_size_bytes = 0
-                    if result.original_html:
-                        content_type = "original"
-                        content_size_bytes = len(result.original_html.encode("utf-8"))
-                    elif result.converted_html:
-                        content_type = "converted"
-                        content_size_bytes = len(result.converted_html.encode("utf-8"))
-                    elif result.shopify_html:
-                        content_type = "shopify"
-                        content_size_bytes = len(result.shopify_html.encode("utf-8"))
+            if result:
+                # Determine content type and size from available fields
+                content_type = "unknown"
+                content_size_bytes = 0
+                if result.original_html:
+                    content_type = "original"
+                    content_size_bytes = len(result.original_html.encode("utf-8"))
+                elif result.converted_html:
+                    content_type = "converted"
+                    content_size_bytes = len(result.converted_html.encode("utf-8"))
+                elif result.shopify_html:
+                    content_type = "shopify"
+                    content_size_bytes = len(result.shopify_html.encode("utf-8"))
 
-                    metadata = {
-                        "job_id": result.job_id,
-                        "content_type": content_type,
-                        "content_size_bytes": content_size_bytes,
-                        "created_at": result.created_at.isoformat() if result.created_at else None,
-                        "updated_at": result.updated_at.isoformat() if result.updated_at else None,
-                        "extra_metadata": result.extra_metadata,
-                        "title": result.title,
-                        "author": result.author,
-                        "published_date": result.published_date.isoformat()
-                        if result.published_date
-                        else None,
-                        "word_count": result.word_count,
-                        "image_count": result.image_count,
-                        "link_count": result.link_count,
-                    }
-                    logger.debug("Content metadata retrieved", job_id=job_id, metadata=metadata)
-                    return metadata
-                else:
-                    logger.debug("No content metadata found", job_id=job_id)
-                    return None
+                metadata = {
+                    "job_id": result.job_id,
+                    "content_type": content_type,
+                    "content_size_bytes": content_size_bytes,
+                    "created_at": result.created_at.isoformat() if result.created_at else None,
+                    "updated_at": result.updated_at.isoformat() if result.updated_at else None,
+                    "extra_metadata": result.extra_metadata,
+                    "title": result.title,
+                    "author": result.author,
+                    "published_date": result.published_date.isoformat()
+                    if result.published_date
+                    else None,
+                    "word_count": result.word_count,
+                    "image_count": result.image_count,
+                    "link_count": result.link_count,
+                }
+                logger.debug("Content metadata retrieved", job_id=job_id, metadata=metadata)
+                return metadata
+            else:
+                logger.debug("No content metadata found", job_id=job_id)
+                return None
 
         except Exception as e:
             logger.error("Failed to get content metadata", job_id=job_id, error=str(e))
@@ -225,16 +263,15 @@ class ContentService(BaseService):
         logger.info("Deleting content", job_id=job_id)
 
         try:
-            with self.get_session() as session:
-                result = session.query(ContentResult).filter_by(job_id=job_id).first()
+            result = self.session.query(ContentResult).filter_by(job_id=job_id).first()
 
-                if result:
-                    session.delete(result)
-                    logger.info("Content deleted successfully", job_id=job_id)
-                    return True
-                else:
-                    logger.debug("No content to delete", job_id=job_id)
-                    return False
+            if result:
+                self.session.delete(result)
+                logger.info("Content deleted successfully", job_id=job_id)
+                return True
+            else:
+                logger.debug("No content to delete", job_id=job_id)
+                return False
 
         except Exception as e:
             logger.error("Failed to delete content", job_id=job_id, error=str(e))

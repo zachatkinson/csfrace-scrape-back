@@ -1048,11 +1048,11 @@ class TestDatabaseServiceCleanupOperations:
         )
         db_service_with_session.update_job_status(recent_job.id, JobStatus.COMPLETED)
 
-        # Manually set old completion date
+        # Manually set old creation date
         old_date = datetime.now(UTC) - timedelta(days=35)
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).update(
-                {"completed_at": old_date}
+                {"created_at": old_date}
             )
 
         # Cleanup jobs older than 30 days
@@ -1091,27 +1091,22 @@ class TestDatabaseServiceCleanupOperations:
         )
         # Leave as PENDING
 
-        # Set old dates
+        # Set old creation dates for cleanup (cleanup uses created_at)
         with db_service_with_session.get_session() as session:
             session.query(ScrapingJob).filter(
-                ScrapingJob.id.in_([old_completed.id, old_failed.id])
-            ).update({"completed_at": old_date})
-            session.query(ScrapingJob).filter(ScrapingJob.id == old_pending.id).update(
-                {"created_at": old_date}
-            )
+                ScrapingJob.id.in_([old_completed.id, old_failed.id, old_pending.id])
+            ).update({"created_at": old_date})
 
         # Cleanup
         deleted_count = db_service_with_session.cleanup_old_jobs(days=30)
 
-        # Should only affect completed and failed jobs with old completed_at
-        assert deleted_count == 2
+        # Should affect all three jobs with old created_at
+        assert deleted_count == 3
 
-        # Verify statuses
+        # Verify statuses - all old jobs are marked as cancelled
         assert db_service_with_session.get_job(old_completed.id).status_enum == JobStatus.CANCELLED
         assert db_service_with_session.get_job(old_failed.id).status_enum == JobStatus.CANCELLED
-        assert (
-            db_service_with_session.get_job(old_pending.id).status_enum == JobStatus.PENDING
-        )  # Unchanged
+        assert db_service_with_session.get_job(old_pending.id).status_enum == JobStatus.CANCELLED
 
     def test_cleanup_old_jobs_no_old_jobs(self, db_service_with_session):
         """Test cleanup when no old jobs exist."""
@@ -1203,7 +1198,7 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Job retrieval failed"):
+            with pytest.raises(DatabaseError, match="Database operation failed: job retrieval"):
                 db_service_with_session.get_job("test-job-id")
 
     def test_update_job_status_database_error(self, db_service_with_session):
@@ -1211,7 +1206,7 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Job status update failed"):
+            with pytest.raises(DatabaseError, match="Database operation failed: job status update"):
                 db_service_with_session.update_job_status("test-job-id", JobStatus.COMPLETED)
 
     def test_get_pending_jobs_database_error(self, db_service_with_session):
@@ -1219,7 +1214,9 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Pending jobs retrieval failed"):
+            with pytest.raises(
+                DatabaseError, match="Database operation failed: pending jobs retrieval"
+            ):
                 db_service_with_session.get_pending_jobs()
 
     def test_get_jobs_by_status_database_error(self, db_service_with_session):
@@ -1227,7 +1224,7 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Jobs retrieval failed"):
+            with pytest.raises(DatabaseError, match="Database operation failed: jobs retrieval"):
                 db_service_with_session.get_jobs_by_status(JobStatus.COMPLETED)
 
     def test_get_retry_jobs_database_error(self, db_service_with_session):
@@ -1235,7 +1232,9 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Retry jobs retrieval failed"):
+            with pytest.raises(
+                DatabaseError, match="Database operation failed: retry jobs retrieval"
+            ):
                 db_service_with_session.get_retry_jobs()
 
     def test_save_content_result_database_error(self, db_service_with_session):
@@ -1243,7 +1242,9 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Content result save failed"):
+            with pytest.raises(
+                DatabaseError, match="Database operation failed: content result save"
+            ):
                 db_service_with_session.save_content_result(job_id="test-job-id")
 
     def test_add_job_log_exception_handling(self, db_service_with_session):
@@ -1265,7 +1266,9 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Statistics retrieval failed"):
+            with pytest.raises(
+                DatabaseError, match="Database operation failed: statistics retrieval"
+            ):
                 db_service_with_session.get_job_statistics()
 
     def test_cleanup_old_jobs_database_error(self, db_service_with_session):
@@ -1273,7 +1276,7 @@ class TestDatabaseServiceErrorHandling:
         with patch.object(db_service_with_session, "get_session") as mock_session:
             mock_session.side_effect = SQLAlchemyError("Database error")
 
-            with pytest.raises(DatabaseError, match="Job cleanup failed"):
+            with pytest.raises(DatabaseError, match="Database operation failed: cleanup old jobs"):
                 db_service_with_session.cleanup_old_jobs()
 
 

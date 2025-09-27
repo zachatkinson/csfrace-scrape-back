@@ -11,19 +11,27 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, func
+from sqlalchemy.orm import Session
 
 from src.utils.logging import get_logger
 
 from ...common.status import JobStatus
 from ...core.exceptions import DatabaseError
 from ..models import ScrapingJob
-from .base import BaseService
 
 logger = get_logger(__name__)
 
 
-class StatisticsService(BaseService):
+class StatisticsService:
     """Service for job statistics and analytics."""
+
+    def __init__(self, session: Session):
+        """Initialize with provided database session.
+
+        Args:
+            session: SQLAlchemy session to use for database operations
+        """
+        self.session = session
 
     def get_job_statistics(self, days: int = 7) -> dict[str, Any]:
         """Get comprehensive job statistics for a time period.
@@ -42,85 +50,98 @@ class StatisticsService(BaseService):
         logger.info("Calculating job statistics", days=days)
 
         try:
-            with self.get_session() as session:
-                # Calculate date range
-                end_date = datetime.now(UTC)
-                start_date = end_date - timedelta(days=days)
+            # Calculate date range
+            end_date = datetime.now(UTC)
+            start_date = end_date - timedelta(days=days)
 
-                # Base query for the time period
-                base_query = session.query(ScrapingJob).filter(ScrapingJob.created_at >= start_date)
+            # Base query for the time period
+            base_query = self.session.query(ScrapingJob).filter(
+                ScrapingJob.created_at >= start_date
+            )
 
-                # Total jobs
-                total_jobs = base_query.count()
+            # Total jobs
+            total_jobs = base_query.count()
 
-                # Status breakdown
-                status_counts = {}
-                for status in JobStatus:
-                    count = base_query.filter(ScrapingJob.status == status.value).count()
-                    status_counts[status.name] = count
+            # Status breakdown
+            status_counts = {}
+            for status in JobStatus:
+                count = base_query.filter(ScrapingJob.status == status.value).count()
+                status_counts[status.name] = count
 
-                # Success rate calculation
-                completed = status_counts.get("COMPLETED", 0)
-                failed = status_counts.get("FAILED", 0)
-                total_finished = completed + failed
-                success_rate = (completed / total_finished * 100) if total_finished > 0 else 0
+            # Success rate calculation
+            completed = status_counts.get("COMPLETED", 0)
+            # Calculate success rate based on total jobs (not just finished ones)
+            success_rate = (completed / total_jobs * 100) if total_jobs > 0 else 0
 
-                # Average processing time for completed jobs
-                avg_time_result = (
-                    session.query(func.avg(ScrapingJob.processing_time_ms))
-                    .filter(
-                        and_(
-                            ScrapingJob.created_at >= start_date,
-                            ScrapingJob.status == JobStatus.COMPLETED.value,
-                            ScrapingJob.processing_time_ms.isnot(None),
-                        )
+            # Average processing time for completed jobs
+            avg_time_result = (
+                self.session.query(func.avg(ScrapingJob.processing_time_ms))
+                .filter(
+                    and_(
+                        ScrapingJob.created_at >= start_date,
+                        ScrapingJob.status == JobStatus.COMPLETED.value,
+                        ScrapingJob.processing_time_ms.isnot(None),
                     )
-                    .scalar()
                 )
+                .scalar()
+            )
 
-                avg_processing_time_ms = float(avg_time_result) if avg_time_result else 0
+            avg_processing_time_ms = float(avg_time_result) if avg_time_result else 0
 
-                # Top domains by job count
-                domain_stats = (
-                    session.query(ScrapingJob.domain, func.count(ScrapingJob.id).label("count"))
-                    .filter(ScrapingJob.created_at >= start_date)
-                    .group_by(ScrapingJob.domain)
-                    .order_by(func.count(ScrapingJob.id).desc())
-                    .limit(10)
-                    .all()
-                )
+            # Top domains by job count
+            domain_stats = (
+                self.session.query(ScrapingJob.domain, func.count(ScrapingJob.id).label("count"))
+                .filter(ScrapingJob.created_at >= start_date)
+                .group_by(ScrapingJob.domain)
+                .order_by(func.count(ScrapingJob.id).desc())
+                .limit(10)
+                .all()
+            )
 
-                top_domains = [{"domain": domain, "count": count} for domain, count in domain_stats]
+            top_domains = [{"domain": domain, "count": count} for domain, count in domain_stats]
 
-                # Hourly distribution
-                hourly_distribution = self._calculate_hourly_distribution(
-                    session, start_date, end_date
-                )
+            # Hourly distribution
+            hourly_distribution = self._calculate_hourly_distribution(
+                self.session, start_date, end_date
+            )
 
-                # Retry statistics
-                retry_stats = self._calculate_retry_statistics(session, start_date)
+            # Retry statistics
+            retry_stats = self._calculate_retry_statistics(self.session, start_date)
 
-                statistics = {
-                    "period_days": days,
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                    "total_jobs": total_jobs,
-                    "status_breakdown": status_counts,
-                    "success_rate": round(success_rate, 2),
-                    "average_processing_time_ms": round(avg_processing_time_ms, 2),
-                    "top_domains": top_domains,
-                    "hourly_distribution": hourly_distribution,
-                    "retry_statistics": retry_stats,
-                }
+            # Calculate content and download sizes
+            size_stats = self._calculate_size_statistics(self.session, start_date)
 
-                logger.info(
-                    "Job statistics calculated",
-                    days=days,
-                    total_jobs=total_jobs,
-                    success_rate=success_rate,
-                )
+            statistics = {
+                "period_days": days,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "total_jobs": total_jobs,
+                "status_breakdown": status_counts,
+                # Legacy field names for backward compatibility
+                "completed_jobs": status_counts.get("COMPLETED", 0),
+                "failed_jobs": status_counts.get("FAILED", 0),
+                "pending_jobs": status_counts.get("PENDING", 0),
+                "success_rate": round(success_rate, 2),
+                "success_rate_percent": round(success_rate, 2),  # Legacy field name
+                "average_processing_time_ms": round(avg_processing_time_ms, 2),
+                "avg_duration_seconds": round(avg_processing_time_ms / 1000, 2)
+                if avg_processing_time_ms
+                else 0,  # Legacy field name
+                "total_content_size_bytes": size_stats.get("total_output_size", 0),
+                "total_download_size_bytes": size_stats.get("total_download_size", 0),
+                "top_domains": top_domains,
+                "hourly_distribution": hourly_distribution,
+                "retry_statistics": retry_stats,
+            }
 
-                return statistics
+            logger.info(
+                "Job statistics calculated",
+                days=days,
+                total_jobs=total_jobs,
+                success_rate=success_rate,
+            )
+
+            return statistics
 
         except Exception as e:
             logger.error("Failed to calculate statistics", days=days, error=str(e))
@@ -239,69 +260,66 @@ class StatisticsService(BaseService):
         logger.info("Calculating performance metrics", domain=domain, days=days)
 
         try:
-            with self.get_session() as session:
-                # Calculate date range
-                end_date = datetime.now(UTC)
-                start_date = end_date - timedelta(days=days)
+            # Calculate date range
+            end_date = datetime.now(UTC)
+            start_date = end_date - timedelta(days=days)
 
-                # Base query
-                query = session.query(ScrapingJob).filter(
-                    and_(
-                        ScrapingJob.created_at >= start_date,
-                        ScrapingJob.status == JobStatus.COMPLETED.value,
-                        ScrapingJob.processing_time_ms.isnot(None),
-                    )
+            # Base query
+            query = self.session.query(ScrapingJob).filter(
+                and_(
+                    ScrapingJob.created_at >= start_date,
+                    ScrapingJob.status == JobStatus.COMPLETED.value,
+                    ScrapingJob.processing_time_ms.isnot(None),
                 )
+            )
 
-                if domain:
-                    query = query.filter(ScrapingJob.domain == domain)
+            if domain:
+                query = query.filter(ScrapingJob.domain == domain)
 
-                # Performance statistics
-                perf_stats = session.query(
-                    func.min(ScrapingJob.processing_time_ms).label("min_time"),
-                    func.max(ScrapingJob.processing_time_ms).label("max_time"),
-                    func.avg(ScrapingJob.processing_time_ms).label("avg_time"),
-                    func.stddev(ScrapingJob.processing_time_ms).label("stddev_time"),
-                    func.count(ScrapingJob.id).label("sample_size"),
-                ).filter(
-                    and_(
-                        ScrapingJob.created_at >= start_date,
-                        ScrapingJob.status == JobStatus.COMPLETED.value,
-                        ScrapingJob.processing_time_ms.isnot(None),
-                    )
+            # Performance statistics
+            perf_stats = self.session.query(
+                func.min(ScrapingJob.processing_time_ms).label("min_time"),
+                func.max(ScrapingJob.processing_time_ms).label("max_time"),
+                func.avg(ScrapingJob.processing_time_ms).label("avg_time"),
+                func.stddev(ScrapingJob.processing_time_ms).label("stddev_time"),
+                func.count(ScrapingJob.id).label("sample_size"),
+            ).filter(
+                and_(
+                    ScrapingJob.created_at >= start_date,
+                    ScrapingJob.status == JobStatus.COMPLETED.value,
+                    ScrapingJob.processing_time_ms.isnot(None),
                 )
+            )
 
-                if domain:
-                    perf_stats = perf_stats.filter(ScrapingJob.domain == domain)
+            if domain:
+                perf_stats = perf_stats.filter(ScrapingJob.domain == domain)
 
-                result = perf_stats.first()
+            result = perf_stats.first()
 
-                metrics = {
-                    "domain": domain or "all",
-                    "period_days": days,
-                    "min_processing_time_ms": float(result.min_time) if result.min_time else 0,
-                    "max_processing_time_ms": float(result.max_time) if result.max_time else 0,
-                    "avg_processing_time_ms": float(result.avg_time) if result.avg_time else 0,
-                    "stddev_processing_time_ms": float(result.stddev_time)
-                    if result.stddev_time
-                    else 0,
-                    "sample_size": int(result.sample_size or 0),
-                }
+            metrics = {
+                "domain": domain or "all",
+                "period_days": days,
+                "min_processing_time_ms": float(result.min_time) if result.min_time else 0,
+                "max_processing_time_ms": float(result.max_time) if result.max_time else 0,
+                "avg_processing_time_ms": float(result.avg_time) if result.avg_time else 0,
+                "stddev_processing_time_ms": float(result.stddev_time) if result.stddev_time else 0,
+                "sample_size": int(result.sample_size or 0),
+            }
 
-                # Calculate percentiles if we have enough data
-                sample_size = metrics["sample_size"]
-                assert isinstance(sample_size, int), f"Expected int, got {type(sample_size)}"
-                if sample_size >= 10:
-                    percentiles = self._calculate_percentiles(session, start_date, domain)
-                    metrics["percentiles"] = percentiles
+            # Calculate percentiles if we have enough data
+            sample_size = metrics["sample_size"]
+            assert isinstance(sample_size, int), f"Expected int, got {type(sample_size)}"
+            if sample_size >= 10:
+                percentiles = self._calculate_percentiles(self.session, start_date, domain)
+                metrics["percentiles"] = percentiles
 
-                logger.info(
-                    "Performance metrics calculated",
-                    domain=domain or "all",
-                    sample_size=sample_size,
-                )
+            logger.info(
+                "Performance metrics calculated",
+                domain=domain or "all",
+                sample_size=sample_size,
+            )
 
-                return metrics
+            return metrics
 
         except Exception as e:
             logger.error("Failed to calculate performance metrics", domain=domain, error=str(e))
@@ -324,7 +342,7 @@ class StatisticsService(BaseService):
 
         try:
             # Get all processing times for percentile calculation
-            query = session.query(ScrapingJob.processing_time_ms).filter(
+            query = self.session.query(ScrapingJob.processing_time_ms).filter(
                 and_(
                     ScrapingJob.created_at >= start_date,
                     ScrapingJob.status == JobStatus.COMPLETED.value,
@@ -362,3 +380,49 @@ class StatisticsService(BaseService):
         except Exception as e:
             logger.warning("Failed to calculate percentiles", error=str(e))
             return {}
+
+    def _calculate_size_statistics(self, session: Any, start_date: datetime) -> dict[str, int]:
+        """Calculate size-related statistics.
+
+        Args:
+            session: Database session
+            start_date: Start of analysis period
+
+        Returns:
+            Dictionary with size statistics
+        """
+        logger.debug("Calculating size statistics")
+
+        try:
+            # Calculate total sizes from job records
+            size_stats_result = (
+                self.session.query(
+                    func.sum(ScrapingJob.output_size_bytes).label("total_output"),
+                    func.sum(ScrapingJob.download_size_bytes).label("total_download"),
+                )
+                .filter(
+                    and_(
+                        ScrapingJob.created_at >= start_date,
+                        ScrapingJob.status == JobStatus.COMPLETED.value,
+                    )
+                )
+                .first()
+            )
+
+            total_output_size = int(size_stats_result.total_output or 0)
+            total_download_size = int(size_stats_result.total_download or 0)
+
+            size_stats = {
+                "total_output_size": total_output_size,
+                "total_download_size": total_download_size,
+            }
+
+            logger.debug("Size statistics calculated", stats=size_stats)
+            return size_stats
+
+        except Exception as e:
+            logger.warning("Failed to calculate size statistics", error=str(e))
+            return {
+                "total_output_size": 0,
+                "total_download_size": 0,
+            }

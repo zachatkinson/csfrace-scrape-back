@@ -26,6 +26,7 @@ from .models import (
     create_database_engine,
 )
 from .services import (
+    CleanupService,
     ContentService,
     JobService,
     LoggingService,
@@ -175,7 +176,7 @@ class DatabaseService:
         Yields:
             SQLAlchemy Session with transaction management
         """
-        session = self._session_factory()
+        session = self.SessionLocal()
         try:
             yield session
             session.commit()
@@ -472,17 +473,71 @@ class DatabaseService:
             Created ContentResult instance
         """
         try:
-            content_service = ContentService(echo=self.echo)
-            # Convert parameters to match ContentService signature
-            content_str = html_content or ""
-            return content_service.save_content_result(job_id, content_str, "html", metadata)
+            with self.get_session() as session:
+                content_service = ContentService(session)
+                # Merge file_paths and kwargs into metadata
+                combined_metadata = metadata.copy() if metadata else {}
+
+                # Add file paths to metadata
+                if file_paths:
+                    combined_metadata.update(
+                        {
+                            "html_file_path": file_paths.get("html"),
+                            "metadata_file_path": file_paths.get("metadata"),
+                            "images_directory": file_paths.get("images"),
+                        }
+                    )
+
+                # Add kwargs to metadata (for word_count, image_count, etc.)
+                combined_metadata.update(kwargs)
+
+                result = content_service.save_content_result(
+                    job_id, html_content, "html", combined_metadata
+                )
+
+                # Commit the transaction BEFORE accessing attributes
+                session.commit()
+
+                # Eagerly load ALL attributes after commit but before session closes
+                _ = (
+                    result.id,
+                    result.job_id,
+                    result.original_html,
+                    result.converted_html,
+                    result.shopify_html,
+                    result.html_file_path,
+                    result.metadata_file_path,
+                    result.images_directory,
+                    result.title,
+                    result.meta_description,
+                    result.published_date,
+                    result.author,
+                    result.tags,
+                    result.categories,
+                    result.og_title,
+                    result.og_description,
+                    result.og_image,
+                    result.twitter_card,
+                    result.word_count,
+                    result.image_count,
+                    result.link_count,
+                    result.processing_time_seconds,
+                    result.extra_metadata,
+                    result.conversion_stats,
+                    result.created_at,
+                    result.updated_at,
+                )
+
+                # Detach from session for safe return
+                session.expunge(result)
+                return result
         except SQLAlchemyError as e:
             logger.error("Failed to save content result", job_id=job_id, error=str(e))
             raise DatabaseError("content result save", e) from e
 
     # Logging Operations - Delegate to LoggingService
 
-    def add_job_log(self, request: JobLogRequest | None = None, **kwargs) -> JobLog | None:
+    def add_job_log(self, request: "JobLogRequest | None" = None, **kwargs) -> JobLog | None:
         """Add a log entry for a job.
 
         Args:
@@ -504,7 +559,9 @@ class DatabaseService:
                         job_id=request.job_id,
                         level=request.level,
                         message=request.message,
-                        details=request.context_data,  # Map context_data to details
+                        component=getattr(request, "component", None),
+                        operation=getattr(request, "operation", None),
+                        context_data=request.context_data,
                     )
                     return logging_service.add_job_log(log_request)
                 else:
@@ -513,11 +570,13 @@ class DatabaseService:
                         job_id=kwargs.get("job_id", ""),
                         level=kwargs.get("level", "INFO"),
                         message=kwargs.get("message", ""),
-                        details=kwargs.get("context_data"),
+                        component=kwargs.get("component"),
+                        operation=kwargs.get("operation"),
+                        context_data=kwargs.get("context_data"),
                     )
                     return logging_service.add_job_log(log_request)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to add job log", error=str(e))
+            logger.error("Failed to add job log", error=str(e), exc_info=True)
             # Don't raise here - logging failures shouldn't break the main process
             return None
 
@@ -606,13 +665,13 @@ class DatabaseService:
         Returns:
             Number of jobs deleted
         """
-        # TODO: Fix async/sync mismatch - CleanupService methods are async
-        # For now, return 0 to satisfy type checking
-        logger.warning(
-            "CleanupService methods are async but DatabaseService is sync. "
-            "This needs architectural refactoring."
-        )
-        return 0
+        try:
+            with self.get_session() as session:
+                cleanup_service = CleanupService(session)
+                return cleanup_service.cleanup_old_jobs(days)
+        except SQLAlchemyError as e:
+            logger.error("Failed to cleanup old jobs", days=days, error=str(e))
+            raise DatabaseError("cleanup old jobs", e) from e
 
     def cleanup_failed_jobs(self, days: int = 3) -> int:
         """Delete failed jobs older than specified days.
@@ -623,9 +682,13 @@ class DatabaseService:
         Returns:
             Number of jobs deleted
         """
-        # TODO: Fix async/sync mismatch - CleanupService methods are async
-        logger.warning("CleanupService async/sync mismatch needs fixing")
-        return 0
+        try:
+            with self.get_session() as session:
+                cleanup_service = CleanupService(session)
+                return cleanup_service.cleanup_failed_jobs(days)
+        except SQLAlchemyError as e:
+            logger.error("Failed to cleanup failed jobs", days=days, error=str(e))
+            raise DatabaseError("cleanup failed jobs", e) from e
 
     def cleanup_orphaned_content(self) -> int:
         """Delete content records without associated jobs.
@@ -633,9 +696,13 @@ class DatabaseService:
         Returns:
             Number of content records deleted
         """
-        # TODO: Fix async/sync mismatch - CleanupService methods are async
-        logger.warning("CleanupService async/sync mismatch needs fixing")
-        return 0
+        try:
+            with self.get_session() as session:
+                cleanup_service = CleanupService(session)
+                return cleanup_service.cleanup_orphaned_content()
+        except SQLAlchemyError as e:
+            logger.error("Failed to cleanup orphaned content", error=str(e))
+            raise DatabaseError("cleanup orphaned content", e) from e
 
     def cleanup_orphaned_logs(self) -> int:
         """Delete log records without associated jobs.
@@ -643,9 +710,13 @@ class DatabaseService:
         Returns:
             Number of log records deleted
         """
-        # TODO: Fix async/sync mismatch - CleanupService methods are async
-        logger.warning("CleanupService async/sync mismatch needs fixing")
-        return 0
+        try:
+            with self.get_session() as session:
+                cleanup_service = CleanupService(session)
+                return cleanup_service.cleanup_orphaned_logs()
+        except SQLAlchemyError as e:
+            logger.error("Failed to cleanup orphaned logs", error=str(e))
+            raise DatabaseError("cleanup orphaned logs", e) from e
 
     def cleanup_all(self, old_jobs_days: int = 7, failed_jobs_days: int = 3) -> dict[str, Any]:
         """Run all cleanup operations.

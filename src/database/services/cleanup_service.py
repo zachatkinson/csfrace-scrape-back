@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from src.core.exceptions import DatabaseError
 from src.utils.logging import get_logger
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class CleanupService:
     """Service for database cleanup and maintenance operations."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         """Initialize cleanup service.
 
         Args:
@@ -29,7 +29,7 @@ class CleanupService:
         """
         self.session = session
 
-    async def cleanup_old_jobs(self, days: int = 7) -> int:
+    def cleanup_old_jobs(self, days: int = 7) -> int:
         """Delete jobs older than specified days.
 
         Args:
@@ -44,22 +44,28 @@ class CleanupService:
         try:
             cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
-            # Delete old jobs (cascade will handle related records)
-            result = await self.session.execute(delete(Job).where(Job.created_at < cutoff_date))
+            # Soft delete old jobs by marking them as cancelled
+            from ...common.status import JobStatus
+
+            result = self.session.execute(
+                Job.__table__.update()
+                .where(Job.created_at < cutoff_date)
+                .values(status=JobStatus.CANCELLED.value)
+            )
 
             deleted_count = result.rowcount
-            await self.session.commit()
+            self.session.commit()
 
             logger.info("Cleaned up old jobs", deleted_count=deleted_count, cutoff_days=days)
 
             return deleted_count
 
         except Exception as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Failed to cleanup old jobs", error=str(e))
-            raise DatabaseError(operation="cleanup old jobs", original_error=e) from e
+            raise DatabaseError("cleanup old jobs", e) from e
 
-    async def cleanup_failed_jobs(self, days: int = 3) -> int:
+    def cleanup_failed_jobs(self, days: int = 3) -> int:
         """Delete failed jobs older than specified days.
 
         Args:
@@ -74,23 +80,23 @@ class CleanupService:
         try:
             cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
-            result = await self.session.execute(
+            result = self.session.execute(
                 delete(Job).where(Job.status == "failed").where(Job.created_at < cutoff_date)
             )
 
             deleted_count = result.rowcount
-            await self.session.commit()
+            self.session.commit()
 
             logger.info("Cleaned up failed jobs", deleted_count=deleted_count, cutoff_days=days)
 
             return deleted_count
 
         except Exception as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Failed to cleanup failed jobs", error=str(e))
-            raise DatabaseError(operation="cleanup failed jobs", original_error=e) from e
+            raise DatabaseError("cleanup failed jobs", e) from e
 
-    async def cleanup_orphaned_content(self) -> int:
+    def cleanup_orphaned_content(self) -> int:
         """Delete content records without associated jobs.
 
         Returns:
@@ -101,7 +107,7 @@ class CleanupService:
         """
         try:
             # Find orphaned content
-            orphaned_content = await self.session.execute(
+            orphaned_content = self.session.execute(
                 select(JobContent.id)
                 .outerjoin(Job, JobContent.job_id == Job.id)
                 .where(Job.id.is_(None))
@@ -110,11 +116,11 @@ class CleanupService:
             orphaned_ids = [row[0] for row in orphaned_content]
 
             if orphaned_ids:
-                result = await self.session.execute(
+                result = self.session.execute(
                     delete(JobContent).where(JobContent.id.in_(orphaned_ids))
                 )
                 deleted_count = result.rowcount
-                await self.session.commit()
+                self.session.commit()
             else:
                 deleted_count = 0
 
@@ -123,11 +129,11 @@ class CleanupService:
             return deleted_count
 
         except Exception as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Failed to cleanup orphaned content", error=str(e))
-            raise DatabaseError(operation="cleanup orphaned content", original_error=e) from e
+            raise DatabaseError("cleanup orphaned content", e) from e
 
-    async def cleanup_orphaned_logs(self) -> int:
+    def cleanup_orphaned_logs(self) -> int:
         """Delete log records without associated jobs.
 
         Returns:
@@ -138,18 +144,16 @@ class CleanupService:
         """
         try:
             # Find orphaned logs
-            orphaned_logs = await self.session.execute(
+            orphaned_logs = self.session.execute(
                 select(JobLog.id).outerjoin(Job, JobLog.job_id == Job.id).where(Job.id.is_(None))
             )
 
             orphaned_ids = [row[0] for row in orphaned_logs]
 
             if orphaned_ids:
-                result = await self.session.execute(
-                    delete(JobLog).where(JobLog.id.in_(orphaned_ids))
-                )
+                result = self.session.execute(delete(JobLog).where(JobLog.id.in_(orphaned_ids)))
                 deleted_count = result.rowcount
-                await self.session.commit()
+                self.session.commit()
             else:
                 deleted_count = 0
 
@@ -158,11 +162,11 @@ class CleanupService:
             return deleted_count
 
         except Exception as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Failed to cleanup orphaned logs", error=str(e))
-            raise DatabaseError(operation="cleanup orphaned logs", original_error=e) from e
+            raise DatabaseError("cleanup orphaned logs", e) from e
 
-    async def vacuum_database(self) -> None:
+    def vacuum_database(self) -> None:
         """Run VACUUM on database to reclaim space.
 
         Note: This operation may not be available on all database backends.
@@ -172,7 +176,7 @@ class CleanupService:
         """
         try:
             # Note: VACUUM requires autocommit mode in PostgreSQL
-            await self.session.execute(text("VACUUM ANALYZE"))
+            self.session.execute(text("VACUUM ANALYZE"))
 
             logger.info("Database vacuum completed")
 
@@ -180,9 +184,7 @@ class CleanupService:
             logger.warning("Failed to vacuum database", error=str(e))
             # Don't raise as this is optional maintenance
 
-    async def cleanup_all(
-        self, old_jobs_days: int = 7, failed_jobs_days: int = 3
-    ) -> dict[str, Any]:
+    def cleanup_all(self, old_jobs_days: int = 7, failed_jobs_days: int = 3) -> dict[str, Any]:
         """Run all cleanup operations.
 
         Args:
@@ -205,18 +207,18 @@ class CleanupService:
             }
 
             # Cleanup old jobs
-            results["old_jobs_deleted"] = await self.cleanup_old_jobs(old_jobs_days)
+            results["old_jobs_deleted"] = self.cleanup_old_jobs(old_jobs_days)
 
             # Cleanup failed jobs
-            results["failed_jobs_deleted"] = await self.cleanup_failed_jobs(failed_jobs_days)
+            results["failed_jobs_deleted"] = self.cleanup_failed_jobs(failed_jobs_days)
 
             # Cleanup orphaned records
-            results["orphaned_content_deleted"] = await self.cleanup_orphaned_content()
-            results["orphaned_logs_deleted"] = await self.cleanup_orphaned_logs()
+            results["orphaned_content_deleted"] = self.cleanup_orphaned_content()
+            results["orphaned_logs_deleted"] = self.cleanup_orphaned_logs()
 
             # Try to vacuum
             try:
-                await self.vacuum_database()
+                self.vacuum_database()
                 results["vacuum_performed"] = True
             except Exception:  # pylint: disable=broad-exception-caught
                 pass  # Vacuum is optional
@@ -227,9 +229,9 @@ class CleanupService:
 
         except Exception as e:
             logger.error("Failed to perform full cleanup", error=str(e))
-            raise DatabaseError(operation="perform full cleanup", original_error=e) from e
+            raise DatabaseError("perform full cleanup", e) from e
 
-    async def get_database_size(self) -> dict[str, Any]:
+    def get_database_size(self) -> dict[str, Any]:
         """Get database size information.
 
         Returns:
@@ -240,7 +242,7 @@ class CleanupService:
         """
         try:
             # PostgreSQL specific query
-            result = await self.session.execute(
+            result = self.session.execute(
                 text(
                     """
                 SELECT
@@ -261,7 +263,7 @@ class CleanupService:
             # Return empty dict if not PostgreSQL or query fails
             return {}
 
-    async def get_table_sizes(self) -> list[dict[str, Any]]:
+    def get_table_sizes(self) -> list[dict[str, Any]]:
         """Get size information for all tables.
 
         Returns:
@@ -272,7 +274,7 @@ class CleanupService:
         """
         try:
             # PostgreSQL specific query
-            result = await self.session.execute(
+            result = self.session.execute(
                 text(
                     """
                 SELECT

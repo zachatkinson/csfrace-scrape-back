@@ -394,8 +394,9 @@ class JobService:
                     and_(
                         ScrapingJob.status == JobStatus.FAILED.value,
                         ScrapingJob.retry_count < ScrapingJob.max_retries,
-                        ScrapingJob.completed_at
-                        <= datetime.now(UTC),  # Only retry if enough time has passed
+                        # Include jobs with NULL completed_at or those with completed_at in the past
+                        (ScrapingJob.completed_at.is_(None))
+                        | (ScrapingJob.completed_at <= datetime.now(UTC)),
                     )
                 )
                 .order_by(desc(ScrapingJob.priority), ScrapingJob.created_at)

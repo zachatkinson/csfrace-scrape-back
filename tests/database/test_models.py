@@ -65,13 +65,28 @@ class TestDatabaseModels:
             session.add(job)
             session.commit()
 
-        # Verify job was created with correct defaults
-        assert job.id is not None
-        assert job.status == "pending"  # Default status
-        assert job.priority == 5  # Default priority (normal)
-        assert job.retry_count == 0
-        assert job.created_at is not None
-        assert isinstance(job.created_at, datetime)
+            # Verify job was created with correct defaults - access while session is active
+            assert job.id is not None
+            assert job.status == "pending"  # Default status
+            assert job.priority == 5  # Default priority (normal)
+            assert job.retry_count == 0
+            assert job.created_at is not None
+            assert isinstance(job.created_at, datetime)
+
+            # Store values to verify after session closes
+            job_id = job.id
+            job_status = job.status
+            job_priority = job.priority
+            job_retry_count = job.retry_count
+            job_created_at = job.created_at
+
+        # Additional verification that values were properly set
+        assert job_id is not None
+        assert job_status == "pending"
+        assert job_priority == 5
+        assert job_retry_count == 0
+        assert job_created_at is not None
+        assert isinstance(job_created_at, datetime)
 
     def test_scraping_job_properties(self, testcontainers_db_service):
         """Test ScrapingJob computed properties."""

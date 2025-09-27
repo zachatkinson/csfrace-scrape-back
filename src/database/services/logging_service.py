@@ -11,12 +11,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import desc, select
+from sqlalchemy.orm import Session
 
 from src.utils.logging import get_logger
 
 from ...core.exceptions import DatabaseError, ValidationError
 from ..models import JobLog
-from .base import BaseService
 
 logger = get_logger(__name__)
 
@@ -28,7 +28,9 @@ class JobLogRequest:
     job_id: str
     level: str
     message: str
-    details: dict[str, Any] | None = None
+    component: str | None = None
+    operation: str | None = None
+    context_data: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Validate log request data."""
@@ -49,11 +51,23 @@ class JobLogRequest:
             )
 
         self.message = self.message.strip()
-        self.details = self.details or {}
+        # Keep context_data as None if not provided, don't convert to empty dict
+        if self.context_data is None:
+            self.context_data = None
+        else:
+            self.context_data = self.context_data or {}
 
 
-class LoggingService(BaseService):
+class LoggingService:
     """Service for job logging operations."""
+
+    def __init__(self, session: Session):
+        """Initialize with provided database session.
+
+        Args:
+            session: SQLAlchemy session to use for database operations
+        """
+        self.session = session
 
     def add_job_log(self, request: JobLogRequest) -> JobLog:
         """Add a log entry for a job.
@@ -76,25 +90,43 @@ class LoggingService(BaseService):
         )  # Log first 50 chars
 
         try:
-            with self.get_session() as session:
-                log_entry = JobLog(
-                    job_id=request.job_id,
-                    level=request.level,
-                    message=request.message,
-                    details=request.details,
-                    created_at=datetime.now(UTC),
-                )
+            log_entry = JobLog(
+                job_id=request.job_id,
+                level=request.level,
+                message=request.message,
+                component=request.component,
+                operation=request.operation,
+                context_data=request.context_data,
+                timestamp=datetime.now(UTC),
+            )
 
-                session.add(log_entry)
-                session.flush()
+            self.session.add(log_entry)
+            self.session.flush()
 
-                logger.debug(
-                    "Job log added successfully",
-                    job_id=request.job_id,
-                    log_id=log_entry.id,
-                    level=request.level,
-                )
-                return log_entry
+            # Eagerly load all attributes to prevent DetachedInstanceError
+            _ = (
+                log_entry.id,
+                log_entry.job_id,
+                log_entry.level,
+                log_entry.message,
+                log_entry.component,
+                log_entry.operation,
+                log_entry.context_data,
+                log_entry.timestamp,
+                log_entry.exception_type,
+                log_entry.exception_traceback,
+            )
+
+            # Detach from session for safe return
+            self.session.expunge(log_entry)
+
+            logger.debug(
+                "Job log added successfully",
+                job_id=request.job_id,
+                log_id=log_entry.id,
+                level=request.level,
+            )
+            return log_entry
 
         except Exception as e:
             logger.error("Failed to add job log", job_id=request.job_id, error=str(e))

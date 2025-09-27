@@ -298,17 +298,17 @@ def db_service_with_session(testcontainers_db_service, db_session):  # pylint: d
     db_session.refresh(user)
 
     # Replace the service's session factory to use our test session
-    original_factory = testcontainers_db_service._session_factory  # pylint: disable=protected-access
+    original_factory = testcontainers_db_service.SessionLocal  # Use the correct attribute
 
     def test_session_factory():
         return db_session
 
-    testcontainers_db_service._session_factory = test_session_factory  # pylint: disable=protected-access
+    testcontainers_db_service.SessionLocal = test_session_factory
 
     yield testcontainers_db_service
 
     # Restore original factory (though fixture cleanup will handle it)
-    testcontainers_db_service._session_factory = original_factory  # pylint: disable=protected-access
+    testcontainers_db_service.SessionLocal = original_factory
 
 
 @pytest.fixture
