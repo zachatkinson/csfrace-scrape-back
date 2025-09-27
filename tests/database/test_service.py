@@ -1299,6 +1299,9 @@ class TestDatabaseServiceConcurrency:
             try:
                 # Add small delay to increase chance of concurrent access
                 time.sleep(0.01)  # Mocked by mock_time_sleep fixture
+
+                # Use the shared database service - it should handle concurrent access
+                # properly with session-per-operation via context managers
                 job = db_service_with_session.create_job(
                     url=f"https://example.com/test{worker_id}",
                     output_directory=f"/tmp/output{worker_id}",
