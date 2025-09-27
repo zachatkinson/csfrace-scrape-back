@@ -44,7 +44,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
         }
 
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
 
@@ -82,7 +82,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
         }
 
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
 
@@ -116,7 +116,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
             },
         }
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
@@ -141,7 +141,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
             },
         }
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
@@ -166,7 +166,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
             },
         }
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
@@ -195,7 +195,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
         }
 
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
 
@@ -210,7 +210,7 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
     async def test_health_check_general_exception(self, mock_db_session):
         """Test health check with unexpected exception."""
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.side_effect = Exception("Unexpected error")
 
@@ -274,13 +274,17 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
             mock_perf_monitor = MagicMock()
             mock_perf_monitor.get_performance_summary.return_value = mock_performance
 
-            with patch("src.api.routers.health.performance_monitor", mock_perf_monitor):
-                result = await get_metrics()
+            # Mock cache manager to avoid cache status interference
+            with patch("src.api.routers.health.metrics_export.cache_manager", None):
+                with patch(
+                    "src.api.routers.health.metrics_export.performance_monitor", mock_perf_monitor
+                ):
+                    result = await get_metrics()
 
-                # Performance data should be merged into application_metrics
-                assert result.application_metrics["active_jobs"] == 3
-                assert result.application_metrics["avg_response_time"] == 125.5
-                assert result.application_metrics["requests_per_second"] == 30.0
+                    # Performance data should be merged into application_metrics
+                    assert result.application_metrics["active_jobs"] == 3
+                    assert result.application_metrics["avg_response_time"] == 125.5
+                    assert result.application_metrics["requests_per_second"] == 30.0
 
     @pytest.mark.asyncio
     async def test_get_metrics_performance_import_error(self):
@@ -297,12 +301,18 @@ class TestHealthRouterEndpoints:  # pylint: disable=too-many-public-methods
             mock_collector.return_value = mock_metrics
 
             # Simulate performance monitor not available (import error scenario)
-            with patch("src.api.routers.health.performance_monitor", None):
-                result = await get_metrics()
+            with patch("src.api.routers.health.metrics_export.cache_manager", None):
+                with patch("src.api.routers.health.metrics_export.performance_monitor", None):
+                    result = await get_metrics()
 
-                # Should work without performance data
-                assert isinstance(result, MetricsResponse)
-                assert result.application_metrics == mock_metrics["application_metrics"]
+                    # Should work without performance data
+                    assert isinstance(result, MetricsResponse)
+                    # Performance data should be empty, but cache status is still added
+                    expected_app_metrics = {
+                        **mock_metrics["application_metrics"],
+                        "cache": {"status": "not_configured"},
+                    }
+                    assert result.application_metrics == expected_app_metrics
 
     @pytest.mark.asyncio
     async def test_get_metrics_performance_attribute_error(self):
@@ -445,7 +455,7 @@ request_duration_seconds_bucket{le="1.0"} 800
             },
         }
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
@@ -470,7 +480,7 @@ request_duration_seconds_bucket{le="1.0"} 800
             },
         }
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             mock_health.return_value = mock_health_status
             result = await health_check(mock_db_session)
@@ -497,7 +507,7 @@ request_duration_seconds_bucket{le="1.0"} 800
                 },
             }
             with patch(
-                "src.api.routers.health.health_service.get_comprehensive_health_status"
+                "src.api.services.health_service.health_service.get_comprehensive_health_status"
             ) as mock_health:
                 mock_health.return_value = mock_health_status
                 result = await health_check(mock_db_session)
@@ -611,7 +621,7 @@ request_duration_seconds_bucket{le="1.0"} 800
         mock_db_session.execute = AsyncMock()
 
         with patch(
-            "src.api.routers.health.health_service.get_comprehensive_health_status"
+            "src.api.services.health_service.health_service.get_comprehensive_health_status"
         ) as mock_health:
             # Simulate an HTTPException being raised internally
             test_http_exception = HTTPException(
@@ -657,7 +667,7 @@ request_duration_seconds_bucket{le="1.0"} 800
                 },
             }
             with patch(
-                "src.api.routers.health.health_service.get_comprehensive_health_status"
+                "src.api.services.health_service.health_service.get_comprehensive_health_status"
             ) as mock_health:
                 mock_health.return_value = mock_health_status
 

@@ -153,11 +153,11 @@ class TestAPIErrorFactory:
         ]
 
         for error, expected_status in test_cases:
-            with patch("src.api.errors.logger"):
+            with patch("src.core.exceptions.logger"):
                 # Test that factory can handle each exception type appropriately
                 if isinstance(error, APINotFoundError):
                     exc = APIErrorFactory.not_found(
-                        error.details["resource_type"], error.details["identifier"]
+                        error.context["resource_type"], error.context["identifier"]
                     )
                 elif isinstance(error, APIValidationError):
                     exc = APIErrorFactory.validation_error(str(error))
@@ -184,7 +184,7 @@ class TestErrorFactoryIntegration:
         @app.exception_handler(APINotFoundError)
         async def handle_not_found(request, exc):
             http_exc = APIErrorFactory.not_found(
-                exc.details["resource_type"], exc.details["identifier"]
+                exc.context["resource_type"], exc.context["identifier"]
             )
             return JSONResponse(
                 status_code=http_exc.status_code, content={"detail": http_exc.detail}

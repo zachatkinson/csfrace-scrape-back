@@ -36,6 +36,7 @@ class TestJobRouterEndpoints:
             user_id="test-user-id",  # Required field
             id="test-job-id-123",  # String UUID instead of integer
             source_url="https://example.com/test",  # Required field
+            domain="example.com",  # Required domain field
             job_type="single",  # Use actual model field
             target_format="html",  # Use actual model field
             status=JobStatus.PENDING.value,  # Use string value
@@ -64,7 +65,7 @@ class TestJobRouterEndpoints:
         mock_jobs = [sample_job]
 
         # Mock the ScrapingJob model and database operations
-        with patch("src.database.models.ScrapingJob") as mock_job_class:
+        with patch("src.api.routers.jobs.execution.ScrapingJob") as mock_job_class:
             # Configure the mock to return our sample job with all required attributes
             mock_job_instance = MagicMock()
             mock_job_instance.id = sample_job.id
@@ -149,6 +150,7 @@ class TestJobRouterEndpoints:
                 user_id="test-user-id",  # Required field
                 id="test-job-1",  # String UUID instead of integer
                 source_url="https://test1.com",  # Required field
+                domain="test1.com",  # Required domain field
                 job_type="single",  # Use actual model field
                 target_format="html",  # Use actual model field
                 status=JobStatus.PENDING.value,  # Use string value
@@ -161,6 +163,7 @@ class TestJobRouterEndpoints:
                 user_id="test-user-id",  # Required field
                 id="test-job-2",  # String UUID instead of integer
                 source_url="https://test2.com",  # Required field
+                domain="test2.com",  # Required domain field
                 job_type="single",  # Use actual model field
                 target_format="html",  # Use actual model field
                 status=JobStatus.PENDING.value,  # Use string value
@@ -172,7 +175,7 @@ class TestJobRouterEndpoints:
         ]
 
         with patch(
-            "src.api.routers.jobs.JobCRUD.get_jobs", return_value=(jobs, 2)
+            "src.api.routers.jobs.crud.JobCRUD.get_jobs", return_value=(jobs, 2)
         ) as mock_get_jobs:
             result = await list_jobs(
                 mock_db_session,
@@ -213,7 +216,7 @@ class TestJobRouterEndpoints:
             )
         ]
 
-        with patch("src.api.routers.jobs.JobCRUD.get_jobs", return_value=(jobs, 25)):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_jobs", return_value=(jobs, 25)):
             result = await list_jobs(mock_db_session, page=2, page_size=10)
 
             assert result.page == 2
@@ -224,7 +227,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_jobs_database_error(self, mock_db_session):
         """Test job listing with database error."""
-        with patch("src.api.routers.jobs.JobCRUD.get_jobs") as mock_get_jobs:
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_jobs") as mock_get_jobs:
             mock_get_jobs.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -236,7 +239,9 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_get_job_success(self, mock_db_session, sample_job):
         """Test successful job retrieval."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job) as mock_get:
+        with patch(
+            "src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job
+        ) as mock_get:
             result = await get_job("test-job-id-123", mock_db_session)
 
             assert isinstance(result, JobResponse)
@@ -248,7 +253,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_get_job_not_found(self, mock_db_session):
         """Test job retrieval when job doesn't exist."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await get_job("nonexistent-job-id", mock_db_session)
 
@@ -258,7 +263,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_get_job_database_error(self, mock_db_session):
         """Test job retrieval with database error."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job") as mock_get:
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job") as mock_get:
             mock_get.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -271,7 +276,7 @@ class TestJobRouterEndpoints:
     async def test_update_job_success(self, mock_db_session, sample_job, job_update_data):
         """Test successful job update."""
         with patch(
-            "src.api.routers.jobs.JobCRUD.update_job", return_value=sample_job
+            "src.api.routers.jobs.crud.JobCRUD.update_job", return_value=sample_job
         ) as mock_update:
             result = await update_job("test-job-id-123", job_update_data, mock_db_session)
 
@@ -283,7 +288,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_update_job_not_found(self, mock_db_session, job_update_data):
         """Test job update when job doesn't exist."""
-        with patch("src.api.routers.jobs.JobCRUD.update_job", return_value=None):
+        with patch("src.api.routers.jobs.crud.JobCRUD.update_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await update_job("nonexistent-job-id", job_update_data, mock_db_session)
 
@@ -293,7 +298,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_update_job_database_error(self, mock_db_session, job_update_data):
         """Test job update with database error."""
-        with patch("src.api.routers.jobs.JobCRUD.update_job") as mock_update:
+        with patch("src.api.routers.jobs.crud.JobCRUD.update_job") as mock_update:
             mock_update.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -305,7 +310,9 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_delete_job_success(self, mock_db_session):
         """Test successful job deletion."""
-        with patch("src.api.routers.jobs.JobCRUD.delete_job", return_value=True) as mock_delete:
+        with patch(
+            "src.api.routers.jobs.crud.JobCRUD.delete_job", return_value=True
+        ) as mock_delete:
             result = await delete_job("test-job-id-123", mock_db_session)
 
             assert result is None  # Endpoint returns None on success
@@ -314,7 +321,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_delete_job_not_found(self, mock_db_session):
         """Test job deletion when job doesn't exist."""
-        with patch("src.api.routers.jobs.JobCRUD.delete_job", return_value=False):
+        with patch("src.api.routers.jobs.crud.JobCRUD.delete_job", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_job("nonexistent-job-id", mock_db_session)
 
@@ -324,7 +331,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_delete_job_database_error(self, mock_db_session):
         """Test job deletion with database error."""
-        with patch("src.api.routers.jobs.JobCRUD.delete_job") as mock_delete:
+        with patch("src.api.routers.jobs.crud.JobCRUD.delete_job") as mock_delete:
             mock_delete.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -354,9 +361,9 @@ class TestJobRouterEndpoints:
             output_size_bytes=sample_job.output_size_bytes,
         )
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             with patch(
-                "src.api.routers.jobs.JobCRUD.update_job_status", return_value=updated_job
+                "src.api.routers.jobs.crud.JobCRUD.update_job_status", return_value=updated_job
             ) as mock_update:
                 result = await start_job("test-job-id", mock_db_session)
 
@@ -370,7 +377,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_start_job_not_found(self, mock_db_session):
         """Test starting non-existent job."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await start_job("nonexistent-job-id", mock_db_session)
 
@@ -382,7 +389,7 @@ class TestJobRouterEndpoints:
         """Test starting job with invalid status."""
         sample_job.status = JobStatus.RUNNING.value  # Already running
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.control.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
                 await start_job("test-job-id", mock_db_session)
 
@@ -393,8 +400,8 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_start_job_database_error(self, mock_db_session, sample_job):
         """Test starting job with database error."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
-            with patch("src.api.routers.jobs.JobCRUD.update_job_status") as mock_update:
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
+            with patch("src.api.routers.jobs.control.JobCRUD.update_job_status") as mock_update:
                 mock_update.side_effect = SQLAlchemyError("Database error")
 
                 with pytest.raises(HTTPException) as exc_info:
@@ -424,9 +431,9 @@ class TestJobRouterEndpoints:
             output_size_bytes=sample_job.output_size_bytes,
         )
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             with patch(
-                "src.api.routers.jobs.JobCRUD.update_job_status", return_value=updated_job
+                "src.api.routers.jobs.crud.JobCRUD.update_job_status", return_value=updated_job
             ) as mock_update:
                 result = await cancel_job("test-job-id", mock_db_session)
 
@@ -440,7 +447,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_cancel_job_not_found(self, mock_db_session):
         """Test cancelling non-existent job."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await cancel_job("nonexistent-job-id", mock_db_session)
 
@@ -451,7 +458,7 @@ class TestJobRouterEndpoints:
         """Test cancelling completed job."""
         sample_job.status = JobStatus.COMPLETED.value
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
                 await cancel_job("test-job-id", mock_db_session)
 
@@ -463,7 +470,7 @@ class TestJobRouterEndpoints:
         """Test cancelling failed job."""
         sample_job.status = JobStatus.FAILED.value
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
                 await cancel_job("test-job-id", mock_db_session)
 
@@ -475,7 +482,7 @@ class TestJobRouterEndpoints:
         """Test cancelling already cancelled job."""
         sample_job.status = JobStatus.CANCELLED.value
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
                 await cancel_job("test-job-id", mock_db_session)
 
@@ -491,7 +498,7 @@ class TestJobRouterEndpoints:
         sample_job.max_retries = 3
         # can_retry is computed from status and retry counts
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             mock_db_session.flush = AsyncMock()
             mock_db_session.refresh = AsyncMock()
 
@@ -507,7 +514,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_retry_job_not_found(self, mock_db_session):
         """Test retrying non-existent job."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=None):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await retry_job("nonexistent-job-id", mock_db_session)
 
@@ -521,7 +528,7 @@ class TestJobRouterEndpoints:
         sample_job.max_retries = 3
         sample_job.status = JobStatus.FAILED.value
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             with pytest.raises(HTTPException) as exc_info:
                 await retry_job("test-job-id", mock_db_session)
 
@@ -537,7 +544,7 @@ class TestJobRouterEndpoints:
         sample_job.retry_count = 1
         sample_job.max_retries = 3
 
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             mock_db_session.flush.side_effect = SQLAlchemyError("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -549,7 +556,9 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_list_jobs_skip_calculation(self, mock_db_session):
         """Test skip calculation for different pages."""
-        with patch("src.api.routers.jobs.JobCRUD.get_jobs", return_value=([], 0)) as mock_get_jobs:
+        with patch(
+            "src.api.routers.jobs.crud.JobCRUD.get_jobs", return_value=([], 0)
+        ) as mock_get_jobs:
             # Test page 3 with page_size 20
             await list_jobs(mock_db_session, page=3, page_size=20, status_filter=None, domain=None)
 
@@ -578,7 +587,7 @@ class TestJobRouterEndpoints:
                 status=invalid_status,  # Already using .value
             )
 
-            with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
+            with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=job):
                 with pytest.raises(HTTPException) as exc_info:
                     await start_job("test-job-id", mock_db_session)
 
@@ -606,8 +615,10 @@ class TestJobRouterEndpoints:
                 max_retries=3,
             )
 
-            with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=job):
-                with patch("src.api.routers.jobs.JobCRUD.update_job_status", return_value=job):
+            with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=job):
+                with patch(
+                    "src.api.routers.jobs.control.JobCRUD.update_job_status", return_value=job
+                ):
                     result = await cancel_job("test-job-id", mock_db_session)
 
                     assert isinstance(result, JobResponse)
@@ -615,7 +626,7 @@ class TestJobRouterEndpoints:
     @pytest.mark.asyncio
     async def test_job_response_validation(self, mock_db_session, sample_job):
         """Test that JobResponse validation works correctly."""
-        with patch("src.api.routers.jobs.JobCRUD.get_job", return_value=sample_job):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_job", return_value=sample_job):
             result = await get_job("test-job-id", mock_db_session)
 
             # Verify all required fields are present
@@ -649,7 +660,7 @@ class TestJobRouterEndpoints:
             )
         ]
 
-        with patch("src.api.routers.jobs.JobCRUD.get_jobs", return_value=(jobs, 1)):
+        with patch("src.api.routers.jobs.crud.JobCRUD.get_jobs", return_value=(jobs, 1)):
             result = await list_jobs(mock_db_session, page=1, page_size=50)
 
             # Verify pagination fields

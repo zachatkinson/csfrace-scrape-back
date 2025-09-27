@@ -311,7 +311,7 @@ class TestRateLimitHandler:
         # Check response content structure matches APIErrorFactory
         content = json.loads(response.body.decode())
         assert content["error"] is True
-        assert content["error_code"] == "RATE_LIMIT_EXCEEDED"
+        assert content["error_code"] == "API_RATE_LIMIT_EXCEEDED"
         assert "Rate limit exceeded: 60 per 1 minute" in content["message"]
         assert "timestamp" in content
 
@@ -334,7 +334,7 @@ class TestRateLimitHandler:
             assert f"Rate limit exceeded: {limit_str}" in content["message"]
             assert response.status_code == 429
             assert content["error"] is True
-            assert content["error_code"] == "RATE_LIMIT_EXCEEDED"
+            assert content["error_code"] == "API_RATE_LIMIT_EXCEEDED"
 
     @pytest.mark.asyncio
     async def test_rate_limit_handler_response_structure(self):
@@ -357,7 +357,7 @@ class TestRateLimitHandler:
         assert "timestamp" in content
 
         assert content["error"] is True
-        assert content["error_code"] == "RATE_LIMIT_EXCEEDED"
+        assert content["error_code"] == "API_RATE_LIMIT_EXCEEDED"
 
 
 class TestPrometheusMetricsEndpoint:
@@ -801,7 +801,7 @@ class TestEdgeCasesAndBoundaryConditions:
         content = json.loads(response.body.decode())
         assert "Rate limit exceeded:" in content["message"]
         assert content["error"] is True
-        assert content["error_code"] == "RATE_LIMIT_EXCEEDED"
+        assert content["error_code"] == "API_RATE_LIMIT_EXCEEDED"
 
     @pytest.mark.asyncio
     async def test_global_exception_handler_with_none_path(self):

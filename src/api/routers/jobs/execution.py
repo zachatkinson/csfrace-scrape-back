@@ -7,7 +7,6 @@ This module handles job creation and background execution including:
 """
 
 from pathlib import Path
-from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Request, status
@@ -140,13 +139,25 @@ async def create_jobs(
 
         jobs = []
         for url in jobs_data.urls:
+            # Prepare options with output directory if provided
+            job_options = jobs_data.options or {}
+            if jobs_data.output_base_directory:
+                job_options["output_base_directory"] = jobs_data.output_base_directory
+
+            # Extract domain from URL for the domain field
+            from urllib.parse import urlparse
+
+            parsed_url = urlparse(str(url))
+            domain = parsed_url.netloc or "unknown"
+
             job = ScrapingJob(
                 source_url=str(url),
+                domain=domain,
+                user_id="system-user",  # System user for job creation
                 batch_id=batch_id,
                 priority=jobs_data.priority.value,
-                output_directory=jobs_data.output_base_directory,
                 max_retries=jobs_data.max_retries,
-                options=jobs_data.options or {},
+                options=job_options,
             )
             jobs.append(job)
             db.add(job)

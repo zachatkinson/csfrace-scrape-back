@@ -10,8 +10,6 @@ from fastapi import HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from .errors import APIErrorFactory
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -29,7 +27,10 @@ def handle_database_error(operation: str):
     """
 
     def error_handler(e: SQLAlchemyError):
-        raise APIErrorFactory.internal_server_error(f"Failed to {operation}: {str(e)}")
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to {operation}: {str(e)}",
+        )
 
     return error_handler
 
@@ -120,26 +121,26 @@ def rate_limited_endpoint(
 # These are kept for backward compatibility but should be migrated
 def unauthorized_error(detail: str):
     """Create standardized 401 Unauthorized response. DEPRECATED: Use APIErrorFactory.unauthorized instead."""
-    raise APIErrorFactory.unauthorized(detail)
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def bad_request_error(detail: str):
     """Create standardized 400 Bad Request response. DEPRECATED: Use APIErrorFactory.bad_request instead."""
-
-    # TODO: Fix APIError class to have bad_request method
-    raise HTTPException(status_code=400, detail=detail)
+    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
 
 def internal_server_error(detail: str):
     """Create standardized 500 Internal Server Error response. DEPRECATED: Use APIErrorFactory.internal_server_error instead."""
-
-    # TODO: Fix APIError class to have internal_server_error method
-    raise HTTPException(status_code=500, detail=detail)
+    return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
 
 
 def validation_error(detail: str):
     """Create standardized 422 Unprocessable Entity response for validation errors. DEPRECATED: Use APIErrorFactory.validation_error instead."""
-    raise APIErrorFactory.validation_error(detail)
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
 
 
 # Assignment-from-none wrapper (DRY principle)
