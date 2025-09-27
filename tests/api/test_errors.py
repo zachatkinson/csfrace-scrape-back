@@ -278,36 +278,27 @@ class TestAPIErrorFactory:
 
         assert "debug" not in detail
 
-    @patch("structlog.get_logger")
-    def test_log_error_500_level(self, mock_get_logger):
+    @patch("src.api.errors.logger")
+    def test_log_error_500_level(self, mock_logger):
         """Test error logging for 500-level errors."""
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
         error = APIError("Server error", status_code=500)
-        APIErrorFactory._log_error(error)
+        error.log_error("error")
 
         mock_logger.error.assert_called_once()
 
-    @patch("structlog.get_logger")
-    def test_log_error_400_level(self, mock_get_logger):
+    @patch("src.api.errors.logger")
+    def test_log_error_400_level(self, mock_logger):
         """Test error logging for 400-level errors."""
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
         error = APIError("Client error", status_code=400)
-        APIErrorFactory._log_error(error)
+        error.log_error("warning")
 
         mock_logger.warning.assert_called_once()
 
-    @patch("structlog.get_logger")
-    def test_log_error_200_level(self, mock_get_logger):
+    @patch("src.api.errors.logger")
+    def test_log_error_200_level(self, mock_logger):
         """Test error logging for 200-level responses."""
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
         error = APIError("Success", status_code=200)
-        APIErrorFactory._log_error(error)
+        error.log_error("info")
 
         mock_logger.info.assert_called_once()
 

@@ -39,7 +39,7 @@ class TestLoggingSetup:
 
     def test_setup_logging_verbose_mode(self):
         """Test logging setup with verbose mode enabled."""
-        setup_logging(verbose=True)
+        setup_logging(log_level="DEBUG")
 
         # Verify DEBUG level is set (may be WARNING if previous tests ran)
         # The actual level depends on test execution order
@@ -54,13 +54,13 @@ class TestLoggingSetup:
         # In CI environment, RichHandler might not be created due to non-TTY
         # Just verify that setup_logging completed without error
 
-    @patch("src.utils.logging.RichHandler")
+    @patch("rich.logging.RichHandler")
     def test_setup_logging_rich_handler_configuration(self, mock_rich_handler):
         """Test that RichHandler is configured with proper settings."""
         mock_handler_instance = Mock()
         mock_rich_handler.return_value = mock_handler_instance
 
-        setup_logging(verbose=False)
+        setup_logging()
 
         # Verify RichHandler was called with correct parameters
         mock_rich_handler.assert_called_once_with(rich_tracebacks=True)
@@ -68,7 +68,7 @@ class TestLoggingSetup:
     @patch("structlog.configure")
     def test_setup_logging_structlog_configuration(self, mock_configure):
         """Test that structlog is configured with proper processors."""
-        setup_logging(verbose=False)
+        setup_logging()
 
         # Verify structlog.configure was called
         mock_configure.assert_called_once()
@@ -86,7 +86,7 @@ class TestLoggingSetup:
     def test_setup_logging_processors_verbose_mode(self):
         """Test processor configuration in verbose mode."""
         with patch("structlog.configure") as mock_configure:
-            setup_logging(verbose=True)
+            setup_logging(log_level="DEBUG")
 
             call_args = mock_configure.call_args[1]
             processors = call_args["processors"]
@@ -104,7 +104,7 @@ class TestLoggingSetup:
     def test_setup_logging_processors_non_verbose_mode(self):
         """Test processor configuration in non-verbose mode."""
         with patch("structlog.configure") as mock_configure:
-            setup_logging(verbose=False)
+            setup_logging()
 
             call_args = mock_configure.call_args[1]
             processors = call_args["processors"]
@@ -167,7 +167,7 @@ class TestLoggingProcessors:
         mock_timestamper.return_value = Mock()
         mock_stack_info.return_value = Mock()
 
-        setup_logging(verbose=False)
+        setup_logging()
 
         # Verify processor classes were instantiated
         mock_timestamper.assert_called_once_with(fmt="ISO")
@@ -178,7 +178,7 @@ class TestLoggingProcessors:
         with patch("structlog.dev.ConsoleRenderer") as mock_console:
             mock_console.return_value = Mock()
 
-            setup_logging(verbose=True)
+            setup_logging(log_level="DEBUG")
 
             # Verify ConsoleRenderer was configured with exception formatter
             mock_console.assert_called_once_with(exception_formatter=structlog.dev.plain_traceback)
@@ -188,7 +188,7 @@ class TestLoggingProcessors:
         with patch("structlog.processors.JSONRenderer") as mock_json:
             mock_json.return_value = Mock()
 
-            setup_logging(verbose=False)
+            setup_logging()
 
             # Verify JSONRenderer was configured
             mock_json.assert_called_once()
@@ -279,7 +279,7 @@ class TestLoggingIntegration:
 
     def test_logging_integration_verbose_mode(self):
         """Test complete logging setup and usage in verbose mode."""
-        setup_logging(verbose=True)
+        setup_logging(log_level="DEBUG")
         logger = get_logger("test.integration")
 
         # Test that we can use the logger without errors
@@ -293,7 +293,7 @@ class TestLoggingIntegration:
 
     def test_logging_integration_production_mode(self):
         """Test complete logging setup and usage in production mode."""
-        setup_logging(verbose=False)
+        setup_logging()
         logger = get_logger("test.production")
 
         # Test that we can use the logger without errors
@@ -305,7 +305,7 @@ class TestLoggingIntegration:
 
     def test_logging_with_structured_data(self):
         """Test logging with structured data."""
-        setup_logging(verbose=True)
+        setup_logging(log_level="DEBUG")
         logger = get_logger("test.structured")
 
         # Test various data types
@@ -324,7 +324,7 @@ class TestLoggingIntegration:
 
     def test_logging_exception_handling(self):
         """Test logging with exception context."""
-        setup_logging(verbose=True)
+        setup_logging(log_level="DEBUG")
         logger = get_logger("test.exceptions")
 
         try:
@@ -339,7 +339,7 @@ class TestLoggingIntegration:
 
     def test_multiple_loggers_isolation(self):
         """Test that multiple loggers work independently."""
-        setup_logging(verbose=True)
+        setup_logging(log_level="DEBUG")
 
         logger1 = get_logger("module1")
         logger2 = get_logger("module2")
@@ -383,11 +383,11 @@ class TestLoggingEdgeCases:
     def test_logging_after_reconfiguration(self):
         """Test logging behavior after multiple reconfigurations."""
         # Initial setup
-        setup_logging(verbose=False)
+        setup_logging()
         logger1 = get_logger("test.reconfig")
 
         # Reconfigure
-        setup_logging(verbose=True)
+        setup_logging(log_level="DEBUG")
         logger2 = get_logger("test.reconfig")
 
         # Both loggers should still work
@@ -409,7 +409,7 @@ class TestLoggingEdgeCases:
 
     def test_logging_performance_with_many_calls(self):
         """Test logging performance doesn't degrade significantly."""
-        setup_logging(verbose=False)
+        setup_logging()
         logger = get_logger("test.performance")
 
         # Test that many logging calls don't cause issues

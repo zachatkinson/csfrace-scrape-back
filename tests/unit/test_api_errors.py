@@ -30,7 +30,7 @@ class TestAPIErrorFactory:
             # The detail should be a structured error dict
             detail = exception.detail
             assert isinstance(detail, dict)
-            assert detail["error_code"] == "RESOURCE_NOT_FOUND"
+            assert detail["error_code"] == "API_NOT_FOUND"
             assert "Job" in detail["message"]
             assert "123" in detail["message"]
             assert detail["details"]["resource_type"] == "Job"
