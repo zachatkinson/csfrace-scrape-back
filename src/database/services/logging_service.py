@@ -146,21 +146,21 @@ class LoggingService:
         logger.debug("Getting job logs", job_id=job_id, level=level, limit=limit)
 
         try:
-            with self.get_session() as session:
-                stmt = (
-                    select(JobLog)
-                    .where(JobLog.job_id == job_id)
-                    .order_by(desc(JobLog.timestamp))
-                    .limit(limit)
-                )
+            session = self.session
+            stmt = (
+                select(JobLog)
+                .where(JobLog.job_id == job_id)
+                .order_by(desc(JobLog.timestamp))
+                .limit(limit)
+            )
 
-                if level:
-                    stmt = stmt.where(JobLog.level == level.upper())
+            if level:
+                stmt = stmt.where(JobLog.level == level.upper())
 
-                logs = session.execute(stmt).scalars().all()
+            logs = session.execute(stmt).scalars().all()
 
-                logger.debug("Job logs retrieved", job_id=job_id, count=len(logs))
-                return list(logs)
+            logger.debug("Job logs retrieved", job_id=job_id, count=len(logs))
+            return list(logs)
 
         except Exception as e:
             logger.error("Failed to get job logs", job_id=job_id, error=str(e))
@@ -178,13 +178,13 @@ class LoggingService:
         logger.debug("Getting recent logs", limit=limit)
 
         try:
-            with self.get_session() as session:
-                stmt = select(JobLog).order_by(desc(JobLog.timestamp)).limit(limit)
+            session = self.session
+            stmt = select(JobLog).order_by(desc(JobLog.timestamp)).limit(limit)
 
-                logs = session.execute(stmt).scalars().all()
+            logs = session.execute(stmt).scalars().all()
 
-                logger.debug("Recent logs retrieved", count=len(logs))
-                return list(logs)
+            logger.debug("Recent logs retrieved", count=len(logs))
+            return list(logs)
 
         except Exception as e:
             logger.error("Failed to get recent logs", error=str(e))
@@ -202,18 +202,18 @@ class LoggingService:
         logger.debug("Getting error logs", limit=limit)
 
         try:
-            with self.get_session() as session:
-                stmt = (
-                    select(JobLog)
-                    .where(JobLog.level.in_(["ERROR", "CRITICAL"]))
-                    .order_by(desc(JobLog.timestamp))
-                    .limit(limit)
-                )
+            session = self.session
+            stmt = (
+                select(JobLog)
+                .where(JobLog.level.in_(["ERROR", "CRITICAL"]))
+                .order_by(desc(JobLog.timestamp))
+                .limit(limit)
+            )
 
-                logs = session.execute(stmt).scalars().all()
+            logs = session.execute(stmt).scalars().all()
 
-                logger.debug("Error logs retrieved", count=len(logs))
-                return list(logs)
+            logger.debug("Error logs retrieved", count=len(logs))
+            return list(logs)
 
         except Exception as e:
             logger.error("Failed to get error logs", error=str(e))
@@ -231,21 +231,21 @@ class LoggingService:
         logger.debug("Counting logs by level", job_id=job_id)
 
         try:
-            with self.get_session() as session:
-                from sqlalchemy import func
+            session = self.session
+            from sqlalchemy import func
 
-                query = session.query(JobLog.level, func.count(JobLog.id).label("count"))
+            query = session.query(JobLog.level, func.count(JobLog.id).label("count"))
 
-                if job_id:
-                    query = query.filter(JobLog.job_id == job_id)
+            if job_id:
+                query = query.filter(JobLog.job_id == job_id)
 
-                query = query.group_by(JobLog.level)
+            query = query.group_by(JobLog.level)
 
-                results = query.all()
-                counts: dict[str, int] = {row[0]: row[1] for row in results}
+            results = query.all()
+            counts: dict[str, int] = {row[0]: row[1] for row in results}
 
-                logger.debug("Log counts by level", job_id=job_id, counts=counts)
-                return counts
+            logger.debug("Log counts by level", job_id=job_id, counts=counts)
+            return counts
 
         except Exception as e:
             logger.error("Failed to count logs by level", job_id=job_id, error=str(e))

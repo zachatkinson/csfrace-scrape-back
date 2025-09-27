@@ -45,14 +45,16 @@ class CleanupService:
             cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
             # Soft delete old jobs by marking them as cancelled
+            from sqlalchemy import update
+
             from ...common.status import JobStatus
 
-            result = self.session.execute(
-                Job.__table__.update()
+            stmt = (
+                update(Job)
                 .where(Job.created_at < cutoff_date)
                 .values(status=JobStatus.CANCELLED.value)
             )
-
+            result = self.session.execute(stmt)
             deleted_count = result.rowcount
             self.session.commit()
 

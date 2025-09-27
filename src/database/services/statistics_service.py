@@ -409,8 +409,10 @@ class StatisticsService:
                 .first()
             )
 
-            total_output_size = int(size_stats_result.total_output or 0)
-            total_download_size = int(size_stats_result.total_download or 0)
+            total_output_size = int(size_stats_result.total_output or 0) if size_stats_result else 0
+            total_download_size = (
+                int(size_stats_result.total_download or 0) if size_stats_result else 0
+            )
 
             size_stats = {
                 "total_output_size": total_output_size,

@@ -492,7 +492,7 @@ class DatabaseService:
                 combined_metadata.update(kwargs)
 
                 result = content_service.save_content_result(
-                    job_id, html_content, "html", combined_metadata
+                    job_id, html_content or "", "html", combined_metadata
                 )
 
                 # Commit the transaction BEFORE accessing attributes
