@@ -33,8 +33,8 @@ class TestAPIErrorFactory:
             assert detail["error_code"] == "API_NOT_FOUND"
             assert "Job" in detail["message"]
             assert "123" in detail["message"]
-            assert detail["details"]["resource_type"] == "Job"
-            assert detail["details"]["identifier"] == "123"
+            assert detail["context"]["resource_type"] == "Job"
+            assert detail["context"]["identifier"] == "123"
 
             # Verify logging occurs (DRY principle - centralized logging)
             mock_logger.warning.assert_called_once()
@@ -52,7 +52,7 @@ class TestAPIErrorFactory:
             # The detail should be a structured error dict
             detail = exception.detail
             assert isinstance(detail, dict)
-            assert detail["error_code"] == "VALIDATION_ERROR"
+            assert detail["error_code"] == "API_VALIDATION_ERROR"
             assert validation_message in detail["message"]
 
             # Verify logging occurs
@@ -62,7 +62,7 @@ class TestAPIErrorFactory:
         """Test APIErrorFactory creates standardized 500 Internal Server Error responses."""
         original_error = Exception("Database connection failed")
 
-        with patch("src.api.errors.logger") as mock_logger:
+        with patch("src.core.exceptions.logger") as mock_logger:
             exception = APIErrorFactory.internal_server_error(
                 "Internal server error", original_error
             )

@@ -16,6 +16,10 @@ class TestLoggingSetup:
         """Set up clean state for each test."""
         # Reset structlog configuration
         structlog.reset_defaults()
+        # Reset LoggerFactory configuration state
+        from src.utils.logging import LoggerFactory
+
+        LoggerFactory._configured = False
         # Clear any existing handlers
         root_logger = logging.getLogger()
         for handler in root_logger.handlers[:]:
@@ -54,16 +58,16 @@ class TestLoggingSetup:
         # In CI environment, RichHandler might not be created due to non-TTY
         # Just verify that setup_logging completed without error
 
-    @patch("rich.logging.RichHandler")
-    def test_setup_logging_rich_handler_configuration(self, mock_rich_handler):
-        """Test that RichHandler is configured with proper settings."""
-        mock_handler_instance = Mock()
-        mock_rich_handler.return_value = mock_handler_instance
+    @patch("structlog.dev.ConsoleRenderer")
+    def test_setup_logging_console_renderer_configuration(self, mock_console_renderer):
+        """Test that ConsoleRenderer is configured with proper settings."""
+        mock_renderer_instance = Mock()
+        mock_console_renderer.return_value = mock_renderer_instance
 
-        setup_logging()
+        setup_logging(log_level="DEBUG")
 
-        # Verify RichHandler was called with correct parameters
-        mock_rich_handler.assert_called_once_with(rich_tracebacks=True)
+        # Verify ConsoleRenderer was called (colors=True in TTY environment)
+        mock_console_renderer.assert_called_once_with(colors=True)
 
     @patch("structlog.configure")
     def test_setup_logging_structlog_configuration(self, mock_configure):
