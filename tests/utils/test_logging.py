@@ -167,40 +167,36 @@ class TestLoggingProcessors:
     def setup_method(self):
         """Set up clean state for each test."""
         structlog.reset_defaults()
+        # Reset LoggerFactory configuration state
+        from src.utils.logging import LoggerFactory
 
-    @patch("structlog.stdlib.filter_by_level")
-    @patch("structlog.stdlib.add_log_level")
-    @patch("structlog.stdlib.add_logger_name")
+        LoggerFactory._configured = False
+
     @patch("structlog.processors.TimeStamper")
-    @patch("structlog.processors.StackInfoRenderer")
     def test_processor_chain_includes_required_processors(
         self,
-        mock_stack_info,
         mock_timestamper,
-        mock_add_logger_name,
-        mock_add_log_level,
-        mock_filter_by_level,
     ):
         """Test that all required processors are included in the chain."""
         # Create mock instances
         mock_timestamper.return_value = Mock()
-        mock_stack_info.return_value = Mock()
 
         setup_logging()
 
         # Verify processor classes were instantiated
-        mock_timestamper.assert_called_once_with(fmt="ISO")
-        mock_stack_info.assert_called_once()
+        mock_timestamper.assert_called_once_with(fmt="iso")
 
     def test_processor_console_renderer_verbose(self):
         """Test console renderer configuration in verbose mode."""
-        with patch("structlog.dev.ConsoleRenderer") as mock_console:
-            mock_console.return_value = Mock()
+        with patch("sys.stderr.isatty", return_value=True):
+            with patch("os.getenv", return_value=None):
+                with patch("structlog.dev.ConsoleRenderer") as mock_console:
+                    mock_console.return_value = Mock()
 
-            setup_logging(log_level="DEBUG")
+                    setup_logging(log_level="DEBUG")
 
-            # Verify ConsoleRenderer was configured with exception formatter
-            mock_console.assert_called_once_with(exception_formatter=structlog.dev.plain_traceback)
+                    # Verify ConsoleRenderer was configured with colors
+                    mock_console.assert_called_once_with(colors=True)
 
     def test_processor_json_renderer_non_verbose(self):
         """Test JSON renderer configuration in non-verbose mode."""

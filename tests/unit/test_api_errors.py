@@ -41,7 +41,7 @@ class TestAPIErrorFactory:
         """Test APIErrorFactory creates standardized 422 Validation Error responses."""
         validation_message = "URL is required"
 
-        with patch("src.api.errors.logger") as mock_logger:
+        with patch("src.core.exceptions.logger") as mock_logger:
             exception = APIErrorFactory.validation_error(validation_message)
 
             assert isinstance(exception, HTTPException)
@@ -83,7 +83,7 @@ class TestAPIErrorFactory:
     def test_rate_limit_error_creation(self):
         """Test APIErrorFactory creates standardized 429 Rate Limit responses."""
 
-        with patch("src.api.errors.logger") as mock_logger:
+        with patch("src.core.exceptions.logger") as mock_logger:
             exception = APIErrorFactory.rate_limit_exceeded("Rate limit exceeded")
 
             assert isinstance(exception, HTTPException)
@@ -92,7 +92,7 @@ class TestAPIErrorFactory:
             # The detail should be a structured error dict
             detail = exception.detail
             assert isinstance(detail, dict)
-            assert detail["error_code"] == "RATE_LIMIT_EXCEEDED"
+            assert detail["error_code"] == "API_RATE_LIMIT_EXCEEDED"
             assert "Rate limit exceeded" in detail["message"]
 
             # Verify error logging occurs
@@ -102,7 +102,7 @@ class TestAPIErrorFactory:
         """Test APIErrorFactory creates standardized 400 Business Logic Error responses."""
         conflict_details = "Job is already running and cannot be modified"
 
-        with patch("src.api.errors.logger") as mock_logger:
+        with patch("src.core.exceptions.logger") as mock_logger:
             exception = APIErrorFactory.business_logic_error(conflict_details)
 
             assert isinstance(exception, HTTPException)
@@ -111,7 +111,7 @@ class TestAPIErrorFactory:
             # The detail should be a structured error dict
             detail = exception.detail
             assert isinstance(detail, dict)
-            assert detail["error_code"] == "BUSINESS_LOGIC_ERROR"
+            assert detail["error_code"] == "API_BUSINESS_LOGIC_ERROR"
             assert conflict_details in detail["message"]
 
             # Verify error logging occurs
