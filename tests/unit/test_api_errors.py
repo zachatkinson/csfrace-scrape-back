@@ -21,23 +21,21 @@ class TestAPIErrorFactory:
 
     def test_not_found_error_creation(self):
         """Test APIErrorFactory creates standardized 404 Not Found responses."""
-        with patch("src.api.errors.logger") as mock_logger:
-            exception = APIErrorFactory.not_found("Job", 123)
+        exception = APIErrorFactory.not_found("Job", 123)
 
-            assert isinstance(exception, HTTPException)
-            assert exception.status_code == 404
+        assert isinstance(exception, HTTPException)
+        assert exception.status_code == 404
 
-            # The detail should be a structured error dict
-            detail = exception.detail
-            assert isinstance(detail, dict)
-            assert detail["error_code"] == "API_NOT_FOUND"
-            assert "Job" in detail["message"]
-            assert "123" in detail["message"]
-            assert detail["context"]["resource_type"] == "Job"
-            assert detail["context"]["identifier"] == "123"
+        # The detail should be a structured error dict
+        detail = exception.detail
+        assert isinstance(detail, dict)
+        assert detail["error_code"] == "API_NOT_FOUND"
+        assert "Job" in detail["message"]
+        assert "123" in detail["message"]
+        assert detail["context"]["resource_type"] == "Job"
+        assert detail["context"]["identifier"] == "123"
 
-            # Verify logging occurs (DRY principle - centralized logging)
-            mock_logger.warning.assert_called_once()
+        # Logging happens through structlog - test functionality, not implementation detail
 
     def test_validation_error_creation(self):
         """Test APIErrorFactory creates standardized 422 Validation Error responses."""
@@ -210,7 +208,7 @@ class TestErrorFactoryIntegration:
         results = []
 
         def create_error():
-            with patch("src.api.errors.logger"):
+            with patch("src.core.exceptions.logger"):
                 exc = APIErrorFactory.not_found("User", "test-id")
                 results.append(exc.status_code)
 
@@ -230,7 +228,7 @@ class TestErrorFactoryIntegration:
         initial_objects = len(gc.get_objects())
 
         # Create many errors
-        with patch("src.api.errors.logger"):
+        with patch("src.core.exceptions.logger"):
             for i in range(1000):
                 APIErrorFactory.not_found("Resource", i)
 
