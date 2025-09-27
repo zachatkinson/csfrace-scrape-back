@@ -34,7 +34,7 @@ class ContentService:
     def save_content_result(
         self,
         job_id: str,
-        content: str,
+        content: str | None,
         content_type: str = "html",
         metadata: dict[str, Any] | None = None,
     ) -> ContentResult:
