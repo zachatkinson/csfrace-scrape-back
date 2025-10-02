@@ -846,8 +846,8 @@ jobs:
             env-vars: "REDIS_URL=redis://localhost:6379"
             test-path: "tests/caching/test_redis_cache.py"
           - test-type: "database"
-            services: '{"postgres": {"image": "postgres:17.6", "env": {"POSTGRES_DB": "test_db", "POSTGRES_USER": "test_user", "POSTGRES_PASSWORD": "test_password"}, "ports": ["5432:5432"], "options": "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"}}'
-            env-vars: "DATABASE_HOST=localhost DATABASE_PORT=5432 DATABASE_NAME=test_db DATABASE_USER=test_user DATABASE_PASSWORD=test_password"
+            services: '{"postgres": {"image": "postgres:17.6", "env": {"POSTGRES_DB": "test_db", "POSTGRES_USER": "postgres", "POSTGRES_PASSWORD": "postgres"}, "ports": ["5432:5432"], "options": "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"}}'
+            env-vars: "DATABASE_HOST=localhost DATABASE_PORT=5432 DATABASE_NAME=test_db DATABASE_USER=postgres DATABASE_PASSWORD=postgres"
             test-path: "tests/database/"
           - test-type: "converter"
             services: "{}"
