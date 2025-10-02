@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 from src.core.decorators import monitoring_error_handler
 from src.core.logging_hierarchy import get_monitoring_logger
@@ -38,10 +38,15 @@ class JobEvent(BaseModel):
     data: dict[str, Any]
     message: str | None = None
 
-    class Config:
-        """Pydantic configuration."""
+    # Pydantic V2: ConfigDict instead of class Config
+    model_config = ConfigDict(
+        # No need for json_encoders - using field_serializer instead
+    )
 
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, dt: datetime) -> str:
+        """Serialize datetime to ISO format string."""
+        return dt.isoformat()
 
 
 class JobEventPublisher:
