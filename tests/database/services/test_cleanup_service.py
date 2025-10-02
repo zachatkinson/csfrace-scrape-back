@@ -55,8 +55,9 @@ class TestCleanupService:
         """Test successful cleanup of old jobs."""
         # Arrange
         # Manually create jobs to avoid fixture ordering issues
-        from src.database.models.auth import User
         from uuid import uuid4
+
+        from src.database.models.auth import User
 
         # Create user
         user = User(
@@ -119,8 +120,9 @@ class TestCleanupService:
         """Test cleanup with default 7 days retention."""
         # Arrange
         # Manually create job to avoid fixture issues
-        from src.database.models.auth import User
         from uuid import uuid4
+
+        from src.database.models.auth import User
 
         user = User(
             id=str(uuid4()),
@@ -209,8 +211,9 @@ class TestCleanupService:
         """Test that recent failed jobs are preserved."""
         # Arrange
         # Manually create job to avoid ObjectDeletedError
-        from src.database.models.auth import User
         from uuid import uuid4
+
+        from src.database.models.auth import User
 
         user = User(
             id=str(uuid4()),
