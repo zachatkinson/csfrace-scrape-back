@@ -886,11 +886,11 @@ jobs:
           if [ "${{ matrix.test-type }}" = "redis" ]; then
             redis-cli -h localhost -p 6379 ping
           elif [ "${{ matrix.test-type }}" = "database" ]; then
-            pg_isready -h localhost -p 5432 -U test_user -d test_db
-            psql -h localhost -p 5432 -U test_user -d test_db -c "SELECT version();"
+            pg_isready -h localhost -p 5432 -U postgres -d test_db
+            psql -h localhost -p 5432 -U postgres -d test_db -c "SELECT version();"
           fi
         env:
-          PGPASSWORD: test_password
+          PGPASSWORD: postgres
 
       - name: Run integration tests
         run: |
@@ -902,8 +902,8 @@ jobs:
           DATABASE_HOST: ${{ matrix.test-type == 'database' && 'localhost' || '' }}
           DATABASE_PORT: ${{ matrix.test-type == 'database' && '5432' || '' }}
           DATABASE_NAME: ${{ matrix.test-type == 'database' && 'test_db' || '' }}
-          DATABASE_USER: ${{ matrix.test-type == 'database' && 'test_user' || '' }}
-          DATABASE_PASSWORD: ${{ matrix.test-type == 'database' && 'test_password' || '' }}
+          DATABASE_USER: ${{ matrix.test-type == 'database' && 'postgres' || '' }}
+          DATABASE_PASSWORD: ${{ matrix.test-type == 'database' && 'postgres' || '' }}
           # Authentication configuration for enterprise auth stack
           SECRET_KEY: b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900
 
