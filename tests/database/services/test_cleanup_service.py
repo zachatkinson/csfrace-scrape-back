@@ -57,6 +57,17 @@ class TestCleanupService:
     def test_cleanup_jobs_success(self, cleanup_service, test_session):
         """Test successful cleanup of old jobs."""
         # Arrange
+        # Rollback any pending work and cleanup for isolation
+        test_session.rollback()
+
+        # Delete in correct FK order
+        test_session.query(JobLog).delete()
+        test_session.query(ContentResult).delete()
+        test_session.query(ScrapingJob).delete()
+        test_session.query(User).delete()
+        test_session.flush()
+        test_session.commit()
+
         # Manually create jobs to avoid fixture ordering issues
         # Create user
         user = User(

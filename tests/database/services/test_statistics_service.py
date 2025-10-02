@@ -31,11 +31,15 @@ class TestStatisticsServiceJobStatistics:
     def test_get_job_statistics_basic(self, test_session):
         """Test basic job statistics calculation."""
         # Arrange
-        # Cleanup any existing jobs from other tests to ensure isolation
+        # Rollback any pending work and cleanup for isolation
+        test_session.rollback()
+
+        # Delete in correct FK order
         test_session.query(JobLog).delete()
         test_session.query(ContentResult).delete()
         test_session.query(ScrapingJob).delete()
         test_session.query(User).delete()
+        test_session.flush()  # Flush deletes
         test_session.commit()
 
         job_service = JobService(test_session)
@@ -71,8 +75,15 @@ class TestStatisticsServiceJobStatistics:
     def test_get_job_statistics_no_jobs(self, test_session):
         """Test statistics with no jobs."""
         # Arrange
-        # Cleanup any existing jobs to ensure zero-job scenario
+        # Rollback any pending work and cleanup for isolation
+        test_session.rollback()
+
+        # Delete in correct FK order
+        test_session.query(JobLog).delete()
+        test_session.query(ContentResult).delete()
         test_session.query(ScrapingJob).delete()
+        test_session.query(User).delete()
+        test_session.flush()
         test_session.commit()
 
         stats_service = StatisticsService(test_session)
@@ -91,6 +102,17 @@ class TestStatisticsServiceJobStatistics:
     def test_get_job_statistics_custom_period(self, test_session):
         """Test statistics with custom time period."""
         # Arrange
+        # Rollback any pending work and cleanup for isolation
+        test_session.rollback()
+
+        # Delete in correct FK order
+        test_session.query(JobLog).delete()
+        test_session.query(ContentResult).delete()
+        test_session.query(ScrapingJob).delete()
+        test_session.query(User).delete()
+        test_session.flush()
+        test_session.commit()
+
         job_service = JobService(test_session)
         stats_service = StatisticsService(test_session)
 
