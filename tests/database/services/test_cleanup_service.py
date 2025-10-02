@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy import text
 
 from src.common.status import JobStatus
+from src.database.models.auth import User  # Import at module level for test_database_engine
 from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
 from src.database.services.cleanup_service import CleanupService
 
@@ -55,10 +56,6 @@ class TestCleanupService:
         """Test successful cleanup of old jobs."""
         # Arrange
         # Manually create jobs to avoid fixture ordering issues
-        from uuid import uuid4
-
-        from src.database.models.auth import User
-
         # Create user
         user = User(
             id=str(uuid4()),
@@ -120,10 +117,6 @@ class TestCleanupService:
         """Test cleanup with default 7 days retention."""
         # Arrange
         # Manually create job to avoid fixture issues
-        from uuid import uuid4
-
-        from src.database.models.auth import User
-
         user = User(
             id=str(uuid4()),
             username="testuser2",
@@ -211,10 +204,6 @@ class TestCleanupService:
         """Test that recent failed jobs are preserved."""
         # Arrange
         # Manually create job to avoid ObjectDeletedError
-        from uuid import uuid4
-
-        from src.database.models.auth import User
-
         user = User(
             id=str(uuid4()),
             username="testuser3",
