@@ -105,13 +105,15 @@ class TestCleanupService:
         assert updated_count >= 1
 
         # Verify old job status was changed to CANCELLED
-        test_session.expire_all()  # Clear session cache
-        test_session.refresh(old_job)
-        assert old_job.status == JobStatus.CANCELLED.value
+        # Re-query instead of refresh (bulk updates detach objects)
+        old_job_updated = test_session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).first()
+        assert old_job_updated is not None
+        assert old_job_updated.status == JobStatus.CANCELLED.value
 
         # Verify recent job (12 hours old) is unchanged
-        test_session.refresh(recent_job)
-        assert recent_job.status == JobStatus.COMPLETED.value  # Original status
+        recent_job_updated = test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_job.id).first()
+        assert recent_job_updated is not None
+        assert recent_job_updated.status == JobStatus.COMPLETED.value  # Original status
 
     @pytest.mark.unit
     @pytest.mark.database
@@ -285,6 +287,7 @@ class TestCleanupService:
         # Create two jobs - one to keep, one to delete
         job_to_keep = create_job()
         job_to_delete = create_job()
+        test_session.commit()  # Commit jobs first so they exist for foreign keys
 
         # Create content record linked to job we'll keep
         linked_content = ContentResult(

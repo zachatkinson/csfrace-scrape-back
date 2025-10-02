@@ -192,14 +192,16 @@ class TestStatisticsServiceJobStatistics:
 
         # Create completed jobs with sizes
         job1 = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_service.update_job_status(job1.id, JobStatus.COMPLETED)
         job1.output_size_bytes = 1000
         job1.download_size_bytes = 2000
-        job_service.update_job_status(job1.id, JobStatus.COMPLETED)
+        test_session.flush()  # Ensure size changes are persisted
 
         job2 = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_service.update_job_status(job2.id, JobStatus.COMPLETED)
         job2.output_size_bytes = 500
         job2.download_size_bytes = 1500
-        job_service.update_job_status(job2.id, JobStatus.COMPLETED)
+        test_session.flush()  # Ensure size changes are persisted
 
         test_session.commit()
 
