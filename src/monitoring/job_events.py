@@ -83,6 +83,10 @@ class JobEventPublisher:
         if not self._initialized:
             await self.initialize()
 
+        # Type guard: After initialization, _redis_client must be set
+        if self._redis_client is None:
+            raise RuntimeError("Redis client not initialized after initialization call")
+
         event = JobEvent(
             job_id=job_id,
             event_type=event_type,
