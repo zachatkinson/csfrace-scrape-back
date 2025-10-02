@@ -105,7 +105,7 @@ class TestStatisticsServiceJobStatistics:
         # Rollback any pending work and cleanup for isolation
         test_session.rollback()
 
-        # Delete in correct FK order
+        # Delete in correct FK order - be extra aggressive
         test_session.query(JobLog).delete()
         test_session.query(ContentResult).delete()
         test_session.query(ScrapingJob).delete()
@@ -113,23 +113,33 @@ class TestStatisticsServiceJobStatistics:
         test_session.flush()
         test_session.commit()
 
+        # Verify cleanup worked - database should be empty
+        job_count_before = test_session.query(ScrapingJob).count()
+        assert job_count_before == 0, f"Found {job_count_before} jobs after cleanup - parallel test data leakage"
+
         job_service = JobService(test_session)
         stats_service = StatisticsService(test_session)
 
-        # Create old job (outside period)
-        old_job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        # Create old job (outside period) - set created_at BEFORE committing
+        old_job_request = JobFactory.create_job_request(session=test_session)
+        old_job = job_service.create_job(old_job_request)
         old_job.created_at = datetime.now(UTC) - timedelta(days=31)
         test_session.commit()
 
         # Create recent job (inside period)
-        recent_job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        recent_job_request = JobFactory.create_job_request(session=test_session)
+        recent_job = job_service.create_job(recent_job_request)
         test_session.commit()
+
+        # Verify exactly 2 jobs exist (1 old, 1 recent)
+        total_jobs = test_session.query(ScrapingJob).count()
+        assert total_jobs == 2, f"Expected 2 jobs, found {total_jobs} - parallel test interference"
 
         # Act
         stats = stats_service.get_job_statistics(days=30)
 
         # Assert
-        assert stats["total_jobs"] == 1  # Only recent job
+        assert stats["total_jobs"] == 1, f"Expected 1 job within 30 days, got {stats['total_jobs']}"
         assert stats["period_days"] == 30
 
     @pytest.mark.database
