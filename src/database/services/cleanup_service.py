@@ -170,9 +170,14 @@ class CleanupService:
         # Commit any pending transaction first
         self.session.commit()
 
-        # Get engine for creating new autocommit connection
+        # Get bind (could be Engine or Connection depending on fixture setup)
         bind = self.session.get_bind()
-        engine = cast("Engine", bind)  # Type narrowing: session.get_bind() returns Engine
+
+        # Determine if bind is Engine or Connection and handle appropriately
+        from sqlalchemy.engine import Connection as SQLConnection
+
+        # Get engine from connection or use bind directly if it's already an engine
+        engine = bind.engine if isinstance(bind, SQLConnection) else cast("Engine", bind)
 
         # Create new connection with autocommit mode (PostgreSQL requirement)
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
