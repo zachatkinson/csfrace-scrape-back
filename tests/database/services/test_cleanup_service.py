@@ -106,12 +106,16 @@ class TestCleanupService:
 
         # Verify old job status was changed to CANCELLED
         # Re-query instead of refresh (bulk updates detach objects)
-        old_job_updated = test_session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).first()
+        old_job_updated = (
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).first()
+        )
         assert old_job_updated is not None
         assert old_job_updated.status == JobStatus.CANCELLED.value
 
         # Verify recent job (12 hours old) is unchanged
-        recent_job_updated = test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_job.id).first()
+        recent_job_updated = (
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_job.id).first()
+        )
         assert recent_job_updated is not None
         assert recent_job_updated.status == JobStatus.COMPLETED.value  # Original status
 
