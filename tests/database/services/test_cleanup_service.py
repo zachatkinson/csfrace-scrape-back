@@ -54,23 +54,22 @@ class TestCleanupService:
     def test_cleanup_jobs_success(self, cleanup_service, test_session, old_job, recent_job):
         """Test successful cleanup of old jobs."""
         # Arrange
-        # Ensure old_job and recent_job fixtures are fully created before counting
-        test_session.flush()  # Flush to ensure jobs are in database
-        initial_count = test_session.query(ScrapingJob).count()
         days_to_keep = 7
 
         # Act
-        deleted_count = cleanup_service.cleanup_jobs(days=days_to_keep)
+        updated_count = cleanup_service.cleanup_jobs(days=days_to_keep)
 
         # Assert
-        assert deleted_count >= 1  # At least the old job should be cleaned up
+        # cleanup_jobs does bulk UPDATE not DELETE (sets status to CANCELLED)
+        # At least the old job (10 days old) should be updated
+        assert updated_count >= 1
 
         # Verify old job status was changed to CANCELLED
         test_session.expire_all()  # Clear session cache
         test_session.refresh(old_job)
         assert old_job.status == JobStatus.CANCELLED.value
 
-        # Verify recent job is unchanged
+        # Verify recent job (12 hours old) is unchanged
         test_session.refresh(recent_job)
         assert recent_job.status == JobStatus.COMPLETED.value  # Original status
 
@@ -79,15 +78,17 @@ class TestCleanupService:
     def test_cleanup_jobs_default_days(self, cleanup_service, test_session, create_job):
         """Test cleanup with default 7 days retention."""
         # Arrange
-        very_old_job = create_job()
-        very_old_job.created_at = datetime.now(UTC) - timedelta(days=10)
-        test_session.commit()
+        # Create job with explicit old date (10 days ago)
+        old_date = datetime.now(UTC) - timedelta(days=10)
+        very_old_job = create_job(status=JobStatus.COMPLETED, created_at=old_date)
 
         # Act
-        deleted_count = cleanup_service.cleanup_jobs()  # Default 7 days
+        updated_count = cleanup_service.cleanup_jobs()  # Default 7 days
 
         # Assert
-        assert deleted_count >= 1
+        # cleanup_jobs does bulk UPDATE not DELETE
+        assert updated_count >= 1
+        test_session.expire_all()
         test_session.refresh(very_old_job)
         assert very_old_job.status == JobStatus.CANCELLED.value
 
