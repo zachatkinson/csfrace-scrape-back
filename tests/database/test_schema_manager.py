@@ -105,7 +105,7 @@ class TestSchemaManagerDatabaseReadiness:
         """Test successful database readiness check."""
         # Arrange
         schema_manager_instance._test_connectivity = AsyncMock()
-        schema_manager_instance._run_migrations = AsyncMock()
+        # NOTE: _run_migrations is no longer called - migrations handled by init_db()
         schema_manager_instance._ensure_critical_schema = AsyncMock()
         schema_manager_instance._validate_schema = AsyncMock()
 
@@ -115,7 +115,7 @@ class TestSchemaManagerDatabaseReadiness:
         # Assert
         assert result is True
         schema_manager_instance._test_connectivity.assert_awaited_once()
-        schema_manager_instance._run_migrations.assert_awaited_once()
+        # NOTE: _run_migrations should NOT be called - migrations are handled separately
         schema_manager_instance._ensure_critical_schema.assert_awaited_once()
         schema_manager_instance._validate_schema.assert_awaited_once()
 
@@ -123,7 +123,7 @@ class TestSchemaManagerDatabaseReadiness:
         """Test database readiness for production environment."""
         # Arrange
         schema_manager_instance._test_connectivity = AsyncMock()
-        schema_manager_instance._run_migrations = AsyncMock()
+        # NOTE: _run_migrations is no longer called - migrations handled by init_db()
         schema_manager_instance._ensure_critical_schema = AsyncMock()
         schema_manager_instance._validate_schema = AsyncMock()
 
@@ -134,7 +134,9 @@ class TestSchemaManagerDatabaseReadiness:
         assert result is True
         # All steps should complete for production too
         schema_manager_instance._test_connectivity.assert_awaited_once()
-        schema_manager_instance._run_migrations.assert_awaited_once()
+        # NOTE: _run_migrations should NOT be called - migrations are handled separately
+        schema_manager_instance._ensure_critical_schema.assert_awaited_once()
+        schema_manager_instance._validate_schema.assert_awaited_once()
 
 
 # =============================================================================
@@ -363,12 +365,12 @@ class TestSchemaManagerIndexes:
 
         # Assert
         mock_conn.execute.assert_awaited_once()
-        # Verify parameterized query was used - parameters passed as second positional arg
+        # Verify SQL contains the identifiers (uses f-string after validation for safety)
         call_args = mock_conn.execute.call_args
-        params_dict = call_args[0][1]  # Second positional argument contains the parameters dict
-        assert params_dict["index_name"] == index_name
-        assert params_dict["table_name"] == table_name
-        assert params_dict["column_name"] == column_name
+        sql_text = str(call_args[0][0])  # First argument is the SQL text object
+        assert index_name in sql_text
+        assert table_name in sql_text
+        assert column_name in sql_text
 
 
 # =============================================================================
