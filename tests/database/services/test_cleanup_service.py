@@ -105,6 +105,10 @@ class TestCleanupService:
         test_session.add(recent_job)
         test_session.commit()
 
+        # Store IDs before cleanup (bulk UPDATE detaches objects from session)
+        old_job_id = old_job.id
+        recent_job_id = recent_job.id
+
         days_to_keep = 7
 
         # Act
@@ -118,14 +122,14 @@ class TestCleanupService:
         # Verify old job status was changed to CANCELLED
         # Re-query instead of refresh (bulk updates detach objects)
         old_job_updated = (
-            test_session.query(ScrapingJob).filter(ScrapingJob.id == old_job.id).first()
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == old_job_id).first()
         )
         assert old_job_updated is not None
         assert old_job_updated.status == JobStatus.CANCELLED.value
 
         # Verify recent job (12 hours old) is unchanged
         recent_job_updated = (
-            test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_job.id).first()
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_job_id).first()
         )
         assert recent_job_updated is not None
         assert recent_job_updated.status == JobStatus.COMPLETED.value  # Original status
@@ -300,8 +304,11 @@ class TestCleanupService:
 
         # Arrange
         # Ensure clean state - delete any leftover data from other tests
+        test_session.rollback()
         test_session.query(ContentResult).delete()
         test_session.query(ScrapingJob).delete()
+        test_session.query(User).delete()
+        test_session.flush()
         test_session.commit()
 
         # Create two jobs - one to keep, one to delete
@@ -309,9 +316,13 @@ class TestCleanupService:
         job_to_keep = create_job()
         job_to_delete = create_job()
 
+        # Store IDs before adding content (create_job already committed them)
+        job_to_keep_id = job_to_keep.id
+        job_to_delete_id = job_to_delete.id
+
         # Create content record linked to job we'll keep
         linked_content = ContentResult(
-            job_id=job_to_keep.id,
+            job_id=job_to_keep_id,
             original_html="<html>test</html>",
             converted_html="<html>test</html>",
             html_file_path="/tmp/test.html",
@@ -322,7 +333,7 @@ class TestCleanupService:
 
         # Create content record linked to job we'll delete
         content_to_cascade = ContentResult(
-            job_id=job_to_delete.id,
+            job_id=job_to_delete_id,
             original_html="<html>will be cascaded</html>",
             converted_html="<html>will be cascaded</html>",
             html_file_path="/tmp/cascade.html",
@@ -332,9 +343,12 @@ class TestCleanupService:
         test_session.add(content_to_cascade)
         test_session.commit()
 
+        # Store content ID before deletion
+        linked_content_id = linked_content.id
+
         # Delete the job - CASCADE will automatically delete associated content
         test_session.execute(
-            text("DELETE FROM jobs WHERE id = :job_id"), {"job_id": job_to_delete.id}
+            text("DELETE FROM jobs WHERE id = :job_id"), {"job_id": job_to_delete_id}
         )
         test_session.commit()
 
@@ -346,7 +360,6 @@ class TestCleanupService:
         assert deleted_count == 0
 
         # Verify linked content still exists (wasn't affected by cleanup)
-        linked_content_id = linked_content.id
         linked_content_exists = (
             test_session.query(ContentResult).filter(ContentResult.id == linked_content_id).first()
         )

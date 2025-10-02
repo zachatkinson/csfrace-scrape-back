@@ -136,6 +136,17 @@ class TestStatisticsServiceJobStatistics:
     def test_get_job_statistics_top_domains(self, test_session):
         """Test top domains calculation."""
         # Arrange
+        # Rollback any pending work and cleanup for isolation
+        test_session.rollback()
+
+        # Delete in correct FK order
+        test_session.query(JobLog).delete()
+        test_session.query(ContentResult).delete()
+        test_session.query(ScrapingJob).delete()
+        test_session.query(User).delete()
+        test_session.flush()
+        test_session.commit()
+
         job_service = JobService(test_session)
         stats_service = StatisticsService(test_session)
 
