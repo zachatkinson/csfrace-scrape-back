@@ -317,8 +317,12 @@ class TestCleanupService:
         job_to_delete = create_job()
 
         # Re-query jobs to ensure they're in current session and actually persisted
-        job_to_keep = test_session.query(ScrapingJob).filter(ScrapingJob.id == job_to_keep.id).first()
-        job_to_delete = test_session.query(ScrapingJob).filter(ScrapingJob.id == job_to_delete.id).first()
+        job_to_keep = (
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == job_to_keep.id).first()
+        )
+        job_to_delete = (
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == job_to_delete.id).first()
+        )
 
         # Verify jobs actually exist before proceeding
         assert job_to_keep is not None, "job_to_keep not found in database"

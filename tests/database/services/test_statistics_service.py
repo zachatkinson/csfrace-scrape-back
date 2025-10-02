@@ -115,7 +115,9 @@ class TestStatisticsServiceJobStatistics:
 
         # Verify cleanup worked - database should be empty
         job_count_before = test_session.query(ScrapingJob).count()
-        assert job_count_before == 0, f"Found {job_count_before} jobs after cleanup - parallel test data leakage"
+        assert job_count_before == 0, (
+            f"Found {job_count_before} jobs after cleanup - parallel test data leakage"
+        )
 
         job_service = JobService(test_session)
         stats_service = StatisticsService(test_session)
