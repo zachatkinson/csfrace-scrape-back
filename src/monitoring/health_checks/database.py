@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import text
 
 from ...api.dependencies import get_db_session
-from ...utils.logging import get_logger
+from ...core.decorators import monitoring_error_handler
+from ...core.logging_hierarchy import get_monitoring_logger
 from .base import HealthCheck, HealthCheckResult, HealthStatus
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class DatabaseHealthCheck(HealthCheck):
@@ -22,55 +23,45 @@ class DatabaseHealthCheck(HealthCheck):
         super().__init__(name, timeout_seconds)
         self._session: AsyncSession | None = None
 
+    @monitoring_error_handler("database health check")
     async def check(self) -> HealthCheckResult:
         """Check database connectivity and perform basic query."""
         start_time = time.time()
 
-        try:
-            async for session in get_db_session():
-                self._session = session
-                # Simple query to test database connectivity
-                result = await session.execute(text("SELECT 1 as health_check"))
-                row = result.fetchone()
+        async for session in get_db_session():
+            self._session = session
+            # Simple query to test database connectivity
+            result = await session.execute(text("SELECT 1 as health_check"))
+            row = result.fetchone()
 
-                if row and row.health_check == 1:
-                    duration_ms = (time.time() - start_time) * 1000
-                    return HealthCheckResult(
-                        name=self.name,
-                        status=HealthStatus.HEALTHY,
-                        message="Database connection successful",
-                        duration_ms=duration_ms,
-                    )
-                else:
-                    duration_ms = (time.time() - start_time) * 1000
-                    return HealthCheckResult(
-                        name=self.name,
-                        status=HealthStatus.UNHEALTHY,
-                        message="Database query returned unexpected result",
-                        duration_ms=duration_ms,
-                        details={"query_result": str(row) if row else None},
-                    )
-                break  # Exit after first iteration
+            if row and row.health_check == 1:
+                duration_ms = (time.time() - start_time) * 1000
+                return HealthCheckResult(
+                    name=self.name,
+                    status=HealthStatus.HEALTHY,
+                    message="Database connection successful",
+                    duration_ms=duration_ms,
+                )
+            else:
+                duration_ms = (time.time() - start_time) * 1000
+                return HealthCheckResult(
+                    name=self.name,
+                    status=HealthStatus.UNHEALTHY,
+                    message="Database query returned unexpected result",
+                    duration_ms=duration_ms,
+                    details={"query_result": str(row) if row else None},
+                )
+            break  # Exit after first iteration
 
-            # If no session available
-            duration_ms = (time.time() - start_time) * 1000
-            return HealthCheckResult(
-                name=self.name,
-                status=HealthStatus.UNHEALTHY,
-                message="No database session available",
-                duration_ms=duration_ms,
-            )
-
-        except Exception as e:
-            logger.error(f"Database health check failed: {e}")
-            duration_ms = (time.time() - start_time) * 1000
-            return HealthCheckResult(
-                name=self.name,
-                status=HealthStatus.UNHEALTHY,
-                message=f"Database connection failed: {str(e)}",
-                duration_ms=duration_ms,
-                details={"error_type": type(e).__name__},
-            )
+        # If no session available
+        duration_ms = (time.time() - start_time) * 1000
+        return HealthCheckResult(
+            name=self.name,
+            status=HealthStatus.UNHEALTHY,
+            message="No database session available",
+            duration_ms=duration_ms,
+        )
+        # Enhanced decorator will handle Exception case
 
 
 class DatabaseTableHealthCheck(HealthCheck):
@@ -80,47 +71,33 @@ class DatabaseTableHealthCheck(HealthCheck):
         super().__init__(name or f"database_table_{table_name}", timeout_seconds)
         self.table_name = table_name
 
+    @monitoring_error_handler("database table health check")
     async def check(self) -> HealthCheckResult:
         """Check if specific table exists and is accessible."""
         start_time = time.time()
 
-        try:
-            async for session in get_db_session():
-                # Check if table exists and is accessible
-                query = text(f"SELECT COUNT(*) FROM {self.table_name} LIMIT 1")  # noqa: S608
-                await session.execute(query)
+        async for session in get_db_session():
+            # Check if table exists and is accessible
+            query = text(f"SELECT COUNT(*) FROM {self.table_name} LIMIT 1")  # noqa: S608
+            await session.execute(query)
 
-                duration_ms = (time.time() - start_time) * 1000
-                return HealthCheckResult(
-                    name=self.name,
-                    status=HealthStatus.HEALTHY,
-                    message=f"Table '{self.table_name}' is accessible",
-                    duration_ms=duration_ms,
-                    details={"table_name": self.table_name, "accessible": True},
-                )
-                break  # Exit after first iteration
-
-            # If no session available
             duration_ms = (time.time() - start_time) * 1000
             return HealthCheckResult(
                 name=self.name,
-                status=HealthStatus.UNHEALTHY,
-                message=f"No database session available for table '{self.table_name}'",
+                status=HealthStatus.HEALTHY,
+                message=f"Table '{self.table_name}' is accessible",
                 duration_ms=duration_ms,
-                details={"table_name": self.table_name, "accessible": False},
+                details={"table_name": self.table_name, "accessible": True},
             )
+            break  # Exit after first iteration
 
-        except Exception as e:
-            logger.error(f"Database table health check failed for {self.table_name}: {e}")
-            duration_ms = (time.time() - start_time) * 1000
-            return HealthCheckResult(
-                name=self.name,
-                status=HealthStatus.UNHEALTHY,
-                message=f"Table '{self.table_name}' check failed: {str(e)}",
-                duration_ms=duration_ms,
-                details={
-                    "table_name": self.table_name,
-                    "error_type": type(e).__name__,
-                    "accessible": False,
-                },
-            )
+        # If no session available
+        duration_ms = (time.time() - start_time) * 1000
+        return HealthCheckResult(
+            name=self.name,
+            status=HealthStatus.UNHEALTHY,
+            message=f"No database session available for table '{self.table_name}'",
+            duration_ms=duration_ms,
+            details={"table_name": self.table_name, "accessible": False},
+        )
+        # Enhanced decorator will handle Exception case

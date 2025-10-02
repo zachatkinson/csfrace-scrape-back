@@ -9,31 +9,43 @@ from typing import Any
 
 from pydantic import Field, field_validator
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
-from ..constants import CONSTANTS
+from ..constants import (
+    BACKOFF_FACTOR,
+    DEFAULT_IMAGES_DIR,
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_TIMEOUT,
+    DEFAULT_USER_AGENT,
+    HTML_FILE,
+    IMAGE_CONTENT_TYPES,
+    MAX_CONCURRENT,
+    MAX_RETRIES,
+    METADATA_FILE,
+    RATE_LIMIT_DELAY,
+    RESPECT_ROBOTS_TXT,
+    ROBOTS_CACHE_DURATION,
+    SHOPIFY_FILE,
+    SHOPIFY_PRESERVE_CLASSES,
+)
 from .base import BaseConfig, NetworkMixin
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class HttpConfig(BaseConfig, NetworkMixin):
     """HTTP-related configuration."""
 
-    timeout: int = Field(
-        CONSTANTS.DEFAULT_TIMEOUT, ge=1, le=300, description="HTTP timeout in seconds"
-    )
-    max_concurrent: int = Field(
-        CONSTANTS.MAX_CONCURRENT, ge=1, le=100, description="Max concurrent requests"
-    )
+    timeout: int = Field(DEFAULT_TIMEOUT, ge=1, le=300, description="HTTP timeout in seconds")
+    max_concurrent: int = Field(MAX_CONCURRENT, ge=1, le=100, description="Max concurrent requests")
     rate_limit_delay: float = Field(
-        CONSTANTS.RATE_LIMIT_DELAY, ge=0.0, le=10.0, description="Rate limit delay"
+        RATE_LIMIT_DELAY, ge=0.0, le=10.0, description="Rate limit delay"
     )
-    max_retries: int = Field(CONSTANTS.MAX_RETRIES, ge=0, le=10, description="Max retry attempts")
+    max_retries: int = Field(MAX_RETRIES, ge=0, le=10, description="Max retry attempts")
     backoff_factor: float = Field(
-        CONSTANTS.BACKOFF_FACTOR, ge=1.0, le=10.0, description="Retry backoff factor"
+        BACKOFF_FACTOR, ge=1.0, le=10.0, description="Retry backoff factor"
     )
-    user_agent: str = Field(CONSTANTS.DEFAULT_USER_AGENT, description="HTTP User-Agent header")
+    user_agent: str = Field(DEFAULT_USER_AGENT, description="HTTP User-Agent header")
 
     # Connection pool settings
     pool_size: int = Field(20, ge=1, le=100, description="Connection pool size")
@@ -51,11 +63,11 @@ class HttpConfig(BaseConfig, NetworkMixin):
 class OutputConfig(BaseConfig):
     """Output-related configuration."""
 
-    default_dir: str = Field(CONSTANTS.DEFAULT_OUTPUT_DIR, description="Default output directory")
-    images_subdir: str = Field(CONSTANTS.DEFAULT_IMAGES_DIR, description="Images subdirectory name")
-    metadata_file: str = Field(CONSTANTS.METADATA_FILE, description="Metadata filename")
-    html_file: str = Field(CONSTANTS.HTML_FILE, description="HTML output filename")
-    shopify_file: str = Field(CONSTANTS.SHOPIFY_FILE, description="Shopify output filename")
+    default_dir: str = Field(DEFAULT_OUTPUT_DIR, description="Default output directory")
+    images_subdir: str = Field(DEFAULT_IMAGES_DIR, description="Images subdirectory name")
+    metadata_file: str = Field(METADATA_FILE, description="Metadata filename")
+    html_file: str = Field(HTML_FILE, description="HTML output filename")
+    shopify_file: str = Field(SHOPIFY_FILE, description="Shopify output filename")
 
     # File permissions and safety
     create_directories: bool = Field(True, description="Auto-create output directories")
@@ -90,9 +102,9 @@ class OutputConfig(BaseConfig):
 class RobotsConfig(BaseConfig):
     """Robots.txt configuration."""
 
-    respect_robots_txt: bool = Field(CONSTANTS.RESPECT_ROBOTS_TXT, description="Respect robots.txt")
+    respect_robots_txt: bool = Field(RESPECT_ROBOTS_TXT, description="Respect robots.txt")
     cache_duration: int = Field(
-        CONSTANTS.ROBOTS_CACHE_DURATION, ge=300, le=86400, description="Cache duration in seconds"
+        ROBOTS_CACHE_DURATION, ge=300, le=86400, description="Cache duration in seconds"
     )
     crawl_delay: float = Field(1.0, ge=0.1, le=10.0, description="Crawl delay in seconds")
     user_agent_for_robots: str = Field("*", description="User-agent for robots.txt matching")
@@ -102,11 +114,11 @@ class ShopifyConfig(BaseConfig):
     """Shopify-specific configuration."""
 
     preserve_classes: set[str] = Field(
-        default_factory=lambda: set(CONSTANTS.SHOPIFY_PRESERVE_CLASSES),
+        default_factory=lambda: set(SHOPIFY_PRESERVE_CLASSES),
         description="CSS classes to preserve",
     )
     content_type_extensions: dict[str, str] = Field(
-        default_factory=lambda: dict(CONSTANTS.IMAGE_CONTENT_TYPES),
+        default_factory=lambda: dict(IMAGE_CONTENT_TYPES),
         description="Content type to extension mapping",
     )
 
@@ -165,42 +177,6 @@ class ConverterConfig(BaseConfig):
         if v_upper not in valid_levels:
             raise ValueError(f"log_level must be one of {valid_levels}")
         return v_upper
-
-    # Backward compatibility properties
-    @property
-    def images_subdir(self) -> str:
-        """Backward compatibility for images_subdir access."""
-        return self.output.images_subdir
-
-    @property
-    def default_timeout(self) -> int:
-        """Backward compatibility for default_timeout access."""
-        return self.http.timeout
-
-    @property
-    def preserve_classes(self) -> set[str]:
-        """Backward compatibility for preserve_classes access."""
-        return self.shopify.preserve_classes
-
-    @property
-    def max_retries(self) -> int:
-        """Backward compatibility for max_retries access."""
-        return self.http.max_retries
-
-    @property
-    def respect_robots_txt(self) -> bool:
-        """Backward compatibility for respect_robots_txt access."""
-        return self.robots.respect_robots_txt
-
-    @property
-    def max_concurrent_downloads(self) -> int:
-        """Backward compatibility for max_concurrent_downloads access."""
-        return self.http.max_concurrent
-
-    @property
-    def rate_limit_delay(self) -> float:
-        """Backward compatibility for rate_limit_delay access."""
-        return self.http.rate_limit_delay
 
     def get_http_headers(self) -> dict[str, str]:
         """Get HTTP headers for requests."""

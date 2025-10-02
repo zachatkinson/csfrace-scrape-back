@@ -12,11 +12,11 @@ from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_database_logger
 
 from .base import Base
 
-logger = get_logger(__name__)
+logger = get_database_logger()
 
 
 class SystemMetrics(Base):

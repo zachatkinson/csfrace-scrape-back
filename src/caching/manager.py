@@ -3,8 +3,10 @@
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-from src.utils.logging import get_logger
+from src.core.decorators import cache_error_handler
+from src.core.logging_hierarchy import get_cache_logger
 
+from ..constants.caching import HASH_LENGTH
 from .base import BaseCacheBackend, CacheBackend, CacheConfig
 from .file_cache import FileCache
 
@@ -20,7 +22,7 @@ except ImportError:
     else:
         RedisCache = None  # type: ignore[assignment,misc]
 
-logger = get_logger(__name__)
+logger = get_cache_logger()
 
 
 class CacheManager:
@@ -42,39 +44,35 @@ class CacheManager:
             raise RuntimeError("Cache manager not initialized. Call initialize() first.")
         return self.backend
 
+    @cache_error_handler("initialize cache manager")
     async def initialize(self) -> None:
         """Initialize the cache backend."""
         if self._initialized:
             return
 
-        try:
-            # Create appropriate backend
-            if self.config.backend == CacheBackend.FILE:
-                self.backend = FileCache(self.config)
-            elif self.config.backend == CacheBackend.REDIS:
-                if not REDIS_AVAILABLE or RedisCache is None:
-                    raise ValueError(
-                        "Redis backend requested but redis package not available. Install with: pip install redis"
-                    )
-                self.backend = RedisCache(self.config)
-                # Initialize Redis connection - this will test connectivity
-                await self.backend.initialize()
-            else:
-                raise ValueError(f"Unsupported cache backend: {self.config.backend}")
+        # Create appropriate backend
+        if self.config.backend == CacheBackend.FILE:
+            self.backend = FileCache(self.config)
+        elif self.config.backend == CacheBackend.REDIS:
+            if not REDIS_AVAILABLE or RedisCache is None:
+                raise ValueError(
+                    "Redis backend requested but redis package not available. Install with: pip install redis"
+                )
+            self.backend = RedisCache(self.config)
+            # Initialize Redis connection - this will test connectivity
+            await self.backend.initialize()
+        else:
+            raise ValueError(f"Unsupported cache backend: {self.config.backend}")
 
-            # Cleanup expired entries on startup if configured
-            if self.config.cleanup_on_startup:
-                backend = self._ensure_backend()
-                cleaned = await backend.cleanup_expired()
-                if cleaned > 0:
-                    logger.info("Startup cache cleanup completed", cleaned_entries=cleaned)
+        # Cleanup expired entries on startup if configured
+        if self.config.cleanup_on_startup:
+            backend = self._ensure_backend()
+            cleaned = await backend.cleanup_expired()
+            if cleaned > 0:
+                logger.info("Startup cache cleanup completed", cleaned_entries=cleaned)
 
-            self._initialized = True
-            logger.info("Cache manager initialized", backend=self.config.backend.value)
-
-        except Exception as e:
-            logger.error("Failed to initialize cache manager", error=str(e))
-            raise
+        self._initialized = True
+        logger.info("Cache manager initialized", backend=self.config.backend.value)
 
     async def get_html(self, url: str) -> str | None:
         """Get cached HTML content for a URL.
@@ -332,9 +330,7 @@ class CacheManager:
 
     def _hash_url(self, url: str) -> str:
         """Create a hash of a URL for use in cache keys."""
-        from ..constants import CONSTANTS
-
-        return hashlib.sha256(url.encode()).hexdigest()[: CONSTANTS.HASH_LENGTH]
+        return hashlib.sha256(url.encode()).hexdigest()[:HASH_LENGTH]
 
     @property
     def backend_type(self) -> str:
@@ -359,11 +355,8 @@ class CacheManager:
 
         # For Redis backends, get detailed server info
         if hasattr(self.backend, "get_backend_type"):
-            try:
-                return await self.backend.get_backend_type()
-            except Exception as e:
-                logger.warning("Failed to get detailed backend type", error=str(e))
-                return f"{self.config.backend.value}_error"
+            backend_type = await self._get_backend_type_safe()
+            return backend_type or f"{self.config.backend.value}_error"
 
         # For other backends, return basic type
         return self.config.backend.value
@@ -378,6 +371,13 @@ class CacheManager:
 
         self._initialized = False
         logger.info("Cache manager shutdown")
+
+    @cache_error_handler("get backend type")
+    async def _get_backend_type_safe(self) -> str | None:
+        """Safely get backend type with centralized error handling."""
+        if self.backend and hasattr(self.backend, "get_backend_type"):
+            return await self.backend.get_backend_type()
+        return None
 
 
 # Global cache manager instance configured from environment

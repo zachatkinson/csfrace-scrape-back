@@ -128,19 +128,22 @@ def ensure_critical_schema_exists(connection) -> None:
     Ensure critical schema elements exist using idempotent operations.
     """
     try:
-        # Idempotent: Add user_id column to jobs table if missing
+        # Idempotent: Add user_id column to jobs table if missing (only if table exists)
         connection.execute(
             text("""
-            DO $
+            DO $$
             BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'jobs' AND column_name = 'user_id'
-                ) THEN
-                    ALTER TABLE jobs ADD COLUMN user_id VARCHAR;
-                    RAISE NOTICE 'Added user_id column to jobs table';
+                -- Only alter if the jobs table exists
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'jobs') THEN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'jobs' AND column_name = 'user_id'
+                    ) THEN
+                        ALTER TABLE jobs ADD COLUMN user_id VARCHAR;
+                        RAISE NOTICE 'Added user_id column to jobs table';
+                    END IF;
                 END IF;
-            END $;
+            END $$;
         """)
         )
 
@@ -183,35 +186,44 @@ def ensure_critical_schema_exists(connection) -> None:
         """)
         )
 
-        # Idempotent: Create indexes if missing
+        # Idempotent: Create indexes if missing (only if tables exist)
         connection.execute(
             text("""
-            DO $
+            DO $$
             BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                    WHERE c.relname = 'idx_jobs_user_id' AND n.nspname = 'public'
-                ) THEN
-                    CREATE INDEX idx_jobs_user_id ON jobs(user_id);
-                    RAISE NOTICE 'Created index idx_jobs_user_id';
+                -- Only create index if jobs table exists
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'jobs') THEN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'idx_jobs_user_id' AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX idx_jobs_user_id ON jobs(user_id);
+                        RAISE NOTICE 'Created index idx_jobs_user_id';
+                    END IF;
                 END IF;
 
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                    WHERE c.relname = 'idx_revoked_tokens_user_id' AND n.nspname = 'public'
-                ) THEN
-                    CREATE INDEX idx_revoked_tokens_user_id ON revoked_tokens(user_id);
-                    RAISE NOTICE 'Created index idx_revoked_tokens_user_id';
+                -- Only create index if revoked_tokens table exists
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'revoked_tokens') THEN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'idx_revoked_tokens_user_id' AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX idx_revoked_tokens_user_id ON revoked_tokens(user_id);
+                        RAISE NOTICE 'Created index idx_revoked_tokens_user_id';
+                    END IF;
                 END IF;
 
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                    WHERE c.relname = 'idx_oauth_accounts_user_id' AND n.nspname = 'public'
-                ) THEN
-                    CREATE INDEX idx_oauth_accounts_user_id ON oauth_linked_accounts(user_id);
-                    RAISE NOTICE 'Created index idx_oauth_accounts_user_id';
+                -- Only create index if oauth_linked_accounts table exists
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'oauth_linked_accounts') THEN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'idx_oauth_accounts_user_id' AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX idx_oauth_accounts_user_id ON oauth_linked_accounts(user_id);
+                        RAISE NOTICE 'Created index idx_oauth_accounts_user_id';
+                    END IF;
                 END IF;
-            END $;
+            END $$;
         """)
         )
 
@@ -326,8 +338,6 @@ def run_migrations_online() -> None:
                 version_table_schema=None,
                 # Add custom render functions for better migration quality
                 render_item=render_item_with_environment,
-                # Environment-specific transaction handling
-                transaction_per_migration=current_settings.get("transaction_per_migration", True),
             )
 
             # Execute migrations with enhanced error handling

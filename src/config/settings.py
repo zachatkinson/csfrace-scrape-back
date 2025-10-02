@@ -8,14 +8,15 @@ from typing import Any
 
 from pydantic import Field, computed_field
 
-from src.utils.logging import get_logger
+from src.core.decorators import content_processing_error_handler
+from src.core.logging_hierarchy import get_core_logger
 
 from .auth import AuthConfig
 from .base import BaseConfig
 from .converter import ConverterConfig
 from .database import DatabaseConfig
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class AppConfig(BaseConfig):
@@ -69,12 +70,13 @@ class AppConfig(BaseConfig):
     @computed_field
     def api_base_url(self) -> str:
         """Get the full API base URL."""
-        protocol = "https" if self.is_production() else "http"
+        protocol = "https" if bool(self.is_production) else "http"
         return f"{protocol}://{self.API_HOST}:{self.API_PORT}{self.API_PREFIX}"
 
+    @content_processing_error_handler("validate environment configuration")
     def validate_environment(self) -> None:
         """Validate environment-specific settings."""
-        if self.is_production():
+        if bool(self.is_production):
             # Production validations
             if self.DEBUG:
                 logger.warning("DEBUG mode is enabled in production environment")
@@ -86,13 +88,9 @@ class AppConfig(BaseConfig):
                 logger.warning("Localhost in CORS_ORIGINS for production environment")
 
         # Validate all sub-configurations
-        try:
-            self.database.validate_connection_url()
-            self.converter.validate_output_directory()
-            logger.info("All configuration validations passed")
-        except Exception as e:
-            logger.error(f"Configuration validation failed: {e}")
-            raise
+        self.database.validate_connection_url()
+        self.converter.validate_output_directory()
+        logger.info("All configuration validations passed")
 
     def get_cors_config(self) -> dict[str, Any]:
         """Get CORS configuration for FastAPI."""
@@ -122,7 +120,7 @@ class AppConfig(BaseConfig):
                 "console": {
                     "class": "logging.StreamHandler",
                     "level": level,
-                    "formatter": "json" if self.is_production() else "default",
+                    "formatter": "json" if bool(self.is_production) else "default",
                     "stream": "ext://sys.stdout",
                 },
             },
@@ -140,6 +138,7 @@ class ConfigManager:
     _loaded: bool = False
 
     @classmethod
+    @content_processing_error_handler("load application configuration")
     def load_config(cls, **overrides) -> AppConfig:
         """Load and validate application configuration.
 
@@ -150,18 +149,14 @@ class ConfigManager:
             Validated AppConfig instance
         """
         if cls._instance is None or overrides:
-            try:
-                cls._instance = AppConfig(**overrides)
-                cls._instance.validate_environment()
-                cls._loaded = True
-                logger.info(
-                    "Configuration loaded successfully",
-                    environment=cls._instance.ENVIRONMENT,
-                    debug=cls._instance.DEBUG,
-                )
-            except Exception as e:
-                logger.error(f"Failed to load configuration: {e}")
-                raise
+            cls._instance = AppConfig(**overrides)
+            cls._instance.validate_environment()
+            cls._loaded = True
+            logger.info(
+                "Configuration loaded successfully",
+                environment=cls._instance.ENVIRONMENT,
+                debug=cls._instance.DEBUG,
+            )
 
         return cls._instance
 
@@ -213,10 +208,16 @@ def get_settings(**overrides) -> AppConfig:
 
 
 # Initialize default configuration on import (can be overridden)
+@content_processing_error_handler("initialize default configuration")
+def _initialize_default_config() -> AppConfig | None:
+    """Initialize default configuration with error handling."""
+    return ConfigManager.load_config()
+
+
 try:
-    default_settings = ConfigManager.load_config()
-except Exception as e:
-    logger.warning(f"Could not load default configuration: {e}")
+    default_settings = _initialize_default_config()
+except Exception:
+    logger.warning("Could not load default configuration, will initialize on first use")
     default_settings = None  # type: ignore
 
 # Export the default settings

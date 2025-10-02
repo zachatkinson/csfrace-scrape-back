@@ -6,14 +6,15 @@ from typing import Any
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
 from ..caching.manager import cache_manager
 from .health_events import (
     initialize_health_events,
 )
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class BackgroundHealthMonitor:
@@ -63,28 +64,24 @@ class BackgroundHealthMonitor:
 
         logger.info("Background health monitor stopped")
 
+    @monitoring_error_handler("initialize health event system")
     async def _initialize_event_system(self) -> None:
         """Initialize the health event system with Redis connection."""
         if self._initialized:
             return
 
-        try:
-            # Initialize cache manager to get Redis connection
-            await cache_manager.initialize()
+        # Initialize cache manager to get Redis connection
+        await cache_manager.initialize()
 
-            # Get Redis client from cache backend
-            if cache_manager.backend is not None and hasattr(cache_manager.backend, "_get_client"):
-                redis_client = await cache_manager.backend._get_client()
-                await initialize_health_events(redis_client)
-                self._initialized = True
-                logger.info("Health event system initialized successfully")
+        # Get Redis client from cache backend
+        if cache_manager.backend is not None and hasattr(cache_manager.backend, "_get_client"):
+            redis_client = await cache_manager.backend._get_client()
+            await initialize_health_events(redis_client)
+            self._initialized = True
+            logger.info("Health event system initialized successfully")
 
-            else:
-                logger.warning("Redis cache backend not available, health events disabled")
-
-        except Exception as e:
-            logger.error("Failed to initialize health event system", error=str(e))
-            # Continue without events rather than failing completely
+        else:
+            logger.warning("Redis cache backend not available, health events disabled")
 
     async def _monitoring_loop(self) -> None:
         """Main monitoring loop that runs health checks periodically."""
@@ -93,25 +90,7 @@ class BackgroundHealthMonitor:
         logger.info("Background health monitoring loop started")
 
         while self._running:
-            try:
-                # Use the same async session factory as the API dependencies
-                from ..api.dependencies import async_session
-
-                async with async_session() as db_session:
-                    # Perform health check
-                    logger.debug("Performing scheduled health check")
-                    current_health = await health_service.get_comprehensive_health_status(
-                        db_session
-                    )
-
-                    # Health service automatically publishes events now
-                    logger.debug("Health check completed", status=current_health.get("status"))
-
-                    # Ensure session is committed properly
-                    await db_session.commit()
-
-            except Exception as e:
-                logger.error("Health check failed in background monitor", error=str(e))
+            await _perform_health_check_safe(health_service)
 
             # Wait for next check interval
             try:
@@ -122,21 +101,33 @@ class BackgroundHealthMonitor:
 
         logger.info("Background health monitoring loop ended")
 
-    async def trigger_immediate_check(self) -> dict[str, Any] | None:
+    @monitoring_error_handler("trigger immediate health check")
+    @staticmethod
+    async def trigger_immediate_check() -> dict[str, Any] | None:
         """Trigger an immediate health check outside the normal schedule."""
-        try:
-            from ..api.dependencies import async_session
-            from ..api.services.health_service import health_service
+        from ..api.dependencies import async_session
+        from ..api.services.health_service import health_service
 
-            async with async_session() as db_session:
-                current_health = await health_service.get_comprehensive_health_status(db_session)
-                logger.info("Immediate health check triggered", status=current_health.get("status"))
-                await db_session.commit()
-                return current_health
+        async with async_session() as db_session:
+            return await health_service.get_comprehensive_health_status(db_session)
 
-        except Exception as e:
-            logger.error("Immediate health check failed", error=str(e))
-            raise
+
+@monitoring_error_handler("perform background health check")
+async def _perform_health_check_safe(health_service) -> None:
+    """Safely perform a health check in the background monitor."""
+    # Use the same async session factory as the API dependencies
+    from ..api.dependencies import async_session
+
+    async with async_session() as db_session:
+        # Perform health check
+        logger.debug("Performing scheduled health check")
+        current_health = await health_service.get_comprehensive_health_status(db_session)
+
+        # Health service automatically publishes events now
+        logger.debug("Health check completed", status=current_health.get("status"))
+
+        # Ensure session is committed properly
+        await db_session.commit()
 
 
 # Global instance

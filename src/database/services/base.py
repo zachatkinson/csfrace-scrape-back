@@ -10,12 +10,13 @@ from contextlib import contextmanager
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.utils.logging import get_logger
+from src.core.decorators import content_processing_error_handler, database_error_handler
+from src.core.logging_hierarchy import get_database_logger
 
 from ..models import Base, create_database_engine
 from ..utils import create_postgresql_enums, get_standard_enum_definitions
 
-logger = get_logger(__name__)
+logger = get_database_logger(__name__).logger
 
 
 class BaseService:
@@ -49,6 +50,7 @@ class BaseService:
         logger.debug("Database service created with existing engine")
         return instance
 
+    @database_error_handler("initialize database schema")
     def initialize_database(self) -> None:
         """Initialize database with tables and enums.
 
@@ -57,34 +59,26 @@ class BaseService:
         """
         logger.info("Initializing database schema")
 
-        try:
-            # Create enums first (required by tables)
-            self._create_enums_safely()
+        # Create enums first (required by tables)
+        self._create_enums_safely()
 
-            # Create all tables
-            Base.metadata.create_all(self.engine)
-            logger.info("Database schema initialization completed")
+        # Create all tables
+        Base.metadata.create_all(self.engine)
+        logger.info("Database schema initialization completed")
 
-        except Exception as e:
-            logger.error("Database initialization failed", error=str(e))
-            raise
-
+    @database_error_handler("create PostgreSQL enums")
     def _create_enums_safely(self) -> None:
         """Create PostgreSQL enums safely with proper error handling."""
         logger.debug("Creating PostgreSQL enums")
 
-        try:
-            with self.engine.connect() as connection:
-                enum_definitions = get_standard_enum_definitions()
-                create_postgresql_enums(connection, enum_definitions)
-                connection.commit()
-                logger.debug("PostgreSQL enums created successfully")
-
-        except Exception as e:
-            logger.error("Failed to create PostgreSQL enums", error=str(e))
-            raise
+        with self.engine.connect() as connection:
+            enum_definitions = get_standard_enum_definitions()
+            create_postgresql_enums(connection, enum_definitions)
+            connection.commit()
+            logger.debug("PostgreSQL enums created successfully")
 
     @contextmanager
+    @database_error_handler("manage database session")
     def get_session(self) -> Generator[Session]:
         """Get database session with automatic cleanup.
 
@@ -112,6 +106,7 @@ class BaseService:
             session.close()
             logger.debug("Database session closed")
 
+    @content_processing_error_handler("extract URL slug")
     def _extract_slug_from_url(self, url: str) -> str:
         """Extract slug from URL path for naming.
 
@@ -121,22 +116,19 @@ class BaseService:
         Returns:
             URL slug or 'index' if extraction fails
         """
-        try:
-            from urllib.parse import urlparse
+        from urllib.parse import urlparse
 
-            parsed = urlparse(url)
-            path = parsed.path.strip("/")
-            slug = path.split("/")[-1] if path else "index"
-            # Clean up slug for filesystem safety
-            import re
+        parsed = urlparse(url)
+        path = parsed.path.strip("/")
+        slug = path.split("/")[-1] if path else "index"
+        # Clean up slug for filesystem safety
+        import re
 
-            slug = re.sub(r"[^\w\-_.]", "", slug)[:50]  # Max 50 chars
-            logger.debug("Slug extracted", url=url, slug=slug)
-            return slug or "index"
-        except Exception as e:
-            logger.warning("Failed to extract slug", url=url, error=str(e))
-            return "index"
+        slug = re.sub(r"[^\w\-_.]", "", slug)[:50]  # Max 50 chars
+        logger.debug("Slug extracted", url=url, slug=slug)
+        return slug or "index"
 
+    @content_processing_error_handler("normalize priority value")
     def _normalize_priority(self, priority: str | object) -> int:
         """Normalize priority value to integer.
 
@@ -146,32 +138,27 @@ class BaseService:
         Returns:
             Integer priority value (1-10 scale)
         """
-        try:
-            if hasattr(priority, "value"):
-                # Handle enum objects
-                normalized = int(priority.value)
-            elif isinstance(priority, str):
-                # Handle string values
-                priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
-                normalized = priority_map.get(priority.lower(), 5)
-            else:
-                # Handle direct integer or other types
-                try:
-                    # Try to convert object to int, handle potential type issues
-                    normalized = (
-                        int(priority) if isinstance(priority, (int, float)) else int(str(priority))
-                    )
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"Unable to parse priority '{priority}', using default", priority=priority
-                    )
-                    normalized = 5  # Default priority
+        if hasattr(priority, "value"):
+            # Handle enum objects
+            normalized = int(priority.value)
+        elif isinstance(priority, str):
+            # Handle string values
+            priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
+            normalized = priority_map.get(priority.lower(), 5)
+        else:
+            # Handle direct integer or other types
+            try:
+                # Try to convert object to int, handle potential type issues
+                normalized = (
+                    int(priority) if isinstance(priority, (int, float)) else int(str(priority))
+                )
+            except (ValueError, TypeError):
+                logger.warning(
+                    f"Unable to parse priority '{priority}', using default", priority=priority
+                )
+                normalized = 5  # Default priority
 
-            # Clamp to valid range
-            normalized = max(1, min(10, normalized))
-            logger.debug("Priority normalized", original=priority, normalized=normalized)
-            return normalized
-
-        except (ValueError, TypeError) as e:
-            logger.warning("Failed to normalize priority", priority=priority, error=str(e))
-            return 5  # Default to normal priority
+        # Clamp to valid range
+        normalized = max(1, min(10, normalized))
+        logger.debug("Priority normalized", original=priority, normalized=normalized)
+        return normalized

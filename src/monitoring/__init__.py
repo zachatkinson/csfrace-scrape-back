@@ -10,54 +10,80 @@ This module provides comprehensive monitoring capabilities including:
 - Structured logging with correlation tracking
 """
 
-# Conditional imports to avoid dependency issues
+from typing import Any
 
-try:
-    from .alerts import AlertConfig, AlertManager, alert_manager
-except ImportError:
-    AlertConfig = AlertManager = alert_manager = None  # type: ignore[misc,assignment]
 
-try:
-    from .dashboard_provisioner import GrafanaDashboardProvisioner
-except ImportError:
-    GrafanaDashboardProvisioner = None  # type: ignore[misc,assignment]
+def _safe_import(module_path: str, *names: str) -> dict[str, Any]:
+    """Centralized safe import handler to eliminate try/except duplication.
 
-try:
-    from .grafana import GrafanaConfig, GrafanaDashboardManager
-except ImportError:
-    GrafanaConfig = GrafanaDashboardManager = None  # type: ignore[misc,assignment]
+    Args:
+        module_path: Module path to import from
+        *names: Names to import from the module
 
-try:
-    from .health import HealthChecker, HealthConfig, health_checker
-except ImportError:
-    HealthChecker = HealthConfig = health_checker = None  # type: ignore[misc,assignment]
+    Returns:
+        Dictionary mapping names to imported objects or None
+    """
+    try:
+        module = __import__(f"{__name__}.{module_path}", fromlist=list(names))
+        return {name: getattr(module, name, None) for name in names}
+    except ImportError:
+        return dict.fromkeys(names)
 
-try:
-    from .health_checks import HealthCheck, HealthCheckResult, HealthStatus, health_registry
-    from .setup import get_health_check_summary, setup_default_health_checks
-except ImportError:
-    HealthCheck = HealthCheckResult = HealthStatus = health_registry = None  # type: ignore
-    get_health_check_summary = setup_default_health_checks = None  # type: ignore
 
-try:
-    from .metrics import MetricsCollector, MetricsConfig, metrics_collector
-except ImportError:
-    MetricsCollector = MetricsConfig = metrics_collector = None  # type: ignore[misc,assignment]
+# Centralized safe imports using DRY principle
+_alerts_imports = _safe_import("alerts", "AlertConfig", "AlertManager", "alert_manager")
+AlertConfig = _alerts_imports["AlertConfig"]
+AlertManager = _alerts_imports["AlertManager"]
+alert_manager = _alerts_imports["alert_manager"]
 
-try:
-    from .observability import ObservabilityConfig, ObservabilityManager, observability_manager
-except ImportError:
-    ObservabilityConfig = ObservabilityManager = observability_manager = None  # type: ignore[misc,assignment]
+_dashboard_imports = _safe_import("dashboard_provisioner", "GrafanaDashboardProvisioner")
+GrafanaDashboardProvisioner = _dashboard_imports["GrafanaDashboardProvisioner"]
 
-try:
-    from .performance import PerformanceConfig, PerformanceMonitor, performance_monitor
-except ImportError:
-    PerformanceConfig = PerformanceMonitor = performance_monitor = None  # type: ignore[misc,assignment]
+_grafana_imports = _safe_import("grafana", "GrafanaConfig", "GrafanaDashboardManager")
+GrafanaConfig = _grafana_imports["GrafanaConfig"]
+GrafanaDashboardManager = _grafana_imports["GrafanaDashboardManager"]
 
-try:
-    from .tracing import DistributedTracer, TracingConfig, distributed_tracer
-except ImportError:
-    DistributedTracer = TracingConfig = distributed_tracer = None  # type: ignore[misc,assignment]
+_health_imports = _safe_import("health", "HealthChecker", "HealthConfig", "health_checker")
+HealthChecker = _health_imports["HealthChecker"]
+HealthConfig = _health_imports["HealthConfig"]
+health_checker = _health_imports["health_checker"]
+
+_health_checks_imports = _safe_import(
+    "health_checks", "HealthCheck", "HealthCheckResult", "HealthStatus", "health_registry"
+)
+_setup_imports = _safe_import("setup", "get_health_check_summary", "setup_default_health_checks")
+HealthCheck = _health_checks_imports["HealthCheck"]
+HealthCheckResult = _health_checks_imports["HealthCheckResult"]
+HealthStatus = _health_checks_imports["HealthStatus"]
+health_registry = _health_checks_imports["health_registry"]
+get_health_check_summary = _setup_imports["get_health_check_summary"]
+setup_default_health_checks = _setup_imports["setup_default_health_checks"]
+
+_metrics_imports = _safe_import("metrics", "MetricsCollector", "MetricsConfig", "metrics_collector")
+MetricsCollector = _metrics_imports["MetricsCollector"]
+MetricsConfig = _metrics_imports["MetricsConfig"]
+metrics_collector = _metrics_imports["metrics_collector"]
+
+_observability_imports = _safe_import(
+    "observability", "ObservabilityConfig", "ObservabilityManager", "observability_manager"
+)
+ObservabilityConfig = _observability_imports["ObservabilityConfig"]
+ObservabilityManager = _observability_imports["ObservabilityManager"]
+observability_manager = _observability_imports["observability_manager"]
+
+_performance_imports = _safe_import(
+    "performance", "PerformanceConfig", "PerformanceMonitor", "performance_monitor"
+)
+PerformanceConfig = _performance_imports["PerformanceConfig"]
+PerformanceMonitor = _performance_imports["PerformanceMonitor"]
+performance_monitor = _performance_imports["performance_monitor"]
+
+_tracing_imports = _safe_import(
+    "tracing", "DistributedTracer", "TracingConfig", "distributed_tracer"
+)
+DistributedTracer = _tracing_imports["DistributedTracer"]
+TracingConfig = _tracing_imports["TracingConfig"]
+distributed_tracer = _tracing_imports["distributed_tracer"]
 
 __all__ = [
     "MetricsCollector",

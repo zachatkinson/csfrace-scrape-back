@@ -11,6 +11,8 @@ from uuid import uuid4
 if TYPE_CHECKING:
     from .auth import User
 
+# Note: User relationship uses string-based forward reference
+# No import needed due to SQLAlchemy's lazy evaluation
 from sqlalchemy import (
     JSON,
     DateTime,
@@ -23,12 +25,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_database_logger
 
 from ...common.status import JobPriority, JobStatus
 from .base import Base
 
-logger = get_logger(__name__)
+logger = get_database_logger()
 
 
 class ScrapingJob(Base):

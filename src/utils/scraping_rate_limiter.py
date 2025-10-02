@@ -6,7 +6,8 @@ rate limiting for external website scraping.
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.decorators import network_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
 
 from .rate_limiting.token_bucket import TokenBucket, TokenBucketConfig, TokenBucketPool
 from .robots import RobotsChecker
@@ -14,7 +15,7 @@ from .robots import RobotsChecker
 # Type for domain statistics - much better than Any
 DomainStats = dict[str, str | int | float | bool]
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class ScrapingRateLimiter:
@@ -128,74 +129,47 @@ class ScrapingRateLimiter:
 
         return await self._bucket_pool.get_bucket(domain)
 
+    @network_error_handler("configure domain rate limiting")
     async def _configure_domain(self, domain: str) -> None:
         """Configure rate limiting for a specific domain based on robots.txt."""
-        try:
-            # Get crawl delay from robots.txt
-            crawl_delay = await self._get_crawl_delay(domain)
+        # Get crawl delay from robots.txt
+        crawl_delay = await self._get_crawl_delay(domain)
 
-            if crawl_delay > 0:
-                # Convert crawl delay to requests per second
-                requests_per_second = 1.0 / crawl_delay
+        if crawl_delay > 0:
+            # Convert crawl delay to requests per second
+            requests_per_second = 1.0 / crawl_delay
 
-                # Adjust burst capacity based on crawl delay
-                # Slower sites get smaller burst capacity
-                burst_capacity = max(2, min(10, int(self.default_burst_capacity / crawl_delay)))
-            else:
-                requests_per_second = self.default_requests_per_second
-                burst_capacity = self.default_burst_capacity
+            # Adjust burst capacity based on crawl delay
+            # Slower sites get smaller burst capacity
+            burst_capacity = max(2, min(10, int(self.default_burst_capacity / crawl_delay)))
+        else:
+            requests_per_second = self.default_requests_per_second
+            burst_capacity = self.default_burst_capacity
 
-            config = TokenBucketConfig(
-                capacity=burst_capacity,
-                refill_rate=requests_per_second,
-            )
+        config = TokenBucketConfig(
+            capacity=burst_capacity,
+            refill_rate=requests_per_second,
+        )
 
-            self._domain_configs[domain] = config
+        self._domain_configs[domain] = config
 
-            logger.info(
-                "Configured domain rate limiting",
-                domain=domain,
-                requests_per_second=requests_per_second,
-                burst_capacity=burst_capacity,
-                crawl_delay=crawl_delay,
-            )
+        logger.info(
+            "Configured domain rate limiting",
+            domain=domain,
+            requests_per_second=requests_per_second,
+            burst_capacity=burst_capacity,
+            crawl_delay=crawl_delay,
+        )
 
-        except Exception as e:
-            logger.warning(
-                "Failed to configure domain, using defaults",
-                domain=domain,
-                error=str(e),
-            )
-
-            # Fall back to default configuration
-            self._domain_configs[domain] = TokenBucketConfig(
-                capacity=self.default_burst_capacity,
-                refill_rate=self.default_requests_per_second,
-            )
-
+    @network_error_handler("check robots.txt compliance")
     async def _check_robots_compliance(self, domain: str, user_agent: str = "*") -> bool:
         """Check if request complies with robots.txt."""
-        try:
-            return await self.robots_checker.can_fetch(domain, "/", None)
-        except Exception as e:
-            logger.warning(
-                "Robots.txt check failed, allowing request",
-                domain=domain,
-                error=str(e),
-            )
-            return True  # Allow request if robots.txt check fails
+        return await self.robots_checker.can_fetch(domain, "/", None)
 
+    @network_error_handler("get crawl delay from robots.txt")
     async def _get_crawl_delay(self, domain: str, user_agent: str = "*") -> float:
         """Get crawl delay from robots.txt."""
-        try:
-            return await self.robots_checker.get_crawl_delay(domain, user_agent)
-        except Exception as e:
-            logger.debug(
-                "Failed to get crawl delay, using default",
-                domain=domain,
-                error=str(e),
-            )
-            return 1.0 / self.default_requests_per_second  # Default delay
+        return await self.robots_checker.get_crawl_delay(domain, user_agent)
 
     async def get_domain_stats(self, domain: str) -> DomainStats | None:
         """Get rate limiting statistics for a domain."""

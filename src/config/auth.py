@@ -5,12 +5,12 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
-from ..constants import AUTH_CONSTANTS
+from ..constants import PASSWORD_CONTEXT_DEPRECATED
 from .base import BaseConfig, SecurityMixin
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class AuthConfig(BaseConfig, SecurityMixin):
@@ -29,7 +29,7 @@ class AuthConfig(BaseConfig, SecurityMixin):
     # Password Configuration
     PWD_CONTEXT_SCHEMES: list[str] = Field(["bcrypt"], description="Password hashing schemes")
     PWD_CONTEXT_DEPRECATED: str = Field(
-        AUTH_CONSTANTS.PASSWORD_CONTEXT_DEPRECATED, description="Deprecated password schemes"
+        PASSWORD_CONTEXT_DEPRECATED, description="Deprecated password schemes"
     )
 
     # Rate Limiting - configurable for different environments

@@ -5,17 +5,19 @@ Grafana dashboards following CLAUDE.md standards.
 """
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
 import yaml
 
-from src.utils.logging import get_logger
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_general_logger
 
-from ..constants import CLI_CONSTANTS
+from ..constants import DEFAULT_GRAFANA_PORT, DEFAULT_OUTPUT_DIR, DEFAULT_PROMETHEUS_URL
 from ..monitoring import GrafanaConfig, GrafanaDashboardProvisioner
 
-logger = get_logger(__name__)
+logger = get_general_logger()
 
 app = typer.Typer(
     name="grafana", help="Manage Grafana dashboards and provisioning", no_args_is_help=True
@@ -28,11 +30,9 @@ def provision(
         None, "--config", "-c", help="Path to Grafana configuration file"
     ),
     prometheus_url: str = typer.Option(
-        CLI_CONSTANTS.DEFAULT_PROMETHEUS_URL, "--prometheus-url", "-p", help="Prometheus server URL"
+        DEFAULT_PROMETHEUS_URL, "--prometheus-url", "-p", help="Prometheus server URL"
     ),
-    grafana_port: int = typer.Option(
-        CLI_CONSTANTS.DEFAULT_GRAFANA_PORT, "--port", help="Grafana server port"
-    ),
+    grafana_port: int = typer.Option(DEFAULT_GRAFANA_PORT, "--port", help="Grafana server port"),
     output_dir: Path | None = typer.Option(
         None, "--output", "-o", help="Output directory for dashboards and provisioning files"
     ),
@@ -48,55 +48,15 @@ def provision(
     - Database performance monitoring
     - Docker Compose integration
     """
-    try:
-        # Load configuration
-        if config_file and config_file.exists():
-            typer.echo(f"Loading configuration from {config_file}")
-            config = _load_config_from_file(config_file, prometheus_url, grafana_port)
-        else:
-            config = GrafanaConfig(prometheus_url=prometheus_url, port=grafana_port)
-
-        if output_dir:
-            config.dashboards_dir = output_dir / "dashboards"
-            config.provisioning_dir = output_dir / "provisioning"
-
-        # Check for existing files if not forcing
-        if (
-            not force
-            and config.dashboards_dir.exists()
-            and not typer.confirm(
-                f"Dashboard directory {config.dashboards_dir} already exists. Continue?"
-            )
-        ):
-            typer.echo("Provisioning cancelled.")
-            raise typer.Abort()
-
-        # Initialize provisioner
-        provisioner = GrafanaDashboardProvisioner(config)
-
-        typer.echo("🚀 Starting Grafana dashboard provisioning...")
-
-        # Provision all dashboards
-        provisioner.provision_all_dashboards()
-
-        # Create Prometheus configuration
-        provisioner.create_prometheus_config()
-
-        typer.echo("✅ Dashboard provisioning completed successfully!")
-        typer.echo(f"📁 Dashboards: {config.dashboards_dir}")
-        typer.echo(f"⚙️  Provisioning: {config.provisioning_dir}")
-        typer.echo("🐳 Docker Compose updated")
-        typer.echo("\n🎯 Next steps:")
-        typer.echo("   1. Run: docker compose up -d")
-        typer.echo(f"   2. Access Grafana: http://localhost:{config.port}")
-        typer.echo(
-            f"   3. Login: {config.admin_user}/<password from GRAFANA_ADMIN_PASSWORD env var>"
-        )
-
-    except Exception as e:
-        logger.error("Dashboard provisioning failed", error=str(e))
-        typer.echo(f"❌ Error: {e}", err=True)
-        raise typer.Exit(1)
+    _execute_cli_command_safe(
+        "provision",
+        _provision_dashboards,
+        config_file,
+        prometheus_url,
+        grafana_port,
+        output_dir,
+        force,
+    )
 
 
 @app.command()
@@ -112,70 +72,13 @@ def validate(
     - Panel configuration checks
     - Query syntax validation
     """
-    try:
-        config = GrafanaConfig()
-        if dashboards_dir:
-            config.dashboards_dir = dashboards_dir
-
-        provisioner = GrafanaDashboardProvisioner(config)
-
-        typer.echo(f"🔍 Validating dashboards in {config.dashboards_dir}")
-
-        if provisioner.validate_dashboards():
-            typer.echo("✅ All dashboards are valid!")
-        else:
-            typer.echo("❌ Some dashboards failed validation", err=True)
-            raise typer.Exit(1)
-
-    except Exception as e:
-        logger.error("Dashboard validation failed", error=str(e))
-        typer.echo(f"❌ Error: {e}", err=True)
-        raise typer.Exit(1)
+    _execute_cli_command_safe("validate", _validate_dashboards, dashboards_dir)
 
 
 @app.command()
 def status() -> None:
     """Show status of Grafana dashboards and services."""
-    try:
-        config = GrafanaConfig()
-
-        typer.echo("📊 Grafana Dashboard Status")
-        typer.echo("=" * 40)
-
-        # Check dashboard files
-        dashboard_files = (
-            list(config.dashboards_dir.glob("*.json")) if config.dashboards_dir.exists() else []
-        )
-        typer.echo(f"📁 Dashboard files: {len(dashboard_files)}")
-
-        if dashboard_files:
-            for dashboard_file in dashboard_files:
-                typer.echo(f"   - {dashboard_file.name}")
-
-        # Check provisioning files
-        provisioning_exists = config.provisioning_dir.exists()
-        typer.echo(
-            f"⚙️  Provisioning config: {'✅ Present' if provisioning_exists else '❌ Missing'}"
-        )
-
-        # Check Docker Compose
-        docker_compose_exists = Path("docker compose.yml").exists()
-        typer.echo(f"🐳 Docker Compose: {'✅ Present' if docker_compose_exists else '❌ Missing'}")
-
-        # Check Prometheus config
-        prometheus_config_exists = Path("prometheus.yml").exists()
-        typer.echo(
-            f"📈 Prometheus config: {'✅ Present' if prometheus_config_exists else '❌ Missing'}"
-        )
-
-        # Service connectivity status (if services are running)
-        typer.echo("\n🔗 Service Connectivity:")
-        typer.echo("   (Run 'docker compose ps' to check running services)")
-
-    except Exception as e:
-        logger.error("Status check failed", error=str(e))
-        typer.echo(f"❌ Error: {e}", err=True)
-        raise typer.Exit(1)
+    _execute_cli_command_safe("status", _show_status)
 
 
 @app.command()
@@ -183,63 +86,7 @@ def clean(
     force: bool = typer.Option(False, "--force", "-f", help="Remove files without confirmation"),
 ) -> None:
     """Clean up generated dashboard and provisioning files."""
-    try:
-        config = GrafanaConfig()
-
-        files_to_remove = []
-
-        # Collect dashboard files
-        if config.dashboards_dir.exists():
-            dashboard_files = list(config.dashboards_dir.glob("*.json"))
-            files_to_remove.extend(dashboard_files)
-
-        # Collect provisioning files
-        if config.provisioning_dir.exists():
-            provisioning_files = list(config.provisioning_dir.rglob("*.yaml"))
-            files_to_remove.extend(provisioning_files)
-
-        # Include Docker and Prometheus configs
-        for config_file in ["prometheus.yml"]:
-            if Path(config_file).exists():
-                files_to_remove.append(Path(config_file))
-
-        if not files_to_remove:
-            typer.echo("✅ No dashboard files to clean")
-            return
-
-        typer.echo(f"🗑️  Found {len(files_to_remove)} files to remove:")
-        for file_path in files_to_remove:
-            typer.echo(f"   - {file_path}")
-
-        if not force and not typer.confirm("Proceed with cleanup?"):
-            typer.echo("Cleanup cancelled.")
-            return
-
-        # Remove files
-        removed_count = 0
-        for file_path in files_to_remove:
-            try:
-                file_path.unlink()
-                removed_count += 1
-            except Exception as e:
-                typer.echo(f"⚠️  Failed to remove {file_path}: {e}")
-
-        # Remove empty directories
-        for directory in [config.dashboards_dir, config.provisioning_dir]:
-            try:
-                if directory.exists() and not any(directory.iterdir()):
-                    directory.rmdir()
-            except OSError as e:
-                logger.debug(f"Could not remove directory {directory}: {e}")
-            except Exception as e:
-                logger.warning(f"Unexpected error removing directory {directory}: {e}")
-
-        typer.echo(f"✅ Cleaned up {removed_count} files")
-
-    except Exception as e:
-        logger.error("Cleanup failed", error=str(e))
-        typer.echo(f"❌ Error: {e}", err=True)
-        raise typer.Exit(1)
+    _execute_cli_command_safe("clean", _clean_files, force)
 
 
 @app.command()
@@ -249,43 +96,7 @@ def init(
     ),
 ) -> None:
     """Initialize Grafana configuration with example files."""
-    try:
-        typer.echo("🏗️  Initializing Grafana configuration...")
-
-        # Create directory structure
-        dashboards_dir = output_dir / "dashboards"
-        provisioning_dir = output_dir / "provisioning"
-
-        dashboards_dir.mkdir(parents=True, exist_ok=True)
-        provisioning_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create example configuration file
-        config_file = output_dir / "grafana-config.yaml"
-        example_config = """# Grafana Configuration
-enabled: true
-host: localhost
-port: 3000
-protocol: http
-prometheus_url: http://prometheus:9090
-refresh_interval: 30s
-time_range: 1h
-
-# Security Note: Set these environment variables instead of hardcoding
-# export GRAFANA_ADMIN_USER=admin
-# export GRAFANA_ADMIN_PASSWORD=your-secure-password
-"""
-
-        with open(config_file, "w", encoding="utf-8") as f:
-            f.write(example_config)
-
-        typer.echo(f"✅ Grafana configuration initialized in {output_dir}")
-        typer.echo(f"📝 Edit {config_file} to customize settings")
-        typer.echo(f"\n🎯 Next step: Run 'grafana provision -o {output_dir}'")
-
-    except Exception as e:
-        logger.error("Initialization failed", error=str(e))
-        typer.echo(f"❌ Error: {e}", err=True)
-        raise typer.Exit(1)
+    _execute_cli_command_safe("init", _initialize_config, output_dir)
 
 
 def _load_config_from_file(
@@ -304,28 +115,111 @@ def _load_config_from_file(
     Raises:
         typer.Exit: If configuration file is invalid
     """
+    return _load_config_safe(config_file, prometheus_url, grafana_port)
+
+
+@database_error_handler("execute CLI command")
+def _execute_cli_command_safe(operation: str, func: Callable, *args) -> None:
+    """Execute CLI command with error handling."""
     try:
-        with open(config_file, encoding="utf-8") as f:
-            if config_file.suffix.lower() in [".yml", ".yaml"]:
-                config_data = yaml.safe_load(f)
-            elif config_file.suffix.lower() == ".json":
-                config_data = json.load(f)
-            else:
-                raise ValueError(f"Unsupported config format: {config_file.suffix}")
-
-        # Create config with file data, falling back to CLI args
-        return GrafanaConfig(
-            prometheus_url=config_data.get("prometheus_url", prometheus_url),
-            port=config_data.get("port", grafana_port),
-            host=config_data.get("host", "localhost"),
-            protocol=config_data.get("protocol", "http"),
-            refresh_interval=config_data.get("refresh_interval", "30s"),
-            time_range=config_data.get("time_range", "1h"),
-        )
-
+        func(*args)
+        logger.logger.info(f"{operation} completed successfully")
     except Exception as e:
-        typer.echo(f"❌ Failed to load config from {config_file}: {e}", err=True)
+        logger.logger.error(f"{operation} failed", error=str(e))
+        typer.echo(f"❌ Error: {e}", err=True)
         raise typer.Exit(1)
+
+
+@database_error_handler("provision dashboards")
+def _provision_dashboards(
+    config_file: Path | None,
+    prometheus_url: str,
+    grafana_port: int,
+    output_dir: Path | None,
+    force: bool,
+) -> None:
+    """Provision dashboards with error handling."""
+    config = (
+        _load_config_from_file(config_file, prometheus_url, grafana_port)
+        if config_file
+        else GrafanaConfig(
+            prometheus_url=prometheus_url,
+            port=grafana_port,
+            output_dir=output_dir or DEFAULT_OUTPUT_DIR,
+        )
+    )
+
+    provisioner = GrafanaDashboardProvisioner(config)
+    provisioner.provision_all(force=force)
+
+
+@database_error_handler("validate dashboards")
+def _validate_dashboards(dashboards_dir: Path | None) -> None:
+    """Validate dashboards with error handling."""
+    config = GrafanaConfig()
+    if dashboards_dir:
+        config.dashboards_dir = dashboards_dir
+
+    provisioner = GrafanaDashboardProvisioner(config)
+    is_valid = provisioner.validate_dashboards()
+    if not is_valid:
+        raise ValueError("Dashboard validation failed")
+
+
+@database_error_handler("show status")
+def _show_status() -> None:
+    """Show status with error handling."""
+    config = GrafanaConfig()
+    provisioner = GrafanaDashboardProvisioner(config)
+    status = provisioner.get_status()
+
+    typer.echo("\n📊 Grafana Dashboard Status:")
+    for key, value in status.items():
+        typer.echo(f"  {key}: {value}")
+
+
+@database_error_handler("clean files")
+def _clean_files(force: bool) -> None:
+    """Clean files with error handling."""
+    config = GrafanaConfig()
+
+    if not force:
+        confirm = typer.confirm("Are you sure you want to remove all generated files?")
+        if not confirm:
+            typer.echo("❌ Operation cancelled")
+            return
+
+    provisioner = GrafanaDashboardProvisioner(config)
+    removed_count = provisioner.clean_generated_files()
+    typer.echo(f"✅ Removed {removed_count} generated files")
+
+
+@database_error_handler("initialize config")
+def _initialize_config(output_dir: Path) -> None:
+    """Initialize config with error handling."""
+    config = GrafanaConfig(output_dir=output_dir)
+    provisioner = GrafanaDashboardProvisioner(config)
+    provisioner.initialize_config_structure()
+
+    typer.echo(f"✅ Initialized Grafana configuration in {output_dir}")
+
+
+@database_error_handler("load config from file")
+def _load_config_safe(config_file: Path, prometheus_url: str, grafana_port: int) -> GrafanaConfig:
+    """Load config from file with error handling."""
+    if config_file.suffix.lower() == ".json":
+        with open(config_file, encoding="utf-8") as f:
+            config_data = json.load(f)
+    elif config_file.suffix.lower() in [".yml", ".yaml"]:
+        with open(config_file, encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+    else:
+        raise ValueError(f"Unsupported config file format: {config_file.suffix}")
+
+    # Override with CLI parameters
+    config_data.update({"prometheus_url": prometheus_url, "port": grafana_port})
+
+    return GrafanaConfig(**config_data)
 
 
 if __name__ == "__main__":

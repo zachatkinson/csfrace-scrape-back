@@ -15,17 +15,22 @@ from datetime import UTC, datetime
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from src.utils.logging import get_logger
+from src.core.decorators import api_error_handler
+from src.core.logging_hierarchy import get_api_logger
 
-from ...utils import handle_api_exceptions
+logger = get_api_logger()
 
-logger = get_logger(__name__)
 
-# Get version from package metadata
-try:
-    __version__ = importlib.metadata.version("csfrace-scraper")
-except importlib.metadata.PackageNotFoundError:
-    __version__ = "1.0.0"  # Fallback version
+def _get_application_version() -> str:
+    """Get application version with error handling."""
+    try:
+        return importlib.metadata.version("csfrace-scraper")
+    except Exception:
+        return "1.0.0"
+
+
+# Initialize version
+__version__ = _get_application_version()
 
 # Track service startup time for uptime calculation
 _startup_time = time.time()
@@ -50,7 +55,7 @@ router = APIRouter()
 
 
 @router.get("/system", response_model=SystemInfoResponse)
-@handle_api_exceptions("Failed to get system information")
+@api_error_handler("get system information")
 async def system_info() -> SystemInfoResponse:
     """Get detailed system information for monitoring and debugging.
 

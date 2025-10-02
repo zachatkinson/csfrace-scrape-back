@@ -700,7 +700,8 @@ jobs:
           fi
           
           # Verify minimum coverage threshold
-          uv run coverage report --fail-under=28
+          # Target: 75% coverage for production code quality
+          uv run coverage report --fail-under=75
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

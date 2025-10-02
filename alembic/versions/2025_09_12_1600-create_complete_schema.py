@@ -20,11 +20,22 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Create all database tables following PostgreSQL best practices."""
+    """Create all database tables following PostgreSQL best practices.
+
+    IDEMPOTENT: Checks table existence before creating to prevent duplicate table errors.
+    Following DRY principle - migrations should be safely runnable multiple times.
+    """
+    from sqlalchemy import inspect
+
+    # Get connection to check existing tables
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    existing_tables = inspector.get_table_names()
 
     # Create batches table first (no foreign key dependencies)
-    op.create_table(
-        "batches",
+    if "batches" not in existing_tables:
+        op.create_table(
+            "batches",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),

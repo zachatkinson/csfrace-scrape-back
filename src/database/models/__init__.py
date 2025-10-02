@@ -9,9 +9,6 @@ Domains:
 - Auth: Authentication models (User, UserSettings, LinkedAccount, WebAuthn*, AccountLockout, RevokedToken)
 - Metrics: System monitoring models (SystemMetrics)
 - Engine: Database engine configuration utilities
-
-All models are re-exported from this module to maintain backward compatibility
-with existing imports.
 """
 
 # Import base components
@@ -51,7 +48,7 @@ __all__ = [
     "RevokedToken",
     # Metrics domain models
     "SystemMetrics",
-    # Enums (for backward compatibility)
+    # Enums
     "JobStatus",
     "JobPriority",
 ]

@@ -1,595 +1,701 @@
-"""Shared fixtures and test configuration for pytest."""
+"""Test configuration and fixtures following pytest best practices.
 
-# Standard library imports
-import importlib.util
-import logging
+This conftest.py follows official pytest recommendations:
+- https://docs.pytest.org/en/stable/how-to/fixtures.html
+- https://docs.pytest.org/en/stable/explanation/fixtures.html
+- https://docs.pytest.org/en/stable/explanation/goodpractices.html
+
+Provides shared fixtures for the entire test suite with proper scoping,
+cleanup, and modular organization following audit_3.md standards.
+"""
+
 import os
-import subprocess
+import sys
 import tempfile
-import time
-import uuid
+from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any
+from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
-# Third-party imports
-import aiohttp
 import asyncio
-import psycopg
 import pytest
 import pytest_asyncio
-import structlog
-from aioresponses import aioresponses
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
+from faker import Faker
 from sqlalchemy import create_engine
-from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy.orm import Session
-from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-# Local imports
-from src import __version__
-from src.caching.base import CacheConfig
-from src.caching.file_cache import FileCache
-from src.caching.redis_cache import RedisCache
-from src.constants import TestConstants
-from src.database.models import (
-    Base,
-    JobPriority,
-    JobStatus,
-)
-from src.database.models.auth import User
-from src.database.service import DatabaseService
-from src.plugins.base import PluginConfig, PluginType
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-# CRITICAL: Load .env file and configure environment AFTER imports to satisfy ruff E402
-# but BEFORE any module initialization that depends on environment variables
-load_dotenv()  # Load environment variables from .env file
-os.environ.setdefault("TESTING", "true")
-
-# CRITICAL: Configure structlog IMMEDIATELY after imports to prevent warnings
-# This prevents modules from caching loggers with default configuration
-structlog.reset_defaults()
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
-        structlog.processors.TimeStamper(fmt="ISO"),
-        structlog.processors.StackInfoRenderer(),
-        # NOTE: format_exc_info intentionally omitted per structlog best practices
-        # Use plain_traceback to avoid warnings about pretty exception formatting
-        structlog.dev.ConsoleRenderer(exception_formatter=structlog.dev.plain_traceback),
-    ],
-    wrapper_class=structlog.stdlib.BoundLogger,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    context_class=dict,
-    cache_logger_on_first_use=False,  # Don't cache during tests to allow reconfiguration
-)
+# Initialize faker with deterministic seed for reproducible tests
+fake = Faker()
+fake.seed_instance(12345)
 
 
-@pytest.fixture
-def mock_sleep(monkeypatch):
-    """Mock asyncio.sleep to return immediately for faster tests."""
-
-    async def instant_sleep(_delay):
-        # Return immediately without actually sleeping
-        # This significantly speeds up tests that simulate timing
-        return None
-
-    monkeypatch.setattr(asyncio, "sleep", instant_sleep)
-    return instant_sleep
+# ============================================================================
+# pytest Hooks and Configuration (Official Best Practice)
+# ============================================================================
 
 
-@pytest.fixture
-def mock_time_sleep(monkeypatch):
-    """Mock time.sleep to return immediately for faster tests."""
+def pytest_configure(config):
+    """Configure pytest with custom markers.
 
-    def instant_sleep(_delay):
-        # Return immediately without actually sleeping
-        return None
+    Official pytest hook for registering custom markers.
+    Ref: https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_configure
+    """
+    # Register custom markers as recommended by pytest
+    config.addinivalue_line("markers", "unit: Unit tests")
+    config.addinivalue_line("markers", "integration: Integration tests")
+    config.addinivalue_line("markers", "e2e: End-to-end tests")
+    config.addinivalue_line("markers", "performance: Performance tests")
+    config.addinivalue_line("markers", "security: Security tests")
+    config.addinivalue_line("markers", "database: Database-dependent tests")
+    config.addinivalue_line("markers", "slow: Slow tests (>5 seconds)")
 
-    monkeypatch.setattr(time, "sleep", instant_sleep)
-    return instant_sleep
+
+# ============================================================================
+# Session-Scoped Fixtures (Run Once Per Test Session)
+# ============================================================================
 
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    """Provide event loop for async tests.
+
+    Session-scoped for efficiency across all async tests.
+    Ref: https://docs.pytest.org/en/stable/how-to/fixtures.html#scope-sharing-fixtures-across-classes-modules-packages-or-session
+    """
+    loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
 @pytest.fixture(scope="session")
-def postgres_container():
-    """Create PostgreSQL connection for database tests.
+def faker_instance():
+    """Provide faker instance with deterministic seed.
 
-    Uses GitHub Actions service container in CI, testcontainers locally.
+    Session-scoped to ensure consistent fake data across tests.
     """
-    # Check if running in CI with service container
-    # When running tests locally, prefer testcontainers even if .env has DATABASE vars set
-    is_ci = (
-        os.environ.get("CI", "").lower() == "true"
-        or os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+    return fake
+
+
+# ============================================================================
+# Module-Scoped Fixtures (Run Once Per Test Module)
+# ============================================================================
+
+
+@pytest.fixture(scope="module")
+def test_database_engine():
+    """Provide PostgreSQL test database engine.
+
+    Uses PostgreSQL for database parity with production (MANDATORY per TEST_BUILDING.md).
+    Module-scoped for efficiency when multiple tests need database.
+
+    Following TEST_BUILDING.md ZERO TOLERANCE: Tests MUST use same database as production.
+    """
+    from src.database.models.base import Base
+
+    # Use PostgreSQL test database for database parity (MANDATORY)
+    # TEST_BUILDING.md: Tests must use same database as production
+    # Note: Using postgresql+psycopg for psycopg3 driver (modern async support)
+    test_db_url = os.environ.get(
+        "DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/csfrace_test"
     )
-    has_database_vars = all(
-        env_var in os.environ for env_var in ["DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME"]
+
+    engine = create_engine(
+        test_db_url,
+        poolclass=StaticPool,  # Shared connection for all tests in module
+        echo=False,  # Set to True for SQL debugging
     )
 
-    if is_ci and has_database_vars:
-        # Use CI service container
-        class CIPostgresContainer:
-            """Mock container class for CI environment using service containers."""
+    # Create all tables (includes PostgreSQL enum creation via event listener)
+    Base.metadata.create_all(engine)
 
-            def __init__(self):
-                """Initialize container with CI environment variables."""
-                self.host = os.environ["DATABASE_HOST"]
-                self.port = int(os.environ["DATABASE_PORT"])
-                self.dbname = os.environ["DATABASE_NAME"]
-                self.username = os.environ["DATABASE_USER"]
-                self.password = os.environ["DATABASE_PASSWORD"]
+    yield engine
 
-            def get_container_host_ip(self):
-                """Get the container host IP."""
-                return self.host
-
-            def get_exposed_port(self, _port):
-                """Get the exposed port (ignores input port as CI uses fixed port)."""
-                return self.port
-
-        yield CIPostgresContainer()
-    else:
-        # Use testcontainers for local development
-        with PostgresContainer(
-            image="postgres:17.6",
-            dbname="scraper_db",
-            username="scraper_user",
-            password="scraper_password",
-            port=5432,
-        ) as postgres:
-            # Use connection retry instead of sleep for container readiness
-            max_retries = 30
-            for _ in range(max_retries):
-                try:
-                    postgres.get_connection_url()
-                    # Test actual connection
-
-                    conn = psycopg.connect(postgres.get_connection_url())
-                    conn.close()
-                    break
-                except Exception:  # pylint: disable=broad-exception-caught
-                    time.sleep(0.1)  # Very short sleep for retry
-            yield postgres
+    # Cleanup: Drop all tables after module tests complete
+    Base.metadata.drop_all(engine)
+    engine.dispose()
 
 
-# REMOVED - standardizing on testcontainers_db_service pattern only
+# ============================================================================
+# Function-Scoped Fixtures (Default Scope - Run Once Per Test Function)
+# ============================================================================
 
 
 @pytest.fixture
-def db_session(testcontainers_db_service):  # pylint: disable=redefined-outer-name
-    """Create database session following official SQLAlchemy 2.0 best practices.
+def temp_dir() -> Generator[Path]:
+    """Provide temporary directory for tests.
 
-    Uses the official SQLAlchemy 2.0 pattern with join_transaction_mode="create_savepoint".
-    This automatically handles SAVEPOINT creation and isolation without manual event handling.
-
-    Official SQLAlchemy 2.0 testing pattern from:
-    https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
+    Function-scoped for test isolation. Uses yield for proper cleanup.
+    Ref: https://docs.pytest.org/en/stable/how-to/fixtures.html#teardown-cleanup
     """
-    # Get the isolated connection from the service
-    connection = testcontainers_db_service._connection  # pylint: disable=protected-access
-
-    # OFFICIAL SQLAlchemy 2.0 pattern - handles SAVEPOINT automatically
-    session = Session(bind=connection, join_transaction_mode="create_savepoint")
-
-    try:
-        yield session
-    finally:
-        # Official pattern: close session (rollback handled automatically)
-        session.close()
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        yield Path(tmp_dir)
 
 
 @pytest.fixture
-def testcontainers_db_service(
-    postgres_container,
-):  # pylint: disable=too-many-locals,redefined-outer-name
-    """Create DatabaseService using official SQLAlchemy best practices.
+def mock_session():
+    """Provide mock database session for unit tests.
 
-    Following official SQLAlchemy documentation:
-    https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
-
-    Uses ExternalTransaction pattern with SAVEPOINT isolation for concurrent testing.
-    This is the ONLY database fixture pattern used throughout the codebase.
+    Function-scoped to ensure clean mocks for each test.
+    Uses spec parameter for better mock validation.
     """
-    # Create engine from container following DRY principles
-    if hasattr(postgres_container, "host"):
-        # CI container
-        db_url = (
-            f"postgresql+psycopg://{postgres_container.username}:{postgres_container.password}@"
-            f"{postgres_container.host}:{postgres_container.port}/{postgres_container.dbname}"
-        )
-    else:
-        # Testcontainer - use get_connection_url() which is the official testcontainers API
-        # This automatically handles all credential and connection details
-        raw_url = postgres_container.get_connection_url()
-        # Replace psycopg2 with psycopg (modern driver)
-        db_url = raw_url.replace("postgresql+psycopg2://", "postgresql+psycopg://")
-        if "postgresql://" in db_url and "postgresql+psycopg://" not in db_url:
-            db_url = db_url.replace("postgresql://", "postgresql+psycopg://")
-
-    # Clean and initialize schema following SQLAlchemy test suite best practices
-    init_engine = create_engine(db_url, echo=False)
-
-    # SQLAlchemy recommends drop_all() + create_all() for test suites
-    # This ensures completely clean state between test sessions
-
-    Base.metadata.drop_all(init_engine, checkfirst=True)
-
-    # Create PostgreSQL enum types first (required for tables)
-
-    with init_engine.connect() as conn:
-        # Create enum types that the tables need
-        try:
-            job_status_enum = ENUM(JobStatus, name="jobstatus", create_type=True)
-            job_status_enum.create(conn, checkfirst=True)
-
-            job_priority_enum = ENUM(JobPriority, name="jobpriority", create_type=True)
-            job_priority_enum.create(conn, checkfirst=True)
-
-            conn.commit()
-        except Exception:  # pylint: disable=broad-exception-caught
-            # Enum might already exist, continue
-            conn.rollback()
-
-    # Now create all tables
-    Base.metadata.create_all(init_engine, checkfirst=True)
-
-    init_engine.dispose()
-
-    # NEW engine for each test - complete isolation
-    # PostgreSQL supports SAVEPOINTs natively with standard isolation
-    test_engine = create_engine(db_url, echo=False)
-
-    # OFFICIAL SQLAlchemy testing pattern: External transaction for complete isolation
-    connection = test_engine.connect()
-    transaction = connection.begin()
-
-    # Create isolated session factory using SQLAlchemy 2.0 pattern
-    def session_local():  # pylint: disable=invalid-name
-        return Session(bind=connection, join_transaction_mode="create_savepoint")
-
-    # Create service with isolated session
-    service = DatabaseService._create_with_engine(test_engine)  # pylint: disable=protected-access
-    service._session_factory = session_local  # pylint: disable=protected-access
-    service.engine = test_engine
-    service._connection = connection  # pylint: disable=protected-access
-    service._transaction = transaction  # pylint: disable=protected-access
-
-    yield service
-
-    # GUARANTEED cleanup: External transaction rollback removes ALL test data
-    try:
-        transaction.rollback()
-        connection.close()
-    except Exception as cleanup_error:  # pylint: disable=broad-exception-caught
-        logging.getLogger(__name__).debug("Test cleanup: %s", cleanup_error)
-    finally:
-        test_engine.dispose()
-
-
-@pytest.fixture
-def db_service_with_session(testcontainers_db_service, db_session):  # pylint: disable=redefined-outer-name
-    """DatabaseService that uses the transactional test session.
-
-    This ensures that all database operations through the service
-    are rolled back after each test, preventing data bleeding.
-    Also automatically creates the test user that job tests expect.
-    """
-    # Create the test user that job tests expect
-    user = User(
-        id="default-user",
-        username="testuser",
-        email="test@example.com",
-        full_name="Test User",
-        is_active=True,
-        is_verified=True,
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
-    # Replace the service's session factory to use our test session
-    original_factory = testcontainers_db_service.SessionLocal  # Use the correct attribute
-
-    def test_session_factory():
-        return db_session
-
-    testcontainers_db_service.SessionLocal = test_session_factory
-
-    yield testcontainers_db_service
-
-    # Restore original factory (though fixture cleanup will handle it)
-    testcontainers_db_service.SessionLocal = original_factory
-
-
-@pytest.fixture
-def test_isolation_id():
-    """Generate unique test isolation ID following DRY principles.
-
-    This fixture ensures each test has a unique identifier to prevent
-    data bleeding between concurrent tests, following PostgreSQL and
-    pytest best practices for test isolation.
-
-    Returns:
-        str: 8-character unique identifier for test data isolation
-    """
-
-    return uuid.uuid4().hex[:8]
-
-
-@pytest.fixture
-def mock_aiohttp_session():
-    """Mock aiohttp session for testing."""
-    session = AsyncMock(spec=aiohttp.ClientSession)
+    session = Mock(spec=Session)
+    session.add = Mock()
+    session.commit = Mock()
+    session.rollback = Mock()
+    session.refresh = Mock()
+    session.query = Mock()
+    session.execute = Mock()
+    session.close = Mock()
     return session
 
 
 @pytest.fixture
-def mock_responses():
-    """Mock HTTP responses with aioresponses."""
-    with aioresponses() as m:
-        yield m
+def test_session(test_database_engine):
+    """Provide real database session for integration tests.
+
+    Creates fresh session for each test with automatic cleanup.
+    Cleans up all data after test to ensure isolation.
+    """
+    from src.database.models.auth import User
+    from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
+
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_database_engine)
+    session = TestingSessionLocal()
+    try:
+        yield session
+        session.commit()  # Commit any pending changes
+    finally:
+        # Clean up all test data for isolation (MANDATORY per TEST_BUILDING.md)
+        try:
+            session.query(JobLog).delete()
+            session.query(ContentResult).delete()
+            session.query(ScrapingJob).delete()
+            session.query(User).delete()
+            session.commit()
+        except Exception:
+            session.rollback()
+        finally:
+            session.close()
+
+
+# ============================================================================
+# Autouse Fixtures (Automatically Applied)
+# ============================================================================
+
+
+@pytest.fixture(autouse=True, scope="session")
+def setup_test_environment():
+    """Set up test environment variables for all tests.
+
+    Autouse + session scope ensures this runs once for entire test suite.
+    Ref: https://docs.pytest.org/en/stable/how-to/fixtures.html#autouse-fixtures
+    """
+    # Store original environment to restore later
+    original_env = os.environ.copy()
+
+    # Set test environment variables
+    # Following TEST_BUILDING.md: PostgreSQL for database parity (MANDATORY)
+    test_env = {
+        "ENVIRONMENT": "test",
+        "LOG_LEVEL": "DEBUG",
+        "DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/csfrace_test",
+        "REDIS_URL": "redis://localhost:6379/15",  # Test database
+        "SECRET_KEY": "test-secret-key-not-for-production",
+    }
+
+    os.environ.update(test_env)
+    yield
+
+    # Restore original environment
+    os.environ.clear()
+    os.environ.update(original_env)
+
+
+# ============================================================================
+# Data Factory Fixtures (Following Factory Pattern)
+# ============================================================================
 
 
 @pytest.fixture
-def temp_dir():
-    """Create temporary directory for test files."""
-    with tempfile.TemporaryDirectory() as temp_path:
-        yield Path(temp_path)
+def user_factory(faker_instance):
+    """Factory for creating test user data.
 
-
-@pytest.fixture
-def cache_config(temp_dir):  # pylint: disable=redefined-outer-name
-    """Create test cache configuration."""
-    return CacheConfig(
-        cache_dir=temp_dir / ".test_cache",
-        ttl_default=30,  # Short TTL for testing
-        max_cache_size_mb=10,  # Small cache for testing
-        redis_host=TestConstants.TEST_REDIS_HOST,
-        redis_port=TestConstants.TEST_REDIS_PORT,
-        redis_db=TestConstants.TEST_REDIS_DB,
-        redis_key_prefix=TestConstants.TEST_REDIS_KEY_PREFIX,
-        cleanup_on_startup=True,
-    )
-
-
-@pytest_asyncio.fixture
-async def file_cache(cache_config):  # pylint: disable=redefined-outer-name
-    """Create test file cache instance."""
-    cache = FileCache(cache_config)
-    # FileCache initializes in constructor, no separate initialize method needed
-    yield cache
-    await cache.cleanup_expired()
-    await cache.clear()
-
-
-@pytest.fixture
-def sample_html():
-    """Sample HTML content for testing."""
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Test Blog Post</title>
-        <meta name="description" content="A test blog post for unit testing">
-        <meta property="og:title" content="OG Test Title">
-        <meta property="og:description" content="OG test description">
-    </head>
-    <body>
-        <article class="wp-block-group">
-            <h1>Test Blog Post</h1>
-            <div class="wp-block-columns">
-                <div class="wp-block-column">
-                    <p><strong>Bold text</strong> and <em>italic text</em></p>
-                    <p style="text-align: center;">Centered text</p>
-                </div>
-            </div>
-            <figure class="wp-block-image">
-                <img src="/test-image.jpg" alt="Test image" title="Test Title">
-                <figcaption>Test image caption</figcaption>
-            </figure>
-            <div class="wp-block-buttons">
-                <div class="wp-block-button">
-                    <a class="wp-block-button__link" href="/test-link">Test Button</a>
-                </div>
-            </div>
-            <blockquote class="wp-block-quote">
-                <p>Test quote content</p>
-                <cite>Test Author</cite>
-            </blockquote>
-            <figure class="wp-block-embed wp-block-embed-youtube">
-                <div class="wp-block-embed__wrapper">
-                    <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
-                </div>
-            </figure>
-        </article>
-        <script>console.log('test');</script>
-    </body>
-    </html>
+    Returns a factory function following the factory pattern.
+    Uses faker_instance fixture for consistent data generation.
     """
 
+    def _create_user_data(
+        username: str | None = None,
+        email: str | None = None,
+        password: str | None = None,
+        full_name: str | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Create user data dictionary with sensible defaults."""
+        return {
+            "id": str(uuid4()),
+            "username": username or faker_instance.user_name(),
+            "email": email or faker_instance.email(),
+            "password": password or "Test123!@#",  # Meets security requirements
+            "full_name": full_name or faker_instance.name(),
+            "created_at": datetime.now(UTC),
+            "is_active": True,
+            **kwargs,
+        }
+
+    return _create_user_data
+
 
 @pytest.fixture
-def sample_soup(sample_html):  # pylint: disable=redefined-outer-name
-    """BeautifulSoup object from sample HTML."""
-    return BeautifulSoup(sample_html, "html.parser")
+def job_factory(faker_instance):
+    """Factory for creating test job data.
+
+    Returns a factory function for creating job test data.
+    """
+
+    def _create_job_data(
+        source_url: str | None = None,
+        user_id: str | None = None,
+        priority: int = 5,
+        max_retries: int = 3,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Create job data dictionary with sensible defaults."""
+        return {
+            "id": str(uuid4()),
+            "source_url": source_url or faker_instance.url(),
+            "user_id": user_id or str(uuid4()),
+            "priority": priority,
+            "max_retries": max_retries,
+            "status": "pending",
+            "created_at": datetime.now(UTC),
+            "domain": faker_instance.domain_name(),
+            **kwargs,
+        }
+
+    return _create_job_data
 
 
 @pytest.fixture
-def sample_metadata():
-    """Sample metadata dictionary."""
+def create_job(test_session, faker_instance):
+    """Factory for creating ScrapingJob database objects.
+
+    Following TEST_BUILDING.md Factory Pattern (MANDATORY).
+    Returns a factory function for creating actual ScrapingJob ORM objects.
+
+    Automatically creates a User if user_id is not provided (foreign key constraint).
+    """
+    from src.common.status import JobStatus
+    from src.database.models.auth import User
+    from src.database.models.jobs import ScrapingJob
+
+    def _create_job(
+        source_url: str | None = None,
+        status: JobStatus = JobStatus.PENDING,
+        created_at: datetime | None = None,
+        user_id: str | None = None,
+        **kwargs: Any,
+    ) -> ScrapingJob:
+        """Create and persist a ScrapingJob object with sensible defaults."""
+        # Create a user if user_id not provided (foreign key constraint)
+        if user_id is None:
+            user = User(
+                id=str(uuid4()),
+                username=faker_instance.user_name(),
+                email=faker_instance.email(),
+                full_name=faker_instance.name(),
+                created_at=datetime.now(UTC),
+            )
+            test_session.add(user)
+            test_session.flush()  # Get the user ID
+            user_id = user.id
+
+        # Convert JobStatus enum to its string value for PostgreSQL
+        status_value = status.value if isinstance(status, JobStatus) else status
+
+        job = ScrapingJob(
+            id=str(uuid4()),
+            source_url=source_url or faker_instance.url(),
+            user_id=user_id,
+            status=status_value,
+            created_at=created_at or datetime.now(UTC),
+            domain=faker_instance.domain_name(),
+            **kwargs,
+        )
+        test_session.add(job)
+        test_session.commit()
+        return job
+
+    return _create_job
+
+
+class JobFactory:
+    """Job factory for creating test data - MANDATORY Factory Pattern.
+
+    Following TEST_BUILDING.md: Each factory call creates fresh test data.
+    NO CACHING - violates test independence principle.
+    """
+
+    _faker = Faker()
+    _faker.seed_instance(12345)
+
+    @classmethod
+    def _ensure_user_exists(cls, session, user_id=None):
+        """Create a user in database for foreign key constraint.
+
+        MANDATORY: Creates fresh user for each call (no caching).
+        Returns user_id string to avoid DetachedInstanceError.
+        """
+        from src.database.models.auth import User
+
+        # If user_id provided, check if exists
+        if user_id:
+            user = session.query(User).filter_by(id=user_id).first()
+            if user:
+                return user.id
+
+        # Create fresh user for this test (MANDATORY per TEST_BUILDING.md)
+        new_user_id = user_id or str(uuid4())
+        user = User(
+            id=new_user_id,
+            username=cls._faker.user_name(),
+            email=cls._faker.email(),
+            full_name=cls._faker.name(),
+            created_at=datetime.now(UTC),
+        )
+        session.add(user)
+        session.flush()  # Make visible in same transaction
+
+        return new_user_id
+
+    @classmethod
+    def create_job_request(cls, session=None, **kwargs):
+        """Create JobCreateRequest with sensible defaults.
+
+        If session provided, ensures user_id exists in database.
+        """
+        from src.common.status import JobPriority
+        from src.database.services.job_service import JobCreateRequest
+
+        # Handle user_id - ensure it exists if session provided
+        user_id = kwargs.get("user_id")
+        if session and user_id is None:
+            # _ensure_user_exists now returns user_id string directly
+            user_id = cls._ensure_user_exists(session)
+        elif user_id is None:
+            user_id = str(uuid4())  # For non-database tests
+
+        defaults = {
+            "url": kwargs.get("url", cls._faker.url()),
+            "output_directory": kwargs.get("output_directory", "/tmp/output"),
+            "user_id": user_id,
+            "priority": kwargs.get("priority", JobPriority.NORMAL),
+            "max_retries": kwargs.get("max_retries", 3),
+            "options": kwargs.get("options", {}),
+            "batch_id": kwargs.get("batch_id"),
+        }
+
+        return JobCreateRequest(**defaults)
+
+    @classmethod
+    def create_scraping_job(cls, session, **kwargs):
+        """Create and persist a ScrapingJob database object.
+
+        MANDATORY: Always creates User if needed to satisfy foreign key constraint.
+        """
+        from src.common.status import JobStatus
+        from src.database.models.jobs import ScrapingJob
+
+        # Ensure user exists (MANDATORY for foreign key)
+        user_id = kwargs.get("user_id")
+        # _ensure_user_exists now returns user_id string directly
+        user_id = cls._ensure_user_exists(session, user_id)
+
+        # Get status value
+        status = kwargs.get("status", JobStatus.PENDING)
+        status_value = status.value if isinstance(status, JobStatus) else status
+
+        # Get priority value
+        priority = kwargs.get("priority", 5)
+
+        # Prepare options with output_directory
+        options = kwargs.get("options", {})
+        if "output_directory" not in options:
+            options["output_directory"] = "/tmp/output"
+
+        job = ScrapingJob(
+            id=str(uuid4()),
+            user_id=user_id,
+            source_url=kwargs.get("source_url", cls._faker.url()),
+            domain=kwargs.get("domain", cls._faker.domain_name()),
+            status=status_value,
+            priority=priority,
+            max_retries=kwargs.get("max_retries", 3),
+            retry_count=kwargs.get("retry_count", 0),
+            created_at=kwargs.get("created_at", datetime.now(UTC)),
+            options=options,
+            batch_id=kwargs.get("batch_id"),
+        )
+
+        session.add(job)
+        session.commit()
+        return job
+
+
+# ============================================================================
+# Security Testing Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="module")
+def security_payloads():
+    """Common security test payloads for injection testing.
+
+    Module-scoped since payload data is static and can be shared.
+    """
     return {
-        "title": TestConstants.SAMPLE_HTML_TITLE,
-        "description": TestConstants.SAMPLE_HTML_DESCRIPTION,
-        "url": TestConstants.SAMPLE_POST_URL,
-        "og_title": "OG Test Title",
-        "og_description": "OG test description",
-        "word_count": 50,
-        "reading_time": 1,
-        "images": ["/test-image.jpg"],
+        "sql_injection": [
+            "' OR '1'='1",
+            "'; DROP TABLE users; --",
+            "1; SELECT * FROM users WHERE 't' = 't",
+            "' UNION SELECT * FROM users --",
+            "1' UNION SELECT NULL,NULL,NULL--",
+        ],
+        "xss": [
+            "<script>alert('XSS')</script>",
+            "javascript:alert('XSS')",
+            "<img src=x onerror=alert('XSS')>",
+            "';alert('XSS');//",
+            "<svg onload=alert('XSS')>",
+        ],
+        "path_traversal": [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "/etc/passwd",
+            "....//....//....//etc/passwd",
+            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+        ],
+        "command_injection": [
+            "; ls -la",
+            "| whoami",
+            "&& cat /etc/passwd",
+            "$(cat /etc/passwd)",
+            "`whoami`",
+        ],
     }
 
 
-@pytest.fixture
-def sample_image_data():
-    """Sample image data for testing."""
-    return TestConstants.TEST_IMAGE_CONTENT
+# ============================================================================
+# Performance Testing Fixtures
+# ============================================================================
 
 
 @pytest.fixture
-def sample_wordpress_content():
-    """Sample WordPress content with various blocks."""
-    return """
-    <div class="wp-block-group">
-        <div class="wp-block-kadence-spacer"></div>
-        <div class="wp-block-columns">
-            <div class="wp-block-column">
-                <p style="font-size: 18px; color: #333;">Custom styled text</p>
-                <p class="has-text-align-center">Centered paragraph</p>
-            </div>
-        </div>
-        <div class="wp-block-gallery">
-            <figure><img src="/image1.jpg" alt="Image 1"></figure>
-            <figure><img src="/image2.jpg" alt="Image 2"></figure>
-        </div>
-        <div class="wp-block-buttons">
-            <div class="wp-block-button is-style-fill">
-                <a class="wp-block-button__link has-vivid-red-background-color" href="/action">
-                    Action Button
-                </a>
-            </div>
-        </div>
-    </div>
+def performance_timer():
+    """Performance timer for benchmarking test operations.
+
+    Function-scoped to provide fresh timer for each test.
     """
+    import time
+
+    class Timer:
+        """Simple performance timer with context manager support."""
+
+        def __init__(self):
+            self.start_time = None
+            self.end_time = None
+
+        def start(self):
+            """Start timing."""
+            self.start_time = time.perf_counter()
+
+        def stop(self):
+            """Stop timing."""
+            self.end_time = time.perf_counter()
+
+        @property
+        def elapsed(self) -> float:
+            """Get elapsed time in seconds."""
+            if self.start_time and self.end_time:
+                return self.end_time - self.start_time
+            return 0.0
+
+        def __enter__(self):
+            """Context manager entry."""
+            self.start()
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            """Context manager exit."""
+            self.stop()
+
+    return Timer()
+
+
+# ============================================================================
+# Async Testing Fixtures
+# ============================================================================
 
 
 @pytest.fixture
-def mock_wordpress_server(mock_responses):  # pylint: disable=redefined-outer-name
-    """Mock WordPress server responses."""
-    # Mock robots.txt
-    mock_responses.get(
-        f"{TestConstants.BASE_TEST_URL}/robots.txt", body="User-agent: *\nAllow: /\nCrawl-delay: 1"
-    )
+async def async_mock_session():
+    """Provide async mock database session for async tests.
 
-    # Mock sample post
-    mock_responses.get(
-        TestConstants.SAMPLE_POST_URL,
-        body="""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Sample WordPress Post</title>
-            <meta name="description" content="Sample post content">
-        </head>
-        <body>
-            <article>
-                <h1>Sample Post</h1>
-                <p>This is sample content.</p>
-            </article>
-        </body>
-        </html>
-        """,
-    )
-
-    # Mock image
-    mock_responses.get(
-        f"{TestConstants.BASE_TEST_URL}{TestConstants.SAMPLE_IMAGE_URL}",
-        body=TestConstants.TEST_IMAGE_CONTENT,
-        headers={"Content-Type": "image/jpeg"},
-    )
-
-    return mock_responses
-
-
-@pytest.fixture
-def plugin_config():
-    """Sample plugin configuration."""
-
-    return PluginConfig(
-        name="test_plugin",
-        version=__version__,
-        plugin_type=PluginType.HTML_PROCESSOR,
-        enabled=True,
-        priority=100,
-        settings={"test_setting": "test_value"},
-    )
+    Function-scoped async fixture for testing async database operations.
+    """
+    session = AsyncMock(spec=Session)
+    session.add = Mock()
+    session.commit = AsyncMock()
+    session.rollback = AsyncMock()
+    session.refresh = AsyncMock()
+    session.execute = AsyncMock()
+    session.close = AsyncMock()
+    return session
 
 
 @pytest_asyncio.fixture
-async def mock_redis_cache():
-    """Mock Redis cache for testing."""
-    try:
-        cache = MagicMock(spec=RedisCache)
-        cache.get = AsyncMock(return_value=None)
-        cache.set = AsyncMock(return_value=True)
-        cache.delete = AsyncMock(return_value=True)
-        cache.clear = AsyncMock(return_value=True)
-        cache.stats = AsyncMock(return_value={"hits": 0, "misses": 0, "total_entries": 0})
-        return cache
-    except ImportError:
-        # Redis not available, return None
-        return None
+async def async_db_session():
+    """Provide real PostgreSQL async database session for integration tests.
 
-
-# Test markers
-def pytest_configure(config):
-    """Configure custom pytest markers."""
-    config.addinivalue_line("markers", "unit: marks tests as unit tests")
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
-    )
-    config.addinivalue_line("markers", "integration: marks tests as integration tests")
-    config.addinivalue_line("markers", "performance: marks tests as performance tests")
-    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
-    config.addinivalue_line("markers", "redis: marks tests that require Redis")
-    config.addinivalue_line("markers", "database: marks tests that require PostgreSQL container")
-
-
-def assert_enum_values(enum_class, expected_values):
-    """Assert enum values match expected mapping to eliminate test duplication.
-
-    Args:
-        enum_class: The enum class to test
-        expected_values: Dict mapping enum member names to expected values
+    Function-scoped async fixture for testing async database operations with PostgreSQL.
+    MANDATORY: Uses PostgreSQL for database parity per TEST_BUILDING.md.
     """
-    for member_name, expected_value in expected_values.items():
-        enum_member = getattr(enum_class, member_name)
-        assert enum_member.value == expected_value, (
-            f"{enum_class.__name__}.{member_name}.value should be '{expected_value}'"
-        )
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from src.database.models.base import Base
+
+    # Use PostgreSQL test database for database parity (MANDATORY)
+    database_url = os.environ.get(
+        "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/csfrace_test"
+    )
+
+    # Create async engine
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+        pool_pre_ping=True,
+    )
+
+    # Create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Create async session factory
+    async_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    # Create and yield session
+    async with async_session_factory() as session:
+        try:
+            yield session
+        finally:
+            # Rollback any uncommitted changes
+            await session.rollback()
+
+    # Cleanup: drop tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
 
 
-# Skip tests if dependencies not available
-def pytest_collection_modifyitems(config, items):
-    """Modify test collection to handle missing dependencies."""
+# ============================================================================
+# Parametrized Fixtures (For Data-Driven Testing)
+# ============================================================================
 
-    redis_available = importlib.util.find_spec("redis") is not None
 
-    # Check if Docker is available for testcontainers
-    docker_available = False
+@pytest.fixture(
+    params=[
+        {"priority": 1, "expected": "low"},
+        {"priority": 5, "expected": "normal"},
+        {"priority": 10, "expected": "high"},
+    ]
+)
+def priority_test_data(request):
+    """Parametrized fixture for testing priority handling.
+
+    Demonstrates pytest's parametrize capability for data-driven tests.
+    Ref: https://docs.pytest.org/en/stable/how-to/parametrize.html
+    """
+    return request.param
+
+
+# ============================================================================
+# Conditional Fixtures (Environment-Dependent)
+# ============================================================================
+
+
+@pytest.fixture
+def redis_available():
+    """Check if Redis is available for testing.
+
+    Conditional fixture that skips tests if Redis is unavailable.
+    """
     try:
-        subprocess.run(["docker", "--version"], check=True, capture_output=True, timeout=5)
-        docker_available = True
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-        docker_available = False
+        import redis
 
-    if not redis_available:
-        skip_redis = pytest.mark.skip(reason="Redis not available")
-        for item in items:
-            if "redis" in item.keywords:
-                item.add_marker(skip_redis)
+        client = redis.Redis(host="localhost", port=6379, db=15)
+        client.ping()
+        return True
+    except Exception:
+        pytest.skip("Redis not available for testing")
 
-    if not docker_available:
-        skip_docker = pytest.mark.skip(reason="Docker not available for testcontainers")
-        for item in items:
-            if "database" in item.keywords:
-                item.add_marker(skip_docker)
+
+# ============================================================================
+# Fixture Overrides (Demonstrating pytest's fixture override capability)
+# ============================================================================
+
+
+# Note: Fixtures can be overridden in test files or subdirectory conftest.py files
+# This allows for test-specific or module-specific fixture customization
+# while maintaining the base fixtures defined here.
+
+
+# ============================================================================
+# Testing Utilities (Not fixtures, but helpful for tests)
+# ============================================================================
+
+
+def assert_valid_uuid(uuid_string: str) -> bool:
+    """Utility function to validate UUID strings."""
+    try:
+        uuid4(uuid_string)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def assert_valid_timestamp(timestamp: datetime) -> bool:
+    """Utility function to validate datetime objects."""
+    return isinstance(timestamp, datetime) and timestamp.tzinfo is not None
+
+
+# ============================================================================
+# Documentation and Examples
+# ============================================================================
+
+
+# Example usage in test files:
+#
+# def test_user_creation(user_factory):
+#     user_data = user_factory(username="test_user")
+#     assert user_data["username"] == "test_user"
+#
+# def test_performance_operation(performance_timer):
+#     with performance_timer:
+#         # Perform operation to measure
+#         time.sleep(0.1)
+#     assert performance_timer.elapsed >= 0.1
+#
+# @pytest.mark.security
+# def test_sql_injection_protection(security_payloads):
+#     for payload in security_payloads["sql_injection"]:
+#         # Test that system handles injection attempts
+#         assert sanitize_input(payload) != payload

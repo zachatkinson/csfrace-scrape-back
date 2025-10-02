@@ -13,9 +13,10 @@ from typing import Any
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class AlertSeverity(Enum):
@@ -262,27 +263,22 @@ class AlertManager:
                 logger.error("Alert evaluation failed", error=str(e))
                 await asyncio.sleep(5.0)
 
+    @monitoring_error_handler("evaluate alert rules")
     async def evaluate_rules(self) -> None:
         """Evaluate all alert rules against current metrics."""
         if not self.rules:
             return
 
-        try:
-            # Get current metrics
-            metrics = await self._get_current_metrics()
+        # Get current metrics
+        metrics = await self._get_current_metrics()
 
-            for rule_name, rule in self.rules.items():
-                if not rule.enabled:
-                    continue
+        for rule_name, rule in self.rules.items():
+            if not rule.enabled:
+                continue
 
-                try:
-                    await self._evaluate_rule(rule, metrics)
-                except Exception as e:
-                    logger.error("Rule evaluation failed", rule=rule_name, error=str(e))
+            await _evaluate_rule_safe(self, rule, metrics)
 
-        except Exception as e:
-            logger.error("Failed to get metrics for evaluation", error=str(e))
-
+    @monitoring_error_handler("get current metrics")
     async def _get_current_metrics(self) -> dict[str, float]:
         """Get current metrics for evaluation.
 
@@ -291,41 +287,37 @@ class AlertManager:
         """
         metrics = {}
 
-        try:
-            # Get system metrics
-            from .metrics import metrics_collector
+        # Get system metrics
+        from .metrics import metrics_collector
 
-            snapshot = metrics_collector.get_metrics_snapshot()
+        snapshot = metrics_collector.get_metrics_snapshot()
 
-            # Extract system metrics
-            system_metrics = snapshot.get("system_metrics", {})
-            for key, value in system_metrics.items():
-                if isinstance(value, int | float):
-                    metrics[key] = float(value)
+        # Extract system metrics
+        system_metrics = snapshot.get("system_metrics", {})
+        for key, value in system_metrics.items():
+            if isinstance(value, int | float):
+                metrics[key] = float(value)
 
-            # Get health check metrics
-            from .health import health_checker
+        # Get health check metrics
+        from .health import health_checker
 
-            health_results = health_checker._results
+        health_results = health_checker._results
 
-            # Convert health status to numeric values for alerting
-            for name, result in health_results.items():
-                # Healthy=1, Degraded=0.5, Unhealthy=0, Unknown=0
-                if result.status.value == "healthy":
-                    metrics[f"{name}_healthy"] = 1.0
-                elif result.status.value == "degraded":
-                    metrics[f"{name}_healthy"] = 0.5
-                else:
-                    metrics[f"{name}_healthy"] = 0.0
+        # Convert health status to numeric values for alerting
+        for name, result in health_results.items():
+            # Healthy=1, Degraded=0.5, Unhealthy=0, Unknown=0
+            if result.status.value == "healthy":
+                metrics[f"{name}_healthy"] = 1.0
+            elif result.status.value == "degraded":
+                metrics[f"{name}_healthy"] = 0.5
+            else:
+                metrics[f"{name}_healthy"] = 0.0
 
-            # Calculate derived metrics
-            if "disk_used" in metrics and "disk_total" in metrics:
-                metrics["disk_free_percent"] = (
-                    (metrics["disk_total"] - metrics["disk_used"]) / metrics["disk_total"]
-                ) * 100
-
-        except Exception as e:
-            logger.error("Failed to collect metrics for alerting", error=str(e))
+        # Calculate derived metrics
+        if "disk_used" in metrics and "disk_total" in metrics:
+            metrics["disk_free_percent"] = (
+                (metrics["disk_total"] - metrics["disk_used"]) / metrics["disk_total"]
+            ) * 100
 
         return metrics
 
@@ -497,22 +489,7 @@ class AlertManager:
             rule: Alert rule configuration
         """
         for channel in rule.channels:
-            try:
-                if channel == AlertChannel.LOG:
-                    await self._send_log_notification(alert)
-                elif channel == AlertChannel.EMAIL:
-                    await self._send_email_notification(alert)
-                elif channel == AlertChannel.WEBHOOK:
-                    await self._send_webhook_notification(alert)
-                elif channel == AlertChannel.CONSOLE:
-                    await self._send_console_notification(alert)
-            except Exception as e:
-                logger.error(
-                    "Failed to send alert notification",
-                    channel=channel.value,
-                    rule=rule.name,
-                    error=str(e),
-                )
+            await _send_notification_channel_safe(self, alert, channel)
 
     async def _send_log_notification(self, alert: Alert) -> None:
         """Send alert via structured logging."""
@@ -524,18 +501,18 @@ class AlertManager:
             threshold=alert.threshold,
         ).warning(f"ALERT: {alert.message}")
 
+    @monitoring_error_handler("send email notification")
     async def _send_email_notification(self, alert: Alert) -> None:
         """Send alert via email."""
         if not self.config.email_enabled or not self.config.to_emails:
             return
 
-        try:
-            msg = MIMEMultipart()
-            msg["From"] = self.config.from_email
-            msg["To"] = ", ".join(self.config.to_emails)
-            msg["Subject"] = f"[{alert.severity.value.upper()}] {alert.rule_name}"
+        msg = MIMEMultipart()
+        msg["From"] = self.config.from_email
+        msg["To"] = ", ".join(self.config.to_emails)
+        msg["Subject"] = f"[{alert.severity.value.upper()}] {alert.rule_name}"
 
-            body = f"""
+        body = f"""
 Alert: {alert.rule_name}
 Severity: {alert.severity.value.upper()}
 Message: {alert.message}
@@ -544,69 +521,73 @@ Value: {alert.metric_value}
 Threshold: {alert.threshold}
 Time: {alert.timestamp.isoformat()}
 """
-            msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(body, "plain"))
 
-            # Send email
-            with smtplib.SMTP(self.config.smtp_host, self.config.smtp_port) as server:
-                if self.config.smtp_use_tls:
-                    server.starttls()
-                if self.config.smtp_username and self.config.smtp_password:
-                    server.login(self.config.smtp_username, self.config.smtp_password)
+        # Send email
+        with smtplib.SMTP(self.config.smtp_host, self.config.smtp_port) as server:
+            if self.config.smtp_use_tls:
+                server.starttls()
+            if self.config.smtp_username and self.config.smtp_password:
+                server.login(self.config.smtp_username, self.config.smtp_password)
 
-                server.send_message(msg)
+            server.send_message(msg)
 
-            logger.debug("Email notification sent", alert=alert.rule_name)
+        logger.debug("Email notification sent", alert=alert.rule_name)
 
-        except Exception as e:
-            logger.error("Failed to send email notification", error=str(e))
-
+    @monitoring_error_handler("send webhook notification")
     async def _send_webhook_notification(self, alert: Alert) -> None:
         """Send alert via webhook."""
         if not self.config.webhook_enabled or not self.config.webhook_url:
             return
 
-        try:
-            import aiohttp
+        import aiohttp
 
-            payload = {
-                "alert": {
-                    "rule_name": alert.rule_name,
-                    "severity": alert.severity.value,
-                    "message": alert.message,
-                    "metric_name": alert.metric_name,
-                    "metric_value": alert.metric_value,
-                    "threshold": alert.threshold,
-                    "timestamp": alert.timestamp.isoformat(),
-                }
+        payload = {
+            "alert": {
+                "rule_name": alert.rule_name,
+                "severity": alert.severity.value,
+                "message": alert.message,
+                "metric_name": alert.metric_name,
+                "metric_value": alert.metric_value,
+                "threshold": alert.threshold,
+                "timestamp": alert.timestamp.isoformat(),
             }
+        }
 
-            async with (
-                aiohttp.ClientSession() as session,
-                session.post(
-                    self.config.webhook_url,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=self.config.webhook_timeout),
-                ) as response,
-            ):
-                if response.status < 400:
-                    logger.debug("Webhook notification sent", alert=alert.rule_name)
-                else:
-                    logger.error(
-                        "Webhook notification failed",
-                        alert=alert.rule_name,
-                        status=response.status,
-                    )
-
-        except Exception as e:
-            logger.error("Failed to send webhook notification", error=str(e))
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                self.config.webhook_url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=self.config.webhook_timeout),
+            ) as response,
+        ):
+            if response.status < 400:
+                logger.debug("Webhook notification sent", alert=alert.rule_name)
+            else:
+                logger.error(
+                    "Webhook notification failed",
+                    alert=alert.rule_name,
+                    status=response.status,
+                )
 
     async def _send_console_notification(self, alert: Alert) -> None:
         """Send alert to console."""
-        print(f"\n🚨 ALERT [{alert.severity.value.upper()}]: {alert.message}")
-        print(f"   Rule: {alert.rule_name}")
-        print(f"   Metric: {alert.metric_name} = {alert.metric_value}")
-        print(f"   Threshold: {alert.threshold}")
-        print(f"   Time: {alert.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
+        logger.warning(
+            "ALERT: Critical alert triggered",
+            severity=alert.severity.value.upper(),
+            message=alert.message,
+            rule_name=alert.rule_name,
+            metric_name=alert.metric_name,
+            metric_value=alert.metric_value,
+            threshold=alert.threshold,
+            timestamp=alert.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            alert_severity=alert.severity.value,
+            alert_rule=alert.rule_name,
+            alert_metric=alert.metric_name,
+            alert_value=alert.metric_value,
+            alert_threshold=alert.threshold,
+        )
 
     def get_alert_summary(self) -> dict[str, Any]:
         """Get summary of current alert state.
@@ -640,6 +621,32 @@ Time: {alert.timestamp.isoformat()}
         """Shutdown alert manager."""
         await self.stop_evaluation()
         logger.info("Alert manager shutdown")
+
+
+# Helper functions for error handling
+@monitoring_error_handler("evaluate alert rule")
+async def _evaluate_rule_safe(
+    alert_manager: AlertManager, rule: AlertRule, metrics: dict[str, float]
+) -> None:
+    """Safely evaluate a single alert rule with centralized error handling."""
+    await alert_manager._evaluate_rule(rule, metrics)
+
+
+@monitoring_error_handler("send notification")
+async def _send_notification_channel_safe(
+    alert_manager: AlertManager, alert: Alert, channel: AlertChannel
+) -> None:
+    """Safely send notification through channel with centralized error handling."""
+    if channel == AlertChannel.LOG:
+        await alert_manager._send_log_notification(alert)
+    elif channel == AlertChannel.EMAIL:
+        await alert_manager._send_email_notification(alert)
+    elif channel == AlertChannel.WEBHOOK:
+        await alert_manager._send_webhook_notification(alert)
+    elif channel == AlertChannel.CONSOLE:
+        await alert_manager._send_console_notification(alert)
+    else:
+        logger.warning("Unknown notification channel", channel=channel.value)
 
 
 # Global alert manager instance

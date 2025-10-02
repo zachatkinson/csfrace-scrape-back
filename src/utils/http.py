@@ -2,11 +2,16 @@
 
 import aiohttp
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_scraping_logger
 
-from ..constants import CONSTANTS
+from ..constants import (
+    DEFAULT_TIMEOUT,
+    HTTP_STATUS_NOT_FOUND,
+    HTTP_STATUS_OK,
+    HTTP_STATUS_SERVER_ERROR,
+)
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class HTTPResponse:
@@ -42,8 +47,8 @@ async def safe_http_get(
         aiohttp.ClientError: For connection/timeout errors
         Exception: For unexpected errors
     """
-    timeout = timeout or CONSTANTS.DEFAULT_TIMEOUT
-    expected_statuses = expected_statuses or {CONSTANTS.HTTP_STATUS_OK}
+    timeout = timeout or DEFAULT_TIMEOUT
+    expected_statuses = expected_statuses or {HTTP_STATUS_OK}
 
     try:
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
@@ -96,7 +101,7 @@ async def safe_http_get_with_raise(
         aiohttp.HTTPError: For HTTP error status codes
         aiohttp.ClientError: For connection/timeout errors
     """
-    timeout = timeout or CONSTANTS.DEFAULT_TIMEOUT
+    timeout = timeout or DEFAULT_TIMEOUT
 
     async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
         response.raise_for_status()  # Raises for 4xx/5xx status codes
@@ -114,13 +119,13 @@ def check_http_status(status: int, url: str, context: str = "request") -> bool:
     Returns:
         True if status indicates success
     """
-    if status == CONSTANTS.HTTP_STATUS_OK:
+    if status == HTTP_STATUS_OK:
         logger.debug(f"{context} successful", url=url, status=status)
         return True
-    if status == CONSTANTS.HTTP_STATUS_NOT_FOUND:
+    if status == HTTP_STATUS_NOT_FOUND:
         logger.info(f"{context} returned 404", url=url)
         return False
-    if status >= CONSTANTS.HTTP_STATUS_SERVER_ERROR:
+    if status >= HTTP_STATUS_SERVER_ERROR:
         logger.error(f"{context} server error", url=url, status=status)
         return False
     logger.warning(f"{context} unexpected status", url=url, status=status)

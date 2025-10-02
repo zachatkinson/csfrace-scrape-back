@@ -4,12 +4,12 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_scraping_logger
 
 from ..core.exceptions import ProcessingError
 from ..utils.html import find_meta_content
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class MetadataExtractor:

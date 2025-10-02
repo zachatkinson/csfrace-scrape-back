@@ -7,9 +7,9 @@ single, coherent exception system following DRY/SOLID principles.
 from datetime import UTC, datetime
 from typing import Any
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class BaseApplicationError(Exception):
@@ -360,17 +360,17 @@ class APIValidationError(ValidationError, APIError):
         value: Any = None,
         details: dict[str, Any] | None = None,
     ):
-        BaseApplicationError.__init__(
+        # Call ValidationError.__init__ properly
+        ValidationError.__init__(
             self,
             message=message,
-            error_code="API_VALIDATION_ERROR",
-            details=details or {},
+            field=field,
+            value=value,
+            details=details,
         )
+        # Set API-specific attributes
         self.status_code = 422
-        if field:
-            self.details["field"] = field
-        if value is not None:
-            self.details["invalid_value"] = str(value)
+        self.error_code = "API_VALIDATION_ERROR"
 
 
 class APINotFoundError(ResourceNotFoundError, APIError):
@@ -382,15 +382,17 @@ class APINotFoundError(ResourceNotFoundError, APIError):
         identifier: Any,
         details: dict[str, Any] | None = None,
     ):
+        # Call BaseApplicationError.__init__ directly to avoid MRO issues
         message = f"{resource_type} '{identifier}' not found"
         BaseApplicationError.__init__(
             self,
             message=message,
             error_code="API_NOT_FOUND",
             details=details or {},
-            context={"resource_type": resource_type, "identifier": str(identifier)},
         )
+        # Set API-specific attributes
         self.status_code = 404
+        self.context = {"resource_type": resource_type, "identifier": str(identifier)}
 
 
 class APIDatabaseError(DatabaseError, APIError):
@@ -402,6 +404,7 @@ class APIDatabaseError(DatabaseError, APIError):
         original_error: Exception,
         details: dict[str, Any] | None = None,
     ):
+        # Call BaseApplicationError.__init__ directly to avoid MRO issues
         message = f"Database operation failed: {operation}"
         BaseApplicationError.__init__(
             self,
@@ -409,9 +412,10 @@ class APIDatabaseError(DatabaseError, APIError):
             error_code="API_DATABASE_ERROR",
             details=details or {},
             original_error=original_error,
-            context={"operation": operation},
         )
+        # Set API-specific attributes
         self.status_code = 500
+        self.context = {"operation": operation}
 
 
 class APIBusinessLogicError(BusinessLogicError, APIError):
@@ -423,13 +427,16 @@ class APIBusinessLogicError(BusinessLogicError, APIError):
         error_code: str = "API_BUSINESS_LOGIC_ERROR",
         details: dict[str, Any] | None = None,
     ):
-        BaseApplicationError.__init__(
+        # Call BusinessLogicError.__init__ properly
+        BusinessLogicError.__init__(
             self,
             message=message,
             error_code=error_code,
-            details=details or {},
+            details=details,
         )
+        # Set API-specific attributes
         self.status_code = 400
+        self.error_code = error_code
 
 
 # =============================================================================
@@ -495,12 +502,3 @@ class ExceptionMapper:
             )
         else:
             return DatabaseError(operation, sql_error)
-
-
-# =============================================================================
-# BACKWARD COMPATIBILITY ALIASES
-# =============================================================================
-
-# Keep old names for backward compatibility during migration
-APIValidationError.__name__ = "ValidationError"  # For api.errors imports
-APINotFoundError.__name__ = "ResourceNotFoundError"  # For api.errors imports

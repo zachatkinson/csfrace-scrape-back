@@ -12,30 +12,22 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
-from src.utils.logging import get_logger
+from src.core.decorators import api_error_handler
+from src.core.logging_hierarchy import get_api_logger
 
+# Import optional dependencies with fallback
+from ....caching.manager import cache_manager
 from ....monitoring.metrics import metrics_collector
+from ....monitoring.performance import performance_monitor
 from ...schemas import MetricsResponse
-from ...utils import handle_api_exceptions
 
-# Optional imports with graceful fallbacks
-try:
-    from ....caching.manager import cache_manager
-except ImportError:
-    cache_manager = None  # type: ignore
-
-try:
-    from ....monitoring.performance import performance_monitor
-except ImportError:
-    performance_monitor = None  # type: ignore
-
-logger = get_logger(__name__)
+logger = get_api_logger()
 
 router = APIRouter()
 
 
 @router.get("/metrics", response_model=MetricsResponse)
-@handle_api_exceptions("Failed to collect metrics")
+@api_error_handler("collect metrics")
 async def get_metrics() -> MetricsResponse:
     """Get system metrics.
 
@@ -77,7 +69,7 @@ async def get_metrics() -> MetricsResponse:
 
 
 @router.get("/prometheus", response_class=PlainTextResponse)
-@handle_api_exceptions("Failed to export Prometheus metrics")
+@api_error_handler("export Prometheus metrics")
 async def prometheus_metrics() -> str:
     """Prometheus metrics endpoint.
 
@@ -104,31 +96,13 @@ async def _get_cache_status() -> dict[str, Any]:
         logger.debug("Cache manager not configured")
         return {"status": "not_configured"}
 
-    try:
-        await cache_manager.initialize()
-
-        # Get detailed backend type following Redis best practices
-        try:
-            detailed_backend = await cache_manager.get_detailed_backend_type()
-        except Exception:
-            # Fallback to basic backend type
-            detailed_backend = cache_manager.backend_type
-            logger.debug("Using fallback cache backend type", backend=detailed_backend)
-
-        logger.debug("Cache status retrieved", backend=detailed_backend, status="healthy")
-        return {
-            "status": "healthy",
-            "backend": detailed_backend,
-        }
-    except (ConnectionError, TimeoutError) as cache_error:
-        logger.warning("Cache connection error", error=str(cache_error))
-        return {"status": "error", "error": str(cache_error)}
-    except (AttributeError, ImportError, ValueError) as config_error:
-        logger.error("Cache configuration error", error=str(config_error))
-        return {"status": "error", "error": f"Cache configuration error: {str(config_error)}"}
-    except Exception as general_error:
-        logger.error("Unexpected cache error", error=str(general_error))
-        return {"status": "error", "error": str(general_error)}
+    # Initialize cache and get status
+    cache_status = await _get_cache_status_safe()
+    return (
+        cache_status
+        if cache_status is not None
+        else {"status": "error", "error": "Cache status check failed"}
+    )
 
 
 def _get_performance_summary() -> dict[str, Any]:
@@ -141,11 +115,39 @@ def _get_performance_summary() -> dict[str, Any]:
         logger.debug("Performance monitor not configured")
         return {}
 
-    try:
-        performance_data = performance_monitor.get_performance_summary()
-        logger.debug("Performance summary retrieved", metrics_count=len(performance_data))
-        return performance_data
-    except AttributeError:
-        # Performance monitoring may not be fully initialized - this is expected
-        logger.debug("Performance monitor not fully initialized")
-        return {}
+    # Get performance data with decorator error handling
+    performance_data = _get_performance_data_safe()
+    return performance_data if performance_data is not None else {}
+
+
+@api_error_handler("get cache status")
+async def _get_cache_status_safe() -> dict[str, Any]:
+    """Safely get cache status."""
+    await cache_manager.initialize()
+
+    # Get detailed backend type with fallback mechanism
+    detailed_backend = await _get_cache_backend_type_safe()
+    if detailed_backend is None:
+        # Fallback to basic backend type if detailed fails
+        detailed_backend = cache_manager.backend_type
+        logger.debug("Using fallback cache backend type", backend=detailed_backend)
+
+    logger.debug("Cache status retrieved", backend=detailed_backend, status="healthy")
+    return {
+        "status": "healthy",
+        "backend": detailed_backend,
+    }
+
+
+@api_error_handler("get cache backend type")
+async def _get_cache_backend_type_safe() -> str | None:
+    """Safely get cache backend type with decorator-handled errors."""
+    return await cache_manager.get_detailed_backend_type()
+
+
+@api_error_handler("get performance data")
+def _get_performance_data_safe() -> dict[str, Any]:
+    """Safely get performance data."""
+    performance_data = performance_monitor.get_performance_summary()
+    logger.debug("Performance summary retrieved", metrics_count=len(performance_data))
+    return performance_data

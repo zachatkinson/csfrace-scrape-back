@@ -9,14 +9,15 @@ from typing import TYPE_CHECKING, Optional
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.decorators import cache_error_handler, monitoring_error_handler
+from src.core.logging_hierarchy import get_core_logger
 
 from .token_bucket import TokenBucketConfig
 
 if TYPE_CHECKING:
     import redis.asyncio as redis
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 try:
     REDIS_AVAILABLE = True
@@ -136,16 +137,7 @@ class DistributedTokenBucket:
 
         # Try Redis first
         if self.redis_client is not None:
-            try:
-                return await self._consume_redis(key, tokens)
-            except Exception as e:
-                logger.warning(
-                    "Redis consume failed, falling back to local",
-                    error=str(e),
-                    key=key,
-                )
-                if not self.fallback_to_local:
-                    raise
+            return await self._consume_redis_with_fallback(key, tokens)
 
         # Fall back to local bucket
         if self._local_bucket:
@@ -186,19 +178,22 @@ class DistributedTokenBucket:
 
         return success
 
+    @cache_error_handler("consume Redis tokens with fallback")
+    async def _consume_redis_with_fallback(self, key: str, tokens: int) -> bool:
+        """Consume tokens from Redis with fallback handling."""
+        result = await self._consume_redis(key, tokens)
+        logger.warning(
+            "Redis consume failed, falling back to local",
+            key=key,
+        )
+        if not self.fallback_to_local:
+            raise
+        return result
+
     async def get_available_tokens(self, key: str) -> float:
         """Get current number of available tokens."""
         if self.redis_client is not None:
-            try:
-                return await self._get_available_redis(key)
-            except Exception as e:
-                logger.warning(
-                    "Redis get_available failed, falling back to local",
-                    error=str(e),
-                    key=key,
-                )
-                if not self.fallback_to_local:
-                    raise
+            return await self._get_available_redis_with_fallback(key)
 
         if self._local_bucket:
             return await self._local_bucket.get_available_tokens()
@@ -248,25 +243,44 @@ class DistributedTokenBucket:
 
         return float(result)
 
+    @cache_error_handler("get available Redis tokens with fallback")
+    async def _get_available_redis_with_fallback(self, key: str) -> float:
+        """Get available tokens from Redis with fallback handling."""
+        result = await self._get_available_redis(key)
+        logger.warning(
+            "Redis get_available failed, falling back to local",
+            key=key,
+        )
+        if not self.fallback_to_local:
+            raise
+        return result
+
     async def reset(self, key: str) -> None:
         """Reset bucket to initial state."""
         if self.redis_client:
-            try:
-                redis_key = f"{self.key_prefix}{key}"
-                await self.redis_client.delete(redis_key)
-                logger.debug("Reset Redis bucket", key=key)
-                return
-            except Exception as e:
-                logger.warning(
-                    "Redis reset failed, falling back to local",
-                    error=str(e),
-                    key=key,
-                )
-                if not self.fallback_to_local:
-                    raise
+            return await self._reset_redis_with_fallback(key)
 
         if self._local_bucket:
             await self._local_bucket.reset()
+
+    @cache_error_handler("reset Redis bucket with fallback")
+    async def _reset_redis_with_fallback(self, key: str) -> None:
+        """Reset Redis bucket with fallback handling."""
+        if self.redis_client is None:
+            return
+        redis_key = f"{self.key_prefix}{key}"
+        await self.redis_client.delete(redis_key)
+        logger.debug("Reset Redis bucket", key=key)
+        return
+
+    @monitoring_error_handler("check Redis health")
+    async def _check_redis_health(self, health: dict) -> None:
+        """Check Redis health with error handling."""
+        if self.redis_client is None:
+            health["redis_available"] = False
+            return
+        await self.redis_client.ping()
+        health["redis_available"] = True
 
     async def health_check(self) -> dict[str, str | bool | int]:
         """Check health of distributed rate limiting components."""
@@ -276,11 +290,7 @@ class DistributedTokenBucket:
         }
 
         if self.redis_client:
-            try:
-                await self.redis_client.ping()
-                health["redis_available"] = True
-            except Exception as e:
-                logger.debug("Redis health check failed", error=str(e))
+            await self._check_redis_health(health)
 
         return health
 

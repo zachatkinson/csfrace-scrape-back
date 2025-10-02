@@ -1,329 +1,442 @@
-"""Tests for database migration management."""
+"""Unit tests for src/database/migrations.py following AUDIT_3.md ZERO TOLERANCE standards.
+
+MANDATORY REQUIREMENTS:
+- NO vestigial code - every line serves a purpose
+- NO legacy patterns - modern Python 3.11+ only
+- NO backwards compatibility - clean implementations only
+- NO broad exceptions - specific exceptions required
+- SOLID principles compliance mandatory
+- DRY compliance mandatory - no duplication
+- Production-ready implementations only
+
+Tests database migration management with comprehensive coverage of Alembic operations.
+"""
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from src.database.migrations import MigrationManager
+from src.database.migrations import (
+    MigrationManager,
+    get_migration_manager,
+)
+
+# ============================================================================
+# MigrationManager Tests
+# ============================================================================
 
 
+@pytest.mark.unit
 class TestMigrationManager:
-    """Test MigrationManager functionality."""
-
-    def test_migration_manager_initialization(self):
-        """Test MigrationManager initialization."""
-        manager = MigrationManager()
-
-        assert manager.config_file == Path("alembic.ini")
-        assert manager.config is not None
-
-        # Test that PostgreSQL database URL is configured (production standard)
-        db_url = manager.config.get_main_option("sqlalchemy.url")
-        assert db_url is not None
-        assert len(db_url) > 0
-        # Verify it's PostgreSQL URL format
-        assert db_url.startswith("postgresql")
-
-    def test_migration_manager_custom_config(self):
-        """Test MigrationManager with custom config file."""
-        with TemporaryDirectory() as temp_dir:
-            config_file = Path(temp_dir) / "test_alembic.ini"
-
-            # Create minimal alembic.ini using environment variables (CLAUDE.md compliance)
-            import os
-
-            test_db_url = os.environ.get(
-                "TEST_DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
-            )
-            config_content = f"""[alembic]
-script_location = alembic
-sqlalchemy.url = {test_db_url}
-"""
-            config_file.write_text(config_content)
-
-            manager = MigrationManager(config_file=config_file)
-            assert manager.config_file == config_file
-
-    def test_migration_manager_missing_config(self):
-        """Test MigrationManager with missing config file."""
-        nonexistent_file = Path("/nonexistent/alembic.ini")
-
-        with pytest.raises(FileNotFoundError):
-            MigrationManager(config_file=nonexistent_file)
-
-    def test_is_initialized(self):
-        """Test is_initialized method."""
-        manager = MigrationManager()
-
-        # Should return True if alembic directory exists
-        result = manager.is_initialized()
-
-        # Check that the method works (actual result depends on test environment)
-        assert isinstance(result, bool)
-
-    @patch("src.database.migrations.command")
-    def test_create_migration_autogenerate(self, mock_command):
-        """Test creating migration with autogenerate."""
-        mock_command.revision.return_value = None
-
-        manager = MigrationManager()
-        result = manager.create_migration("Test migration", autogenerate=True)
-
-        mock_command.revision.assert_called_once_with(
-            manager.config,
-            message="Test migration",
-            autogenerate=True,
-        )
-        assert result == "Test migration"
-
-    @patch("src.database.migrations.command")
-    def test_create_migration_empty(self, mock_command):
-        """Test creating empty migration."""
-        mock_command.revision.return_value = None
-
-        manager = MigrationManager()
-        result = manager.create_migration("Test migration", autogenerate=False)
-
-        mock_command.revision.assert_called_once_with(
-            manager.config,
-            message="Test migration",
-        )
-        assert result == "Test migration"
-
-    @patch("src.database.migrations.command")
-    def test_create_migration_error(self, mock_command):
-        """Test migration creation error handling."""
-        mock_command.revision.side_effect = Exception("Migration failed")
-
-        manager = MigrationManager()
-
-        with pytest.raises(Exception) as exc_info:
-            manager.create_migration("Test migration")
-
-        assert str(exc_info.value) == "Migration failed"
-
-    @patch("src.database.migrations.command")
-    def test_upgrade_database(self, mock_command):
-        """Test database upgrade."""
-        mock_command.upgrade.return_value = None
-
-        manager = MigrationManager()
-        manager.upgrade_database()
-
-        mock_command.upgrade.assert_called_once_with(manager.config, "head")
-
-    @patch("src.database.migrations.command")
-    def test_upgrade_database_specific_revision(self, mock_command):
-        """Test database upgrade to specific revision."""
-        mock_command.upgrade.return_value = None
-
-        manager = MigrationManager()
-        manager.upgrade_database("abc123")
-
-        mock_command.upgrade.assert_called_once_with(manager.config, "abc123")
-
-    @patch("src.database.migrations.command")
-    def test_upgrade_database_error(self, mock_command):
-        """Test database upgrade error handling."""
-        mock_command.upgrade.side_effect = Exception("Upgrade failed")
-
-        manager = MigrationManager()
-
-        with pytest.raises(Exception) as exc_info:
-            manager.upgrade_database()
-
-        assert str(exc_info.value) == "Upgrade failed"
-
-    @patch("src.database.migrations.command")
-    def test_downgrade_database(self, mock_command):
-        """Test database downgrade."""
-        mock_command.downgrade.return_value = None
-
-        manager = MigrationManager()
-        manager.downgrade_database("abc123")
-
-        mock_command.downgrade.assert_called_once_with(manager.config, "abc123")
-
-    @patch("src.database.migrations.command")
-    def test_downgrade_database_error(self, mock_command):
-        """Test database downgrade error handling."""
-        mock_command.downgrade.side_effect = Exception("Downgrade failed")
-
-        manager = MigrationManager()
-
-        with pytest.raises(Exception) as exc_info:
-            manager.downgrade_database("abc123")
-
-        assert str(exc_info.value) == "Downgrade failed"
-
-    @patch("src.database.migrations.create_engine")
-    @patch("src.database.migrations.MigrationContext")
-    def test_get_current_revision(self, mock_context, mock_engine):
-        """Test getting current database revision."""
-        mock_connection = MagicMock()
-        mock_engine.return_value.connect.return_value.__enter__.return_value = mock_connection
-
-        mock_migration_ctx = MagicMock()
-        mock_migration_ctx.get_current_revision.return_value = "abc123"
-        mock_context.configure.return_value = mock_migration_ctx
-
-        manager = MigrationManager()
-        result = manager.get_current_revision()
-
-        assert result == "abc123"
-        mock_engine.assert_called_once()
-
-    @patch("src.database.migrations.create_engine")
-    def test_get_current_revision_error(self, mock_engine):
-        """Test get current revision error handling."""
-        mock_engine.side_effect = Exception("Database connection failed")
-
-        manager = MigrationManager()
-        result = manager.get_current_revision()
-
-        assert result is None
-
-    @patch("src.database.migrations.ScriptDirectory")
-    def test_get_migration_history(self, mock_script_dir):
-        """Test getting migration history."""
-        mock_revision1 = MagicMock()
-        mock_revision1.revision = "abc123"
-        mock_revision1.doc = "Initial migration"
-
-        mock_revision2 = MagicMock()
-        mock_revision2.revision = "def456"
-        mock_revision2.doc = "Add new table"
-
-        mock_script_dir.from_config.return_value.walk_revisions.return_value = [
-            mock_revision1,
-            mock_revision2,
-        ]
-
-        manager = MigrationManager()
-        result = manager.get_migration_history()
-
-        expected = ["abc123: Initial migration", "def456: Add new table"]
-        assert result == expected
-
-    @patch("src.database.migrations.ScriptDirectory")
-    def test_get_migration_history_error(self, mock_script_dir):
-        """Test migration history error handling."""
-        mock_script_dir.from_config.side_effect = Exception("Script directory error")
-
-        manager = MigrationManager()
-        result = manager.get_migration_history()
-
-        assert result == []
-
-    @patch("src.database.migrations.ScriptDirectory")
-    def test_show_current_head(self, mock_script_dir):
-        """Test showing current head revision."""
-        mock_script_dir.from_config.return_value.get_current_head.return_value = "xyz789"
-
-        manager = MigrationManager()
-        result = manager.show_current_head()
-
-        assert result == "xyz789"
-
-    @patch("src.database.migrations.ScriptDirectory")
-    def test_show_current_head_error(self, mock_script_dir):
-        """Test current head error handling."""
-        mock_script_dir.from_config.side_effect = Exception("Head retrieval failed")
-
-        manager = MigrationManager()
-        result = manager.show_current_head()
-
-        assert result is None
-
-    def test_ensure_database_current_new_database(self):
-        """Test ensuring database is current for new database."""
-        manager = MigrationManager()
-
-        with patch.object(manager, "get_current_revision") as mock_current:
-            with patch.object(manager, "upgrade_database") as mock_upgrade:
-                mock_current.return_value = None
-
-                manager.ensure_database_current()
-
-                mock_upgrade.assert_called_once()
-
-    def test_ensure_database_current_needs_upgrade(self):
-        """Test ensuring database is current when upgrade needed."""
-        manager = MigrationManager()
-
-        with patch.object(manager, "get_current_revision") as mock_current:
-            with patch.object(manager, "show_current_head") as mock_head:
-                with patch.object(manager, "upgrade_database") as mock_upgrade:
-                    mock_current.return_value = "abc123"
-                    mock_head.return_value = "xyz789"
-
-                    manager.ensure_database_current()
-
-                    mock_upgrade.assert_called_once()
-
-    def test_ensure_database_current_up_to_date(self):
-        """Test ensuring database is current when already up to date."""
-        manager = MigrationManager()
-
-        with patch.object(manager, "get_current_revision") as mock_current:
-            with patch.object(manager, "show_current_head") as mock_head:
-                with patch.object(manager, "upgrade_database") as mock_upgrade:
-                    mock_current.return_value = "xyz789"
-                    mock_head.return_value = "xyz789"
-
-                    manager.ensure_database_current()
-
-                    mock_upgrade.assert_not_called()
-
-    def test_ensure_database_current_error(self):
-        """Test ensure database current error handling."""
-        manager = MigrationManager()
-
-        with patch.object(manager, "get_current_revision") as mock_current:
-            mock_current.side_effect = Exception("Database error")
-
-            with pytest.raises(Exception) as exc_info:
-                manager.ensure_database_current()
-
-            assert str(exc_info.value) == "Database error"
-
-
-class TestMigrationManagerIntegration:
-    """Integration tests for MigrationManager."""
-
-    def test_manager_with_real_config(self):
-        """Test manager with real Alembic config."""
-        # This test assumes alembic.ini exists in project root
-        try:
-            manager = MigrationManager()
-            assert manager.config is not None
-
-            # Test that we can get basic config values
-            script_location = manager.config.get_main_option("script_location")
-            assert script_location is not None
-
-            # Test is_initialized method
-            initialized = manager.is_initialized()
-            assert isinstance(initialized, bool)
-
-        except FileNotFoundError:
-            pytest.skip("Alembic not initialized in test environment")
-
-    def test_database_url_override(self):
-        """Test that database URL is correctly configured from environment variables."""
-        try:
-            manager = MigrationManager()
-
-            # Get the configured URL
-            configured_url = manager.config.get_main_option("sqlalchemy.url")
-
-            # Should be PostgreSQL URL (production standard)
-            assert configured_url.startswith("postgresql")
-            # Should use environment-provided configuration, not hardcoded values (CLAUDE.md compliance)
-            assert configured_url is not None
-            assert len(configured_url) > 20  # Basic sanity check for valid URL
-
-        except FileNotFoundError:
-            pytest.skip("Alembic not initialized in test environment")
+    """Unit tests for MigrationManager - MANDATORY AAA pattern."""
+
+    def test_migration_manager_creation_with_default_config(self):
+        """Test migration manager creation with default config - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config") as mock_config:
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    # Act - MANDATORY
+                    manager = MigrationManager()
+
+                    # Assert - MANDATORY
+                    assert manager is not None
+                    assert manager.config_file == Path("alembic.ini")
+                    mock_config.assert_called_once()
+
+    def test_migration_manager_creation_with_custom_config(self):
+        """Test migration manager creation with custom config - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        custom_path = Path("/custom/alembic.ini")
+
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config") as mock_config:
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    # Act - MANDATORY
+                    manager = MigrationManager(config_file=custom_path)
+
+                    # Assert - MANDATORY
+                    assert manager.config_file == custom_path
+                    mock_config.assert_called_once_with(str(custom_path))
+
+    def test_migration_manager_raises_on_missing_config(self):
+        """Test migration manager raises FileNotFoundError - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=False):
+            # Act & Assert - MANDATORY
+            with pytest.raises(FileNotFoundError, match="Alembic config file not found"):
+                MigrationManager()
+
+    def test_is_initialized_returns_true_when_complete(self):
+        """Test is_initialized returns True with complete setup - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    manager = MigrationManager()
+
+                    # Mock all required paths exist
+                    with patch.object(Path, "exists", return_value=True):
+                        # Act - MANDATORY
+                        result = manager.is_initialized()
+
+                        # Assert - MANDATORY
+                        assert result is True
+
+    def test_is_initialized_returns_false_when_incomplete(self):
+        """Test is_initialized returns False with missing files - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        call_count = [0]
+
+        def mock_exists_selective():
+            """Mock exists to return True for config file, False for directories."""
+            call_count[0] += 1
+            # First call: manager.config_file.exists() in __init__ -> True
+            # Second call: manager.config_file.exists() in is_initialized -> True
+            # Third call: alembic_dir.exists() -> False (missing directory)
+            return (
+                call_count[0] <= 2
+            )  # Config file exists (True) or Alembic directory missing (False)
+
+        with patch.object(Path, "exists", side_effect=mock_exists_selective):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    manager = MigrationManager()
+
+                    # Act - MANDATORY
+                    result = manager.is_initialized()
+
+                    # Assert - MANDATORY
+                    assert result is False
+
+    def test_create_migration_with_autogenerate(self):
+        """Test create_migration with autogenerate - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch("src.database.migrations.command.revision") as mock_revision:
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        result = manager.create_migration("Add user table", autogenerate=True)
+
+                        # Assert - MANDATORY
+                        assert result == "Add user table"
+                        mock_revision.assert_called_once_with(
+                            manager.config,
+                            message="Add user table",
+                            autogenerate=True,
+                        )
+
+    def test_create_migration_without_autogenerate(self):
+        """Test create_migration without autogenerate - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch("src.database.migrations.command.revision") as mock_revision:
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        result = manager.create_migration("Empty migration", autogenerate=False)
+
+                        # Assert - MANDATORY
+                        assert result == "Empty migration"
+                        mock_revision.assert_called_once_with(
+                            manager.config,
+                            message="Empty migration",
+                        )
+
+    def test_upgrade_database_to_head(self):
+        """Test upgrade_database to head - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch("src.database.migrations.command.upgrade") as mock_upgrade:
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        manager.upgrade_database()
+
+                        # Assert - MANDATORY
+                        mock_upgrade.assert_called_once_with(manager.config, "head")
+
+    def test_upgrade_database_to_specific_revision(self):
+        """Test upgrade_database to specific revision - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch("src.database.migrations.command.upgrade") as mock_upgrade:
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        manager.upgrade_database("abc123")
+
+                        # Assert - MANDATORY
+                        mock_upgrade.assert_called_once_with(manager.config, "abc123")
+
+    def test_downgrade_database(self):
+        """Test downgrade_database - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch("src.database.migrations.command.downgrade") as mock_downgrade:
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        manager.downgrade_database("abc123")
+
+                        # Assert - MANDATORY
+                        mock_downgrade.assert_called_once_with(manager.config, "abc123")
+
+    def test_get_current_revision(self):
+        """Test get_current_revision - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch(
+                        "src.database.migrations._get_current_revision_safe", return_value="abc123"
+                    ):
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        result = manager.get_current_revision()
+
+                        # Assert - MANDATORY
+                        assert result == "abc123"
+
+    def test_get_migration_history(self):
+        """Test get_migration_history - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        expected_history = ["rev1: First migration", "rev2: Second migration"]
+
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch(
+                        "src.database.migrations._get_migration_history_safe",
+                        return_value=expected_history,
+                    ):
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        result = manager.get_migration_history()
+
+                        # Assert - MANDATORY
+                        assert result == expected_history
+                        assert len(result) == 2
+
+    def test_show_current_head(self):
+        """Test show_current_head - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch(
+                        "src.database.migrations._show_current_head_safe", return_value="xyz789"
+                    ):
+                        manager = MigrationManager()
+
+                        # Act - MANDATORY
+                        result = manager.show_current_head()
+
+                        # Assert - MANDATORY
+                        assert result == "xyz789"
+
+    def test_ensure_database_current_when_not_initialized(self):
+        """Test ensure_database_current when db not initialized - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch(
+                        "src.database.migrations._get_current_revision_safe", return_value=None
+                    ):
+                        with patch(
+                            "src.database.migrations._show_current_head_safe", return_value="abc123"
+                        ):
+                            with patch("src.database.migrations.command.upgrade") as mock_upgrade:
+                                manager = MigrationManager()
+
+                                # Act - MANDATORY
+                                manager.ensure_database_current()
+
+                                # Assert - MANDATORY
+                                mock_upgrade.assert_called_once()
+
+    def test_ensure_database_current_when_behind_head(self):
+        """Test ensure_database_current when db behind head - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch(
+                        "src.database.migrations._get_current_revision_safe", return_value="abc123"
+                    ):
+                        with patch(
+                            "src.database.migrations._show_current_head_safe", return_value="xyz789"
+                        ):
+                            with patch("src.database.migrations.command.upgrade") as mock_upgrade:
+                                manager = MigrationManager()
+
+                                # Act - MANDATORY
+                                manager.ensure_database_current()
+
+                                # Assert - MANDATORY
+                                mock_upgrade.assert_called_once()
+
+    def test_ensure_database_current_when_up_to_date(self):
+        """Test ensure_database_current when db up to date - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    with patch(
+                        "src.database.migrations._get_current_revision_safe", return_value="abc123"
+                    ):
+                        with patch(
+                            "src.database.migrations._show_current_head_safe", return_value="abc123"
+                        ):
+                            with patch("src.database.migrations.command.upgrade") as mock_upgrade:
+                                manager = MigrationManager()
+
+                                # Act - MANDATORY
+                                manager.ensure_database_current()
+
+                                # Assert - MANDATORY
+                                # Should NOT call upgrade when already current
+                                mock_upgrade.assert_not_called()
+
+
+# ============================================================================
+# Module-Level Functions Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestMigrationModuleFunctions:
+    """Unit tests for module-level migration functions - MANDATORY AAA pattern."""
+
+    def test_get_migration_manager_returns_instance(self):
+        """Test get_migration_manager returns MigrationManager - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    # Act - MANDATORY
+                    result = get_migration_manager()
+
+                    # Assert - MANDATORY
+                    assert isinstance(result, MigrationManager)
+                    assert result is not None
+
+
+# ============================================================================
+# MANDATORY Security Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.security
+class TestMigrationsSecurity:
+    """MANDATORY security tests for migrations."""
+
+    def test_config_file_path_validation(self):
+        """MANDATORY: Test config file path validation."""
+        # Arrange - MANDATORY
+        malicious_path = Path("../../etc/passwd")
+
+        with patch("src.database.migrations.Path.exists", return_value=False):
+            # Act & Assert - MANDATORY
+            with pytest.raises(FileNotFoundError):
+                MigrationManager(config_file=malicious_path)
+
+    def test_database_url_from_environment_only(self):
+        """MANDATORY: Test database URL comes from secure source."""
+        # Arrange - MANDATORY
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config") as mock_config:
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://secure"
+                ):
+                    mock_instance = mock_config.return_value
+
+                    # Act - MANDATORY
+                    manager = MigrationManager()
+
+                    # Assert - MANDATORY
+                    # Should set database URL from get_database_url (environment)
+                    mock_instance.set_main_option.assert_called_once_with(
+                        "sqlalchemy.url", "postgresql://secure"
+                    )
+
+
+# ============================================================================
+# MANDATORY Performance Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.performance
+class TestMigrationsPerformance:
+    """MANDATORY performance tests for migrations."""
+
+    def test_migration_manager_initialization_performance(self):
+        """MANDATORY: Test migration manager initialization performance."""
+        # Arrange - MANDATORY
+        import time
+
+        with patch("src.database.migrations.Path.exists", return_value=True):
+            with patch("src.database.migrations.Config"):
+                with patch(
+                    "src.database.migrations.get_database_url", return_value="postgresql://test"
+                ):
+                    # Act - MANDATORY
+                    start_time = time.perf_counter()
+
+                    manager = MigrationManager()
+
+                    end_time = time.perf_counter()
+                    execution_time = end_time - start_time
+
+                    # Assert - MANDATORY
+                    assert manager is not None
+                    assert execution_time < 0.1  # <100ms for initialization

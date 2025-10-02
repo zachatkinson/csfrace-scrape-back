@@ -7,9 +7,9 @@ from typing import Any
 from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_scraping_logger
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class DynamicContentIndicators(BaseModel):

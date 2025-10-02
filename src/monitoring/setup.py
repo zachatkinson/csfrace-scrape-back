@@ -1,6 +1,7 @@
 """Setup and configuration for monitoring system including health checks."""
 
-from ..utils.logging import get_logger
+from src.core.logging_hierarchy import get_monitoring_logger
+
 from .health_checks import (
     APIHealthCheck,
     CacheHealthCheck,
@@ -10,7 +11,7 @@ from .health_checks import (
     health_registry,
 )
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 def setup_default_health_checks() -> None:

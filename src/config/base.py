@@ -7,9 +7,9 @@ following modern Python best practices with Pydantic settings.
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class BaseConfig(BaseSettings):

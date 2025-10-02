@@ -6,16 +6,16 @@ from typing import Any
 import asyncio
 from pydantic import BaseModel, Field
 
+from src.core.logging_hierarchy import get_scraping_logger
 from src.rendering.browser import BrowserConfig, JavaScriptRenderer, RenderResult
 from src.rendering.detector import (
     ContentAnalysis,
     DynamicContentDetector,
     get_recommended_wait_conditions,
 )
-from src.utils.logging import get_logger
 from src.utils.retry import RetryConfig
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class RenderingStrategy(BaseModel):

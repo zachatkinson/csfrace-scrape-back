@@ -12,6 +12,8 @@ from uuid import uuid4
 if TYPE_CHECKING:
     from .jobs import ScrapingJob
 
+# Note: ScrapingJob relationship uses string-based forward reference
+# No import needed due to SQLAlchemy's lazy evaluation
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -24,11 +26,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_database_logger
 
 from .base import Base
 
-logger = get_logger(__name__)
+logger = get_database_logger()
 
 
 class User(Base):
@@ -544,14 +546,14 @@ class AccountLockout(Base):
             user_agent: User agent of failed attempt
 
         Returns:
-            AccountLockout instance for tracking failed attempts
+            AccountLockout instance for tracking failed attempts (starts at 0, will be incremented)
         """
         now = datetime.now(UTC)
 
         return cls(
             user_id=user_id,
             username=username,
-            failed_attempts=1,
+            failed_attempts=0,  # Start at 0, will be incremented by calling code
             is_locked=False,
             lockout_reason=None,
             first_failed_attempt_at=now,

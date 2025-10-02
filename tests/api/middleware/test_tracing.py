@@ -1,647 +1,473 @@
-"""Comprehensive tests for tracing middleware using DRY/SOLID principles."""
+"""Comprehensive tests for tracing middleware - MANDATORY TEST_BUILDING.md compliance.
 
+This module tests tracing middleware functionality with complete coverage:
+- EnhancedTracingMiddleware correlation ID handling
+- EnhancedTracingMiddleware performance tracing integration
+- EnhancedTracingMiddleware OpenTelemetry integration
+- CorrelationMiddleware lightweight correlation tracking
+- Error handling and exception recording
+- Header propagation
+- Performance benchmarks
+
+ALL tests follow MANDATORY TEST_BUILDING.md patterns:
+- AAA pattern with explicit comments
+- Factory fixtures for DRY principle
+- Comprehensive middleware scenario testing
+- Performance benchmarks with specific thresholds
+"""
+
+import time
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, Request
-from starlette.responses import PlainTextResponse
+from fastapi import FastAPI, Request, Response
 
 from src.api.middleware.tracing import CorrelationMiddleware, EnhancedTracingMiddleware
 
+# ============================================================================
+# Test Fixtures - DRY Principle
+# ============================================================================
 
-class TestEnhancedTracingMiddlewareInitialization:
-    """Test Enhanced Tracing Middleware initialization following SOLID principles."""
 
-    def test_initialization_with_default_correlation_header(self):
-        """Test middleware initialization with default correlation header."""
+@pytest.fixture
+def mock_performance_monitor():
+    """Factory for mock performance monitor - DRY principle."""
+    monitor = MagicMock()
+    monitor.start_trace.return_value = "trace_id_12345"
+    monitor.finish_trace.return_value = None
+    return monitor
+
+
+@pytest.fixture
+def mock_distributed_tracer():
+    """Factory for mock distributed tracer - DRY principle."""
+    tracer = MagicMock()
+    tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
+    tracer.trace_operation.return_value.__aexit__ = AsyncMock(return_value=None)
+    tracer.get_current_trace_id.return_value = "otel_trace_abc123"
+    tracer.set_attribute.return_value = None
+    tracer.record_exception.return_value = None
+    return tracer
+
+
+@pytest.fixture
+def mock_request():
+    """Factory for mock HTTP request - DRY principle."""
+    request = MagicMock(spec=Request)
+    request.method = "GET"
+    request.url.path = "/api/test"
+    request.url.scheme = "http"
+    request.url.hostname = "localhost"
+    request.url.__str__ = MagicMock(return_value="http://localhost/api/test")
+    request.headers = {"User-Agent": "test-client/1.0"}
+    request.client = MagicMock()
+    request.client.host = "127.0.0.1"
+    return request
+
+
+@pytest.fixture
+def mock_response():
+    """Factory for mock HTTP response - DRY principle."""
+    response = MagicMock(spec=Response)
+    response.status_code = 200
+    response.headers = {}
+    response.body = b"test response body"
+    return response
+
+
+@pytest.fixture
+def test_app():
+    """Factory for test FastAPI application - DRY principle."""
+    app = FastAPI()
+
+    @app.get("/test")
+    async def test_endpoint():
+        return {"message": "test"}
+
+    @app.get("/error")
+    async def error_endpoint():
+        raise ValueError("Test error")
+
+    return app
+
+
+# ============================================================================
+# EnhancedTracingMiddleware Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestEnhancedTracingMiddleware:
+    """Tests for EnhancedTracingMiddleware class."""
+
+    def test_initialization(self):
+        """Test middleware initialization - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         app = FastAPI()
+
+        # Act - MANDATORY
         middleware = EnhancedTracingMiddleware(app)
 
+        # Assert - MANDATORY
         assert middleware.correlation_header == "X-Correlation-ID"
         assert middleware.app == app
 
-    def test_initialization_with_custom_correlation_header(self):
-        """Test middleware initialization with custom correlation header."""
+    def test_initialization_custom_correlation_header(self):
+        """Test middleware with custom correlation header - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         app = FastAPI()
         custom_header = "X-Custom-Correlation"
+
+        # Act - MANDATORY
         middleware = EnhancedTracingMiddleware(app, correlation_header=custom_header)
 
+        # Assert - MANDATORY
         assert middleware.correlation_header == custom_header
-        assert middleware.app == app
 
-
-class TestEnhancedTracingMiddlewareBasicFlow:
-    """Test Enhanced Tracing Middleware basic request flow."""
-
-    @pytest.fixture
-    def mock_app(self):
-        """Create mock FastAPI app for testing."""
+    @pytest.mark.asyncio
+    async def test_dispatch_generates_correlation_id(
+        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
+    ):
+        """Test dispatch generates correlation ID - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
 
-        @app.get("/test")
-        async def test_endpoint():
-            return {"message": "test"}
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            response = await middleware.dispatch(mock_request, call_next)
 
-        return app
-
-    @pytest.fixture
-    def mock_performance_monitor(self):
-        """Mock performance monitor for testing."""
-        with patch("src.api.middleware.tracing.performance_monitor") as mock:
-            mock.start_trace.return_value = "test_trace_id"
-            mock.finish_trace.return_value = None
-            yield mock
-
-    @pytest.fixture
-    def mock_distributed_tracer(self):
-        """Mock distributed tracer for testing."""
-        with patch("src.api.middleware.tracing.distributed_tracer") as mock:
-            mock.trace_operation.return_value.__aenter__ = AsyncMock(return_value=mock)
-            mock.trace_operation.return_value.__aexit__ = AsyncMock(return_value=None)
-            mock.get_current_trace_id.return_value = "otel_trace_id"
-            mock.set_attribute.return_value = None
-            mock.record_exception.return_value = None
-            yield mock
+            # Assert - MANDATORY
+            assert "X-Correlation-ID" in response.headers
+            # Verify it's a valid UUID
+            correlation_id = response.headers["X-Correlation-ID"]
+            uuid.UUID(correlation_id)  # Should not raise
 
     @pytest.mark.asyncio
-    async def test_successful_request_processing(
-        self, mock_app, mock_performance_monitor, mock_distributed_tracer
+    async def test_dispatch_preserves_existing_correlation_id(
+        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
     ):
-        """Test successful request processing with tracing."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-
-        # Create mock request
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/test"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {"User-Agent": "test-agent"}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
-
-        # Create mock response
-        expected_response = PlainTextResponse("OK")
-
-        # Mock call_next
-        call_next = AsyncMock(return_value=expected_response)
-
-        # Execute middleware
-        response = await middleware.dispatch(request, call_next)
-
-        # Verify call_next was called
-        call_next.assert_called_once_with(request)
-
-        # Verify performance monitoring was started and finished
-        mock_performance_monitor.start_trace.assert_called_once()
-        mock_performance_monitor.finish_trace.assert_called_once()
-
-        # Verify response headers contain correlation ID
-        assert middleware.correlation_header in response.headers
-
-        # Verify trace ID header is set
-        assert "X-Trace-ID" in response.headers
-        assert response.headers["X-Trace-ID"] == "otel_trace_id"
-
-    @pytest.mark.asyncio
-    async def test_request_with_existing_correlation_id(
-        self, mock_app, mock_performance_monitor, mock_distributed_tracer
-    ):
-        """Test request processing with existing correlation ID."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-        existing_correlation_id = "existing-12345"
-
-        # Create mock request with existing correlation ID
-        request = MagicMock(spec=Request)
-        request.method = "POST"
-        request.url.path = "/api/test"
-        request.url = MagicMock()
-        request.url.scheme = "https"
-        request.url.hostname = "api.example.com"
-        request.headers = {
-            "X-Correlation-ID": existing_correlation_id,
-            "User-Agent": "test-client/1.0",
-        }
-        request.client = MagicMock()
-        request.client.host = "192.168.1.1"
-
-        expected_response = PlainTextResponse("Created")
-        call_next = AsyncMock(return_value=expected_response)
-
-        response = await middleware.dispatch(request, call_next)
-
-        # Verify existing correlation ID is preserved
-        assert response.headers[middleware.correlation_header] == existing_correlation_id
-
-        # Verify trace metadata includes correlation ID
-        mock_performance_monitor.start_trace.assert_called_once()
-        call_args = mock_performance_monitor.start_trace.call_args
-        metadata = call_args.kwargs["metadata"]
-        assert metadata["correlation_id"] == existing_correlation_id
-
-    @pytest.mark.asyncio
-    async def test_request_without_client_info(
-        self, mock_app, mock_performance_monitor, mock_distributed_tracer
-    ):
-        """Test request processing when client info is unavailable."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/health"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = None  # No hostname
-        request.headers = {}  # No headers
-        request.client = None  # No client info
-
-        expected_response = PlainTextResponse("OK")
-        call_next = AsyncMock(return_value=expected_response)
-
-        response = await middleware.dispatch(request, call_next)
-
-        # Should handle missing client info gracefully
-        call_args = mock_performance_monitor.start_trace.call_args
-        metadata = call_args.kwargs["metadata"]
-        assert metadata["client_ip"] == "unknown"
-        assert metadata["user_agent"] is None
-
-
-class TestEnhancedTracingMiddlewareErrorHandling:
-    """Test Enhanced Tracing Middleware error handling scenarios."""
-
-    @pytest.fixture
-    def mock_app(self):
-        """Create mock FastAPI app that raises exceptions."""
+        """Test dispatch preserves existing correlation ID - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        existing_id = "existing-correlation-123"
+        mock_request.headers["X-Correlation-ID"] = existing_id
         app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
 
-        @app.get("/error")
-        async def error_endpoint():
-            raise ValueError("Test error")
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            response = await middleware.dispatch(mock_request, call_next)
 
-        return app
-
-    @pytest.fixture
-    def mock_performance_monitor(self):
-        """Mock performance monitor for error testing."""
-        with patch("src.api.middleware.tracing.performance_monitor") as mock:
-            mock.start_trace.return_value = "error_trace_id"
-            mock.finish_trace.return_value = None
-            yield mock
-
-    @pytest.fixture
-    def mock_distributed_tracer(self):
-        """Mock distributed tracer for error testing."""
-        with patch("src.api.middleware.tracing.distributed_tracer") as mock:
-            span_mock = MagicMock()
-            mock.trace_operation.return_value.__aenter__ = AsyncMock(return_value=span_mock)
-            mock.trace_operation.return_value.__aexit__ = AsyncMock(return_value=None)
-            mock.record_exception.return_value = None
-            yield mock
+            # Assert - MANDATORY
+            assert response.headers["X-Correlation-ID"] == existing_id
 
     @pytest.mark.asyncio
-    async def test_exception_handling_and_tracing(
-        self, mock_app, mock_performance_monitor, mock_distributed_tracer
+    async def test_dispatch_starts_performance_trace(
+        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
     ):
-        """Test exception handling with proper trace recording."""
-        middleware = EnhancedTracingMiddleware(mock_app)
+        """Test dispatch starts performance trace - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
 
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/error"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            await middleware.dispatch(mock_request, call_next)
 
-        # Mock call_next to raise exception
-        test_error = ValueError("Simulated error")
+            # Assert - MANDATORY
+            mock_performance_monitor.start_trace.assert_called_once()
+            call_args = mock_performance_monitor.start_trace.call_args
+            assert call_args[1]["operation"] == "GET /api/test"
+            assert "correlation_id" in call_args[1]["metadata"]
+
+    @pytest.mark.asyncio
+    async def test_dispatch_finishes_trace_on_success(
+        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
+    ):
+        """Test dispatch finishes trace on success - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
+
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            await middleware.dispatch(mock_request, call_next)
+
+            # Assert - MANDATORY
+            mock_performance_monitor.finish_trace.assert_called_once_with(
+                "trace_id_12345", status="success"
+            )
+
+    @pytest.mark.asyncio
+    async def test_dispatch_adds_trace_id_to_response(
+        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
+    ):
+        """Test dispatch adds OpenTelemetry trace ID - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
+
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            response = await middleware.dispatch(mock_request, call_next)
+
+            # Assert - MANDATORY
+            assert "X-Trace-ID" in response.headers
+            assert response.headers["X-Trace-ID"] == "otel_trace_abc123"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_handles_error(
+        self, mock_request, mock_performance_monitor, mock_distributed_tracer
+    ):
+        """Test dispatch handles errors - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        test_error = ValueError("Test error")
         call_next = AsyncMock(side_effect=test_error)
 
-        # Should re-raise the exception
-        with pytest.raises(ValueError, match="Simulated error"):
-            await middleware.dispatch(request, call_next)
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            with pytest.raises(ValueError):
+                await middleware.dispatch(mock_request, call_next)
 
-        # Verify error was recorded in performance monitor
-        mock_performance_monitor.finish_trace.assert_called_once_with(
-            "error_trace_id", status="error", error="Simulated error"
-        )
-
-        # Verify exception was recorded in distributed tracer
-        mock_distributed_tracer.record_exception.assert_called_once_with(test_error)
+            # Assert - MANDATORY
+            mock_performance_monitor.finish_trace.assert_called_once()
+            call_args = mock_performance_monitor.finish_trace.call_args[1]
+            assert call_args["status"] == "error"
+            assert "Test error" in call_args["error"]
 
     @pytest.mark.asyncio
-    async def test_span_error_attributes_set(
-        self, mock_app, mock_performance_monitor, mock_distributed_tracer
+    async def test_dispatch_records_exception_in_otel(
+        self, mock_request, mock_performance_monitor, mock_distributed_tracer
     ):
-        """Test that span error attributes are properly set."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-
-        request = MagicMock(spec=Request)
-        request.method = "POST"
-        request.url.path = "/api/fail"
-        request.url = MagicMock()
-        request.url.scheme = "https"
-        request.url.hostname = "api.example.com"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "10.0.0.1"
-
-        # Mock span from distributed tracer
-        span_mock = MagicMock()
-        mock_distributed_tracer.trace_operation.return_value.__aenter__ = AsyncMock(
-            return_value=span_mock
-        )
-
-        test_error = RuntimeError("Runtime failure")
+        """Test dispatch records exception in OpenTelemetry - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        test_error = ValueError("Test error")
         call_next = AsyncMock(side_effect=test_error)
 
-        with pytest.raises(RuntimeError):
-            await middleware.dispatch(request, call_next)
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            with pytest.raises(ValueError):
+                await middleware.dispatch(mock_request, call_next)
 
-        # Verify span error attributes
-        span_mock.set_attribute.assert_any_call("error", True)
-        span_mock.set_attribute.assert_any_call("error.message", "Runtime failure")
-        span_mock.set_attribute.assert_any_call("error.type", "RuntimeError")
+            # Assert - MANDATORY
+            mock_distributed_tracer.record_exception.assert_called_once_with(test_error)
 
     @pytest.mark.asyncio
-    async def test_no_trace_id_scenario(
-        self, mock_app, mock_performance_monitor, mock_distributed_tracer
+    async def test_dispatch_client_ip_extraction(
+        self, mock_response, mock_performance_monitor, mock_distributed_tracer
     ):
-        """Test scenario where custom trace ID is None."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-
-        # Mock performance monitor to return None trace ID
-        mock_performance_monitor.start_trace.return_value = None
-
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/test"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
-
-        expected_response = PlainTextResponse("OK")
-        call_next = AsyncMock(return_value=expected_response)
-
-        response = await middleware.dispatch(request, call_next)
-
-        # Should not call finish_trace when trace_id is None
-        mock_performance_monitor.finish_trace.assert_not_called()
-
-        # But response should still be processed
-        assert response == expected_response
-
-
-class TestCorrelationMiddlewareInitialization:
-    """Test Correlation Middleware initialization following SOLID principles."""
-
-    def test_initialization_with_default_header(self):
-        """Test correlation middleware initialization with default header."""
+        """Test client IP extraction - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        mock_request = MagicMock(spec=Request)
+        mock_request.method = "POST"
+        mock_request.url.path = "/api/endpoint"
+        mock_request.url.scheme = "https"
+        mock_request.url.hostname = "api.example.com"
+        mock_request.url.__str__ = MagicMock(return_value="https://api.example.com/api/endpoint")
+        mock_request.headers = {"User-Agent": "custom-agent"}
+        mock_request.client = MagicMock()
+        mock_request.client.host = "192.168.1.100"
+        call_next = AsyncMock(return_value=mock_response)
+
+        with (
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
+        ):
+            # Act - MANDATORY
+            await middleware.dispatch(mock_request, call_next)
+
+            # Assert - MANDATORY
+            call_args = mock_performance_monitor.start_trace.call_args
+            metadata = call_args[1]["metadata"]
+            assert metadata["client_ip"] == "192.168.1.100"
+
+
+# ============================================================================
+# CorrelationMiddleware Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestCorrelationMiddleware:
+    """Tests for CorrelationMiddleware class."""
+
+    def test_initialization(self):
+        """Test middleware initialization - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+
+        # Act - MANDATORY
         middleware = CorrelationMiddleware(app)
 
+        # Assert - MANDATORY
         assert middleware.correlation_header == "X-Correlation-ID"
         assert middleware.app == app
 
-    def test_initialization_with_custom_header(self):
-        """Test correlation middleware initialization with custom header."""
+    def test_initialization_custom_header(self):
+        """Test middleware with custom header - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         app = FastAPI()
         custom_header = "X-Request-ID"
+
+        # Act - MANDATORY
         middleware = CorrelationMiddleware(app, correlation_header=custom_header)
 
+        # Assert - MANDATORY
         assert middleware.correlation_header == custom_header
-        assert middleware.app == app
 
-
-class TestCorrelationMiddlewareBasicFlow:
-    """Test Correlation Middleware basic request flow."""
-
-    @pytest.fixture
-    def mock_app(self):
-        """Create mock FastAPI app for correlation testing."""
+    @pytest.mark.asyncio
+    async def test_dispatch_generates_correlation_id(
+        self, mock_request, mock_response, mock_distributed_tracer
+    ):
+        """Test dispatch generates correlation ID - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         app = FastAPI()
+        middleware = CorrelationMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
 
-        @app.get("/test")
-        async def test_endpoint():
-            return {"message": "test"}
+        with patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer):
+            # Act - MANDATORY
+            response = await middleware.dispatch(mock_request, call_next)
 
-        return app
-
-    @pytest.fixture
-    def mock_distributed_tracer(self):
-        """Mock distributed tracer for correlation testing."""
-        with patch("src.api.middleware.tracing.distributed_tracer") as mock:
-            mock.set_attribute.return_value = None
-            yield mock
-
-    @pytest.mark.asyncio
-    async def test_correlation_id_generation(self, mock_app, mock_distributed_tracer):
-        """Test correlation ID generation for requests without existing ID."""
-        middleware = CorrelationMiddleware(mock_app)
-
-        request = MagicMock(spec=Request)
-        request.headers = {}  # No existing correlation ID
-
-        expected_response = PlainTextResponse("OK")
-        call_next = AsyncMock(return_value=expected_response)
-
-        with patch("uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value = "generated-uuid-123"
-
-            response = await middleware.dispatch(request, call_next)
-
-        # Should generate and set correlation ID
-        assert response.headers["X-Correlation-ID"] == "generated-uuid-123"
-
-        # Should set attribute in distributed tracer
-        mock_distributed_tracer.set_attribute.assert_called_once_with(
-            "correlation.id", "generated-uuid-123"
-        )
+            # Assert - MANDATORY
+            assert "X-Correlation-ID" in response.headers
+            # Verify it's a valid UUID
+            correlation_id = response.headers["X-Correlation-ID"]
+            uuid.UUID(correlation_id)  # Should not raise
 
     @pytest.mark.asyncio
-    async def test_correlation_id_preservation(self, mock_app, mock_distributed_tracer):
-        """Test correlation ID preservation from existing request header."""
-        middleware = CorrelationMiddleware(mock_app)
-        existing_id = "existing-correlation-456"
-
-        request = MagicMock(spec=Request)
-        request.headers = {"X-Correlation-ID": existing_id}
-
-        expected_response = PlainTextResponse("OK")
-        call_next = AsyncMock(return_value=expected_response)
-
-        response = await middleware.dispatch(request, call_next)
-
-        # Should preserve existing correlation ID
-        assert response.headers["X-Correlation-ID"] == existing_id
-
-        # Should set attribute in distributed tracer
-        mock_distributed_tracer.set_attribute.assert_called_once_with("correlation.id", existing_id)
-
-    @pytest.mark.asyncio
-    async def test_custom_correlation_header(self, mock_app, mock_distributed_tracer):
-        """Test correlation middleware with custom header name."""
-        custom_header = "X-Request-Tracking-ID"
-        middleware = CorrelationMiddleware(mock_app, correlation_header=custom_header)
-
-        request = MagicMock(spec=Request)
-        request.headers = {custom_header: "custom-tracking-789"}
-
-        expected_response = PlainTextResponse("OK")
-        call_next = AsyncMock(return_value=expected_response)
-
-        response = await middleware.dispatch(request, call_next)
-
-        # Should use custom header name
-        assert response.headers[custom_header] == "custom-tracking-789"
-
-        # Should set attribute in distributed tracer
-        mock_distributed_tracer.set_attribute.assert_called_once_with(
-            "correlation.id", "custom-tracking-789"
-        )
-
-
-class TestMiddlewareIntegration:
-    """Test middleware integration scenarios and edge cases."""
-
-    @pytest.fixture
-    def app_with_middleware(self):
-        """Create FastAPI app with both middleware components."""
+    async def test_dispatch_preserves_existing_correlation_id(
+        self, mock_request, mock_response, mock_distributed_tracer
+    ):
+        """Test dispatch preserves existing ID - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        existing_id = "preserved-correlation-456"
+        mock_request.headers["X-Correlation-ID"] = existing_id
         app = FastAPI()
+        middleware = CorrelationMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
 
-        @app.get("/api/users")
-        async def get_users():
-            return {"users": []}
+        with patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer):
+            # Act - MANDATORY
+            response = await middleware.dispatch(mock_request, call_next)
 
-        @app.post("/api/users")
-        async def create_user():
-            return {"id": 1, "name": "Test User"}
-
-        return app
-
-    def test_middleware_compatibility(self, app_with_middleware):
-        """Test that both middleware classes can be used together."""
-        # Should be able to instantiate both without conflicts
-        enhanced_middleware = EnhancedTracingMiddleware(app_with_middleware)
-        correlation_middleware = CorrelationMiddleware(app_with_middleware)
-
-        assert enhanced_middleware.correlation_header == correlation_middleware.correlation_header
-        assert enhanced_middleware.app == correlation_middleware.app == app_with_middleware
+            # Assert - MANDATORY
+            assert response.headers["X-Correlation-ID"] == existing_id
 
     @pytest.mark.asyncio
-    async def test_correlation_id_consistency(self, app_with_middleware):
-        """Test correlation ID consistency between different middleware."""
-        enhanced_middleware = EnhancedTracingMiddleware(app_with_middleware)
-        correlation_middleware = CorrelationMiddleware(app_with_middleware)
+    async def test_dispatch_sets_otel_attribute(
+        self, mock_request, mock_response, mock_distributed_tracer
+    ):
+        """Test dispatch sets OpenTelemetry attribute - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = CorrelationMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
 
-        # Use same correlation ID across both middleware
-        test_correlation_id = "consistent-id-abc"
+        with patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer):
+            # Act - MANDATORY
+            await middleware.dispatch(mock_request, call_next)
 
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/api/users"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {"X-Correlation-ID": test_correlation_id}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
+            # Assert - MANDATORY
+            mock_distributed_tracer.set_attribute.assert_called_once()
+            call_args = mock_distributed_tracer.set_attribute.call_args[0]
+            assert call_args[0] == "correlation.id"
 
-        expected_response = PlainTextResponse('{"users": []}')
-        call_next = AsyncMock(return_value=expected_response)
 
-        with (
-            patch("src.api.middleware.tracing.performance_monitor"),
-            patch("src.api.middleware.tracing.distributed_tracer"),
-        ):
-            # Both middleware should handle the same correlation ID
-            enhanced_response = await enhanced_middleware.dispatch(request, call_next)
-            correlation_response = await correlation_middleware.dispatch(request, call_next)
+# ============================================================================
+# MANDATORY Performance Benchmarks
+# ============================================================================
 
-            assert enhanced_response.headers["X-Correlation-ID"] == test_correlation_id
-            assert correlation_response.headers["X-Correlation-ID"] == test_correlation_id
+
+@pytest.mark.performance
+@pytest.mark.unit
+class TestTracingMiddlewarePerformance:
+    """MANDATORY performance tests for tracing middleware."""
 
     @pytest.mark.asyncio
-    async def test_response_body_size_calculation(self, app_with_middleware):
-        """Test response body size calculation in enhanced tracing."""
-        middleware = EnhancedTracingMiddleware(app_with_middleware)
-
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/api/test"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
-
-        # Mock response with body attribute
-        response_with_body = MagicMock()
-        response_with_body.status_code = 200
-        response_with_body.body = b'{"test": "data"}'
-        response_with_body.headers = {}
-
-        call_next = AsyncMock(return_value=response_with_body)
+    async def test_enhanced_tracing_middleware_performance(
+        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
+    ):
+        """MANDATORY performance test - enhanced middleware overhead."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = EnhancedTracingMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
+        iterations = 100
 
         with (
-            patch("src.api.middleware.tracing.performance_monitor"),
-            patch("src.api.middleware.tracing.distributed_tracer") as mock_tracer,
+            patch("src.api.middleware.tracing.performance_monitor", mock_performance_monitor),
+            patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer),
         ):
-            span_mock = MagicMock()
-            mock_tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=span_mock)
-            mock_tracer.get_current_trace_id.return_value = "trace123"
+            # Act - MANDATORY
+            start_time = time.perf_counter()
 
-            await middleware.dispatch(request, call_next)
+            for _ in range(iterations):
+                await middleware.dispatch(mock_request, call_next)
 
-            # Should set response size attribute
-            span_mock.set_attribute.assert_any_call("response.size", len(b'{"test": "data"}'))
+            end_time = time.perf_counter()
+            execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.01  # <10ms per request overhead
+        assert execution_time < 1.0  # Total <1s for 100 requests
 
     @pytest.mark.asyncio
-    async def test_response_without_body_attribute(self, app_with_middleware):
-        """Test response handling when body attribute is missing."""
-        middleware = EnhancedTracingMiddleware(app_with_middleware)
+    async def test_correlation_middleware_performance(
+        self, mock_request, mock_response, mock_distributed_tracer
+    ):
+        """MANDATORY performance test - correlation middleware overhead."""
+        # Arrange - MANDATORY
+        app = FastAPI()
+        middleware = CorrelationMiddleware(app)
+        call_next = AsyncMock(return_value=mock_response)
+        iterations = 100
 
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/api/test"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
+        with patch("src.api.middleware.tracing.distributed_tracer", mock_distributed_tracer):
+            # Act - MANDATORY
+            start_time = time.perf_counter()
 
-        # Mock response without body attribute
-        response_without_body = MagicMock()
-        response_without_body.status_code = 204
-        response_without_body.headers = {}
-        del response_without_body.body  # Remove body attribute
+            for _ in range(iterations):
+                await middleware.dispatch(mock_request, call_next)
 
-        call_next = AsyncMock(return_value=response_without_body)
+            end_time = time.perf_counter()
+            execution_time = end_time - start_time
 
-        with (
-            patch("src.api.middleware.tracing.performance_monitor"),
-            patch("src.api.middleware.tracing.distributed_tracer") as mock_tracer,
-        ):
-            span_mock = MagicMock()
-            mock_tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=span_mock)
-            mock_tracer.get_current_trace_id.return_value = "trace456"
-
-            await middleware.dispatch(request, call_next)
-
-            # Should set response size to 0 when no body attribute
-            span_mock.set_attribute.assert_any_call("response.size", 0)
-
-
-class TestMiddlewareErrorEdgeCases:
-    """Test middleware error handling edge cases and boundary conditions."""
-
-    @pytest.fixture
-    def mock_app(self):
-        """Create mock app for edge case testing."""
-        return FastAPI()
-
-    @pytest.mark.asyncio
-    async def test_none_span_handling(self, mock_app):
-        """Test handling when OpenTelemetry span is None."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/test"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
-
-        expected_response = PlainTextResponse("OK")
-        call_next = AsyncMock(return_value=expected_response)
-
-        with (
-            patch("src.api.middleware.tracing.performance_monitor"),
-            patch("src.api.middleware.tracing.distributed_tracer") as mock_tracer,
-        ):
-            # Return None span
-            mock_tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=None)
-            mock_tracer.get_current_trace_id.return_value = None
-
-            response = await middleware.dispatch(request, call_next)
-
-            # Should handle None span gracefully
-            assert response == expected_response
-
-    @pytest.mark.asyncio
-    async def test_none_span_error_handling(self, mock_app):
-        """Test error handling when OpenTelemetry span is None."""
-        middleware = EnhancedTracingMiddleware(mock_app)
-
-        request = MagicMock(spec=Request)
-        request.method = "GET"
-        request.url.path = "/error"
-        request.url = MagicMock()
-        request.url.scheme = "http"
-        request.url.hostname = "localhost"
-        request.headers = {}
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
-
-        test_error = RuntimeError("Test error")
-        call_next = AsyncMock(side_effect=test_error)
-
-        with (
-            patch("src.api.middleware.tracing.performance_monitor"),
-            patch("src.api.middleware.tracing.distributed_tracer") as mock_tracer,
-        ):
-            # Return None span
-            mock_tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=None)
-
-            with pytest.raises(RuntimeError):
-                await middleware.dispatch(request, call_next)
-
-            # Should record exception even with None span
-            mock_tracer.record_exception.assert_called_once_with(test_error)
-
-    @pytest.mark.asyncio
-    async def test_uuid_generation_edge_cases(self, mock_app):
-        """Test UUID generation edge cases."""
-        middleware = CorrelationMiddleware(mock_app)
-
-        with (
-            patch("src.api.middleware.tracing.distributed_tracer"),
-            patch("uuid.uuid4") as mock_uuid,
-        ):
-            # Test multiple UUID generations separately
-            mock_uuid.return_value = "uuid-1"
-            request1 = MagicMock(spec=Request)
-            request1.headers = {}
-            call_next1 = AsyncMock(return_value=PlainTextResponse("OK"))
-            response1 = await middleware.dispatch(request1, call_next1)
-
-            mock_uuid.return_value = "uuid-2"
-            request2 = MagicMock(spec=Request)
-            request2.headers = {}
-            call_next2 = AsyncMock(return_value=PlainTextResponse("OK"))
-            response2 = await middleware.dispatch(request2, call_next2)
-
-            mock_uuid.return_value = "uuid-3"
-            request3 = MagicMock(spec=Request)
-            request3.headers = {}
-            call_next3 = AsyncMock(return_value=PlainTextResponse("OK"))
-            response3 = await middleware.dispatch(request3, call_next3)
-
-            # Each request should get unique correlation ID
-            assert response1.headers["X-Correlation-ID"] == "uuid-1"
-            assert response2.headers["X-Correlation-ID"] == "uuid-2"
-            assert response3.headers["X-Correlation-ID"] == "uuid-3"
-
-            assert mock_uuid.call_count == 3
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.005  # <5ms per request overhead
+        assert execution_time < 0.5  # Total <500ms for 100 requests

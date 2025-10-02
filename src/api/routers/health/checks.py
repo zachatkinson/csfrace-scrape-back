@@ -10,18 +10,17 @@ import time
 
 from fastapi import APIRouter
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
-from src.utils.logging import get_logger
+from src.core.decorators import api_error_handler
+from src.core.logging_hierarchy import get_api_logger
 
 from ....auth.models import StatusResponse
 from ...dependencies import DBSession
 from ...errors import APIErrorFactory
 from ...schemas import HealthCheckResponse
 from ...services.health_service import health_service
-from ...utils import handle_api_exceptions
 
-logger = get_logger(__name__)
+logger = get_api_logger()
 
 # Track service startup time for uptime calculation
 _startup_time = time.time()
@@ -30,7 +29,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=HealthCheckResponse)
-@handle_api_exceptions("Health check failed")
+@api_error_handler("health check")
 async def health_check(db: DBSession) -> HealthCheckResponse:
     """Comprehensive health check endpoint using SOLID principles.
 
@@ -78,6 +77,7 @@ async def liveness_check() -> StatusResponse:
 
 
 @router.get("/ready", response_model=StatusResponse)
+@api_error_handler("readiness check")
 async def readiness_check(db: DBSession) -> StatusResponse:
     """Readiness check for container orchestration.
 
@@ -92,13 +92,9 @@ async def readiness_check(db: DBSession) -> StatusResponse:
     """
     logger.info("Performing readiness check")
 
-    try:
-        # Check critical dependencies
-        await db.execute(text("SELECT 1"))
-        logger.info("Readiness check passed")
+    # Check critical dependencies
+    await db.execute(text("SELECT 1"))
+    logger.info("Readiness check passed")
 
-        return StatusResponse(status="ready")
-
-    except SQLAlchemyError as db_error:
-        logger.error("Readiness check failed", error=str(db_error))
-        raise APIErrorFactory.service_unavailable(f"Service not ready: {str(db_error)}")
+    return StatusResponse(status="ready")
+    # Enhanced decorator handles SQLAlchemyError and API error responses

@@ -4,10 +4,11 @@ from typing import Any
 
 import asyncio
 
-from ...utils.logging import get_logger
+from src.core.logging_hierarchy import get_monitoring_logger
+
 from .base import HealthCheck, HealthCheckResult, HealthStatus
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class HealthCheckRegistry:

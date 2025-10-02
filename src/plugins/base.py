@@ -6,9 +6,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class PluginType(Enum):
@@ -51,7 +51,7 @@ class BasePlugin(abc.ABC):
             config: Plugin configuration
         """
         self.config = config
-        self.logger = get_logger(self.__class__.__name__)
+        self.logger = get_core_logger()
         self._initialized = False
 
     @property

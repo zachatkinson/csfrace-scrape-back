@@ -5,17 +5,21 @@ following Single Responsibility Principle.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
-from src.core.exceptions import DatabaseError
-from src.utils.logging import get_logger
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
 
-from ...database.models import ContentResult as JobContent, JobLog, ScrapingJob as Job
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_database_logger
 
-logger = get_logger(__name__)
+from ...database.models.jobs import ContentResult as JobContent, JobLog, ScrapingJob as Job
+from ..queries import QueryBuilder
+
+logger = get_database_logger(__name__).logger
 
 
 class CleanupService:
@@ -29,7 +33,8 @@ class CleanupService:
         """
         self.session = session
 
-    def cleanup_old_jobs(self, days: int = 7) -> int:
+    @database_error_handler("cleanup jobs")
+    def cleanup_jobs(self, days: int = 7) -> int:
         """Delete jobs older than specified days.
 
         Args:
@@ -41,32 +46,23 @@ class CleanupService:
         Raises:
             DatabaseError: If cleanup fails
         """
-        try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
-            # Soft delete old jobs by marking them as cancelled
-            from sqlalchemy import update
+        # Use centralized query pattern for DRY compliance
+        from ...common.status import JobStatus
 
-            from ...common.status import JobStatus
+        stmt = QueryBuilder.bulk_update(
+            Job, Job.created_at < cutoff_date, {"status": JobStatus.CANCELLED.value}
+        )
+        result = self.session.execute(stmt)
+        deleted_count = result.rowcount
+        self.session.commit()
 
-            stmt = (
-                update(Job)
-                .where(Job.created_at < cutoff_date)
-                .values(status=JobStatus.CANCELLED.value)
-            )
-            result = self.session.execute(stmt)
-            deleted_count = result.rowcount
-            self.session.commit()
+        logger.info("Cleaned up old jobs", deleted_count=deleted_count, cutoff_days=days)
 
-            logger.info("Cleaned up old jobs", deleted_count=deleted_count, cutoff_days=days)
+        return deleted_count
 
-            return deleted_count
-
-        except Exception as e:
-            self.session.rollback()
-            logger.error("Failed to cleanup old jobs", error=str(e))
-            raise DatabaseError("cleanup old jobs", e) from e
-
+    @database_error_handler("cleanup failed jobs")
     def cleanup_failed_jobs(self, days: int = 3) -> int:
         """Delete failed jobs older than specified days.
 
@@ -79,25 +75,23 @@ class CleanupService:
         Raises:
             DatabaseError: If cleanup fails
         """
-        try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
-            result = self.session.execute(
-                delete(Job).where(Job.status == "failed").where(Job.created_at < cutoff_date)
-            )
+        # Use centralized query pattern for DRY compliance
+        from sqlalchemy import and_
 
-            deleted_count = result.rowcount
-            self.session.commit()
+        where_clause = and_(Job.status == "failed", Job.created_at < cutoff_date)
+        stmt = QueryBuilder.bulk_delete(Job, where_clause)
 
-            logger.info("Cleaned up failed jobs", deleted_count=deleted_count, cutoff_days=days)
+        result = self.session.execute(stmt)
+        deleted_count = result.rowcount
+        self.session.commit()
 
-            return deleted_count
+        logger.info("Cleaned up failed jobs", deleted_count=deleted_count, cutoff_days=days)
 
-        except Exception as e:
-            self.session.rollback()
-            logger.error("Failed to cleanup failed jobs", error=str(e))
-            raise DatabaseError("cleanup failed jobs", e) from e
+        return deleted_count
 
+    @database_error_handler("cleanup orphaned content")
     def cleanup_orphaned_content(self) -> int:
         """Delete content records without associated jobs.
 
@@ -107,34 +101,27 @@ class CleanupService:
         Raises:
             DatabaseError: If cleanup fails
         """
-        try:
-            # Find orphaned content
-            orphaned_content = self.session.execute(
-                select(JobContent.id)
-                .outerjoin(Job, JobContent.job_id == Job.id)
-                .where(Job.id.is_(None))
-            )
+        # Find orphaned content
+        orphaned_content = self.session.execute(
+            select(JobContent.id)
+            .outerjoin(Job, JobContent.job_id == Job.id)
+            .where(Job.id.is_(None))
+        )
 
-            orphaned_ids = [row[0] for row in orphaned_content]
+        orphaned_ids = [row[0] for row in orphaned_content]
 
-            if orphaned_ids:
-                result = self.session.execute(
-                    delete(JobContent).where(JobContent.id.in_(orphaned_ids))
-                )
-                deleted_count = result.rowcount
-                self.session.commit()
-            else:
-                deleted_count = 0
+        if orphaned_ids:
+            result = self.session.execute(delete(JobContent).where(JobContent.id.in_(orphaned_ids)))
+            deleted_count = result.rowcount
+            self.session.commit()
+        else:
+            deleted_count = 0
 
-            logger.info("Cleaned up orphaned content", deleted_count=deleted_count)
+        logger.info("Cleaned up orphaned content", deleted_count=deleted_count)
 
-            return deleted_count
+        return deleted_count
 
-        except Exception as e:
-            self.session.rollback()
-            logger.error("Failed to cleanup orphaned content", error=str(e))
-            raise DatabaseError("cleanup orphaned content", e) from e
-
+    @database_error_handler("cleanup orphaned logs")
     def cleanup_orphaned_logs(self) -> int:
         """Delete log records without associated jobs.
 
@@ -144,48 +131,57 @@ class CleanupService:
         Raises:
             DatabaseError: If cleanup fails
         """
-        try:
-            # Find orphaned logs
-            orphaned_logs = self.session.execute(
-                select(JobLog.id).outerjoin(Job, JobLog.job_id == Job.id).where(Job.id.is_(None))
-            )
+        # Find orphaned logs
+        orphaned_logs = self.session.execute(
+            select(JobLog.id).outerjoin(Job, JobLog.job_id == Job.id).where(Job.id.is_(None))
+        )
 
-            orphaned_ids = [row[0] for row in orphaned_logs]
+        orphaned_ids = [row[0] for row in orphaned_logs]
 
-            if orphaned_ids:
-                result = self.session.execute(delete(JobLog).where(JobLog.id.in_(orphaned_ids)))
-                deleted_count = result.rowcount
-                self.session.commit()
-            else:
-                deleted_count = 0
+        if orphaned_ids:
+            result = self.session.execute(delete(JobLog).where(JobLog.id.in_(orphaned_ids)))
+            deleted_count = result.rowcount
+            self.session.commit()
+        else:
+            deleted_count = 0
 
-            logger.info("Cleaned up orphaned logs", deleted_count=deleted_count)
+        logger.info("Cleaned up orphaned logs", deleted_count=deleted_count)
 
-            return deleted_count
+        return deleted_count
 
-        except Exception as e:
-            self.session.rollback()
-            logger.error("Failed to cleanup orphaned logs", error=str(e))
-            raise DatabaseError("cleanup orphaned logs", e) from e
-
+    @database_error_handler("vacuum database")
     def vacuum_database(self) -> None:
         """Run VACUUM on database to reclaim space.
 
-        Note: This operation may not be available on all database backends.
+        PostgreSQL requires autocommit mode for VACUUM operations.
+        This method properly handles the autocommit requirement following
+        PostgreSQL best practices.
+
+        Note: VACUUM cannot run inside a transaction block in PostgreSQL.
+        This implementation commits any pending transaction first, then
+        uses autocommit for the VACUUM operation.
 
         Raises:
             DatabaseError: If vacuum fails
         """
-        try:
-            # Note: VACUUM requires autocommit mode in PostgreSQL
-            self.session.execute(text("VACUUM ANALYZE"))
+        # MANDATORY PostgreSQL requirement: VACUUM must run outside transaction
+        # Following PostgreSQL documentation best practices
 
-            logger.info("Database vacuum completed")
+        # Commit any pending transaction first
+        self.session.commit()
 
-        except Exception as e:
-            logger.warning("Failed to vacuum database", error=str(e))
-            # Don't raise as this is optional maintenance
+        # Get engine for creating new autocommit connection
+        bind = self.session.get_bind()
+        engine = cast("Engine", bind)  # Type narrowing: session.get_bind() returns Engine
 
+        # Create new connection with autocommit mode (PostgreSQL requirement)
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+            # Execute VACUUM with autocommit isolation level
+            connection.execute(text("VACUUM ANALYZE"))
+
+        logger.info("Database vacuum completed")
+
+    @database_error_handler("perform full cleanup")
     def cleanup_all(self, old_jobs_days: int = 7, failed_jobs_days: int = 3) -> dict[str, Any]:
         """Run all cleanup operations.
 
@@ -199,40 +195,36 @@ class CleanupService:
         Raises:
             DatabaseError: If any cleanup operation fails
         """
+        results = {
+            "old_jobs_deleted": 0,
+            "failed_jobs_deleted": 0,
+            "orphaned_content_deleted": 0,
+            "orphaned_logs_deleted": 0,
+            "vacuum_performed": False,
+        }
+
+        # Cleanup old jobs
+        results["old_jobs_deleted"] = self.cleanup_jobs(old_jobs_days)
+
+        # Cleanup failed jobs
+        results["failed_jobs_deleted"] = self.cleanup_failed_jobs(failed_jobs_days)
+
+        # Cleanup orphaned records
+        results["orphaned_content_deleted"] = self.cleanup_orphaned_content()
+        results["orphaned_logs_deleted"] = self.cleanup_orphaned_logs()
+
+        # Try to vacuum
         try:
-            results = {
-                "old_jobs_deleted": 0,
-                "failed_jobs_deleted": 0,
-                "orphaned_content_deleted": 0,
-                "orphaned_logs_deleted": 0,
-                "vacuum_performed": False,
-            }
+            self.vacuum_database()
+            results["vacuum_performed"] = True
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass  # Vacuum is optional
 
-            # Cleanup old jobs
-            results["old_jobs_deleted"] = self.cleanup_old_jobs(old_jobs_days)
+        logger.info("Database cleanup completed", **results)
 
-            # Cleanup failed jobs
-            results["failed_jobs_deleted"] = self.cleanup_failed_jobs(failed_jobs_days)
+        return results
 
-            # Cleanup orphaned records
-            results["orphaned_content_deleted"] = self.cleanup_orphaned_content()
-            results["orphaned_logs_deleted"] = self.cleanup_orphaned_logs()
-
-            # Try to vacuum
-            try:
-                self.vacuum_database()
-                results["vacuum_performed"] = True
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass  # Vacuum is optional
-
-            logger.info("Database cleanup completed", **results)
-
-            return results
-
-        except Exception as e:
-            logger.error("Failed to perform full cleanup", error=str(e))
-            raise DatabaseError("perform full cleanup", e) from e
-
+    @database_error_handler("get database size")
     def get_database_size(self) -> dict[str, Any]:
         """Get database size information.
 
@@ -242,29 +234,24 @@ class CleanupService:
         Raises:
             DatabaseError: If query fails
         """
-        try:
-            # PostgreSQL specific query
-            result = self.session.execute(
-                text(
-                    """
-                SELECT
-                    pg_database_size(current_database()) as total_size,
-                    pg_size_pretty(pg_database_size(current_database())) as total_size_pretty
+        # PostgreSQL specific query
+        result = self.session.execute(
+            text(
                 """
-                )
+            SELECT
+                pg_database_size(current_database()) as total_size,
+                pg_size_pretty(pg_database_size(current_database())) as total_size_pretty
+            """
             )
+        )
 
-            row = result.first()
-            if row:
-                return {"total_size_bytes": row[0], "total_size_pretty": row[1]}
+        row = result.first()
+        if row:
+            return {"total_size_bytes": row[0], "total_size_pretty": row[1]}
 
-            return {"total_size_bytes": 0, "total_size_pretty": "0 bytes"}
+        return {"total_size_bytes": 0, "total_size_pretty": "0 bytes"}
 
-        except Exception as e:
-            logger.warning("Failed to get database size", error=str(e))
-            # Return empty dict if not PostgreSQL or query fails
-            return {}
-
+    @database_error_handler("get table sizes")
     def get_table_sizes(self) -> list[dict[str, Any]]:
         """Get size information for all tables.
 
@@ -274,28 +261,23 @@ class CleanupService:
         Raises:
             DatabaseError: If query fails
         """
-        try:
-            # PostgreSQL specific query
-            result = self.session.execute(
-                text(
-                    """
-                SELECT
-                    schemaname,
-                    tablename,
-                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
-                    pg_total_relation_size(schemaname||'.'||tablename) as size_bytes
-                FROM pg_tables
-                WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-                ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+        # PostgreSQL specific query
+        result = self.session.execute(
+            text(
                 """
-                )
+            SELECT
+                schemaname,
+                tablename,
+                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+                pg_total_relation_size(schemaname||'.'||tablename) as size_bytes
+            FROM pg_tables
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+            """
             )
+        )
 
-            return [
-                {"schema": row[0], "table": row[1], "size_pretty": row[2], "size_bytes": row[3]}
-                for row in result
-            ]
-
-        except Exception as e:
-            logger.warning("Failed to get table sizes", error=str(e))
-            return []
+        return [
+            {"schema": row[0], "table": row[1], "size_pretty": row[2], "size_bytes": row[3]}
+            for row in result
+        ]

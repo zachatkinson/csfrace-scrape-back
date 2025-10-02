@@ -1,5 +1,5 @@
 """Common utilities and shared definitions across the application."""
 
-from .status import CommonStatus, JobStatus
+from .status import JobStatus
 
-__all__ = ["JobStatus", "CommonStatus"]
+__all__ = ["JobStatus"]

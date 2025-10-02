@@ -10,11 +10,27 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from src.utils.logging import get_logger
+from src.core.decorators import cache_error_handler
+from src.core.logging_hierarchy import get_cache_logger
 
-from ..constants import CONSTANTS
+from ..constants.caching import (
+    CACHE_BACKEND,
+    CACHE_TTL_HTML,
+    CACHE_TTL_IMAGES,
+    CACHE_TTL_METADATA,
+    DEFAULT_TTL,
+    HASH_LENGTH,
+    KEY_READABLE_OFFSET,
+    MAX_CACHE_SIZE_MB,
+    MAX_KEY_LENGTH,
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_KEY_PREFIX,
+    REDIS_PORT,
+    ROBOTS_CACHE_DURATION,
+)
 
-logger = get_logger(__name__)
+logger = get_cache_logger()
 
 
 class CacheBackend(Enum):
@@ -30,27 +46,27 @@ class CacheConfig:
     """Configuration for caching system using centralized constants."""
 
     backend: CacheBackend = CacheBackend.FILE
-    ttl_default: int = CONSTANTS.DEFAULT_TTL
-    ttl_html: int = CONSTANTS.CACHE_TTL_HTML
-    ttl_images: int = CONSTANTS.CACHE_TTL_IMAGES
-    ttl_metadata: int = CONSTANTS.CACHE_TTL_METADATA
-    ttl_robots: int = CONSTANTS.ROBOTS_CACHE_DURATION
+    ttl_default: int = DEFAULT_TTL
+    ttl_html: int = CACHE_TTL_HTML
+    ttl_images: int = CACHE_TTL_IMAGES
+    ttl_metadata: int = CACHE_TTL_METADATA
+    ttl_robots: int = ROBOTS_CACHE_DURATION
 
     # File cache settings
     cache_dir: Path = Path(".cache")
-    max_cache_size_mb: int = CONSTANTS.MAX_CACHE_SIZE_MB
+    max_cache_size_mb: int = MAX_CACHE_SIZE_MB
 
     # Redis cache settings - using centralized constants
-    redis_host: str = CONSTANTS.REDIS_HOST
-    redis_port: int = CONSTANTS.REDIS_PORT
-    redis_db: int = CONSTANTS.REDIS_DB
+    redis_host: str = REDIS_HOST
+    redis_port: int = REDIS_PORT
+    redis_db: int = REDIS_DB
     redis_password: str | None = None
-    redis_key_prefix: str = CONSTANTS.REDIS_KEY_PREFIX
+    redis_key_prefix: str = REDIS_KEY_PREFIX
 
     # General settings
     compress: bool = True
     cleanup_on_startup: bool = True
-    max_key_length: int = CONSTANTS.MAX_KEY_LENGTH
+    max_key_length: int = MAX_KEY_LENGTH
 
     @classmethod
     def from_environment(cls) -> "CacheConfig":
@@ -59,7 +75,7 @@ class CacheConfig:
         Returns:
             CacheConfig instance configured from environment
         """
-        backend_str = CONSTANTS.CACHE_BACKEND.lower()
+        backend_str = CACHE_BACKEND.lower()
 
         # Map string to enum
         backend_map = {
@@ -125,7 +141,7 @@ class BaseCacheBackend(abc.ABC):
             config: Cache configuration
         """
         self.config = config
-        self.logger = get_logger(self.__class__.__name__)
+        self.logger = get_cache_logger()
 
     @abc.abstractmethod
     async def get(self, key: str) -> CacheEntry | None:
@@ -210,9 +226,9 @@ class BaseCacheBackend(abc.ABC):
 
         # Hash if too long
         if len(raw_key) > self.config.max_key_length:
-            key_hash = hashlib.sha256(raw_key.encode()).hexdigest()[: CONSTANTS.HASH_LENGTH]
+            key_hash = hashlib.sha256(raw_key.encode()).hexdigest()[:HASH_LENGTH]
             # Keep some readable part + hash
-            readable_part = raw_key[: self.config.max_key_length - CONSTANTS.KEY_READABLE_OFFSET]
+            readable_part = raw_key[: self.config.max_key_length - KEY_READABLE_OFFSET]
             return f"{readable_part}:{key_hash}"
 
         return raw_key
@@ -295,6 +311,7 @@ class BaseCacheBackend(abc.ABC):
 
         return obj
 
+    @cache_error_handler("calculate cache value size")
     def _calculate_size(self, value: Any) -> int:
         """Calculate the size of a value in bytes.
 
@@ -302,15 +319,12 @@ class BaseCacheBackend(abc.ABC):
             value: Value to measure
 
         Returns:
-            Size in bytes
+            Size in bytes (0 if calculation fails)
         """
-        try:
-            if isinstance(value, str | bytes):
-                return len(value.encode("utf-8") if isinstance(value, str) else value)
-            else:
-                return len(json.dumps(value, default=self._json_serializer).encode("utf-8"))
-        except (TypeError, ValueError):
-            return 0
+        if isinstance(value, str | bytes):
+            return len(value.encode("utf-8") if isinstance(value, str) else value)
+        else:
+            return len(json.dumps(value, default=self._json_serializer).encode("utf-8"))
 
     def _json_serializer(self, obj: Any) -> Any:
         """Custom JSON serializer for non-standard types.

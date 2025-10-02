@@ -13,12 +13,13 @@ from typing import Any
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from src.utils.logging import get_logger
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_database_logger
 
-from ...core.exceptions import DatabaseError, ValidationError
+from ...core.exceptions import ValidationError
 from ..models import JobLog
 
-logger = get_logger(__name__)
+logger = get_database_logger(__name__).logger
 
 
 @dataclass
@@ -69,6 +70,7 @@ class LoggingService:
         """
         self.session = session
 
+    @database_error_handler("add job log")
     def add_job_log(self, request: JobLogRequest) -> JobLog:
         """Add a log entry for a job.
 
@@ -89,49 +91,45 @@ class LoggingService:
             message=request.message[:50],
         )  # Log first 50 chars
 
-        try:
-            log_entry = JobLog(
-                job_id=request.job_id,
-                level=request.level,
-                message=request.message,
-                component=request.component,
-                operation=request.operation,
-                context_data=request.context_data,
-                timestamp=datetime.now(UTC),
-            )
+        log_entry = JobLog(
+            job_id=request.job_id,
+            level=request.level,
+            message=request.message,
+            component=request.component,
+            operation=request.operation,
+            context_data=request.context_data,
+            timestamp=datetime.now(UTC),
+        )
 
-            self.session.add(log_entry)
-            self.session.flush()
+        self.session.add(log_entry)
+        self.session.flush()
 
-            # Eagerly load all attributes to prevent DetachedInstanceError
-            _ = (
-                log_entry.id,
-                log_entry.job_id,
-                log_entry.level,
-                log_entry.message,
-                log_entry.component,
-                log_entry.operation,
-                log_entry.context_data,
-                log_entry.timestamp,
-                log_entry.exception_type,
-                log_entry.exception_traceback,
-            )
+        # Eagerly load all attributes to prevent DetachedInstanceError
+        _ = (
+            log_entry.id,
+            log_entry.job_id,
+            log_entry.level,
+            log_entry.message,
+            log_entry.component,
+            log_entry.operation,
+            log_entry.context_data,
+            log_entry.timestamp,
+            log_entry.exception_type,
+            log_entry.exception_traceback,
+        )
 
-            # Detach from session for safe return
-            self.session.expunge(log_entry)
+        # Detach from session for safe return
+        self.session.expunge(log_entry)
 
-            logger.debug(
-                "Job log added successfully",
-                job_id=request.job_id,
-                log_id=log_entry.id,
-                level=request.level,
-            )
-            return log_entry
+        logger.debug(
+            "Job log added successfully",
+            job_id=request.job_id,
+            log_id=log_entry.id,
+            level=request.level,
+        )
+        return log_entry
 
-        except Exception as e:
-            logger.error("Failed to add job log", job_id=request.job_id, error=str(e))
-            raise DatabaseError("add job log", e) from e
-
+    @database_error_handler("get job logs")
     def get_job_logs(self, job_id: str, level: str | None = None, limit: int = 100) -> list[JobLog]:
         """Get log entries for a job.
 
@@ -145,27 +143,23 @@ class LoggingService:
         """
         logger.debug("Getting job logs", job_id=job_id, level=level, limit=limit)
 
-        try:
-            session = self.session
-            stmt = (
-                select(JobLog)
-                .where(JobLog.job_id == job_id)
-                .order_by(desc(JobLog.timestamp))
-                .limit(limit)
-            )
+        session = self.session
+        stmt = (
+            select(JobLog)
+            .where(JobLog.job_id == job_id)
+            .order_by(desc(JobLog.timestamp))
+            .limit(limit)
+        )
 
-            if level:
-                stmt = stmt.where(JobLog.level == level.upper())
+        if level:
+            stmt = stmt.where(JobLog.level == level.upper())
 
-            logs = session.execute(stmt).scalars().all()
+        logs = session.execute(stmt).scalars().all()
 
-            logger.debug("Job logs retrieved", job_id=job_id, count=len(logs))
-            return list(logs)
+        logger.debug("Job logs retrieved", job_id=job_id, count=len(logs))
+        return list(logs)
 
-        except Exception as e:
-            logger.error("Failed to get job logs", job_id=job_id, error=str(e))
-            raise DatabaseError("get job logs", e) from e
-
+    @database_error_handler("get recent logs")
     def get_recent_logs(self, limit: int = 100) -> list[JobLog]:
         """Get most recent log entries across all jobs.
 
@@ -177,19 +171,15 @@ class LoggingService:
         """
         logger.debug("Getting recent logs", limit=limit)
 
-        try:
-            session = self.session
-            stmt = select(JobLog).order_by(desc(JobLog.timestamp)).limit(limit)
+        session = self.session
+        stmt = select(JobLog).order_by(desc(JobLog.timestamp)).limit(limit)
 
-            logs = session.execute(stmt).scalars().all()
+        logs = session.execute(stmt).scalars().all()
 
-            logger.debug("Recent logs retrieved", count=len(logs))
-            return list(logs)
+        logger.debug("Recent logs retrieved", count=len(logs))
+        return list(logs)
 
-        except Exception as e:
-            logger.error("Failed to get recent logs", error=str(e))
-            raise DatabaseError("get recent logs", e) from e
-
+    @database_error_handler("get error logs")
     def get_error_logs(self, limit: int = 50) -> list[JobLog]:
         """Get error-level log entries.
 
@@ -201,24 +191,20 @@ class LoggingService:
         """
         logger.debug("Getting error logs", limit=limit)
 
-        try:
-            session = self.session
-            stmt = (
-                select(JobLog)
-                .where(JobLog.level.in_(["ERROR", "CRITICAL"]))
-                .order_by(desc(JobLog.timestamp))
-                .limit(limit)
-            )
+        session = self.session
+        stmt = (
+            select(JobLog)
+            .where(JobLog.level.in_(["ERROR", "CRITICAL"]))
+            .order_by(desc(JobLog.timestamp))
+            .limit(limit)
+        )
 
-            logs = session.execute(stmt).scalars().all()
+        logs = session.execute(stmt).scalars().all()
 
-            logger.debug("Error logs retrieved", count=len(logs))
-            return list(logs)
+        logger.debug("Error logs retrieved", count=len(logs))
+        return list(logs)
 
-        except Exception as e:
-            logger.error("Failed to get error logs", error=str(e))
-            raise DatabaseError("get error logs", e) from e
-
+    @database_error_handler("count logs by level")
     def count_logs_by_level(self, job_id: str | None = None) -> dict[str, int]:
         """Count log entries by level.
 
@@ -230,23 +216,18 @@ class LoggingService:
         """
         logger.debug("Counting logs by level", job_id=job_id)
 
-        try:
-            session = self.session
-            from sqlalchemy import func
+        session = self.session
+        from sqlalchemy import func
 
-            query = session.query(JobLog.level, func.count(JobLog.id).label("count"))
+        query = session.query(JobLog.level, func.count(JobLog.id).label("count"))
 
-            if job_id:
-                query = query.filter(JobLog.job_id == job_id)
+        if job_id:
+            query = query.filter(JobLog.job_id == job_id)
 
-            query = query.group_by(JobLog.level)
+        query = query.group_by(JobLog.level)
 
-            results = query.all()
-            counts: dict[str, int] = {row[0]: row[1] for row in results}
+        results = query.all()
+        counts: dict[str, int] = {row[0]: row[1] for row in results}
 
-            logger.debug("Log counts by level", job_id=job_id, counts=counts)
-            return counts
-
-        except Exception as e:
-            logger.error("Failed to count logs by level", job_id=job_id, error=str(e))
-            raise DatabaseError("count logs by level", e) from e
+        logger.debug("Log counts by level", job_id=job_id, counts=counts)
+        return counts

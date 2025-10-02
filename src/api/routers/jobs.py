@@ -9,5 +9,5 @@ Import the unified router from the jobs package.
 # Import the unified router from the refactored jobs package
 from .jobs import router
 
-# Export the router for backward compatibility
+# Export the router for module interface
 __all__ = ["router"]

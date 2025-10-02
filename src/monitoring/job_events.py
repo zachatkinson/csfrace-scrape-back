@@ -10,11 +10,12 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from src.utils.logging import get_logger
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
 from ..caching.manager import cache_manager
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class JobEventType(Enum):
@@ -56,15 +57,9 @@ class JobEventPublisher:
         if self._initialized:
             return
 
-        try:
-            await cache_manager.initialize()
-            self._redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
-            self._initialized = True
-            logger.info("Job event publisher initialized")
-        except Exception as e:
-            logger.error("Failed to initialize job event publisher", error=str(e))
-            raise
+        await _initialize_redis_connection_safe(self)
 
+    @monitoring_error_handler("publish job event")
     async def publish_job_event(
         self,
         job_id: str,
@@ -78,43 +73,42 @@ class JobEventPublisher:
         Args:
             job_id: Job identifier
             event_type: Type of event
-            status: Current job status
+            status: Job status
             data: Additional event data
-            message: Optional descriptive message
+            message: Optional message
 
         Returns:
             True if published successfully, False otherwise
         """
-        try:
-            if not self._initialized:
-                await self.initialize()
+        if not self._initialized:
+            await self.initialize()
 
-            event = JobEvent(
-                job_id=job_id,
-                event_type=event_type,
-                status=status,
-                timestamp=datetime.now(UTC),
-                data=data,
-                message=message,
-            )
+        event = JobEvent(
+            job_id=job_id,
+            event_type=event_type,
+            status=status,
+            timestamp=datetime.now(UTC),
+            data=data,
+            message=message,
+        )
 
-            # Publish to Redis channel
-            event_data = event.model_dump_json()
-            await self._redis_client.publish("job_events", event_data)
+        # Publish to Redis channel
+        event_data = event.model_dump_json()
+        await self._redis_client.publish("job_events", event_data)
 
-            logger.debug(
-                "Job event published", job_id=job_id, event_type=event_type.value, status=status
-            )
-            return True
+        logger.debug(
+            "Job event published", job_id=job_id, event_type=event_type.value, status=status
+        )
+        return True
 
-        except Exception as e:
-            logger.error(
-                "Failed to publish job event",
-                job_id=job_id,
-                event_type=event_type.value if event_type else "unknown",
-                error=str(e),
-            )
-            return False
+
+@monitoring_error_handler("initialize Redis connection for job events")
+async def _initialize_redis_connection_safe(publisher: JobEventPublisher) -> None:
+    """Safely initialize Redis connection."""
+    await cache_manager.initialize()
+    publisher._redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
+    publisher._initialized = True
+    logger.info("Job event publisher initialized")
 
 
 # Global job event publisher instance
@@ -155,7 +149,7 @@ async def publish_job_status_update(
 
     Args:
         job_id: Job identifier
-        old_status: Previous status
+        old_status: Previous status (kept as old_status for API compatibility)
         new_status: New status
         url: Source URL
         domain: Domain being scraped

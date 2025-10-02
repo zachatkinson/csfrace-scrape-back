@@ -7,7 +7,6 @@ Features:
 - Environment variable support with validation
 - Type safety with Pydantic
 - Domain separation (auth, database, converter)
-- Backward compatibility
 - Production-ready defaults
 - Comprehensive validation
 
@@ -32,7 +31,7 @@ from .converter import ConverterConfig, HttpConfig, OutputConfig, RobotsConfig, 
 from .database import DatabaseConfig
 from .settings import AppConfig, ConfigManager, get_settings
 
-# Default settings instance (for backward compatibility)
+# Default settings instance
 try:
     config_settings = ConfigManager.get_config()
 except RuntimeError:

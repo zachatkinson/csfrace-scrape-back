@@ -7,9 +7,9 @@ used across all domain models.
 from sqlalchemy import event
 from sqlalchemy.orm import DeclarativeBase
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_database_logger
 
-logger = get_logger(__name__)
+logger = get_database_logger()
 
 
 class Base(DeclarativeBase):

@@ -9,9 +9,9 @@ This module handles basic job database operations including:
 """
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy.exc import SQLAlchemyError
 
-from src.utils.logging import get_logger
+from src.core.decorators import api_error_handler
+from src.core.logging_hierarchy import get_api_logger
 
 from ....common.status import JobStatus
 from ...crud import JobCRUD
@@ -24,12 +24,13 @@ from ...schemas import (
 )
 from ...utils import create_response_dict
 
-logger = get_logger(__name__)
+logger = get_api_logger()
 
 router = APIRouter()
 
 
 @router.get("/", response_model=JobListResponse)
+@api_error_handler("list jobs")
 async def list_jobs(
     db: DBSession,
     page: int = Query(1, ge=1, description="Page number"),
@@ -53,29 +54,26 @@ async def list_jobs(
         "Listing jobs", page=page, page_size=page_size, status_filter=status_filter, domain=domain
     )
 
-    try:
-        skip = (page - 1) * page_size
-        jobs, total = await JobCRUD.get_jobs(
-            db, skip=skip, limit=page_size, status=status_filter, domain=domain
-        )
+    skip = (page - 1) * page_size
+    jobs, total = await JobCRUD.get_jobs(
+        db, skip=skip, limit=page_size, status=status_filter, domain=domain
+    )
 
-        response_data = create_response_dict(
-            items_key="jobs",
-            items=[JobResponse.model_validate(job) for job in jobs],
-            total=total,
-            page=page,
-            page_size=page_size,
-        )
+    response_data = create_response_dict(
+        items_key="jobs",
+        items=[JobResponse.model_validate(job) for job in jobs],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
-        logger.info("Jobs listed successfully", total=total, returned=len(jobs))
-        return JobListResponse(**response_data)
-
-    except SQLAlchemyError as e:
-        logger.error("Failed to list jobs", error=str(e))
-        raise APIErrorFactory.from_sqlalchemy_error("retrieve jobs", e)
+    logger.info("Jobs listed successfully", total=total, returned=len(jobs))
+    return JobListResponse(**response_data)
+    # Enhanced decorator handles SQLAlchemyError and API error responses
 
 
 @router.get("/{job_id}", response_model=JobResponse)
+@api_error_handler("get job")
 async def get_job(job_id: str, db: DBSession) -> JobResponse:
     """Get a specific job by ID.
 
@@ -91,21 +89,18 @@ async def get_job(job_id: str, db: DBSession) -> JobResponse:
     """
     logger.info("Getting job", job_id=job_id)
 
-    try:
-        job = await JobCRUD.get_job(db, job_id)
-        if not job:
-            logger.warning("Job not found", job_id=job_id)
-            raise APIErrorFactory.not_found("Job", job_id)
+    job = await JobCRUD.get_job(db, job_id)
+    if not job:
+        logger.warning("Job not found", job_id=job_id)
+        raise APIErrorFactory.not_found("Job", job_id)
 
-        logger.info("Job retrieved successfully", job_id=job_id, status=job.status)
-        return JobResponse.model_validate(job)
-
-    except SQLAlchemyError as e:
-        logger.error("Failed to get job", job_id=job_id, error=str(e))
-        raise APIErrorFactory.from_sqlalchemy_error("retrieve job", e)
+    logger.info("Job retrieved successfully", job_id=job_id, status=job.status)
+    return JobResponse.model_validate(job)
+    # Enhanced decorator handles SQLAlchemyError and API error responses
 
 
 @router.put("/{job_id}", response_model=JobResponse)
+@api_error_handler("update job")
 async def update_job(job_id: str, job_data: JobUpdate, db: DBSession) -> JobResponse:
     """Update a job.
 
@@ -122,21 +117,18 @@ async def update_job(job_id: str, job_data: JobUpdate, db: DBSession) -> JobResp
     """
     logger.info("Updating job", job_id=job_id, update_data=job_data.model_dump())
 
-    try:
-        job = await JobCRUD.update_job(db, job_id, job_data)
-        if not job:
-            logger.warning("Job not found for update", job_id=job_id)
-            raise APIErrorFactory.not_found("Job", job_id)
+    job = await JobCRUD.update_job(db, job_id, job_data)
+    if not job:
+        logger.warning("Job not found for update", job_id=job_id)
+        raise APIErrorFactory.not_found("Job", job_id)
 
-        logger.info("Job updated successfully", job_id=job_id, status=job.status)
-        return JobResponse.model_validate(job)
-
-    except SQLAlchemyError as e:
-        logger.error("Failed to update job", job_id=job_id, error=str(e))
-        raise APIErrorFactory.from_sqlalchemy_error("update job", e)
+    logger.info("Job updated successfully", job_id=job_id, status=job.status)
+    return JobResponse.model_validate(job)
+    # Enhanced decorator handles SQLAlchemyError and API error responses
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+@api_error_handler("delete job")
 async def delete_job(job_id: str, db: DBSession) -> None:
     """Delete a job.
 
@@ -149,14 +141,10 @@ async def delete_job(job_id: str, db: DBSession) -> None:
     """
     logger.info("Deleting job", job_id=job_id)
 
-    try:
-        deleted = await JobCRUD.delete_job(db, job_id)
-        if not deleted:
-            logger.warning("Job not found for deletion", job_id=job_id)
-            raise APIErrorFactory.not_found("Job", job_id)
+    deleted = await JobCRUD.delete_job(db, job_id)
+    if not deleted:
+        logger.warning("Job not found for deletion", job_id=job_id)
+        raise APIErrorFactory.not_found("Job", job_id)
 
-        logger.info("Job deleted successfully", job_id=job_id)
-
-    except SQLAlchemyError as e:
-        logger.error("Failed to delete job", job_id=job_id, error=str(e))
-        raise APIErrorFactory.from_sqlalchemy_error("delete job", e)
+    logger.info("Job deleted successfully", job_id=job_id)
+    # Enhanced decorator handles SQLAlchemyError and API error responses

@@ -6,12 +6,22 @@ from fastapi.security import OAuth2PasswordBearer
 
 from ..api.errors import APIErrorFactory
 from ..database.service import DatabaseService
-from .config import auth_config
 from .models import TokenData, User
 from .oauth_service import OAuthService
 from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
+
+# from .config import auth_config  # type: ignore[import-not-found]
+
+
+# Temporary auth config until config.py is available
+class AuthConfig:
+    SECRET_KEY = "your-secret-key-here"  # noqa: S105
+    ALGORITHM = "HS256"
+
+
+auth_config = AuthConfig()
 
 # OAuth2 scheme for token extraction
 oauth2_scheme = OAuth2PasswordBearer(

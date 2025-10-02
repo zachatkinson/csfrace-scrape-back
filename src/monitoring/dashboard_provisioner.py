@@ -10,11 +10,12 @@ from typing import Any
 
 import yaml
 
-from src.utils.logging import get_logger
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
 from .grafana import GrafanaConfig, GrafanaDashboardManager
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class GrafanaDashboardProvisioner:
@@ -58,34 +59,29 @@ class GrafanaDashboardProvisioner:
             "Starting dashboard provisioning", dashboards_dir=str(self.config.dashboards_dir)
         )
 
-        try:
-            # Generate all dashboard configurations
-            dashboards = {
-                "system-overview.json": self.dashboard_manager.generate_system_overview_dashboard(),
-                "application-metrics.json": self.dashboard_manager.generate_application_metrics_dashboard(),
-                "database-performance.json": self.dashboard_manager.generate_database_dashboard(),
-            }
+        # Generate all dashboard configurations
+        dashboards = {
+            "system-overview.json": self.dashboard_manager.generate_system_overview_dashboard(),
+            "application-metrics.json": self.dashboard_manager.generate_application_metrics_dashboard(),
+            "database-performance.json": self.dashboard_manager.generate_database_dashboard(),
+        }
 
-            # Write dashboard files
-            for filename, dashboard_config in dashboards.items():
-                self._write_dashboard_file(filename, dashboard_config)
+        # Write dashboard files
+        for filename, dashboard_config in dashboards.items():
+            _write_dashboard_file_safe(self, filename, dashboard_config)
 
-            # Create provisioning configuration
-            self._create_provisioning_files()
+        # Create provisioning configuration
+        _create_provisioning_files_safe(self)
 
-            # Create Prometheus configuration
-            self.create_prometheus_config()
+        # Create Prometheus configuration
+        self.create_prometheus_config()
 
-            # Generate Docker Compose integration
-            self._update_docker_compose()
+        # Generate Docker Compose integration
+        self._update_docker_compose()
 
-            logger.info(
-                "Dashboard provisioning completed successfully", dashboard_count=len(dashboards)
-            )
-
-        except Exception as e:
-            logger.error("Dashboard provisioning failed", error=str(e))
-            raise
+        logger.info(
+            "Dashboard provisioning completed successfully", dashboard_count=len(dashboards)
+        )
 
     def _write_dashboard_file(self, filename: str, dashboard_config: dict[str, Any]) -> None:
         """Write dashboard configuration to JSON file.
@@ -94,43 +90,11 @@ class GrafanaDashboardProvisioner:
             filename: Name of the dashboard file
             dashboard_config: Dashboard configuration dictionary
         """
-        dashboard_path = self.config.dashboards_dir / filename
-
-        try:
-            with open(dashboard_path, "w", encoding="utf-8") as f:
-                json.dump(dashboard_config, f, indent=2, ensure_ascii=False)
-
-            logger.debug(
-                "Dashboard file written",
-                file=str(dashboard_path),
-                title=dashboard_config.get("dashboard", {}).get("title", "Unknown"),
-            )
-
-        except Exception as e:
-            logger.error("Failed to write dashboard file", file=str(dashboard_path), error=str(e))
-            raise
+        _write_dashboard_file_safe(self, filename, dashboard_config)
 
     def _create_provisioning_files(self) -> None:
         """Create Grafana provisioning configuration files."""
-        # Dashboard provisioning configuration
-        dashboard_provisioning = self.dashboard_manager.create_provisioning_config()
-        provisioning_file = self.config.provisioning_dir / "dashboards" / "dashboards.yaml"
-
-        with open(provisioning_file, "w", encoding="utf-8") as f:
-            yaml.dump(dashboard_provisioning, f, default_flow_style=False)
-
-        # Datasource provisioning configuration
-        datasource_config = self.dashboard_manager.create_datasource_config()
-        datasource_file = self.config.provisioning_dir / "datasources" / "datasources.yaml"
-
-        with open(datasource_file, "w", encoding="utf-8") as f:
-            yaml.dump(datasource_config, f, default_flow_style=False)
-
-        logger.info(
-            "Provisioning configuration files created",
-            dashboard_config=str(provisioning_file),
-            datasource_config=str(datasource_file),
-        )
+        _create_provisioning_files_safe(self)
 
     def _update_docker_compose(self) -> None:
         """Update Docker Compose configuration to include Grafana service."""
@@ -164,46 +128,7 @@ class GrafanaDashboardProvisioner:
 
     def _add_grafana_to_existing_compose(self) -> None:
         """Add Grafana service to existing Docker Compose configuration."""
-        try:
-            with open("docker-compose.yml", encoding="utf-8") as f:
-                compose_config = yaml.safe_load(f)
-
-            # Add Grafana service if not present
-            if "grafana" not in compose_config.get("services", {}):
-                compose_config.setdefault("services", {})["grafana"] = (
-                    self._get_grafana_service_config()
-                )
-
-            # Add Prometheus service if not present
-            if "prometheus" not in compose_config.get("services", {}):
-                compose_config.setdefault("services", {})["prometheus"] = (
-                    self._get_prometheus_service_config()
-                )
-
-            # Add volumes
-            compose_config.setdefault("volumes", {}).update(
-                {
-                    "grafana_data": None,
-                    "prometheus_data": None,
-                }
-            )
-
-            # Add monitoring network
-            compose_config.setdefault("networks", {}).setdefault("monitoring", {"driver": "bridge"})
-
-            # Update existing services to use monitoring network
-            for service_name, service_config in compose_config["services"].items():
-                if "networks" not in service_config:
-                    service_config["networks"] = ["monitoring"]
-
-            with open("docker-compose.yml", "w", encoding="utf-8") as f:
-                yaml.dump(compose_config, f, default_flow_style=False)
-
-            logger.info("Grafana service added to existing Docker Compose")
-
-        except Exception as e:
-            logger.error("Failed to update Docker Compose", error=str(e))
-            raise
+        _add_grafana_to_existing_compose_safe(self)
 
     def _get_grafana_service_config(self) -> dict[str, Any]:
         """Get Grafana service configuration for Docker Compose.
@@ -331,46 +256,8 @@ class GrafanaDashboardProvisioner:
         Returns:
             True if dashboard is valid, False otherwise
         """
-        try:
-            with open(dashboard_path, encoding="utf-8") as f:
-                dashboard_config = json.load(f)
-
-            # Basic structure validation
-            if "dashboard" not in dashboard_config:
-                logger.error(
-                    "Invalid dashboard structure: missing 'dashboard' key", file=str(dashboard_path)
-                )
-                return False
-
-            dashboard = dashboard_config["dashboard"]
-            required_fields = ["title", "panels"]
-
-            for field in required_fields:
-                if field not in dashboard:
-                    logger.error(
-                        f"Invalid dashboard: missing '{field}' field", file=str(dashboard_path)
-                    )
-                    return False
-
-            # Validate panels
-            panels = dashboard.get("panels", [])
-            if not panels:
-                logger.warning("Dashboard has no panels", file=str(dashboard_path))
-                return True
-
-            for panel in panels:
-                if not self._validate_panel(panel, dashboard_path):
-                    return False
-
-            logger.debug("Dashboard validated successfully", file=str(dashboard_path))
-            return True
-
-        except json.JSONDecodeError as e:
-            logger.error("Invalid JSON in dashboard file", file=str(dashboard_path), error=str(e))
-            return False
-        except Exception as e:
-            logger.error("Dashboard validation failed", file=str(dashboard_path), error=str(e))
-            return False
+        result = _validate_single_dashboard_safe(self, dashboard_path)
+        return result if result is not None else False
 
     def _validate_panel(self, panel: dict[str, Any], dashboard_path: Path) -> bool:
         """Validate a single panel configuration.
@@ -405,3 +292,121 @@ class GrafanaDashboardProvisioner:
                     return False
 
         return True
+
+
+@monitoring_error_handler("write dashboard file")
+def _write_dashboard_file_safe(
+    provisioner: GrafanaDashboardProvisioner, filename: str, dashboard_config: dict[str, Any]
+) -> None:
+    """Safely write dashboard configuration to JSON file."""
+    dashboard_path = provisioner.config.dashboards_dir / filename
+
+    with open(dashboard_path, "w", encoding="utf-8") as f:
+        json.dump(dashboard_config, f, indent=2, ensure_ascii=False)
+
+    logger.debug(
+        "Dashboard file written",
+        file=str(dashboard_path),
+        title=dashboard_config.get("dashboard", {}).get("title", "Unknown"),
+    )
+
+
+@monitoring_error_handler("create provisioning files")
+def _create_provisioning_files_safe(provisioner: GrafanaDashboardProvisioner) -> None:
+    """Safely create Grafana provisioning configuration files."""
+    # Dashboard provisioning configuration
+    dashboard_provisioning = provisioner.dashboard_manager.create_provisioning_config()
+    provisioning_file = provisioner.config.provisioning_dir / "dashboards" / "dashboards.yaml"
+
+    with open(provisioning_file, "w", encoding="utf-8") as f:
+        yaml.dump(dashboard_provisioning, f, default_flow_style=False)
+
+    # Datasource provisioning configuration
+    datasource_config = provisioner.dashboard_manager.create_datasource_config()
+    datasource_file = provisioner.config.provisioning_dir / "datasources" / "datasources.yaml"
+
+    with open(datasource_file, "w", encoding="utf-8") as f:
+        yaml.dump(datasource_config, f, default_flow_style=False)
+
+    logger.info(
+        "Provisioning configuration files created",
+        dashboard_config=str(provisioning_file),
+        datasource_config=str(datasource_file),
+    )
+
+
+@monitoring_error_handler("add Grafana to existing Docker Compose")
+def _add_grafana_to_existing_compose_safe(provisioner: GrafanaDashboardProvisioner) -> None:
+    """Safely add Grafana service to existing Docker Compose configuration."""
+    with open("docker-compose.yml", encoding="utf-8") as f:
+        compose_config = yaml.safe_load(f)
+
+    # Add Grafana service if not present
+    if "grafana" not in compose_config.get("services", {}):
+        compose_config.setdefault("services", {})["grafana"] = (
+            provisioner._get_grafana_service_config()
+        )
+
+    # Add Prometheus service if not present
+    if "prometheus" not in compose_config.get("services", {}):
+        compose_config.setdefault("services", {})["prometheus"] = (
+            provisioner._get_prometheus_service_config()
+        )
+
+    # Add volumes
+    compose_config.setdefault("volumes", {}).update(
+        {
+            "grafana_data": None,
+            "prometheus_data": None,
+        }
+    )
+
+    # Add monitoring network
+    compose_config.setdefault("networks", {}).setdefault("monitoring", {"driver": "bridge"})
+
+    # Update existing services to use monitoring network
+    for service_name, service_config in compose_config["services"].items():
+        if "networks" not in service_config:
+            service_config["networks"] = ["monitoring"]
+
+    with open("docker-compose.yml", "w", encoding="utf-8") as f:
+        yaml.dump(compose_config, f, default_flow_style=False)
+
+    logger.info("Grafana service added to existing Docker Compose")
+
+
+@monitoring_error_handler("validate single dashboard")
+def _validate_single_dashboard_safe(
+    provisioner: GrafanaDashboardProvisioner, dashboard_path: Path
+) -> bool:
+    """Safely validate a single dashboard configuration file."""
+    with open(dashboard_path, encoding="utf-8") as f:
+        dashboard_config = json.load(f)
+
+    # Basic structure validation
+    if "dashboard" not in dashboard_config:
+        logger.error(
+            "Invalid dashboard structure: missing 'dashboard' key", file=str(dashboard_path)
+        )
+        return False
+
+    dashboard = dashboard_config["dashboard"]
+    required_fields = ["title", "panels"]
+
+    for field in required_fields:
+        if field not in dashboard:
+            logger.error(f"Invalid dashboard: missing '{field}' field", file=str(dashboard_path))
+            return False
+
+    # Validate panels
+    panels = dashboard.get("panels", [])
+    if not panels:
+        logger.warning("Dashboard has no panels", file=str(dashboard_path))
+        return True
+
+    for panel in panels:
+        if not provisioner._validate_panel(panel, dashboard_path):
+            return False
+
+    logger.debug("Dashboard validated successfully", file=str(dashboard_path))
+    return True

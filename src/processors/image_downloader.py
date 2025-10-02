@@ -8,21 +8,27 @@ import aiohttp
 import asyncio
 from aiofiles import open as aopen
 
-from src.utils.logging import get_logger
+from src.core.decorators import network_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
 
-from ..constants import CONSTANTS
-from ..core.config import config
+from ..constants.api import (
+    DEFAULT_TIMEOUT,
+    DEFAULT_USER_AGENT,
+    MAX_CONCURRENT,
+    RATE_LIMIT_DELAY,
+)
+from ..constants.core import DEFAULT_IMAGE_EXTENSION, IMAGE_CONTENT_TYPES
 from ..core.exceptions import ConversionError
 from ..utils.retry import with_retry
 from ..utils.robots import robots_checker
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class AsyncImageDownloader:
     """Async image downloader with concurrency control."""
 
-    def __init__(self, output_dir: Path, max_concurrent: int = config.http.max_concurrent):
+    def __init__(self, output_dir: Path, max_concurrent: int = MAX_CONCURRENT):
         """Initialize image downloader.
 
         Args:
@@ -79,7 +85,8 @@ class AsyncImageDownloader:
                 failed_count += 1
             elif result and isinstance(result, str):
                 successful_downloads.append(result)
-            elif result is None:
+            else:
+                # Handle None result (download failed but didn't raise exception)
                 failed_count += 1
 
         logger.info(
@@ -112,22 +119,17 @@ class AsyncImageDownloader:
             Filename if successful, None if failed
         """
         async with self.semaphore:
-            try:
-                filename = await self._download_image(session, url)
+            filename = await self._download_image_safe(session, url)
 
-                # Update progress
-                if progress_callback:
-                    progress = (index + 1) / total
-                    progress_callback(progress)
+            # Update progress
+            if progress_callback:
+                progress = (index + 1) / total
+                progress_callback(progress)
 
-                # Rate limiting
-                await asyncio.sleep(config.http.rate_limit_delay)
+            # Rate limiting
+            await asyncio.sleep(RATE_LIMIT_DELAY)
 
-                return filename
-
-            except Exception as e:
-                logger.error("Failed to download image", url=url, error=str(e))
-                return None
+            return filename
 
     @with_retry()
     async def _download_image(self, session: aiohttp.ClientSession, url: str) -> str:
@@ -147,10 +149,10 @@ class AsyncImageDownloader:
             logger.debug("Downloading image", url=url)
 
             # Check robots.txt and enforce crawl delay for images
-            await robots_checker.check_and_delay(url, config.http.user_agent, session)
+            await robots_checker.check_and_delay(url, DEFAULT_USER_AGENT, session)
 
             async with session.get(
-                url, timeout=aiohttp.ClientTimeout(total=CONSTANTS.DEFAULT_TIMEOUT)
+                url, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
             ) as response:
                 response.raise_for_status()
 
@@ -216,9 +218,26 @@ class AsyncImageDownloader:
         Returns:
             File extension including dot
         """
-        for mime_type, ext in config.shopify.content_type_extensions.items():
+        for mime_type, ext in IMAGE_CONTENT_TYPES.items():
             if mime_type in content_type:
                 return ext
 
         # Default extension
-        return CONSTANTS.DEFAULT_IMAGE_EXTENSION
+        return DEFAULT_IMAGE_EXTENSION
+
+    @network_error_handler("download image safely")
+    async def _download_image_safe(self, session: aiohttp.ClientSession, url: str) -> str | None:
+        """Safely download image with centralized error handling.
+
+        Args:
+            session: aiohttp client session
+            url: Image URL to download
+
+        Returns:
+            Filename if successful, None if failed
+        """
+        try:
+            return await self._download_image(session, url)
+        except Exception:
+            # Error is handled by decorator, just return None for failed download
+            return None

@@ -11,11 +11,11 @@ from dataclasses import dataclass
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
 from .token_bucket import TokenBucket, TokenBucketConfig
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 @dataclass

@@ -8,11 +8,11 @@ from typing import Any
 
 from pydantic import Field, field_validator
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_core_logger
 
 from .base import BaseConfig, DatabaseMixin
 
-logger = get_logger(__name__)
+logger = get_core_logger()
 
 
 class DatabaseConfig(BaseConfig, DatabaseMixin):

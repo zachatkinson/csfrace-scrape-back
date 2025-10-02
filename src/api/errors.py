@@ -14,7 +14,7 @@ from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_api_logger
 
 from ..core.environment import EnvironmentLoader
 from ..core.exceptions import (
@@ -31,12 +31,7 @@ from ..core.exceptions import (
     ServiceUnavailableError,
 )
 
-logger = get_logger(__name__)
-
-# Aliases for backward compatibility with existing tests
-BusinessLogicError = APIBusinessLogicError
-ValidationError = APIValidationError
-DatabaseError = APIDatabaseError
+logger = get_api_logger()
 
 
 class APIErrorFactory:
@@ -240,36 +235,6 @@ class APIErrorFactory:
         from datetime import UTC, datetime
 
         return datetime.now(UTC).isoformat().replace("+00:00", "Z")
-
-
-# =============================================================================
-# CONVENIENCE FUNCTIONS FOR BACKWARD COMPATIBILITY
-# =============================================================================
-
-
-def not_found(resource: str, identifier: Any) -> HTTPException:
-    """Convenience function for 404 errors."""
-    return APIErrorFactory.not_found(resource, identifier)
-
-
-def internal_server_error(message: str, original_error: Exception | None = None) -> HTTPException:
-    """Convenience function for 500 errors."""
-    return APIErrorFactory.internal_server_error(message, original_error)
-
-
-def validation_error(message: str, field: str | None = None) -> HTTPException:
-    """Convenience function for validation errors."""
-    return APIErrorFactory.validation_error(message, field)
-
-
-def database_error(operation: str, error: Exception) -> HTTPException:
-    """Convenience function for database errors."""
-    return APIErrorFactory.database_error(operation, error)
-
-
-def business_logic_error(message: str, error_code: str | None = None) -> HTTPException:
-    """Convenience function for business logic errors."""
-    return APIErrorFactory.business_logic_error(message, error_code)
 
 
 # =============================================================================

@@ -15,12 +15,13 @@ import sys
 
 from sqlalchemy import text
 
-from src.database.models import Base
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_database_logger
+from src.database.models.base import Base
 from src.database.services.base import BaseService
-from src.utils.logging import get_logger
 from src.utils.url_utils import URLError, extract_domain
 
-logger = get_logger(__name__)
+logger = get_database_logger()
 
 
 class DatabaseInitializer:
@@ -31,6 +32,7 @@ class DatabaseInitializer:
         self.service = service or BaseService()
         self.logger = logger
 
+    @database_error_handler("initialize complete database schema")
     def initialize_complete_schema(self) -> bool:
         """Initialize complete database schema automatically.
 
@@ -43,257 +45,235 @@ class DatabaseInitializer:
         Raises:
             Exception: If critical initialization fails
         """
-        try:
-            self.logger.info("Starting complete database schema initialization")
+        self.logger.info("Starting complete database schema initialization")
 
-            # Step 1: Create all tables from SQLAlchemy models
-            self._create_all_tables()
+        # Step 1: Create all tables from SQLAlchemy models
+        self._create_all_tables()
 
-            # Step 2: Ensure all required indexes exist
-            self._create_required_indexes()
+        # Step 2: Ensure all required indexes exist
+        self._create_required_indexes()
 
-            # Step 3: Populate domain field for any existing jobs
-            self._populate_domain_fields()
+        # Step 3: Populate domain field for any existing jobs
+        self._populate_domain_fields()
 
-            # Step 4: Verify schema integrity
-            self._verify_schema_integrity()
+        # Step 4: Verify schema integrity
+        self._verify_schema_integrity()
 
-            self.logger.info("Database schema initialization completed successfully")
-            return True
+        self.logger.info("Database schema initialization completed successfully")
+        return True
 
-        except Exception as e:
-            self.logger.error(f"Database initialization failed: {e}")
-            raise
-
+    @database_error_handler("create all database tables")
     def _create_all_tables(self) -> None:
         """Create all database tables from SQLAlchemy models."""
-        try:
-            self.logger.info("Creating all database tables from models")
+        self.logger.info("Creating all database tables from models")
 
-            # Use SQLAlchemy's create_all which is idempotent
-            Base.metadata.create_all(self.service.engine)
+        # Use SQLAlchemy's create_all which is idempotent
+        Base.metadata.create_all(self.service.engine)
 
-            self.logger.info("All database tables created successfully")
+        self.logger.info("All database tables created successfully")
 
-        except Exception as e:
-            self.logger.error(f"Failed to create database tables: {e}")
-            raise
-
+    @database_error_handler("create required database indexes")
     def _create_required_indexes(self) -> None:
         """Create all required database indexes for performance."""
-        try:
-            self.logger.info("Creating required database indexes")
+        self.logger.info("Creating required database indexes")
 
-            with self.service.get_session() as session:
-                # Create domain-related indexes for jobs table
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_jobs_domain
-                    ON jobs(domain);
-                """)
-                )
+        with self.service.get_session() as session:
+            # Create domain-related indexes for jobs table
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_jobs_domain
+                ON jobs(domain);
+            """)
+            )
 
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_jobs_domain_status
-                    ON jobs(domain, status);
-                """)
-                )
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_jobs_domain_status
+                ON jobs(domain, status);
+            """)
+            )
 
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_jobs_domain_created_at
-                    ON jobs(domain, created_at);
-                """)
-                )
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_jobs_domain_created_at
+                ON jobs(domain, created_at);
+            """)
+            )
 
-                # Create user-related indexes
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_jobs_user_id
-                    ON jobs(user_id);
-                """)
-                )
+            # Create user-related indexes
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_jobs_user_id
+                ON jobs(user_id);
+            """)
+            )
 
-                # Create OAuth-related indexes
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_oauth_accounts_user_id
-                    ON oauth_linked_accounts(user_id);
-                """)
-                )
+            # Create OAuth-related indexes
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_oauth_accounts_user_id
+                ON oauth_linked_accounts(user_id);
+            """)
+            )
 
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_oauth_accounts_provider
-                    ON oauth_linked_accounts(provider, provider_user_id);
-                """)
-                )
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_oauth_accounts_provider
+                ON oauth_linked_accounts(provider, provider_user_id);
+            """)
+            )
 
-                # Create revoked tokens indexes
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_revoked_tokens_user_id
-                    ON revoked_tokens(user_id);
-                """)
-                )
+            # Create revoked tokens indexes
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_revoked_tokens_user_id
+                ON revoked_tokens(user_id);
+            """)
+            )
 
-                session.execute(
-                    text("""
-                    CREATE INDEX IF NOT EXISTS ix_revoked_tokens_expires_at
-                    ON revoked_tokens(expires_at);
-                """)
-                )
+            session.execute(
+                text("""
+                CREATE INDEX IF NOT EXISTS ix_revoked_tokens_expires_at
+                ON revoked_tokens(expires_at);
+            """)
+            )
 
-            self.logger.info("All required indexes created successfully")
+        self.logger.info("All required indexes created successfully")
 
-        except Exception as e:
-            self.logger.error(f"Failed to create required indexes: {e}")
-            raise
-
+    @database_error_handler("populate domain fields for existing jobs")
     def _populate_domain_fields(self) -> None:
         """Populate domain fields for any existing jobs that don't have them."""
-        try:
-            self.logger.info("Checking and populating domain fields for existing jobs")
+        self.logger.info("Checking and populating domain fields for existing jobs")
 
-            with self.service.get_session() as session:
-                # Check if there are any jobs without domain fields
-                result = session.execute(
+        with self.service.get_session() as session:
+            # Check if there are any jobs without domain fields
+            result = session.execute(
+                text("""
+                SELECT COUNT(*) FROM jobs
+                WHERE domain IS NULL OR domain = '';
+            """)
+            ).scalar()
+
+            if result and result > 0:
+                self.logger.info(f"Found {result} jobs without domain fields, populating...")
+
+                # Get all jobs without domains
+                jobs_result = session.execute(
                     text("""
-                    SELECT COUNT(*) FROM jobs
+                    SELECT id, source_url FROM jobs
                     WHERE domain IS NULL OR domain = '';
                 """)
-                ).scalar()
+                ).fetchall()
 
-                if result and result > 0:
-                    self.logger.info(f"Found {result} jobs without domain fields, populating...")
+                # Process in batches for better performance
+                batch_size = 100
+                updated_count = 0
 
-                    # Get all jobs without domains
-                    jobs_result = session.execute(
-                        text("""
-                        SELECT id, source_url FROM jobs
-                        WHERE domain IS NULL OR domain = '';
-                    """)
-                    ).fetchall()
+                for i in range(0, len(jobs_result), batch_size):
+                    batch = jobs_result[i : i + batch_size]
 
-                    # Process in batches for better performance
-                    batch_size = 100
-                    updated_count = 0
+                    for job_id, source_url in batch:
+                        try:
+                            # Extract domain using our utility
+                            domain = extract_domain(source_url)
 
-                    for i in range(0, len(jobs_result), batch_size):
-                        batch = jobs_result[i : i + batch_size]
+                            # Update the job with the extracted domain
+                            session.execute(
+                                text("""
+                                UPDATE jobs SET domain = :domain
+                                WHERE id = :job_id;
+                            """),
+                                {"domain": domain, "job_id": job_id},
+                            )
 
-                        for job_id, source_url in batch:
-                            try:
-                                # Extract domain using our utility
-                                domain = extract_domain(source_url)
+                            updated_count += 1
 
-                                # Update the job with the extracted domain
-                                session.execute(
-                                    text("""
-                                    UPDATE jobs SET domain = :domain
-                                    WHERE id = :job_id;
-                                """),
-                                    {"domain": domain, "job_id": job_id},
-                                )
+                        except (URLError, Exception) as e:
+                            # Log the error but continue processing
+                            self.logger.warning(
+                                f"Failed to extract domain from URL '{source_url}' "
+                                f"for job {job_id}: {e}. Setting to 'unknown'."
+                            )
 
-                                updated_count += 1
+                            # Set to 'unknown' as fallback
+                            session.execute(
+                                text("""
+                                UPDATE jobs SET domain = 'unknown'
+                                WHERE id = :job_id;
+                            """),
+                                {"job_id": job_id},
+                            )
 
-                            except (URLError, Exception) as e:
-                                # Log the error but continue processing
-                                self.logger.warning(
-                                    f"Failed to extract domain from URL '{source_url}' "
-                                    f"for job {job_id}: {e}. Setting to 'unknown'."
-                                )
+                            updated_count += 1
 
-                                # Set to 'unknown' as fallback
-                                session.execute(
-                                    text("""
-                                    UPDATE jobs SET domain = 'unknown'
-                                    WHERE id = :job_id;
-                                """),
-                                    {"job_id": job_id},
-                                )
+                    # Commit batch
+                    session.commit()
 
-                                updated_count += 1
-
-                        # Commit batch
-                        session.commit()
-
-                        self.logger.debug(
-                            f"Processed batch {i // batch_size + 1}, updated {updated_count} jobs so far"
-                        )
-
-                    self.logger.info(
-                        f"Successfully populated domain fields for {updated_count} jobs"
+                    self.logger.debug(
+                        f"Processed batch {i // batch_size + 1}, updated {updated_count} jobs so far"
                     )
-                else:
-                    self.logger.info("All jobs already have domain fields populated")
 
-        except Exception as e:
-            self.logger.error(f"Failed to populate domain fields: {e}")
-            raise
+                self.logger.info(f"Successfully populated domain fields for {updated_count} jobs")
+            else:
+                self.logger.info("All jobs already have domain fields populated")
 
+    @database_error_handler("verify database schema integrity")
     def _verify_schema_integrity(self) -> None:
         """Verify that the database schema is complete and correct."""
-        try:
-            self.logger.info("Verifying database schema integrity")
+        self.logger.info("Verifying database schema integrity")
 
-            with self.service.get_session() as session:
-                # Check that all required tables exist
-                required_tables = {
-                    "users",
-                    "jobs",
-                    "content_results",
-                    "job_logs",
-                    "oauth_linked_accounts",
-                    "revoked_tokens",
-                }
+        with self.service.get_session() as session:
+            # Check that all required tables exist
+            required_tables = {
+                "users",
+                "jobs",
+                "content_results",
+                "job_logs",
+                "oauth_linked_accounts",
+                "revoked_tokens",
+            }
 
-                for table_name in required_tables:
-                    result = session.execute(
-                        text("""
-                        SELECT EXISTS (
-                            SELECT FROM information_schema.tables
-                            WHERE table_name = :table_name
-                        );
-                    """),
-                        {"table_name": table_name},
-                    ).scalar()
-
-                    if not result:
-                        raise RuntimeError(f"Required table '{table_name}' is missing")
-
-                # Check that jobs table has domain field
+            for table_name in required_tables:
                 result = session.execute(
                     text("""
                     SELECT EXISTS (
-                        SELECT FROM information_schema.columns
-                        WHERE table_name = 'jobs' AND column_name = 'domain'
+                        SELECT FROM information_schema.tables
+                        WHERE table_name = :table_name
                     );
-                """)
+                """),
+                    {"table_name": table_name},
                 ).scalar()
 
                 if not result:
-                    raise RuntimeError("Jobs table is missing required 'domain' column")
+                    raise RuntimeError(f"Required table '{table_name}' is missing")
 
-                # Check that no jobs have NULL domain fields
-                result = session.execute(
-                    text("""
-                    SELECT COUNT(*) FROM jobs WHERE domain IS NULL;
-                """)
-                ).scalar()
+            # Check that jobs table has domain field
+            result = session.execute(
+                text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns
+                    WHERE table_name = 'jobs' AND column_name = 'domain'
+                );
+            """)
+            ).scalar()
 
-                if result and result > 0:
-                    raise RuntimeError(f"Found {result} jobs with NULL domain fields")
+            if not result:
+                raise RuntimeError("Jobs table is missing required 'domain' column")
 
-            self.logger.info("Database schema integrity verification passed")
+            # Check that no jobs have NULL domain fields
+            result = session.execute(
+                text("""
+                SELECT COUNT(*) FROM jobs WHERE domain IS NULL;
+            """)
+            ).scalar()
 
-        except Exception as e:
-            self.logger.error(f"Schema integrity verification failed: {e}")
-            raise
+            if result and result > 0:
+                raise RuntimeError(f"Found {result} jobs with NULL domain fields")
+
+        self.logger.info("Database schema integrity verification passed")
 
 
+@database_error_handler("initialize database on startup")
 def initialize_database_on_startup() -> bool:
     """Main entry point for database initialization on container startup.
 
@@ -305,16 +285,18 @@ def initialize_database_on_startup() -> bool:
     Raises:
         SystemExit: If initialization fails critically
     """
-    try:
-        initializer = DatabaseInitializer()
-        return initializer.initialize_complete_schema()
+    initializer = DatabaseInitializer()
+    success = initializer.initialize_complete_schema()
 
-    except Exception as e:
-        logger.critical(f"Critical database initialization failure: {e}")
+    if not success:
+        logger.critical("Critical database initialization failure")
         # Exit with error code to prevent container from starting with broken DB
         sys.exit(1)
 
+    return success
 
+
+@database_error_handler("main CLI database initialization")
 def main():
     """CLI entry point for manual database initialization."""
     logging.basicConfig(
@@ -323,17 +305,12 @@ def main():
 
     logger.info("Starting manual database initialization")
 
-    try:
-        success = initialize_database_on_startup()
-        if success:
-            logger.info("Database initialization completed successfully")
-            sys.exit(0)
-        else:
-            logger.error("Database initialization failed")
-            sys.exit(1)
-
-    except Exception as e:
-        logger.critical(f"Database initialization failed with error: {e}")
+    success = initialize_database_on_startup()
+    if success:
+        logger.info("Database initialization completed successfully")
+        sys.exit(0)
+    else:
+        logger.error("Database initialization failed")
         sys.exit(1)
 
 

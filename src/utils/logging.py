@@ -107,9 +107,9 @@ def get_logger(name: str = None) -> structlog.BoundLogger:
     This is the main entry point that all modules should use:
 
     ```python
-    from src.utils.logging import get_logger
+    from src.core.logging_hierarchy import get_core_logger
 
-    logger = get_logger(__name__)  # or just get_logger()
+    logger = get_core_logger()  # or just get_logger()
     ```
 
     Args:
@@ -169,19 +169,6 @@ def with_context(**kwargs: Any) -> structlog.BoundLogger:
         name = "unknown"
 
     return get_logger(name).bind(**kwargs)
-
-
-def setup_logging(
-    log_level: str = None, enable_json: bool | None = None, enable_colors: bool | None = None
-) -> None:
-    """Alias for configure_logging for backward compatibility.
-
-    Args:
-        log_level: Override environment LOG_LEVEL
-        enable_json: Override format auto-detection
-        enable_colors: Override color auto-detection
-    """
-    configure_logging(log_level, enable_json, enable_colors)
 
 
 # Common logging patterns as utilities

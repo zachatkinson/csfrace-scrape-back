@@ -7,12 +7,13 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from src.utils.logging import get_logger
+from src.core.decorators import api_error_handler
+from src.core.logging_hierarchy import get_api_logger
 
 from ..dependencies import DBSession
 from ..services.health_service import health_service
 
-logger = get_logger(__name__)
+logger = get_api_logger()
 
 router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 
@@ -53,23 +54,19 @@ async def health_stream() -> StreamingResponse:
 
 
 @router.post("/trigger-check")
+@api_error_handler("trigger health check")
 async def trigger_health_check(db: DBSession):
     """Manually trigger a health check and event publication."""
     from ...monitoring.health_events import publish_health_change_events
 
-    try:
-        # Get current health status
-        current_health = await health_service.get_comprehensive_health_status(db)
+    # Get current health status
+    current_health = await health_service.get_comprehensive_health_status(db)
 
-        # This will detect changes and publish events to Redis
-        await publish_health_change_events(current_health)
+    # This will detect changes and publish events to Redis
+    await publish_health_change_events(current_health)
 
-        return {
-            "message": "Health check triggered successfully",
-            "health": current_health,
-            "timestamp": current_health.get("timestamp"),
-        }
-
-    except Exception as e:
-        logger.error("Failed to trigger health check", error=str(e))
-        return {"error": str(e), "message": "Failed to trigger health check"}
+    return {
+        "message": "Health check triggered successfully",
+        "health": current_health,
+        "timestamp": current_health.get("timestamp"),
+    }

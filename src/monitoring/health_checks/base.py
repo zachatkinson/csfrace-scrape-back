@@ -11,12 +11,13 @@ from typing import TYPE_CHECKING, Any
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import MonitoringLoggingMixin, get_monitoring_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class HealthStatus(Enum):
@@ -57,7 +58,7 @@ class HealthCheckResult:
         }
 
 
-class HealthCheck(abc.ABC):
+class HealthCheck(abc.ABC, MonitoringLoggingMixin):
     """Base class for health checks."""
 
     def __init__(
@@ -79,7 +80,8 @@ class HealthCheck(abc.ABC):
         self.timeout_seconds = timeout_seconds
         self.tags = tags or []
         self.enabled = enabled
-        self.logger = get_logger(f"{__name__}.{name}")
+        # Use inherited logging from MonitoringLoggingMixin
+        # self.logger will be available automatically
 
     @abc.abstractmethod
     async def check(self) -> HealthCheckResult:
@@ -90,6 +92,7 @@ class HealthCheck(abc.ABC):
         """
         ...
 
+    @monitoring_error_handler("execute health check")
     async def execute(self) -> HealthCheckResult:
         """Execute the health check with timeout and error handling."""
         if not self.enabled:
@@ -103,6 +106,7 @@ class HealthCheck(abc.ABC):
 
         start_time = time.time()
 
+        # Handle TimeoutError specifically for monitoring
         try:
             # Execute with timeout
             result = await asyncio.wait_for(self.check(), timeout=self.timeout_seconds)
@@ -133,19 +137,7 @@ class HealthCheck(abc.ABC):
                 duration_ms=duration_ms,
                 tags=self.tags,
             )
-
-        except Exception as e:
-            duration_ms = (time.time() - start_time) * 1000
-            self.logger.error("Health check failed", error=str(e), duration_ms=duration_ms)
-
-            return HealthCheckResult(
-                name=self.name,
-                status=HealthStatus.UNHEALTHY,
-                message=f"Health check failed: {str(e)}",
-                duration_ms=duration_ms,
-                tags=self.tags,
-                details={"error": str(e), "error_type": type(e).__name__},
-            )
+        # Enhanced decorator will handle the generic Exception case
 
 
 class FunctionHealthCheck(HealthCheck):
@@ -171,6 +163,7 @@ class FunctionHealthCheck(HealthCheck):
         super().__init__(name, timeout_seconds, tags, enabled)
         self.check_func = check_func
 
+    @monitoring_error_handler("execute function health check")
     async def check(self) -> HealthCheckResult:
         """Execute the wrapped function."""
         if asyncio.iscoroutinefunction(self.check_func):

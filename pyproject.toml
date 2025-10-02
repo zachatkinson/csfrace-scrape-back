@@ -174,9 +174,13 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S", "ARG", "SIM117", "B017", "F841"]  # Allow security issues, unused args, nested with, Exception assertions, unused vars in tests
 "src/monitoring/grafana.py" = ["S105"]  # Allow placeholder password constant that forces production password change
+"src/database/schema_manager.py" = ["S608"]  # SQL injection safe: identifiers validated as alphanumeric before use
 "src/config/rate_limits.py" = ["S105", "S106"]  # Allow rate limit strings (false positives for password detection)
 # SlowAPI rate limiting requires unused request parameters for middleware integration
 "src/auth/router.py" = ["ARG001"]  # SlowAPI request parameters required but not used in function body
+# SQLAlchemy forward references use string-quoted model names to avoid circular imports
+"src/database/models/auth.py" = ["F821"]  # SQLAlchemy forward reference to ScrapingJob model
+"src/database/models/jobs.py" = ["F821"]  # SQLAlchemy forward reference to User model
 "src/api/routers/jobs.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting job creation
 "src/api/routers/batches.py" = ["ARG001"]  # SlowAPI request parameters for rate limiting batch creation
 "src/auth/oauth_service.py" = ["S105"]  # OAuth endpoint URLs are not passwords
@@ -232,6 +236,7 @@ module = [
 
 # Pytest configuration
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
@@ -265,9 +270,12 @@ source = ["src"]
 branch = true
 omit = [
     "*/tests/*",
-    "*/test_*.py", 
+    "*/test_*.py",
     "*/__init__.py",
     "*/conftest.py",
+    "*/plugins/examples/*",  # Example plugins - not production code
+    "*/cli/grafana_cli.py",  # CLI tool - separate from core API
+    "*/monitoring/protocols.py",  # Protocol definitions only
 ]
 
 [tool.coverage.report]
@@ -282,7 +290,11 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+    "if TYPE_CHECKING:",  # Type checking imports
+    "\\.\\.\\.",  # Ellipsis in protocol/abstract methods
 ]
+skip_empty = true
+precision = 2
 
 [tool.coverage.html]
 directory = "htmlcov"

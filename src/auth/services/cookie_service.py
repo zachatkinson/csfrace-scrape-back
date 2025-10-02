@@ -1,0 +1,164 @@
+"""Cookie management service for secure authentication following OWASP best practices."""
+
+import os
+from datetime import UTC, datetime, timedelta
+from typing import Literal
+
+from fastapi import Response
+
+from src.core.logging_hierarchy import get_auth_logger
+
+from ..models import Token
+
+logger = get_auth_logger()
+
+
+class CookieService:
+    """Service for secure HTTP-only cookie management - SOLID Single Responsibility."""
+
+    def __init__(self):
+        """Initialize cookie service with environment-aware settings."""
+        self.environment = os.getenv("ENVIRONMENT", "development").lower()
+        self.is_production = self.environment == "production"
+
+    def set_auth_cookies(self, response: Response, token: Token) -> None:
+        """Set HTTP-only cookies for secure token storage.
+
+        Args:
+            response: FastAPI response object
+            token: JWT token object with access and refresh tokens
+        """
+        # Environment-aware security settings
+        secure_cookies = (
+            self.is_production
+        )  # Only use secure cookies in production (HTTPS required)
+        cookie_domain = self._get_cookie_domain()
+        samesite_policy = self._get_samesite_policy()
+
+        # Access token cookie - short lived
+        response.set_cookie(
+            key="auth_token",
+            value=token.access_token,
+            max_age=token.expires_in,  # Seconds until expiration
+            httponly=True,  # Prevents XSS attacks
+            secure=secure_cookies,  # HTTPS only in production
+            samesite=samesite_policy,  # Environment-aware CSRF protection
+            path="/",  # Available to entire application
+            domain=cookie_domain,  # Cross-port support in development
+        )
+
+        # Refresh token cookie - longer lived
+        if token.refresh_token:
+            response.set_cookie(
+                key="refresh_token",
+                value=token.refresh_token,
+                max_age=60 * 60 * 24 * 30,  # 30 days
+                httponly=True,
+                secure=secure_cookies,
+                samesite=samesite_policy,
+                path="/",
+                domain=cookie_domain,
+            )
+
+        # User info cookie for frontend (non-sensitive data only)
+        response.set_cookie(
+            key="auth_user",
+            value=f'{{"isAuthenticated":true,"isNewUser":{str(token.is_new_user).lower()}}}',
+            max_age=token.expires_in,
+            httponly=False,  # Frontend needs to read this
+            secure=secure_cookies,
+            samesite=samesite_policy,
+            path="/",
+            domain=cookie_domain,
+        )
+
+        logger.info(
+            "Secure authentication cookies set",
+            access_token_expires=token.expires_in,
+            has_refresh_token=bool(token.refresh_token),
+            is_new_user=token.is_new_user,
+            environment=self.environment,
+            secure_cookies=secure_cookies,
+            cookie_domain=cookie_domain,
+            samesite_policy=samesite_policy,
+        )
+
+    def clear_auth_cookies(self, response: Response) -> None:
+        """Clear authentication cookies for logout.
+
+        Args:
+            response: FastAPI response object
+        """
+        # Safari-compatible cookie clearing patterns
+        secure_cookies = self.is_production
+        cookie_domain = self._get_cookie_domain()
+        samesite_policy = self._get_samesite_policy()
+
+        # Safari-compatible cookie clearing: Set to empty value with past expiration
+        past_date = datetime.now(UTC) - timedelta(days=1)
+
+        # Clear auth_token cookie
+        response.set_cookie(
+            key="auth_token",
+            value="",
+            expires=past_date,
+            httponly=True,
+            secure=secure_cookies,
+            samesite=samesite_policy,
+            path="/",
+            domain=cookie_domain,
+        )
+
+        # Clear refresh_token cookie
+        response.set_cookie(
+            key="refresh_token",
+            value="",
+            expires=past_date,
+            httponly=True,
+            secure=secure_cookies,
+            samesite=samesite_policy,
+            path="/",
+            domain=cookie_domain,
+        )
+
+        # Clear auth_user cookie
+        response.set_cookie(
+            key="auth_user",
+            value="",
+            expires=past_date,
+            httponly=False,
+            secure=secure_cookies,
+            samesite=samesite_policy,
+            path="/",
+            domain=cookie_domain,
+        )
+
+        logger.info(
+            "Authentication cookies cleared for logout",
+            environment=self.environment,
+            is_production=self.is_production,
+            cookie_domain=cookie_domain,
+            samesite_policy=samesite_policy,
+            secure_cookies=secure_cookies,
+        )
+
+    def _get_cookie_domain(self) -> str | None:
+        """Get appropriate cookie domain for environment.
+
+        Returns:
+            Cookie domain string for development, None for production
+        """
+        # Domain setting for cookie scope
+        # CRITICAL: Set domain to ensure cookies are accessible to both OAuth redirect (port 3000)
+        # and subsequent SSE proxy requests. Without explicit domain, cookies may not be shared.
+        return None if self.is_production else "localhost"
+
+    def _get_samesite_policy(self) -> Literal["strict", "lax"]:
+        """Get appropriate SameSite policy for environment.
+
+        Returns:
+            SameSite policy based on environment
+        """
+        # SameSite policy for development vs production
+        # Use "lax" in development to allow cross-origin SSE proxy requests
+        return "strict" if self.is_production else "lax"

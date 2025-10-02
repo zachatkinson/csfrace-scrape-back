@@ -86,5 +86,5 @@ def get_rate_limits_instance() -> RateLimits:
     return _rate_limits_instance
 
 
-# For backward compatibility
+# Global rate limits instance
 rate_limits = get_rate_limits_instance()

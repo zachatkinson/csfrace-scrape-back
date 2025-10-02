@@ -1,4 +1,4 @@
-"""Example font cleanup plugin that replicates HTMLProcessor font functionality."""
+"""Example font cleanup plugin that replicates HTMLProcessorOrchestrator font functionality."""
 
 from typing import Any
 

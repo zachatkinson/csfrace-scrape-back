@@ -1,4 +1,4 @@
-# This file points to the base requirements for backwards compatibility
+# This file points to the base requirements for convenience
 # For development, use: python -m pip install -e .[dev,test]
 # For production, use: python -m pip install -r requirements/prod.txt
 

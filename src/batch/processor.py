@@ -18,17 +18,19 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from src.utils.logging import get_logger
+from src.core.decorators import network_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
 
 from ..common.status import JobStatus
-from ..constants import CONSTANTS
+from ..constants.caching import FILE_READ_BUFFER_SIZE
+from ..constants.database import BYTES_PER_MB
 from ..core.converter import AsyncWordPressConverter
 from ..utils.path_utils import (
     safe_filename,
     truncate_path_component,
 )
 
-logger = get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class JobSummaryData(TypedDict):
@@ -172,45 +174,48 @@ class BatchProcessor:
             Generated output directory path
         """
         try:
-            parsed = urlparse(url)
-            if not parsed.netloc:
-                raise ValueError(f"Invalid URL: {url}")
-
-            # Clean domain for filesystem
-            domain = parsed.netloc.lower()
-            domain = re.sub(r"^www\.", "", domain)  # Remove www prefix
-            domain = safe_filename(domain, replacement="-", include_dots=True)
-
-            if custom_slug:
-                slug = custom_slug
-            else:
-                # Extract slug from URL path
-                path_parts = [p for p in parsed.path.strip("/").split("/") if p]
-                if path_parts:
-                    # Use last part as slug (WordPress convention)
-                    slug = path_parts[-1]
-                    # Remove common WordPress artifacts
-                    slug = re.sub(r"\.(html|php)$", "", slug)  # Remove extensions
-                    slug = re.sub(r"^index$", "homepage", slug)  # Handle index pages
-                else:
-                    slug = "homepage"
-
-            # Clean slug for filesystem and truncate
-            slug = safe_filename(slug)
-            slug = truncate_path_component(slug, 50)
-
-            if not slug:  # Fallback if slug is empty after cleaning
-                slug = "post"
-
-            # Combine domain and slug
-            safe_name = f"{domain}_{slug}"
-            return self.config.output_base_dir / safe_name
-
-        except Exception as e:
-            logger.warning("Failed to generate directory from URL", url=url, error=str(e))
+            return self._generate_directory_safe(url, custom_slug)
+        except Exception:
             # Fallback to hash-based naming
             url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()[:8]
             return self.config.output_base_dir / f"post_{url_hash}"
+
+    @network_error_handler("generate output directory")
+    def _generate_directory_safe(self, url: str, custom_slug: str | None = None) -> Path:
+        """Generate directory name with error handling."""
+        parsed = urlparse(url)
+        if not parsed.netloc:
+            raise ValueError(f"Invalid URL: {url}")
+
+        # Clean domain for filesystem
+        domain = parsed.netloc.lower()
+        domain = re.sub(r"^www\.", "", domain)  # Remove www prefix
+        domain = safe_filename(domain, replacement="-", include_dots=True)
+
+        if custom_slug:
+            slug = custom_slug
+        else:
+            # Extract slug from URL path
+            path_parts = [p for p in parsed.path.strip("/").split("/") if p]
+            if path_parts:
+                # Use last part as slug (WordPress convention)
+                slug = path_parts[-1]
+                # Remove common WordPress artifacts
+                slug = re.sub(r"\.(html|php)$", "", slug)  # Remove extensions
+                slug = re.sub(r"^index$", "homepage", slug)  # Handle index pages
+            else:
+                slug = "homepage"
+
+        # Clean slug for filesystem and truncate
+        slug = safe_filename(slug)
+        slug = truncate_path_component(slug, 50)
+
+        if not slug:  # Fallback if slug is empty after cleaning
+            slug = "post"
+
+        # Combine domain and slug
+        safe_name = f"{domain}_{slug}"
+        return self.config.output_base_dir / safe_name
 
     def _ensure_unique_directory(self, base_dir: Path) -> Path:
         """Ensure directory name is unique by adding numbering if needed.
@@ -288,21 +293,63 @@ class BatchProcessor:
         with open(file_path, encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 url = line.strip()
-                if url and not url.startswith("#"):  # Skip empty lines and comments
-                    try:
-                        self.add_job(url)
-                        added += 1
-                    except Exception as e:
-                        logger.warning(
-                            "Skipped invalid URL",
-                            file_path=str(file_path),
-                            line_num=line_num,
-                            url=url,
-                            error=str(e),
-                        )
+                if (
+                    url
+                    and not url.startswith("#")
+                    and self._add_job_safe(url, str(file_path), line_num)
+                ):
+                    added += 1
 
         logger.info("Loaded jobs from text file", file_path=str(file_path), jobs_added=added)
         return added
+
+    @network_error_handler("add job from file")
+    def _add_job_safe(self, url: str, file_path: str, line_num: int) -> bool:
+        """Add job from file with error handling."""
+        self.add_job(url)
+        return True
+
+    @network_error_handler("parse CSV file")
+    def _parse_csv_file_safe(self, file_path: Path) -> int:
+        """Parse CSV file with error handling."""
+        with open(file_path, encoding="utf-8") as f:
+            # Read first line to detect format
+            first_line = f.readline().strip()
+            f.seek(0)
+
+            # Check if it looks like a header (contains 'url' column)
+            if "url" in first_line.lower() and ("," in first_line or "\t" in first_line):
+                # Structured CSV format
+                return self._process_structured_csv(f)
+            else:
+                # Simple URL list format
+                return self._process_simple_csv(f)
+
+    @network_error_handler("add structured CSV job")
+    def _add_structured_csv_job_safe(self, url: str, row: dict, row_num: int) -> bool:
+        """Add structured CSV job with error handling."""
+        # Extract optional fields
+        custom_slug = row.get("slug", "").strip() or None
+        custom_output = row.get("output_dir", "").strip() or None
+
+        if custom_output:
+            custom_output = Path(custom_output)
+
+        self.add_job(url=url, output_dir=custom_output, custom_slug=custom_slug)
+
+        logger.debug(
+            "Added structured CSV job",
+            row_num=row_num,
+            url=url,
+            slug=custom_slug,
+            output_dir=custom_output,
+        )
+        return True
+
+    @network_error_handler("create job archive")
+    async def _create_archive_safe(self, job: BatchJob) -> Path | None:
+        """Create job archive with error handling."""
+        return await self._create_archive(job)
 
     def _add_jobs_from_csv(self, file_path: Path) -> int:
         """Add jobs from CSV file with structured data or simple URL list.
@@ -318,24 +365,7 @@ class BatchProcessor:
             Number of jobs added
         """
 
-        added = 0
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                # Read first line to detect format
-                first_line = f.readline().strip()
-                f.seek(0)
-
-                # Check if it looks like a header (contains 'url' column)
-                if "url" in first_line.lower() and ("," in first_line or "\t" in first_line):
-                    # Structured CSV format
-                    added = self._process_structured_csv(f)
-                else:
-                    # Simple URL list format
-                    added = self._process_simple_csv(f)
-
-        except Exception as e:
-            logger.error("Failed to parse CSV file", file_path=str(file_path), error=str(e))
-            raise ValueError(f"Invalid CSV format in {file_path}: {e}")
+        added = self._parse_csv_file_safe(file_path)
 
         logger.info("Loaded jobs from CSV file", file_path=str(file_path), jobs_added=added)
         return added
@@ -345,7 +375,7 @@ class BatchProcessor:
         added = 0
 
         # Detect delimiter
-        sample = file_handle.read(CONSTANTS.FILE_READ_BUFFER_SIZE)
+        sample = file_handle.read(FILE_READ_BUFFER_SIZE)
         file_handle.seek(0)
         sniffer = csv.Sniffer()
         delimiter = sniffer.sniff(sample).delimiter
@@ -361,27 +391,8 @@ class BatchProcessor:
             if not url:
                 continue
 
-            try:
-                # Extract optional fields
-                custom_slug = row.get("slug", "").strip() or None
-                custom_output = row.get("output_dir", "").strip() or None
-
-                if custom_output:
-                    custom_output = Path(custom_output)
-
-                self.add_job(url=url, output_dir=custom_output, custom_slug=custom_slug)
+            if self._add_structured_csv_job_safe(url, row, row_num):
                 added += 1
-
-                logger.debug(
-                    "Added structured CSV job",
-                    row_num=row_num,
-                    url=url,
-                    slug=custom_slug,
-                    output_dir=custom_output,
-                )
-
-            except Exception as e:
-                logger.warning("Skipped invalid CSV row", row_num=row_num, url=url, error=str(e))
 
         return added
 
@@ -400,28 +411,24 @@ class BatchProcessor:
             for row_num, row in enumerate(reader, 1):
                 for url in row:
                     url = url.strip()
-                    if url and not url.startswith("#"):
-                        try:
-                            self.add_job(url)
-                            added += 1
-                            logger.debug("Added simple CSV job", row_num=row_num, url=url)
-                        except Exception as e:
-                            logger.warning(
-                                "Skipped invalid URL", row_num=row_num, url=url, error=str(e)
-                            )
+                    if (
+                        url
+                        and not url.startswith("#")
+                        and self._add_job_safe(url, "simple_csv", row_num)
+                    ):
+                        added += 1
+                        logger.debug("Added simple CSV job", row_num=row_num, url=url)
         else:
             # Line-separated URLs
             for line_num, line in enumerate(file_handle, 1):
                 url = line.strip()
-                if url and not url.startswith("#"):
-                    try:
-                        self.add_job(url)
-                        added += 1
-                        logger.debug("Added simple list job", line_num=line_num, url=url)
-                    except Exception as e:
-                        logger.warning(
-                            "Skipped invalid URL", line_num=line_num, url=url, error=str(e)
-                        )
+                if (
+                    url
+                    and not url.startswith("#")
+                    and self._add_job_safe(url, "simple_list", line_num)
+                ):
+                    added += 1
+                    logger.debug("Added simple list job", line_num=line_num, url=url)
 
         return added
 
@@ -559,12 +566,10 @@ class BatchProcessor:
 
                 # Create archive if configured
                 if self.config.create_archives:
-                    try:
-                        archive_path = await self._create_archive(job)
+                    archive_path = await self._create_archive_safe(job)
+                    if archive_path:
                         job.archive_path = archive_path
                         logger.info("Created job archive", url=job.url, archive=str(archive_path))
-                    except Exception as e:
-                        logger.warning("Failed to create archive", url=job.url, error=str(e))
 
             except TimeoutError:
                 job.status = JobStatus.FAILED
@@ -737,7 +742,7 @@ Total Jobs: {summary["total"]}
             job_url=job.url,
             archive_path=str(archive_path),
             size_bytes=archive_size,
-            size_mb=round(archive_size / CONSTANTS.BYTES_PER_MB, 2),
+            size_mb=round(archive_size / BYTES_PER_MB, 2),
         )
 
         return archive_path

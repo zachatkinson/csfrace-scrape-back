@@ -6,9 +6,9 @@ following SQLAlchemy 2.0 best practices.
 
 from sqlalchemy import create_engine, event
 
-from src.utils.logging import get_logger
+from src.core.logging_hierarchy import get_database_logger
 
-logger = get_logger(__name__)
+logger = get_database_logger()
 
 
 def create_database_engine(echo: bool = False):

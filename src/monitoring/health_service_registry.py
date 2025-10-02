@@ -25,12 +25,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 import asyncio
 
-from src.utils.logging import get_logger
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
 
-logger = get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 def serialize_health_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -126,40 +127,31 @@ class HealthEmitter(ABC):
 
         self._logger.info("Stopped health monitoring")
 
+    @monitoring_error_handler("health monitoring loop")
     async def _monitoring_loop(self) -> None:
         """Main monitoring loop."""
         while self._running:
-            try:
-                # Check health
-                health_data = await self.check_health()
+            # Check health
+            health_data = await self.check_health()
 
-                # Publish to Redis
-                await self._publish_health_status(health_data)
+            # Publish to Redis
+            await self._publish_health_status(health_data)
 
-                # Wait for next check
-                await asyncio.sleep(self.check_interval)
+            # Wait for next check
+            await asyncio.sleep(self.check_interval)
 
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                self._logger.error("Health monitoring failed", error=str(e))
-                await asyncio.sleep(5.0)  # Brief pause before retry
-
+    @monitoring_error_handler("health status publishing")
     async def _publish_health_status(self, health_data: ServiceHealthData) -> None:
         """Publish health status to Redis pub/sub."""
-        try:
-            health_json = json.dumps(health_data.to_dict())
-            subscribers = await self.redis_client.publish("health_events", health_json)
+        health_json = json.dumps(health_data.to_dict())
+        subscribers = await self.redis_client.publish("health_events", health_json)
 
-            self._logger.debug(
-                "Health status published",
-                status=health_data.status.value,
-                subscribers=subscribers,
-                response_time=health_data.response_time_ms,
-            )
-
-        except Exception as e:
-            self._logger.error("Failed to publish health status", error=str(e))
+        self._logger.debug(
+            "Health status published",
+            status=health_data.status.value,
+            subscribers=subscribers,
+            response_time=health_data.response_time_ms,
+        )
 
 
 class RedisHealthEmitter(HealthEmitter):
@@ -168,63 +160,46 @@ class RedisHealthEmitter(HealthEmitter):
     def __init__(self, redis_client: Redis, check_interval: float = 30.0):
         super().__init__("redis", redis_client, check_interval)
 
+    @monitoring_error_handler("Redis health check")
     async def check_health(self) -> ServiceHealthData:
         """Check Redis health."""
         start_time = time.time()
+        # Test Redis connection with PING
+        response = await self.redis_client.ping()
+        response_time_ms = (time.time() - start_time) * 1000
 
-        try:
-            # Test Redis connection with PING
-            response = await self.redis_client.ping()
-            response_time_ms = (time.time() - start_time) * 1000
+        if response:
+            # Get Redis info
+            info = await self.redis_client.info()
 
-            if response:
-                # Get Redis info
-                info = await self.redis_client.info()
+            details = {
+                "connected": True,
+                "version": info.get("redis_version", "unknown"),
+                "uptime_seconds": info.get("uptime_in_seconds", 0),
+                "connected_clients": info.get("connected_clients", 0),
+                "used_memory_human": info.get("used_memory_human", "unknown"),
+                "keyspace_hits": info.get("keyspace_hits", 0),
+                "keyspace_misses": info.get("keyspace_misses", 0),
+            }
 
-                details = {
-                    "connected": True,
-                    "version": info.get("redis_version", "unknown"),
-                    "uptime_seconds": info.get("uptime_in_seconds", 0),
-                    "connected_clients": info.get("connected_clients", 0),
-                    "used_memory_human": info.get("used_memory_human", "unknown"),
-                    "keyspace_hits": info.get("keyspace_hits", 0),
-                    "keyspace_misses": info.get("keyspace_misses", 0),
-                }
-
-                # Determine status based on response time
-                if response_time_ms > 1000 or response_time_ms > 100:  # 1 second
-                    status = ServiceStatus.DEGRADED
-                else:
-                    status = ServiceStatus.HEALTHY
-
-                return ServiceHealthData(
-                    service_name="redis",
-                    status=status,
-                    timestamp=datetime.now(UTC),
-                    response_time_ms=response_time_ms,
-                    details=details,
-                    version=info.get("redis_version"),
-                    port="6379",
-                    framework="Redis",
-                )
+            # Determine status based on response time
+            if response_time_ms > 1000 or response_time_ms > 100:  # 1 second
+                status = ServiceStatus.DEGRADED
             else:
-                raise Exception("Redis PING returned False")
+                status = ServiceStatus.HEALTHY
 
-        except Exception as e:
-            response_time_ms = (time.time() - start_time) * 1000
             return ServiceHealthData(
                 service_name="redis",
-                status=ServiceStatus.UNHEALTHY,
+                status=status,
                 timestamp=datetime.now(UTC),
                 response_time_ms=response_time_ms,
-                details={
-                    "connected": False,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                details=details,
+                version=info.get("redis_version"),
                 port="6379",
                 framework="Redis",
             )
+        else:
+            raise Exception("Redis PING returned False")
 
 
 class PostgreSQLHealthEmitter(HealthEmitter):
@@ -234,104 +209,86 @@ class PostgreSQLHealthEmitter(HealthEmitter):
         super().__init__("postgresql", redis_client, check_interval)
         self.db_session_factory = db_session_factory
 
+    @monitoring_error_handler("PostgreSQL health check")
     async def check_health(self) -> ServiceHealthData:
         """Check PostgreSQL health."""
         start_time = time.time()
 
-        try:
-            # Test database connection
-            with self.db_session_factory() as session:
-                # Simple query to test connectivity and get version
-                from sqlalchemy import text
+        # Test database connection using async session factory
+        async with self.db_session_factory() as session:
+            # Simple query to test connectivity and get version
+            from sqlalchemy import text
 
-                result_obj = session.execute(
-                    text("SELECT version(), current_database(), current_user")
-                )
-                result = result_obj.fetchone()
-                response_time_ms = (time.time() - start_time) * 1000
-
-                if result:
-                    version_info = result[0] if result[0] else "unknown"
-                    database_name = result[1] if result[1] else "unknown"
-                    current_user = result[2] if result[2] else "unknown"
-
-                    # Get additional stats
-                    stats_result_obj = session.execute(
-                        text("""
-                        SELECT
-                            pg_database_size(current_database()) as db_size,
-                            (SELECT count(*) FROM pg_stat_activity WHERE state = 'active') as active_connections,
-                            (SELECT setting FROM pg_settings WHERE name = 'max_connections') as max_connections
-                    """)
-                    )
-                    stats_result = stats_result_obj.fetchone()
-
-                    db_size = stats_result[0] if stats_result and stats_result[0] else 0
-                    active_connections = stats_result[1] if stats_result and stats_result[1] else 0
-                    max_connections = stats_result[2] if stats_result and stats_result[2] else 0
-
-                    details = {
-                        "connected": True,
-                        "database": database_name,
-                        "user": current_user,
-                        "version_info": version_info.split()[0:2],  # PostgreSQL version
-                        "database_size_bytes": int(db_size) if db_size else 0,
-                        "database_size_mb": round(int(db_size) / 1024 / 1024, 2) if db_size else 0,
-                        "active_connections": int(active_connections) if active_connections else 0,
-                        "max_connections": int(max_connections) if max_connections else 0,
-                        "connection_usage_percent": round(
-                            (int(active_connections) / int(max_connections)) * 100, 2
-                        )
-                        if max_connections and int(max_connections) > 0
-                        else 0,
-                    }
-
-                    # Determine status based on response time and connection usage
-                    connection_usage = cast("float", details["connection_usage_percent"])
-                    if (
-                        response_time_ms > 2000 or connection_usage > 90
-                    ):  # 2 seconds or >90% connections
-                        status = ServiceStatus.UNHEALTHY
-                    elif (
-                        response_time_ms > 1000 or connection_usage > 75
-                    ):  # 1 second or >75% connections
-                        status = ServiceStatus.DEGRADED
-                    else:
-                        status = ServiceStatus.HEALTHY
-
-                    # Extract PostgreSQL version
-                    pg_version = (
-                        version_info.split()[1] if len(version_info.split()) > 1 else "unknown"
-                    )
-
-                    return ServiceHealthData(
-                        service_name="postgresql",
-                        status=status,
-                        timestamp=datetime.now(UTC),
-                        response_time_ms=response_time_ms,
-                        details=details,
-                        version=pg_version,
-                        port="5432",
-                        framework="PostgreSQL",
-                    )
-                else:
-                    raise Exception("Database query returned no results")
-
-        except Exception as e:
-            response_time_ms = (time.time() - start_time) * 1000
-            return ServiceHealthData(
-                service_name="postgresql",
-                status=ServiceStatus.UNHEALTHY,
-                timestamp=datetime.now(UTC),
-                response_time_ms=response_time_ms,
-                details={
-                    "connected": False,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-                port="5432",
-                framework="PostgreSQL",
+            result_obj = await session.execute(
+                text("SELECT version(), current_database(), current_user")
             )
+            result = result_obj.fetchone()
+            response_time_ms = (time.time() - start_time) * 1000
+
+            if result:
+                version_info = result[0] if result[0] else "unknown"
+                database_name = result[1] if result[1] else "unknown"
+                current_user = result[2] if result[2] else "unknown"
+
+                # Get additional stats
+                stats_result_obj = await session.execute(
+                    text("""
+                    SELECT
+                        pg_database_size(current_database()) as db_size,
+                        (SELECT count(*) FROM pg_stat_activity WHERE state = 'active') as active_connections,
+                        (SELECT setting FROM pg_settings WHERE name = 'max_connections') as max_connections
+                """)
+                )
+                stats_result = stats_result_obj.fetchone()
+
+                db_size = stats_result[0] if stats_result and stats_result[0] else 0
+                active_connections = stats_result[1] if stats_result and stats_result[1] else 0
+                max_connections = stats_result[2] if stats_result and stats_result[2] else 0
+
+                details = {
+                    "connected": True,
+                    "database": database_name,
+                    "user": current_user,
+                    "version_info": version_info.split()[0:2],  # PostgreSQL version
+                    "database_size_bytes": int(db_size) if db_size else 0,
+                    "database_size_mb": round(int(db_size) / 1024 / 1024, 2) if db_size else 0,
+                    "active_connections": int(active_connections) if active_connections else 0,
+                    "max_connections": int(max_connections) if max_connections else 0,
+                    "connection_usage_percent": round(
+                        (int(active_connections) / int(max_connections)) * 100, 2
+                    )
+                    if max_connections and int(max_connections) > 0
+                    else 0,
+                }
+
+                # Determine status based on response time and connection usage
+                connection_usage = cast("float", details["connection_usage_percent"])
+                if (
+                    response_time_ms > 2000 or connection_usage > 90
+                ):  # 2 seconds or >90% connections
+                    status = ServiceStatus.UNHEALTHY
+                elif (
+                    response_time_ms > 1000 or connection_usage > 75
+                ):  # 1 second or >75% connections
+                    status = ServiceStatus.DEGRADED
+                else:
+                    status = ServiceStatus.HEALTHY
+
+                # Extract PostgreSQL version
+                pg_version = version_info.split()[1] if len(version_info.split()) > 1 else "unknown"
+
+                return ServiceHealthData(
+                    service_name="postgresql",
+                    status=status,
+                    timestamp=datetime.now(UTC),
+                    response_time_ms=response_time_ms,
+                    details=details,
+                    version=pg_version,
+                    port="5432",
+                    framework="PostgreSQL",
+                )
+            else:
+                raise Exception("Database query returned no results")
 
 
 class FrontendHealthEmitter(HealthEmitter):
@@ -346,60 +303,43 @@ class FrontendHealthEmitter(HealthEmitter):
         super().__init__("frontend", redis_client, check_interval)
         self.frontend_url = frontend_url
 
+    @monitoring_error_handler("Frontend health check")
     async def check_health(self) -> ServiceHealthData:
         """Check Frontend health by making HTTP request."""
         import aiohttp
 
         start_time = time.time()
 
-        try:
-            async with (
-                aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
-                session.get(f"{self.frontend_url}/") as response,
-            ):
-                response_time_ms = (time.time() - start_time) * 1000
-
-                details = {
-                    "connected": True,
-                    "status_code": response.status,
-                    "content_length": response.headers.get("content-length", "unknown"),
-                    "server": response.headers.get("server", "unknown"),
-                }
-
-                # Determine status based on HTTP status and response time
-                if response.status >= 500:
-                    status = ServiceStatus.UNHEALTHY
-                elif (
-                    response.status >= 400 or response_time_ms > 5000 or response_time_ms > 2000
-                ):  # 5 seconds
-                    status = ServiceStatus.DEGRADED
-                else:
-                    status = ServiceStatus.HEALTHY
-
-                return ServiceHealthData(
-                    service_name="frontend",
-                    status=status,
-                    timestamp=datetime.now(UTC),
-                    response_time_ms=response_time_ms,
-                    details=details,
-                    version="5.13.7",  # Astro version
-                    port="3000",
-                    framework="Astro + React + TypeScript",
-                )
-
-        except Exception as e:
+        async with (
+            aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+            session.get(f"{self.frontend_url}/") as response,
+        ):
             response_time_ms = (time.time() - start_time) * 1000
+
+            details = {
+                "connected": True,
+                "status_code": response.status,
+                "content_length": response.headers.get("content-length", "unknown"),
+                "server": response.headers.get("server", "unknown"),
+            }
+
+            # Determine status based on HTTP status and response time
+            if response.status >= 500:
+                status = ServiceStatus.UNHEALTHY
+            elif (
+                response.status >= 400 or response_time_ms > 5000 or response_time_ms > 2000
+            ):  # 5 seconds
+                status = ServiceStatus.DEGRADED
+            else:
+                status = ServiceStatus.HEALTHY
+
             return ServiceHealthData(
                 service_name="frontend",
-                status=ServiceStatus.UNHEALTHY,
+                status=status,
                 timestamp=datetime.now(UTC),
                 response_time_ms=response_time_ms,
-                details={
-                    "connected": False,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-                version="5.13.7",
+                details=details,
+                version="5.13.7",  # Astro version
                 port="3000",
                 framework="Astro + React + TypeScript",
             )
@@ -411,63 +351,46 @@ class BackendHealthEmitter(HealthEmitter):
     def __init__(self, redis_client: Redis, check_interval: float = 30.0):
         super().__init__("backend", redis_client, check_interval)
 
+    @monitoring_error_handler("Backend health check")
     async def check_health(self) -> ServiceHealthData:
         """Check Backend health (self-monitoring)."""
         start_time = time.time()
 
-        try:
-            # Simple health check - always healthy since we're running
-            response_time_ms = (time.time() - start_time) * 1000
+        # Simple health check - always healthy since we're running
+        response_time_ms = (time.time() - start_time) * 1000
 
-            # Get system info
-            import psutil
+        # Get system info
+        import psutil
 
-            cpu_percent = psutil.cpu_percent(interval=0.1)
-            memory = psutil.virtual_memory()
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
 
-            details = {
-                "connected": True,
-                "cpu_percent": cpu_percent,
-                "memory_percent": memory.percent,
-                "memory_available_gb": round(memory.available / (1024**3), 2),
-                "status": "operational",
-            }
+        details = {
+            "connected": True,
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory.percent,
+            "memory_available_gb": round(memory.available / (1024**3), 2),
+            "status": "operational",
+        }
 
-            # Determine status based on resource usage
-            if cpu_percent > 90 or memory.percent > 90:
-                status = ServiceStatus.UNHEALTHY
-            elif cpu_percent > 75 or memory.percent > 75:
-                status = ServiceStatus.DEGRADED
-            else:
-                status = ServiceStatus.HEALTHY
+        # Determine status based on resource usage
+        if cpu_percent > 90 or memory.percent > 90:
+            status = ServiceStatus.UNHEALTHY
+        elif cpu_percent > 75 or memory.percent > 75:
+            status = ServiceStatus.DEGRADED
+        else:
+            status = ServiceStatus.HEALTHY
 
-            return ServiceHealthData(
-                service_name="backend",
-                status=status,
-                timestamp=datetime.now(UTC),
-                response_time_ms=response_time_ms,
-                details=details,
-                version="1.0.0",  # Application version
-                port="8000",
-                framework="FastAPI + Python 3.13",
-            )
-
-        except Exception as e:
-            response_time_ms = (time.time() - start_time) * 1000
-            return ServiceHealthData(
-                service_name="backend",
-                status=ServiceStatus.UNHEALTHY,
-                timestamp=datetime.now(UTC),
-                response_time_ms=response_time_ms,
-                details={
-                    "connected": False,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-                version="1.0.0",
-                port="8000",
-                framework="FastAPI + Python 3.13",
-            )
+        return ServiceHealthData(
+            service_name="backend",
+            status=status,
+            timestamp=datetime.now(UTC),
+            response_time_ms=response_time_ms,
+            details=details,
+            version="1.0.0",  # Application version
+            port="8000",
+            framework="FastAPI + Python 3.13",
+        )
 
 
 class HealthServiceRegistry:
@@ -497,23 +420,19 @@ class HealthServiceRegistry:
             del self.emitters[service_name]
             self._logger.info("Service unregistered", service=service_name)
 
+    @monitoring_error_handler("start all monitoring")
     async def start_all_monitoring(self) -> None:
         """Start monitoring for all registered services."""
         for service_name, emitter in self.emitters.items():
-            try:
-                await emitter.start_monitoring()
-                self._logger.info("Started monitoring", service=service_name)
-            except Exception as e:
-                self._logger.error("Failed to start monitoring", service=service_name, error=str(e))
+            await emitter.start_monitoring()
+            self._logger.info("Started monitoring", service=service_name)
 
+    @monitoring_error_handler("stop all monitoring")
     async def stop_all_monitoring(self) -> None:
         """Stop monitoring for all registered services."""
         for service_name, emitter in self.emitters.items():
-            try:
-                await emitter.stop_monitoring()
-                self._logger.info("Stopped monitoring", service=service_name)
-            except Exception as e:
-                self._logger.error("Failed to stop monitoring", service=service_name, error=str(e))
+            await emitter.stop_monitoring()
+            self._logger.info("Stopped monitoring", service=service_name)
 
     async def initialize_default_services(
         self, db_session_factory, frontend_url: str = "http://frontend:3000"

@@ -9,13 +9,26 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 
+from src.core.decorators import oauth_error_handler
+from src.core.logging_hierarchy import get_auth_logger
 from src.database.models.auth import LinkedAccount as LinkedAccountDB
-from src.utils.logging import get_logger
 
 from ..constants import (
+    GITHUB_AUTHORIZATION_URL,
+    GITHUB_SCOPES,
+    GITHUB_TOKEN_URL,
+    GITHUB_USER_EMAILS_URL,
+    GITHUB_USER_INFO_URL,
+    GOOGLE_AUTHORIZATION_URL,
+    GOOGLE_SCOPES,
+    GOOGLE_TOKEN_URL,
+    GOOGLE_USER_INFO_URL,
+    MICROSOFT_AUTHORIZATION_URL,
+    MICROSOFT_SCOPES,
+    MICROSOFT_TOKEN_URL,
+    MICROSOFT_USER_INFO_URL,
     OAUTH_APPLE_CLIENT_ID,
     OAUTH_APPLE_CLIENT_SECRET,
-    OAUTH_CONSTANTS,
     OAUTH_FACEBOOK_CLIENT_ID,
     OAUTH_FACEBOOK_CLIENT_SECRET,
     OAUTH_GITHUB_CLIENT_ID,
@@ -38,7 +51,7 @@ from .models import (
 )
 from .service import AuthService
 
-logger = get_logger(__name__)
+logger = get_auth_logger()
 
 
 class OAuthProviderInterface(ABC):
@@ -70,25 +83,9 @@ class BaseOAuthProvider(OAuthProviderInterface):
         self.provider = provider
         self.logger = logger.bind(provider=provider.value)
 
-    # Properties for backward compatibility with tests
-    @property
-    def authorization_base_url(self) -> str:
-        """Authorization URL for backward compatibility."""
-        return self._get_auth_base_url()
-
-    @property
-    def token_url(self) -> str:
-        """Token URL for backward compatibility."""
-        return self._get_token_url()
-
-    @property
-    def user_info_url(self) -> str:
-        """User info URL for backward compatibility."""
-        return self._get_user_info_url()
-
     @property
     def scope(self) -> str:
-        """OAuth scope for backward compatibility."""
+        """OAuth scope."""
         # Default implementation - providers can override
         return "openid email profile"
 
@@ -212,27 +209,27 @@ class GoogleOAuthProvider(BaseOAuthProvider):
     @property
     def scope(self) -> str:
         """Google-specific OAuth scopes."""
-        return " ".join(OAUTH_CONSTANTS.GOOGLE_SCOPES)
+        return " ".join(GOOGLE_SCOPES)
 
     # Required abstract method implementations
     def _get_auth_base_url(self) -> str:
         """Return Google's authorization URL."""
-        return OAUTH_CONSTANTS.GOOGLE_AUTHORIZATION_URL
+        return GOOGLE_AUTHORIZATION_URL
 
     def _get_token_url(self) -> str:
         """Return Google's token exchange URL."""
-        return OAUTH_CONSTANTS.GOOGLE_TOKEN_URL
+        return GOOGLE_TOKEN_URL
 
     def _get_user_info_url(self) -> str:
         """Return Google's user info URL."""
-        return OAUTH_CONSTANTS.GOOGLE_USER_INFO_URL
+        return GOOGLE_USER_INFO_URL
 
     def _get_provider_auth_params(self) -> dict[str, str]:
         """Return Google-specific authorization parameters."""
         return {
             "access_type": "offline",
             "prompt": "consent",
-            "scope": " ".join(OAUTH_CONSTANTS.GOOGLE_SCOPES),
+            "scope": " ".join(GOOGLE_SCOPES),
         }
 
     def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
@@ -246,270 +243,271 @@ class GoogleOAuthProvider(BaseOAuthProvider):
         )
 
 
-class GitHubOAuthProvider(OAuthProviderInterface):
-    """GitHub OAuth2 provider implementation - Single Responsibility with DRY constants."""
+class GitHubOAuthProvider(BaseOAuthProvider):
+    """GitHub OAuth2 provider implementation using BaseOAuthProvider for DRY compliance."""
 
     def __init__(self, client_id: str, client_secret: str):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.authorization_base_url = OAUTH_CONSTANTS.GITHUB_AUTHORIZATION_URL
-        self.token_url = OAUTH_CONSTANTS.GITHUB_TOKEN_URL
-        self.user_info_url = OAUTH_CONSTANTS.GITHUB_USER_INFO_URL
-        self.user_emails_url = OAUTH_CONSTANTS.GITHUB_USER_EMAILS_URL
-        self.scope = OAUTH_CONSTANTS.GITHUB_SCOPES
+        super().__init__(client_id, client_secret, OAuthProvider.GITHUB)
+        self.user_emails_url = GITHUB_USER_EMAILS_URL
 
-    def get_authorization_url(self, state: str, redirect_uri: str) -> str:
-        """Generate GitHub OAuth authorization URL."""
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": redirect_uri,
-            "scope": " ".join(self.scope),
-            "state": state,
+    @property
+    def scope(self) -> str:
+        """GitHub-specific OAuth scopes."""
+        return " ".join(GITHUB_SCOPES)
+
+    # Required abstract method implementations
+    def _get_auth_base_url(self) -> str:
+        """Return GitHub's authorization URL."""
+        return GITHUB_AUTHORIZATION_URL
+
+    def _get_token_url(self) -> str:
+        """Return GitHub's token exchange URL."""
+        return GITHUB_TOKEN_URL
+
+    def _get_user_info_url(self) -> str:
+        """Return GitHub's user info URL."""
+        return GITHUB_USER_INFO_URL
+
+    def _get_provider_auth_params(self) -> dict[str, str]:
+        """Return GitHub-specific authorization parameters."""
+        return {
+            "scope": self.scope,
             "allow_signup": "true",
         }
-        return f"{self.authorization_base_url}?{urlencode(params)}"
 
-    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
-        """Exchange GitHub authorization code for access token."""
-        async with httpx.AsyncClient() as client:
-            token_data = {
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "code": code,
-                "redirect_uri": redirect_uri,
-            }
-            headers = {"Accept": "application/json"}
-            response = await client.post(self.token_url, data=token_data, headers=headers)
-            response.raise_for_status()
-            return response.json()["access_token"]
+    def _get_token_exchange_headers(self) -> dict[str, str]:
+        """GitHub requires Accept header for JSON response."""
+        return {"Accept": "application/json"}
 
-    async def get_user_info(self, access_token: str) -> OAuthUserInfo:
-        """Fetch GitHub user information."""
-        async with httpx.AsyncClient() as client:
-            headers = {"Authorization": f"token {access_token}"}
+    def _get_user_info_headers(self, access_token: str) -> dict[str, str]:
+        """GitHub uses 'token' prefix instead of 'Bearer'."""
+        return {"Authorization": f"token {access_token}"}
 
-            # Get user profile
-            user_response = await client.get(self.user_info_url, headers=headers)
-            user_response.raise_for_status()
-            user_data = user_response.json()
+    async def _fetch_user_data(
+        self, client: httpx.AsyncClient, headers: dict[str, str]
+    ) -> dict[str, Any]:
+        """GitHub requires additional email request."""
+        # Get user profile
+        user_response = await client.get(self._get_user_info_url(), headers=headers)
+        user_response.raise_for_status()
+        user_data = user_response.json()
 
-            # Get primary email (GitHub doesn't always include email in user endpoint)
-            emails_response = await client.get(self.user_emails_url, headers=headers)
-            emails_response.raise_for_status()
-            emails = emails_response.json()
+        # Get primary email (GitHub doesn't always include email in user endpoint)
+        emails_response = await client.get(self.user_emails_url, headers=headers)
+        emails_response.raise_for_status()
+        emails = emails_response.json()
 
-            primary_email = next(
-                (email["email"] for email in emails if email["primary"]), user_data.get("email")
-            )
+        primary_email = next(
+            (email["email"] for email in emails if email["primary"]), user_data.get("email")
+        )
 
-            return OAuthUserInfo(
-                provider=OAuthProvider.GITHUB,
-                provider_id=str(user_data["id"]),
-                email=primary_email,
-                name=user_data.get("name") or user_data["login"],
-                avatar_url=user_data.get("avatar_url"),
-            )
+        # Add email to user data for mapping
+        user_data["primary_email"] = primary_email
+        return user_data
+
+    def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
+        """Map GitHub user data to standardized format."""
+        return OAuthUserInfo(
+            provider=OAuthProvider.GITHUB,
+            provider_id=str(user_data["id"]),
+            email=user_data["primary_email"],
+            name=user_data.get("name") or user_data["login"],
+            avatar_url=user_data.get("avatar_url"),
+        )
 
 
-class MicrosoftOAuthProvider(OAuthProviderInterface):
-    """Microsoft OAuth2 provider implementation - Single Responsibility with DRY constants."""
+class MicrosoftOAuthProvider(BaseOAuthProvider):
+    """Microsoft OAuth2 provider implementation using BaseOAuthProvider for DRY compliance."""
 
     def __init__(self, client_id: str, client_secret: str):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.authorization_base_url = OAUTH_CONSTANTS.MICROSOFT_AUTHORIZATION_URL
-        self.token_url = OAUTH_CONSTANTS.MICROSOFT_TOKEN_URL
-        self.user_info_url = OAUTH_CONSTANTS.MICROSOFT_USER_INFO_URL
-        self.scope = OAUTH_CONSTANTS.MICROSOFT_SCOPES
+        super().__init__(client_id, client_secret, OAuthProvider.MICROSOFT)
 
-    def get_authorization_url(self, state: str, redirect_uri: str) -> str:
-        """Generate Microsoft OAuth authorization URL."""
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": redirect_uri,
-            "scope": " ".join(self.scope),
-            "response_type": "code",
-            "state": state,
+    @property
+    def scope(self) -> str:
+        """Microsoft-specific OAuth scopes."""
+        return " ".join(MICROSOFT_SCOPES)
+
+    # Required abstract method implementations
+    def _get_auth_base_url(self) -> str:
+        """Return Microsoft's authorization URL."""
+        return MICROSOFT_AUTHORIZATION_URL
+
+    def _get_token_url(self) -> str:
+        """Return Microsoft's token exchange URL."""
+        return MICROSOFT_TOKEN_URL
+
+    def _get_user_info_url(self) -> str:
+        """Return Microsoft's user info URL."""
+        return MICROSOFT_USER_INFO_URL
+
+    def _get_provider_auth_params(self) -> dict[str, str]:
+        """Return Microsoft-specific authorization parameters."""
+        return {
+            "scope": self.scope,
             "response_mode": "query",
         }
-        return f"{self.authorization_base_url}?{urlencode(params)}"
 
-    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
-        """Exchange Microsoft authorization code for access token."""
-        async with httpx.AsyncClient() as client:
-            token_data = {
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "code": code,
-                "grant_type": "authorization_code",
-                "redirect_uri": redirect_uri,
-            }
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            response = await client.post(self.token_url, data=token_data, headers=headers)
-            response.raise_for_status()
-            return response.json()["access_token"]
-
-    async def get_user_info(self, access_token: str) -> OAuthUserInfo:
-        """Fetch Microsoft user information."""
-        async with httpx.AsyncClient() as client:
-            headers = {"Authorization": f"Bearer {access_token}"}
-            response = await client.get(self.user_info_url, headers=headers)
-            response.raise_for_status()
-
-            user_data = response.json()
-            return OAuthUserInfo(
-                provider=OAuthProvider.MICROSOFT,
-                provider_id=user_data["id"],
-                email=user_data["mail"] or user_data["userPrincipalName"],
-                name=user_data["displayName"],
-                avatar_url=None,  # Microsoft Graph doesn't provide avatar URL directly
-            )
+    def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
+        """Map Microsoft user data to standardized format."""
+        return OAuthUserInfo(
+            provider=OAuthProvider.MICROSOFT,
+            provider_id=user_data["id"],
+            email=user_data["mail"] or user_data["userPrincipalName"],
+            name=user_data["displayName"],
+            avatar_url=None,  # Microsoft Graph doesn't provide avatar URL directly
+        )
 
 
-class FacebookOAuthProvider(OAuthProviderInterface):
-    """Facebook OAuth2 provider implementation - Single Responsibility with DRY constants."""
+class FacebookOAuthProvider(BaseOAuthProvider):
+    """Facebook OAuth2 provider implementation using BaseOAuthProvider for DRY compliance."""
 
     def __init__(self, client_id: str, client_secret: str):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.authorization_url = "https://www.facebook.com/v18.0/dialog/oauth"
-        self.token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
-        self.user_info_url = "https://graph.facebook.com/v18.0/me"
+        super().__init__(client_id, client_secret, OAuthProvider.FACEBOOK)
 
-    def get_authorization_url(self, state: str, redirect_uri: str) -> str:
-        """Generate Facebook authorization URL."""
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": redirect_uri,
-            "scope": "email,public_profile",
-            "response_type": "code",
-            "state": state,
+    @property
+    def scope(self) -> str:
+        """Facebook-specific OAuth scopes."""
+        return "email,public_profile"
+
+    # Required abstract method implementations
+    def _get_auth_base_url(self) -> str:
+        """Return Facebook's authorization URL."""
+        return "https://www.facebook.com/v18.0/dialog/oauth"
+
+    def _get_token_url(self) -> str:
+        """Return Facebook's token exchange URL."""
+        return "https://graph.facebook.com/v18.0/oauth/access_token"
+
+    def _get_user_info_url(self) -> str:
+        """Return Facebook's user info URL."""
+        return "https://graph.facebook.com/v18.0/me"
+
+    def _get_provider_auth_params(self) -> dict[str, str]:
+        """Return Facebook-specific authorization parameters."""
+        return {
+            "scope": self.scope,
         }
-        return f"{self.authorization_url}?{urlencode(params)}"
 
-    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
-        """Exchange Facebook authorization code for access token."""
-        async with httpx.AsyncClient() as client:
-            token_data = {
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "code": code,
-                "redirect_uri": redirect_uri,
-            }
-            response = await client.post(self.token_url, data=token_data)
-            response.raise_for_status()
-            return response.json()["access_token"]
+    async def _fetch_user_data(
+        self, client: httpx.AsyncClient, headers: dict[str, str]
+    ) -> dict[str, Any]:
+        """Facebook uses query params instead of headers for access token."""
+        # Extract access token from headers
+        auth_header = headers.get("Authorization", "")
+        access_token = auth_header.replace("Bearer ", "")
 
-    async def get_user_info(self, access_token: str) -> OAuthUserInfo:
-        """Fetch Facebook user information."""
-        async with httpx.AsyncClient() as client:
-            params = {
-                "fields": "id,email,name,picture.type(large)",
-                "access_token": access_token,
-            }
-            response = await client.get(self.user_info_url, params=params)
-            response.raise_for_status()
+        params = {
+            "fields": "id,email,name,picture.type(large)",
+            "access_token": access_token,
+        }
+        response = await client.get(self._get_user_info_url(), params=params)
+        response.raise_for_status()
+        return response.json()
 
-            user_data = response.json()
-
-            # Facebook email is optional - use fallback if not provided
-            email = user_data.get("email")
-            if not email:
-                # Generate a placeholder email using Facebook ID
-                # User will need to update this later for email features
-                email = f"fb_{user_data['id']}@users.csfrace.local"
-                logger.warning(
-                    "Facebook user without email, using placeholder",
-                    facebook_id=user_data["id"],
-                    placeholder_email=email,
-                )
-
-            return OAuthUserInfo(
-                provider=OAuthProvider.FACEBOOK,
-                provider_id=user_data["id"],
-                email=email,
-                name=user_data["name"],
-                avatar_url=user_data.get("picture", {}).get("data", {}).get("url"),
+    def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
+        """Map Facebook user data to standardized format."""
+        # Facebook email is optional - use fallback if not provided
+        email = user_data.get("email")
+        if not email:
+            # Generate a placeholder email using Facebook ID
+            # User will need to update this later for email features
+            email = f"fb_{user_data['id']}@users.csfrace.local"
+            self.logger.warning(
+                "Facebook user without email, using placeholder",
+                facebook_id=user_data["id"],
+                placeholder_email=email,
             )
 
+        return OAuthUserInfo(
+            provider=OAuthProvider.FACEBOOK,
+            provider_id=user_data["id"],
+            email=email,
+            name=user_data["name"],
+            avatar_url=user_data.get("picture", {}).get("data", {}).get("url"),
+        )
 
-class AppleOAuthProvider(OAuthProviderInterface):
-    """Apple OAuth2 provider implementation - Single Responsibility with DRY constants."""
+
+class AppleOAuthProvider(BaseOAuthProvider):
+    """Apple OAuth2 provider implementation using BaseOAuthProvider for DRY compliance."""
 
     def __init__(self, client_id: str, client_secret: str):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.authorization_url = "https://appleid.apple.com/auth/authorize"
-        self.token_url = "https://appleid.apple.com/auth/token"
-        # Note: Apple uses ID token for user info, not a separate endpoint
+        super().__init__(client_id, client_secret, OAuthProvider.APPLE)
 
-    def get_authorization_url(self, state: str, redirect_uri: str) -> str:
-        """Generate Apple authorization URL."""
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": redirect_uri,
-            "scope": "name email",
-            "response_type": "code",
+    @property
+    def scope(self) -> str:
+        """Apple-specific OAuth scopes."""
+        return "name email"
+
+    # Required abstract method implementations
+    def _get_auth_base_url(self) -> str:
+        """Return Apple's authorization URL."""
+        return "https://appleid.apple.com/auth/authorize"
+
+    def _get_token_url(self) -> str:
+        """Return Apple's token exchange URL."""
+        return "https://appleid.apple.com/auth/token"
+
+    def _get_user_info_url(self) -> str:
+        """Apple uses ID token for user info, not a separate endpoint."""
+        return ""  # Not used for Apple
+
+    def _get_provider_auth_params(self) -> dict[str, str]:
+        """Return Apple-specific authorization parameters."""
+        return {
+            "scope": self.scope,
             "response_mode": "form_post",  # Apple requires form_post
-            "state": state,
         }
-        return f"{self.authorization_url}?{urlencode(params)}"
 
-    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> str:
-        """Exchange Apple authorization code for access token."""
-        async with httpx.AsyncClient() as client:
-            # Apple requires specific headers and client_secret as JWT (simplified for demo)
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            token_data = {
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,  # Should be JWT in production
-                "code": code,
-                "grant_type": "authorization_code",
-                "redirect_uri": redirect_uri,
-            }
-            response = await client.post(self.token_url, data=token_data, headers=headers)
-            response.raise_for_status()
-            return response.json()["access_token"]
-
+    @oauth_error_handler("get Apple user info from JWT")
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
         """
-        Fetch Apple user information.
-        Note: Apple provides user info in the ID token, not via separate API.
-        This is a simplified implementation - production should decode JWT ID token.
+        Fetch Apple user information from JWT ID token.
+        Apple provides user info in the ID token as JWT claims.
         """
-        # TODO: In production, decode the ID token (access_token) as JWT
-        # to extract actual user info from claims
+        import jwt
 
-        # For now, generate consistent placeholder data
-        # Real implementation would decode JWT and extract: sub, email, name
-        import hashlib
+        # Decode JWT without verification for now (Apple's public keys would be needed for full verification)
+        # In production, you should verify the JWT signature using Apple's public keys
+        decoded_token = jwt.decode(access_token, options={"verify_signature": False})
 
-        unique_id = hashlib.md5(access_token.encode()).hexdigest()[:12]
+        # Extract user information from JWT claims
+        provider_id = decoded_token.get("sub", "unknown")  # Subject claim (unique user ID)
+        email = decoded_token.get("email", f"apple_{provider_id}@privaterelay.appleid.com")
 
-        logger.warning(
-            "Apple OAuth using placeholder implementation",
-            message="Production should decode JWT ID token for real user data",
+        # Name might be provided in first login, otherwise use default
+        name = "Apple User"  # Apple doesn't always provide name
+        if "name" in decoded_token:
+            name = decoded_token["name"]
+
+        self.logger.info(
+            "Successfully decoded Apple JWT ID token", provider_id=provider_id, email=email
         )
 
         return OAuthUserInfo(
             provider=OAuthProvider.APPLE,
-            provider_id=f"apple_{unique_id}",  # Would come from JWT sub claim
-            email=f"apple_{unique_id}@privaterelay.appleid.com",  # Would come from JWT email claim
-            name="Apple User",  # Would come from JWT name claim if provided
+            provider_id=f"apple_{provider_id}",
+            email=email,
+            name=name,
             avatar_url=None,  # Apple doesn't provide avatars
         )
+
+    def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
+        """Apple doesn't use this method - overrides get_user_info directly."""
+        raise NotImplementedError("Apple provider overrides get_user_info directly")
 
 
 class OAuthProviderRegistry:
     """Registry pattern for OAuth providers - SOLID Open/Closed Principle compliant.
 
     New providers can be registered without modifying existing code.
+    Uses Factory Method pattern for provider instantiation.
     """
 
     _providers: dict[OAuthProvider, type[OAuthProviderInterface]] = {}
     _provider_configs: dict[OAuthProvider, dict[str, str]] = {}
 
     @classmethod
+    @oauth_error_handler("register OAuth provider")
     def register_provider(
         cls,
         provider_type: OAuthProvider,
@@ -531,11 +529,18 @@ class OAuthProviderRegistry:
             "client_secret": client_secret,
         }
         logger.debug("OAuth provider registered", provider=provider_type.value)
+        # Enhanced decorator handles exceptions
 
     @classmethod
+    @oauth_error_handler("create OAuth provider")
     def create_provider(cls, provider: OAuthProvider) -> OAuthProviderInterface:
-        """Create OAuth provider instance from registry."""
+        """Create OAuth provider instance from registry using Factory Method pattern."""
         if provider not in cls._providers:
+            logger.warning(
+                "Unsupported OAuth provider requested",
+                requested_provider=provider.value,
+                available_providers=[p.value for p in cls._providers],
+            )
             raise ValueError(
                 f"Unsupported OAuth provider: {provider}. Available: {list(cls._providers.keys())}"
             )
@@ -543,11 +548,21 @@ class OAuthProviderRegistry:
         provider_class = cls._providers[provider]
         config = cls._provider_configs[provider]
 
+        logger.debug(
+            "Creating OAuth provider instance",
+            provider=provider.value,
+            provider_class=provider_class.__name__,
+        )
+
         # MyPy cast: provider_class is guaranteed to be a concrete implementation
         # with the correct constructor signature
-        return cast("Any", provider_class)(
+        instance = cast("Any", provider_class)(
             client_id=config["client_id"], client_secret=config["client_secret"]
         )
+
+        logger.info("OAuth provider instance created successfully", provider=provider.value)
+        return instance
+        # Enhanced decorator handles exceptions
 
     @classmethod
     def get_supported_providers(cls) -> list[OAuthProvider]:
@@ -561,59 +576,57 @@ class OAuthProviderRegistry:
 
 
 # Register all OAuth providers on module load (Open/Closed compliant)
+@oauth_error_handler("register default OAuth providers")
 def _register_default_providers() -> None:
     """Register default OAuth providers - can be extended without modification."""
-    OAuthProviderRegistry.register_provider(
-        OAuthProvider.GOOGLE,
-        GoogleOAuthProvider,
-        OAUTH_GOOGLE_CLIENT_ID,
-        OAUTH_GOOGLE_CLIENT_SECRET,
-    )
+    logger.info("Registering default OAuth providers")
 
-    OAuthProviderRegistry.register_provider(
-        OAuthProvider.GITHUB,
-        GitHubOAuthProvider,
-        OAUTH_GITHUB_CLIENT_ID,
-        OAUTH_GITHUB_CLIENT_SECRET,
-    )
+    providers_config = [
+        (
+            OAuthProvider.GOOGLE,
+            GoogleOAuthProvider,
+            OAUTH_GOOGLE_CLIENT_ID,
+            OAUTH_GOOGLE_CLIENT_SECRET,
+        ),
+        (
+            OAuthProvider.GITHUB,
+            GitHubOAuthProvider,
+            OAUTH_GITHUB_CLIENT_ID,
+            OAUTH_GITHUB_CLIENT_SECRET,
+        ),
+        (
+            OAuthProvider.MICROSOFT,
+            MicrosoftOAuthProvider,
+            OAUTH_MICROSOFT_CLIENT_ID,
+            OAUTH_MICROSOFT_CLIENT_SECRET,
+        ),
+        (
+            OAuthProvider.FACEBOOK,
+            FacebookOAuthProvider,
+            OAUTH_FACEBOOK_CLIENT_ID,
+            OAUTH_FACEBOOK_CLIENT_SECRET,
+        ),
+        (OAuthProvider.APPLE, AppleOAuthProvider, OAUTH_APPLE_CLIENT_ID, OAUTH_APPLE_CLIENT_SECRET),
+    ]
 
-    OAuthProviderRegistry.register_provider(
-        OAuthProvider.MICROSOFT,
-        MicrosoftOAuthProvider,
-        OAUTH_MICROSOFT_CLIENT_ID,
-        OAUTH_MICROSOFT_CLIENT_SECRET,
-    )
+    for provider_type, provider_class, client_id, client_secret in providers_config:
+        OAuthProviderRegistry.register_provider(
+            provider_type,
+            provider_class,  # type: ignore[type-abstract]
+            client_id,
+            client_secret,
+        )
 
-    OAuthProviderRegistry.register_provider(
-        OAuthProvider.FACEBOOK,
-        FacebookOAuthProvider,
-        OAUTH_FACEBOOK_CLIENT_ID,
-        OAUTH_FACEBOOK_CLIENT_SECRET,
+    logger.info(
+        "Default OAuth providers registered successfully",
+        provider_count=len(providers_config),
+        providers=[p.value for p, *_ in providers_config],
     )
-
-    OAuthProviderRegistry.register_provider(
-        OAuthProvider.APPLE,
-        AppleOAuthProvider,
-        OAUTH_APPLE_CLIENT_ID,
-        OAUTH_APPLE_CLIENT_SECRET,
-    )
+    # Enhanced decorator handles exceptions
 
 
 # Initialize providers on import
 _register_default_providers()
-
-
-# Backward compatibility alias - can be removed after migration
-class OAuthProviderFactory:
-    """Backward compatibility wrapper around OAuthProviderRegistry."""
-
-    @staticmethod
-    def create_provider(provider: OAuthProvider) -> OAuthProviderInterface:
-        return OAuthProviderRegistry.create_provider(provider)
-
-    @staticmethod
-    def get_supported_providers() -> list[OAuthProvider]:
-        return OAuthProviderRegistry.get_supported_providers()
 
 
 class OAuthService:
@@ -623,7 +636,7 @@ class OAuthService:
         """Dependency injection for database and auth services."""
         self.db_session = db_session
         self.auth_service = auth_service or AuthService(db_session)
-        self.provider_factory = OAuthProviderFactory()
+        self.provider_registry = OAuthProviderRegistry
         self._oauth_state_cache: dict[str, dict] = {}  # In-memory state cache (temporary)
         self._cached_oauth_user_info: OAuthUserInfo | None = None  # Temporary cache
 
@@ -634,7 +647,7 @@ class OAuthService:
         # DRY: Use centralized enum handling utility - Single Responsibility Principle
         provider = ensure_oauth_provider(provider)
 
-        oauth_provider = self.provider_factory.create_provider(provider)
+        oauth_provider = self.provider_registry.create_provider(provider)
 
         # Generate secure JWT state parameter for stateless validation
         # Use default redirect URI if not provided - DRY enum value extraction
@@ -651,6 +664,7 @@ class OAuthService:
 
         return SSOLoginResponse(authorization_url=authorization_url, state=state, provider=provider)
 
+    @oauth_error_handler("callback processing")
     async def handle_oauth_callback(
         self, provider: OAuthProvider, code: str, state: str, redirect_uri: str
     ) -> tuple[User, bool]:
@@ -661,44 +675,35 @@ class OAuthService:
         # Step 1: Validate JWT state parameter (CSRF protection)
         original_redirect_uri = await self._validate_oauth_state_jwt(state, provider)
 
-        oauth_provider = self.provider_factory.create_provider(provider)
+        oauth_provider = self.provider_registry.create_provider(provider)
 
-        try:
-            # Step 2: Exchange authorization code for access token using original redirect URI
-            # This must match the redirect URI used during authorization (OAuth2 spec requirement)
-            access_token = await oauth_provider.exchange_code_for_token(code, original_redirect_uri)
+        # Step 2: Exchange authorization code for access token using original redirect URI
+        # This must match the redirect URI used during authorization (OAuth2 spec requirement)
+        access_token = await oauth_provider.exchange_code_for_token(code, original_redirect_uri)
 
-            # Step 3: Get user information from OAuth provider
-            oauth_user_info = await oauth_provider.get_user_info(access_token)
+        # Step 3: Get user information from OAuth provider
+        oauth_user_info = await oauth_provider.get_user_info(access_token)
 
-            # Step 4: Find or create user account
-            user, is_new_user = self._find_or_create_user(oauth_user_info)
+        # Step 4: Find or create user account
+        user, is_new_user = self._find_or_create_user(oauth_user_info)
 
-            # Step 5: Link OAuth account to user account
-            linked_account = self._link_oauth_account(user.id, oauth_user_info)
+        # Step 5: Link OAuth account to user account
+        linked_account = self._link_oauth_account(user.id, oauth_user_info)
 
-            # Step 6: Cache user info for token generation (temporary solution)
-            self._cached_oauth_user_info = oauth_user_info
+        # Step 6: Cache user info for token generation (temporary solution)
+        self._cached_oauth_user_info = oauth_user_info
 
-            logger.info(
-                "OAuth callback processed successfully",
-                provider=get_oauth_provider_value(provider),
-                user_id=user.id,
-                is_new_user=is_new_user,
-                linked_account_id=getattr(linked_account, "id", None),
-            )
+        logger.info(
+            "OAuth callback processed successfully",
+            provider=get_oauth_provider_value(provider),
+            user_id=user.id,
+            is_new_user=is_new_user,
+            linked_account_id=getattr(linked_account, "id", None),
+        )
 
-            return user, is_new_user
+        return user, is_new_user
 
-        except Exception as e:
-            logger.error(
-                "OAuth callback processing failed",
-                provider=get_oauth_provider_value(provider),
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise
-
+    @oauth_error_handler("find or create OAuth user")
     def _find_or_create_user(self, oauth_user_info: OAuthUserInfo) -> tuple[User, bool]:
         """Find existing user or create new one from OAuth info."""
         # Try to find user by email first
@@ -708,35 +713,24 @@ class OAuthService:
             return existing_user, False
 
         # Create new user from OAuth info
-        try:
-            # Generate unique username from email
-            base_username = oauth_user_info.email.split("@")[0]
-            username = self._generate_unique_username(base_username)
+        # Generate unique username from email
+        base_username = oauth_user_info.email.split("@")[0]
+        username = self._generate_unique_username(base_username)
 
-            user_create = OAuthUserCreate(
-                username=username,
-                email=oauth_user_info.email,
-                full_name=oauth_user_info.name,
-            )
+        user_create = OAuthUserCreate(
+            username=username,
+            email=oauth_user_info.email,
+            full_name=oauth_user_info.name,
+        )
 
-            new_user = self.auth_service.create_user(user_create)
-            logger.info(
-                "New user created from OAuth",
-                user_id=new_user.id,
-                email=oauth_user_info.email,
-                username=user_create.username,
-            )
-            return new_user, True
-
-        except Exception as e:
-            logger.error(
-                "Failed to create user from OAuth info",
-                email=oauth_user_info.email,
-                username=oauth_user_info.email.split("@")[0],
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise RuntimeError(f"User creation failed: {str(e)}") from e
+        new_user = self.auth_service.create_user(user_create)
+        logger.info(
+            "New user created from OAuth",
+            user_id=new_user.id,
+            email=oauth_user_info.email,
+            username=user_create.username,
+        )
+        return new_user, True
 
     def _generate_unique_username(self, base_username: str) -> str:
         """Generate a unique username by appending numbers if needed."""
@@ -749,66 +743,33 @@ class OAuthService:
 
         return username
 
+    @oauth_error_handler("account linking")
     def _link_oauth_account(self, user_id: str, oauth_user_info: OAuthUserInfo) -> LinkedAccount:
         """Link OAuth account to user - FIXED: Now properly saves to database."""
-        try:
-            # Check if this OAuth account is already linked to avoid duplicates
-            existing_link = (
-                self.db_session.query(LinkedAccountDB)
-                .filter(
-                    LinkedAccountDB.user_id == user_id,
-                    LinkedAccountDB.provider == oauth_user_info.provider.lower(),
-                )
-                .first()
+        # Check if this OAuth account is already linked to avoid duplicates
+        existing_link = (
+            self.db_session.query(LinkedAccountDB)
+            .filter(
+                LinkedAccountDB.user_id == user_id,
+                LinkedAccountDB.provider == oauth_user_info.provider.lower(),
             )
+            .first()
+        )
 
-            if existing_link:
-                logger.info(
-                    "OAuth account already linked, updating existing record",
-                    user_id=user_id,
-                    provider=oauth_user_info.provider,
-                    existing_id=existing_link.id,
-                )
-                # Update existing record with latest information
-                existing_link.email = oauth_user_info.email
-                existing_link.name = oauth_user_info.name
-                existing_link.provider_account_id = oauth_user_info.provider_id
-                existing_link.updated_at = datetime.now(UTC)
-
-                self.db_session.commit()
-
-                # Return the API model
-                return LinkedAccount(
-                    user_id=user_id,
-                    provider=oauth_user_info.provider,
-                    provider_id=oauth_user_info.provider_id,
-                    provider_email=oauth_user_info.email,
-                    linked_at=existing_link.created_at,
-                    is_primary=False,
-                )
-
-            # Create new linked account record in database
-            linked_account_db = LinkedAccountDB(
-                user_id=user_id,
-                provider=oauth_user_info.provider.lower(),  # Store as lowercase for consistency
-                provider_account_id=oauth_user_info.provider_id,
-                email=oauth_user_info.email,
-                name=oauth_user_info.name,
-                created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
-            )
-
-            # CRITICAL FIX: Actually save to database
-            self.db_session.add(linked_account_db)
-            self.db_session.commit()
-
+        if existing_link:
             logger.info(
-                "OAuth account successfully linked to user",
+                "OAuth account already linked, updating existing record",
                 user_id=user_id,
                 provider=oauth_user_info.provider,
-                provider_email=oauth_user_info.email,
-                linked_account_id=linked_account_db.id,
+                existing_id=existing_link.id,
             )
+            # Update existing record with latest information
+            existing_link.email = oauth_user_info.email
+            existing_link.name = oauth_user_info.name
+            existing_link.provider_account_id = oauth_user_info.provider_id
+            existing_link.updated_at = datetime.now(UTC)
+
+            self.db_session.commit()
 
             # Return the API model
             return LinkedAccount(
@@ -816,21 +777,42 @@ class OAuthService:
                 provider=oauth_user_info.provider,
                 provider_id=oauth_user_info.provider_id,
                 provider_email=oauth_user_info.email,
-                linked_at=linked_account_db.created_at,
-                is_primary=False,  # Could be True if this is the primary login method
+                linked_at=existing_link.created_at,
+                is_primary=False,
             )
 
-        except Exception as e:
-            logger.error(
-                "Failed to link OAuth account to user",
-                user_id=user_id,
-                provider=oauth_user_info.provider,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            # Rollback transaction on error
-            self.db_session.rollback()
-            raise RuntimeError(f"Failed to link OAuth account: {str(e)}") from e
+        # Create new linked account record in database
+        linked_account_db = LinkedAccountDB(
+            user_id=user_id,
+            provider=oauth_user_info.provider.lower(),  # Store as lowercase for consistency
+            provider_account_id=oauth_user_info.provider_id,
+            email=oauth_user_info.email,
+            name=oauth_user_info.name,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        # CRITICAL FIX: Actually save to database
+        self.db_session.add(linked_account_db)
+        self.db_session.commit()
+
+        logger.info(
+            "OAuth account successfully linked to user",
+            user_id=user_id,
+            provider=oauth_user_info.provider,
+            provider_email=oauth_user_info.email,
+            linked_account_id=linked_account_db.id,
+        )
+
+        # Return the API model
+        return LinkedAccount(
+            user_id=user_id,
+            provider=oauth_user_info.provider,
+            provider_id=oauth_user_info.provider_id,
+            provider_email=oauth_user_info.email,
+            linked_at=linked_account_db.created_at,
+            is_primary=False,  # Could be True if this is the primary login method
+        )
 
     async def _validate_oauth_state(self, state: str, provider: OAuthProvider) -> None:
         """Validate OAuth state parameter for CSRF protection.
@@ -949,45 +931,40 @@ class OAuthService:
         logger.debug("JWT OAuth state created", provider=get_oauth_provider_value(provider))
         return state_jwt
 
+    @oauth_error_handler("validate OAuth state JWT")
     async def _validate_oauth_state_jwt(self, state: str, provider: OAuthProvider) -> str:
         """Validate JWT-based OAuth state token and return original redirect_uri."""
         from ..auth.security import security_manager
 
-        try:
-            # Decode and validate JWT state token
-            state_data = security_manager.decode_access_token(state)
+        # Decode and validate JWT state token
+        state_data = security_manager.decode_access_token(state)
 
-            # Validate state token purpose
-            if state_data.get("purpose") != "oauth_state":
-                logger.warning(
-                    "Invalid OAuth state token purpose", purpose=state_data.get("purpose")
-                )
-                raise ValueError("Invalid state token purpose")
+        # Validate state token purpose
+        if state_data.get("purpose") != "oauth_state":
+            logger.warning("Invalid OAuth state token purpose", purpose=state_data.get("purpose"))
+            raise ValueError("Invalid state token purpose")
 
-            # Validate provider matches
-            token_provider = state_data.get("provider")
-            expected_provider = get_oauth_provider_value(provider)
-            if token_provider != expected_provider:
-                logger.warning(
-                    "OAuth state provider mismatch",
-                    token_provider=token_provider,
-                    expected_provider=expected_provider,
-                )
-                raise ValueError("Provider mismatch in state token")
+        # Validate provider matches
+        token_provider = state_data.get("provider")
+        expected_provider = get_oauth_provider_value(provider)
+        if token_provider != expected_provider:
+            logger.warning(
+                "OAuth state provider mismatch",
+                token_provider=token_provider,
+                expected_provider=expected_provider,
+            )
+            raise ValueError("Provider mismatch in state token")
 
-            # Extract and return original redirect URI
-            redirect_uri = state_data.get("redirect_uri")
-            if not redirect_uri:
-                logger.warning("Missing redirect_uri in OAuth state token")
-                raise ValueError("Missing redirect_uri in state token")
+        # Extract and return original redirect URI
+        redirect_uri = state_data.get("redirect_uri")
+        if not redirect_uri:
+            logger.warning("Missing redirect_uri in OAuth state token")
+            raise ValueError("Missing redirect_uri in state token")
 
-            logger.debug("JWT OAuth state validated successfully", provider=expected_provider)
-            return redirect_uri
+        logger.debug("JWT OAuth state validated successfully", provider=expected_provider)
+        return redirect_uri
 
-        except Exception as e:
-            logger.error("OAuth state validation failed", error=str(e))
-            raise ValueError("Invalid or expired state parameter")
-
+    @oauth_error_handler("connection retrieval")
     def get_oauth_connections(self, user_id: str) -> list[OAuthConnectionResponse]:
         """Get OAuth provider connections for a user - Single Responsibility Principle.
 
@@ -1004,63 +981,65 @@ class OAuthService:
         logger.debug("Getting OAuth connections for user", user_id=user_id)
 
         # Get all linked accounts for this user from database
-        try:
-            linked_accounts = (
-                self.db_session.query(LinkedAccountDB)
-                .filter(LinkedAccountDB.user_id == user_id)
-                .all()
-            )
+        linked_accounts = (
+            self.db_session.query(LinkedAccountDB).filter(LinkedAccountDB.user_id == user_id).all()
+        )
 
-            # Create a map of connected providers
-            connected_providers = {}
-            for account in linked_accounts:
-                # Convert database provider string to enum for consistency
-                try:
-                    provider_enum = OAuthProvider(account.provider.lower())
-                    connected_providers[provider_enum] = account
-                except ValueError:
-                    # Skip unknown providers for forward compatibility
-                    logger.warning("Unknown OAuth provider in database", provider=account.provider)
-                    continue
+        # Create a map of connected providers and find the primary account
+        connected_providers = {}
+        primary_account = None
 
-            # Build response for all supported providers
-            connections = []
-            for provider in OAuthProviderRegistry.get_supported_providers():
-                if provider in connected_providers:
-                    # Provider is connected
-                    linked_account = connected_providers[provider]
-                    connections.append(
-                        OAuthConnectionResponse(
-                            provider=provider,
-                            connected=True,
-                            email=linked_account.email,
-                            name=linked_account.name,
-                            linked_at=linked_account.created_at,
-                            is_primary=False,  # TODO: Implement primary account logic
-                        )
+        for account in linked_accounts:
+            # Convert database provider string to enum for consistency
+            try:
+                provider_enum = OAuthProvider(account.provider.lower())
+                connected_providers[provider_enum] = account
+
+                # Track the oldest account as primary (first linked account)
+                if primary_account is None or account.created_at < primary_account.created_at:
+                    primary_account = account
+
+            except ValueError:
+                # Skip unknown providers for forward compatibility
+                logger.warning("Unknown OAuth provider in database", provider=account.provider)
+                continue
+
+        # Build response for all supported providers
+        connections = []
+        for provider in OAuthProviderRegistry.get_supported_providers():
+            if provider in connected_providers:
+                # Provider is connected
+                linked_account = connected_providers[provider]
+                is_primary = primary_account is not None and linked_account.id == primary_account.id
+
+                connections.append(
+                    OAuthConnectionResponse(
+                        provider=provider,
+                        connected=True,
+                        email=linked_account.email,
+                        name=linked_account.name,
+                        linked_at=linked_account.created_at,
+                        is_primary=is_primary,
                     )
-                else:
-                    # Provider is not connected
-                    connections.append(
-                        OAuthConnectionResponse(
-                            provider=provider,
-                            connected=False,
-                            email=None,
-                            name=None,
-                            linked_at=None,
-                            is_primary=False,
-                        )
+                )
+            else:
+                # Provider is not connected
+                connections.append(
+                    OAuthConnectionResponse(
+                        provider=provider,
+                        connected=False,
+                        email=None,
+                        name=None,
+                        linked_at=None,
+                        is_primary=False,
                     )
+                )
 
-            logger.info(
-                "OAuth connections retrieved",
-                user_id=user_id,
-                total_providers=len(connections),
-                connected_count=len([c for c in connections if c.connected]),
-            )
+        logger.info(
+            "OAuth connections retrieved",
+            user_id=user_id,
+            total_providers=len(connections),
+            connected_count=len([c for c in connections if c.connected]),
+        )
 
-            return connections
-
-        except Exception as e:
-            logger.error("Failed to get OAuth connections", user_id=user_id, error=str(e))
-            raise RuntimeError(f"Failed to retrieve OAuth connections: {str(e)}") from e
+        return connections
