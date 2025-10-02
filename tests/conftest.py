@@ -102,8 +102,10 @@ def test_database_engine():
     # Use PostgreSQL test database for database parity (MANDATORY)
     # TEST_BUILDING.md: Tests must use same database as production
     # Note: Using postgresql+psycopg for psycopg3 driver (modern async support)
+    # CI sets DATABASE_URL to shard-specific databases (test_db_shard_N)
+    # Local development fallback uses test_db created by PostgreSQL service
     test_db_url = os.environ.get(
-        "DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/csfrace_test"
+        "DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
     )
 
     engine = create_engine(
