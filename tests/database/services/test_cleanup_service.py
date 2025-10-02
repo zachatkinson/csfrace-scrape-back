@@ -131,9 +131,9 @@ class TestCleanupService:
     def test_cleanup_failed_jobs_default_days(self, cleanup_service, test_session, create_job):
         """Test cleanup of failed jobs with default 3 days retention."""
         # Arrange
-        old_failed_job = create_job(status=JobStatus.FAILED)
-        old_failed_job.created_at = datetime.now(UTC) - timedelta(days=5)
-        test_session.commit()
+        # Create job with explicit old date (5 days ago)
+        old_date = datetime.now(UTC) - timedelta(days=5)
+        old_failed_job = create_job(status=JobStatus.FAILED, created_at=old_date)
 
         # Act
         deleted_count = cleanup_service.cleanup_failed_jobs()  # Default 3 days
@@ -146,9 +146,9 @@ class TestCleanupService:
     def test_cleanup_failed_jobs_preserves_recent(self, cleanup_service, test_session, create_job):
         """Test that recent failed jobs are preserved."""
         # Arrange
-        recent_failed_job = create_job(status=JobStatus.FAILED)
-        recent_failed_job.created_at = datetime.now(UTC) - timedelta(days=1)
-        test_session.commit()
+        # Create job with explicit recent date (1 day ago)
+        recent_date = datetime.now(UTC) - timedelta(days=1)
+        recent_failed_job = create_job(status=JobStatus.FAILED, created_at=recent_date)
 
         # Act
         deleted_count = cleanup_service.cleanup_failed_jobs(days=3)
@@ -157,6 +157,7 @@ class TestCleanupService:
         assert deleted_count == 0
 
         # Verify recent failed job still exists
+        test_session.expire_all()  # Clear cache
         remaining_job = (
             test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_failed_job.id).first()
         )

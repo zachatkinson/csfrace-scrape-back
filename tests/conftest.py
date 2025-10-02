@@ -182,10 +182,16 @@ def test_session(test_database_engine):
     session = TestingSessionLocal()
     try:
         yield session
-        session.commit()  # Commit any pending changes
+        # Rollback any pending transaction errors before attempting commit
+        if session.in_transaction() and session.is_active:
+            try:
+                session.commit()  # Commit any pending changes
+            except Exception:
+                session.rollback()  # Rollback on error
     finally:
         # Clean up all test data for isolation (MANDATORY per TEST_BUILDING.md)
         try:
+            session.rollback()  # Ensure clean state before cleanup
             session.query(JobLog).delete()
             session.query(ContentResult).delete()
             session.query(ScrapingJob).delete()
