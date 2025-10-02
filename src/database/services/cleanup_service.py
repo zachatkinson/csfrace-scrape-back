@@ -179,6 +179,13 @@ class CleanupService:
         # Get engine from connection or use bind directly if it's already an engine
         engine = bind.engine if isinstance(bind, SQLConnection) else cast("Engine", bind)
 
+        # When using nested transactions (SAVEPOINT), we need to close the session's connection
+        # before creating a new connection with AUTOCOMMIT mode, since psycopg won't allow
+        # changing autocommit on a connection with an active transaction
+        if isinstance(bind, SQLConnection):
+            # Close the session to release the connection back to the pool
+            self.session.close()
+
         # Create new connection with autocommit mode (PostgreSQL requirement)
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             # Execute VACUUM with autocommit isolation level
