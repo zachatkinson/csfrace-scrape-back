@@ -800,7 +800,7 @@ jobs:
           # SMOKE TESTS ONLY - comprehensive testing handled by Ubuntu shards
           # Focus on platform-specific compatibility and core functionality validation
           # Test core modules that are most likely to have platform-specific issues
-          uv run pytest tests/unit/utils/test_http.py tests/unit/config/ tests/unit/caching/test_file_cache.py tests/unit/core/test_converter.py -k "not integration and not performance and not e2e and not database and not slow" -x --tb=short --maxfail=3 --junit-xml=junit-smoke-${{ matrix.os }}.xml -v
+          uv run pytest tests/utils/test_http.py tests/config/ tests/caching/test_file_cache.py tests/core/test_core_converter.py -k "not integration and not performance and not e2e and not database and not slow" -x --tb=short --maxfail=3 --junit-xml=junit-smoke-${{ matrix.os }}.xml -v
 
           # Verify core imports work on platform
           uv run python -c "import src.main; import src.core.converter; print('Core imports successful')"
