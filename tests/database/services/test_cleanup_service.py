@@ -51,9 +51,49 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_success(self, cleanup_service, test_session, old_job, recent_job):
+    def test_cleanup_jobs_success(self, cleanup_service, test_session):
         """Test successful cleanup of old jobs."""
         # Arrange
+        # Manually create jobs to avoid fixture ordering issues
+        from src.database.models.auth import User
+        from uuid import uuid4
+
+        # Create user
+        user = User(
+            id=str(uuid4()),
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            created_at=datetime.now(UTC),
+        )
+        test_session.add(user)
+        test_session.flush()
+
+        # Create old job (10 days old)
+        old_date = datetime.now(UTC) - timedelta(days=10)
+        old_job = ScrapingJob(
+            id=str(uuid4()),
+            source_url="https://example.com/old",
+            user_id=user.id,
+            status=JobStatus.COMPLETED.value,
+            created_at=old_date,
+            domain="example.com",
+        )
+        test_session.add(old_job)
+
+        # Create recent job (12 hours old)
+        recent_date = datetime.now(UTC) - timedelta(hours=12)
+        recent_job = ScrapingJob(
+            id=str(uuid4()),
+            source_url="https://example.com/recent",
+            user_id=user.id,
+            status=JobStatus.COMPLETED.value,
+            created_at=recent_date,
+            domain="example.com",
+        )
+        test_session.add(recent_job)
+        test_session.commit()
+
         days_to_keep = 7
 
         # Act
@@ -75,12 +115,34 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_default_days(self, cleanup_service, test_session, create_job):
+    def test_cleanup_jobs_default_days(self, cleanup_service, test_session):
         """Test cleanup with default 7 days retention."""
         # Arrange
-        # Create job with explicit old date (10 days ago)
+        # Manually create job to avoid fixture issues
+        from src.database.models.auth import User
+        from uuid import uuid4
+
+        user = User(
+            id=str(uuid4()),
+            username="testuser2",
+            email="test2@example.com",
+            full_name="Test User 2",
+            created_at=datetime.now(UTC),
+        )
+        test_session.add(user)
+        test_session.flush()
+
         old_date = datetime.now(UTC) - timedelta(days=10)
-        very_old_job = create_job(status=JobStatus.COMPLETED, created_at=old_date)
+        very_old_job = ScrapingJob(
+            id=str(uuid4()),
+            source_url="https://example.com/very-old",
+            user_id=user.id,
+            status=JobStatus.COMPLETED.value,
+            created_at=old_date,
+            domain="example.com",
+        )
+        test_session.add(very_old_job)
+        test_session.commit()
 
         # Act
         updated_count = cleanup_service.cleanup_jobs()  # Default 7 days
@@ -143,12 +205,36 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_failed_jobs_preserves_recent(self, cleanup_service, test_session, create_job):
+    def test_cleanup_failed_jobs_preserves_recent(self, cleanup_service, test_session):
         """Test that recent failed jobs are preserved."""
         # Arrange
-        # Create job with explicit recent date (1 day ago)
+        # Manually create job to avoid ObjectDeletedError
+        from src.database.models.auth import User
+        from uuid import uuid4
+
+        user = User(
+            id=str(uuid4()),
+            username="testuser3",
+            email="test3@example.com",
+            full_name="Test User 3",
+            created_at=datetime.now(UTC),
+        )
+        test_session.add(user)
+        test_session.flush()
+
         recent_date = datetime.now(UTC) - timedelta(days=1)
-        recent_failed_job = create_job(status=JobStatus.FAILED, created_at=recent_date)
+        recent_failed_job = ScrapingJob(
+            id=str(uuid4()),
+            source_url="https://example.com/recent-failed",
+            user_id=user.id,
+            status=JobStatus.FAILED.value,
+            created_at=recent_date,
+            domain="example.com",
+        )
+        test_session.add(recent_failed_job)
+        test_session.commit()
+
+        recent_failed_job_id = recent_failed_job.id
 
         # Act
         deleted_count = cleanup_service.cleanup_failed_jobs(days=3)
@@ -159,7 +245,7 @@ class TestCleanupService:
         # Verify recent failed job still exists
         test_session.expire_all()  # Clear cache
         remaining_job = (
-            test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_failed_job.id).first()
+            test_session.query(ScrapingJob).filter(ScrapingJob.id == recent_failed_job_id).first()
         )
         assert remaining_job is not None
 
