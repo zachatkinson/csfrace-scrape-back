@@ -18,7 +18,7 @@ from src.common.status import JobStatus
 from src.database.models.auth import (
     User,  # noqa: F401 - Import at module level for test_database_engine
 )
-from src.database.models.jobs import ScrapingJob
+from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
 from src.database.services.job_service import JobService
 from src.database.services.statistics_service import StatisticsService
 from tests.conftest import JobFactory
@@ -32,7 +32,10 @@ class TestStatisticsServiceJobStatistics:
         """Test basic job statistics calculation."""
         # Arrange
         # Cleanup any existing jobs from other tests to ensure isolation
+        test_session.query(JobLog).delete()
+        test_session.query(ContentResult).delete()
         test_session.query(ScrapingJob).delete()
+        test_session.query(User).delete()
         test_session.commit()
 
         job_service = JobService(test_session)

@@ -288,10 +288,15 @@ class TestCleanupService:
         from sqlalchemy import text
 
         # Arrange
+        # Ensure clean state - delete any leftover data from other tests
+        test_session.query(ContentResult).delete()
+        test_session.query(ScrapingJob).delete()
+        test_session.commit()
+
         # Create two jobs - one to keep, one to delete
+        # Note: create_job() already commits, so jobs are persisted
         job_to_keep = create_job()
         job_to_delete = create_job()
-        test_session.commit()  # Commit jobs first so they exist for foreign keys
 
         # Create content record linked to job we'll keep
         linked_content = ContentResult(
