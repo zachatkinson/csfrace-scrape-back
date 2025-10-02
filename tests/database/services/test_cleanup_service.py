@@ -54,14 +54,13 @@ class TestCleanupService:
     def test_cleanup_jobs_success(self, cleanup_service, test_session, old_job, recent_job):
         """Test successful cleanup of old jobs."""
         # Arrange
-        # Ensure jobs are committed before cleanup
-        test_session.commit()
+        # Ensure old_job and recent_job fixtures are fully created before counting
+        test_session.flush()  # Flush to ensure jobs are in database
         initial_count = test_session.query(ScrapingJob).count()
         days_to_keep = 7
 
         # Act
         deleted_count = cleanup_service.cleanup_jobs(days=days_to_keep)
-        test_session.commit()  # Ensure changes are committed
 
         # Assert
         assert deleted_count >= 1  # At least the old job should be cleaned up
