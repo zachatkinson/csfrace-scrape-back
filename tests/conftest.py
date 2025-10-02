@@ -173,36 +173,42 @@ def mock_session():
 
 @pytest.fixture
 def test_session(test_database_engine):
-    """Provide real database session for integration tests.
+    """Provide real database session for integration tests with nested transaction isolation.
 
-    Creates fresh session for each test with automatic cleanup.
-    Cleans up all data after test to ensure isolation.
+    Uses SAVEPOINT (nested transactions) for proper isolation in parallel test execution.
+    Each test runs in its own nested transaction that gets rolled back, preventing
+    interference between pytest-xdist workers sharing the same database.
+
+    This follows pytest best practices for database testing:
+    https://docs.pytest.org/en/stable/how-to/fixtures.html#teardown-cleanup
     """
     # Models already imported at module level
+    from sqlalchemy import event
 
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_database_engine)
-    session = TestingSessionLocal()
+    connection = test_database_engine.connect()
+    transaction = connection.begin()  # Start outer transaction
+    session = TestingSessionLocal(bind=connection)
+
+    # Begin nested transaction (SAVEPOINT) for test isolation
+    nested = connection.begin_nested()
+
+    # When session.commit() is called, only commit the SAVEPOINT, not the outer transaction
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(session, transaction):
+        if transaction.nested and not transaction._parent.nested:
+            # Restart SAVEPOINT after each commit/rollback
+            session.expire_all()
+            session.begin_nested()
+
     try:
         yield session
-        # Rollback any pending transaction errors before attempting commit
-        if session.in_transaction() and session.is_active:
-            try:
-                session.commit()  # Commit any pending changes
-            except Exception:
-                session.rollback()  # Rollback on error
     finally:
-        # Clean up all test data for isolation (MANDATORY per TEST_BUILDING.md)
-        try:
-            session.rollback()  # Ensure clean state before cleanup
-            session.query(JobLog).delete()
-            session.query(ContentResult).delete()
-            session.query(ScrapingJob).delete()
-            session.query(User).delete()
-            session.commit()
-        except Exception:
-            session.rollback()
-        finally:
-            session.close()
+        # Always rollback to the SAVEPOINT - this undoes all changes made during the test
+        # This ensures complete isolation between parallel tests
+        session.close()
+        transaction.rollback()  # Rollback outer transaction (undoes everything)
+        connection.close()
 
 
 # ============================================================================
@@ -314,7 +320,6 @@ def create_job(test_session, faker_instance):
     Automatically creates a User if user_id is not provided (foreign key constraint).
     """
     from src.common.status import JobStatus
-    from src.database.models.jobs import ScrapingJob
 
     def _create_job(
         source_url: str | None = None,
@@ -430,7 +435,6 @@ class JobFactory:
         MANDATORY: Always creates User if needed to satisfy foreign key constraint.
         """
         from src.common.status import JobStatus
-        from src.database.models.jobs import ScrapingJob
 
         # Ensure user exists (MANDATORY for foreign key)
         user_id = kwargs.get("user_id")
@@ -684,8 +688,10 @@ def redis_available():
 
 def assert_valid_uuid(uuid_string: str) -> bool:
     """Utility function to validate UUID strings."""
+    from uuid import UUID
+
     try:
-        uuid4(uuid_string)
+        UUID(uuid_string)
         return True
     except (ValueError, TypeError):
         return False
