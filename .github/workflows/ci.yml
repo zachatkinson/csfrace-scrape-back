@@ -1023,10 +1023,10 @@ jobs:
 
       - name: Run performance tests
         run: |
-          # Run all performance tests including memory profiling and benchmarks
-          # Don't use --benchmark-only as it skips non-benchmark tests (memory profiler, cache tests)
-          # Remove --benchmark-compare-fail for initial runs (requires baseline comparison)
-          uv run pytest tests/performance/ --benchmark-json=benchmark.json --benchmark-sort=mean --junit-xml=junit-performance.xml -v
+          # Run all benchmark tests across the test suite using --benchmark-only
+          # Benchmark tests are distributed throughout tests/ and marked with benchmark fixture
+          # This collects all performance benchmarks regardless of location
+          uv run pytest tests/ --benchmark-only --benchmark-json=benchmark.json --benchmark-sort=mean --junit-xml=junit-performance.xml -v
           
           # Generate human-readable benchmark report
           echo "## 🚀 Performance Benchmark Results" > benchmark-report.md
