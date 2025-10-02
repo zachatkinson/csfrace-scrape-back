@@ -179,17 +179,26 @@ class CleanupService:
         # Get engine from connection or use bind directly if it's already an engine
         engine = bind.engine if isinstance(bind, SQLConnection) else cast("Engine", bind)
 
-        # When using nested transactions (SAVEPOINT), we need to close the session's connection
-        # before creating a new connection with AUTOCOMMIT mode, since psycopg won't allow
-        # changing autocommit on a connection with an active transaction
+        # When using nested transactions (SAVEPOINT fixture), we need to get a raw psycopg connection
+        # directly from the pool and set autocommit mode before any SQLAlchemy session interaction
         if isinstance(bind, SQLConnection):
-            # Close the session to release the connection back to the pool
-            self.session.close()
-
-        # Create new connection with autocommit mode (PostgreSQL requirement)
-        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
-            # Execute VACUUM with autocommit isolation level
-            connection.execute(text("VACUUM ANALYZE"))
+            # For nested transactions, get the underlying psycopg connection directly
+            # This bypasses SQLAlchemy's transaction management
+            raw_conn = engine.raw_connection()
+            try:
+                # Set autocommit at the psycopg level
+                raw_conn.connection.autocommit = True
+                # Execute VACUUM using the raw cursor
+                cursor = raw_conn.cursor()
+                cursor.execute("VACUUM ANALYZE")
+                cursor.close()
+            finally:
+                # Return connection to pool
+                raw_conn.close()
+        else:
+            # Normal path for production/non-test scenarios
+            with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+                connection.execute(text("VACUUM ANALYZE"))
 
         logger.info("Database vacuum completed")
 
