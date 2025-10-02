@@ -218,6 +218,10 @@ def setup_test_environment():
     Autouse + session scope ensures this runs once for entire test suite.
     Ref: https://docs.pytest.org/en/stable/how-to/fixtures.html#autouse-fixtures
     """
+    # CRITICAL: Import User model in autouse fixture to ensure ALL workers have it
+    # This happens BEFORE any test_database_engine fixtures run
+    from src.database.models.auth import User  # noqa: F401
+
     # Store original environment to restore later
     original_env = os.environ.copy()
 
