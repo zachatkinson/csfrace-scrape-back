@@ -106,8 +106,8 @@ def test_database_engine():
     # TEST_BUILDING.md: Tests must use same database as production
     # Note: Using postgresql+psycopg for psycopg3 driver (modern async support)
 
-    # CI can provide DATABASE_URL directly (unit shards) or individual components (integration tests)
-    test_db_url = os.environ.get("DATABASE_URL")
+    # CI can provide TEST_DATABASE_URL (unit shards) or DATABASE_URL (integration tests) or individual components
+    test_db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
 
     if not test_db_url:
         # Build URL from individual components (integration tests) or use defaults (local dev)
