@@ -31,9 +31,10 @@ from sqlalchemy.pool import StaticPool
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# CRITICAL: Import User model at module level for test_database_engine
-# This ensures the users table is created before any test fixtures run
+# Import all models at module level to ensure they're registered with SQLAlchemy metadata
+# BEFORE any test_database_engine fixtures run (critical for pytest-xdist)
 from src.database.models.auth import User  # noqa: F401, E402
+from src.database.models.jobs import ContentResult, JobLog, ScrapingJob  # noqa: F401, E402
 
 # Initialize faker with deterministic seed for reproducible tests
 fake = Faker()
@@ -101,10 +102,8 @@ def test_database_engine():
 
     Following TEST_BUILDING.md ZERO TOLERANCE: Tests MUST use same database as production.
     """
-    # Import all models BEFORE create_all() so they're registered with Base.metadata
-    from src.database.models.auth import User  # noqa: F401
+    # Models already imported at module level, just need Base for metadata
     from src.database.models.base import Base
-    from src.database.models.jobs import ContentResult, JobLog, ScrapingJob  # noqa: F401
 
     # Use PostgreSQL test database for database parity (MANDATORY)
     # TEST_BUILDING.md: Tests must use same database as production
@@ -133,8 +132,8 @@ def test_database_engine():
 
     yield engine
 
-    # Cleanup: Drop all tables after module tests complete
-    Base.metadata.drop_all(engine)
+    # Cleanup: Just dispose engine, don't drop tables (causes deadlocks with pytest-xdist)
+    # Tables are dropped by test database recreation in CI
     engine.dispose()
 
 
@@ -179,7 +178,7 @@ def test_session(test_database_engine):
     Creates fresh session for each test with automatic cleanup.
     Cleans up all data after test to ensure isolation.
     """
-    from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
+    # Models already imported at module level
 
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_database_engine)
     session = TestingSessionLocal()
@@ -218,9 +217,6 @@ def setup_test_environment():
     Autouse + session scope ensures this runs once for entire test suite.
     Ref: https://docs.pytest.org/en/stable/how-to/fixtures.html#autouse-fixtures
     """
-    # CRITICAL: Import User model in autouse fixture to ensure ALL workers have it
-    # This happens BEFORE any test_database_engine fixtures run
-    from src.database.models.auth import User  # noqa: F401
 
     # Store original environment to restore later
     original_env = os.environ.copy()
