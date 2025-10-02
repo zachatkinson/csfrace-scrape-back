@@ -476,6 +476,22 @@ class TestPerformanceSummaryHelpers:
                 mock_safe.assert_called_once()
                 assert result == sample_performance_summary
 
+    def test_get_performance_summary_handles_safe_error(self):
+        """Test _get_performance_summary handles error from safe function - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        mock_monitor = MagicMock()
+        mock_safe = MagicMock(return_value=None)
+
+        with patch("src.api.routers.health.metrics_export.performance_monitor", mock_monitor):
+            with patch(
+                "src.api.routers.health.metrics_export._get_performance_data_safe", mock_safe
+            ):
+                # Act - MANDATORY
+                result = _get_performance_summary()
+
+                # Assert - MANDATORY
+                assert result == {}
+
 
 # ============================================================================
 # Error Handling Tests
@@ -501,22 +517,6 @@ class TestMetricsExportErrorHandling:
                 # Assert - MANDATORY
                 assert result["status"] == "error"
                 assert "Cache status check failed" in result["error"]
-
-    def test_get_performance_summary_handles_safe_error(self):
-        """Test _get_performance_summary handles error from safe function - MANDATORY AAA pattern."""
-        # Arrange - MANDATORY
-        mock_monitor = MagicMock()
-        mock_safe = MagicMock(return_value=None)
-
-        with patch("src.api.routers.health.metrics_export.performance_monitor", mock_monitor):
-            with patch(
-                "src.api.routers.health.metrics_export._get_performance_data_safe", mock_safe
-            ):
-                # Act - MANDATORY
-                result = _get_performance_summary()
-
-                # Assert - MANDATORY
-                assert result == {}
 
 
 # ============================================================================
