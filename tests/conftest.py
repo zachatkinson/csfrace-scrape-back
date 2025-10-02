@@ -102,6 +102,7 @@ def test_database_engine():
     Following TEST_BUILDING.md ZERO TOLERANCE: Tests MUST use same database as production.
     """
     # Import all models BEFORE create_all() so they're registered with Base.metadata
+    from src.database.models.auth import User  # noqa: F401
     from src.database.models.base import Base
     from src.database.models.jobs import ContentResult, JobLog, ScrapingJob  # noqa: F401
 
