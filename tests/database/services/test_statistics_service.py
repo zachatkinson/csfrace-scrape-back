@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.common.status import JobStatus
+from src.database.models.jobs import ScrapingJob
 from src.database.services.job_service import JobService
 from src.database.services.statistics_service import StatisticsService
 from tests.conftest import JobFactory
@@ -27,6 +28,10 @@ class TestStatisticsServiceJobStatistics:
     def test_get_job_statistics_basic(self, test_session):
         """Test basic job statistics calculation."""
         # Arrange
+        # Cleanup any existing jobs from other tests to ensure isolation
+        test_session.query(ScrapingJob).delete()
+        test_session.commit()
+
         job_service = JobService(test_session)
         stats_service = StatisticsService(test_session)
 
@@ -60,6 +65,10 @@ class TestStatisticsServiceJobStatistics:
     def test_get_job_statistics_no_jobs(self, test_session):
         """Test statistics with no jobs."""
         # Arrange
+        # Cleanup any existing jobs to ensure zero-job scenario
+        test_session.query(ScrapingJob).delete()
+        test_session.commit()
+
         stats_service = StatisticsService(test_session)
 
         # Act

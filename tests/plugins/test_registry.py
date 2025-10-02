@@ -597,13 +597,19 @@ class TestRegistrySecurity:
             # Clean up for next iteration
             registry.unregister_plugin("test_plugin")
 
-    def test_config_file_path_traversal(self, registry: PluginRegistry):
+    def test_config_file_path_traversal(self, registry: PluginRegistry, tmp_path: Path):
         """MANDATORY security test - path traversal in config file paths."""
         # Arrange - MANDATORY
+        # Use tmp_path for testing instead of actual system files
+        fake_etc = tmp_path / "fake_etc"
+        fake_etc.mkdir(parents=True, exist_ok=True)
+        (fake_etc / "passwd").write_text("fake passwd")
+        (fake_etc / "shadow").write_text("fake shadow")
+
         malicious_paths = [
             Path("../../../etc/passwd"),
             Path("..\\..\\..\\windows\\system32\\config\\sam"),
-            Path("/etc/shadow"),
+            fake_etc / "shadow",  # Use test file instead of real /etc/shadow
         ]
 
         # Act & Assert - MANDATORY
