@@ -100,7 +100,7 @@ def test_database_engine():
     # Import all models BEFORE create_all() so they're registered with Base.metadata
     from src.database.models.auth import User  # noqa: F401
     from src.database.models.base import Base
-    from src.database.models.jobs import ScrapingJob  # noqa: F401
+    from src.database.models.jobs import ContentResult, JobLog, ScrapingJob  # noqa: F401
 
     # Use PostgreSQL test database for database parity (MANDATORY)
     # TEST_BUILDING.md: Tests must use same database as production
