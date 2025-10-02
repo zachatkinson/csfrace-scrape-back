@@ -894,11 +894,9 @@ jobs:
 
       - name: Run integration tests
         run: |
-          if [ "${{ matrix.test-type }}" = "database" ]; then
-            uv run pytest ${{ matrix.test-path }} -m "integration" --cov=src --cov-branch --cov-report=xml:coverage-${{ matrix.test-type }}-integration.xml --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
-          else
-            uv run pytest ${{ matrix.test-path }} --cov=src --cov-branch --cov-report=xml:coverage-${{ matrix.test-type }}-integration.xml --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
-          fi
+          # Database tests are inherently integration tests (use real PostgreSQL)
+          # No need for -m "integration" marker since all tests in tests/database/ are integration tests
+          uv run pytest ${{ matrix.test-path }} --cov=src --cov-branch --cov-report=xml:coverage-${{ matrix.test-type }}-integration.xml --junit-xml=junit-${{ matrix.test-type }}-integration.xml -v --tb=short --maxfail=5
         env:
           REDIS_URL: ${{ matrix.test-type == 'redis' && 'redis://localhost:6379' || '' }}
           DATABASE_HOST: ${{ matrix.test-type == 'database' && 'localhost' || '' }}
