@@ -13,6 +13,9 @@ This module tests all logging-related database operations:
 import pytest
 
 from src.core.exceptions import ValidationError
+from src.database.models.auth import (
+    User,  # noqa: F401 - Import at module level for test_database_engine
+)
 from src.database.services.job_service import JobService
 from src.database.services.logging_service import JobLogRequest, LoggingService
 from tests.conftest import JobFactory

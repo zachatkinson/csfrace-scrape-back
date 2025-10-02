@@ -15,6 +15,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.common.status import JobStatus
+from src.database.models.auth import (
+    User,  # noqa: F401 - Import at module level for test_database_engine
+)
 from src.database.models.jobs import ScrapingJob
 from src.database.services.job_service import JobService
 from src.database.services.statistics_service import StatisticsService

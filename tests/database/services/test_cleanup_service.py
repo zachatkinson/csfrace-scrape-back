@@ -12,7 +12,9 @@ import pytest
 from sqlalchemy import text
 
 from src.common.status import JobStatus
-from src.database.models.auth import User  # Import at module level for test_database_engine
+from src.database.models.auth import (
+    User,  # noqa: F401 - Import at module level for test_database_engine
+)
 from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
 from src.database.services.cleanup_service import CleanupService
 

@@ -11,6 +11,9 @@ This module tests all content-related database operations:
 import pytest
 
 from src.core.exceptions import ValidationError
+from src.database.models.auth import (
+    User,  # noqa: F401 - Import at module level for test_database_engine
+)
 from src.database.services.content_service import ContentService
 from src.database.services.job_service import JobService
 from tests.conftest import JobFactory

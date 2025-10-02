@@ -11,6 +11,9 @@ import pytest
 
 from src.common.status import JobPriority, JobStatus
 from src.core.exceptions import ValidationError
+from src.database.models.auth import (
+    User,  # noqa: F401 - Import at module level for test_database_engine
+)
 from src.database.models.jobs import ScrapingJob
 from src.database.services.job_service import JobCreateRequest, JobService
 from tests.conftest import JobFactory
