@@ -214,7 +214,7 @@ def setup_test_environment():
     test_env = {
         "ENVIRONMENT": "test",
         "LOG_LEVEL": "DEBUG",
-        "DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/csfrace_test",
+        "DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/test_db",
         "REDIS_URL": "redis://localhost:6379/15",  # Test database
         "SECRET_KEY": "test-secret-key-not-for-production",
     }
@@ -583,7 +583,7 @@ async def async_db_session():
 
     # Use PostgreSQL test database for database parity (MANDATORY)
     database_url = os.environ.get(
-        "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/csfrace_test"
+        "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
     )
 
     # Create async engine
