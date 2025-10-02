@@ -15,7 +15,7 @@ from src.database.utils import (
     create_postgresql_enums,
     get_database_url,
     get_standard_enum_definitions,
-    test_database_connection,
+    test_database_connection as util_test_database_connection,
 )
 
 # =============================================================================
@@ -406,7 +406,7 @@ class TestDatabaseConnection:
             patch("sqlalchemy.create_engine", return_value=mock_engine),
         ):
             # Act
-            result = test_database_connection()
+            result = util_test_database_connection()
 
         # Assert
         assert result is True
@@ -421,7 +421,7 @@ class TestDatabaseConnection:
         ):
             # Act & Assert
             with pytest.raises(Exception, match="Connection failed"):
-                test_database_connection()
+                util_test_database_connection()
 
     def test_masks_credentials_in_log(self):
         """Test masks credentials in log messages."""
@@ -441,7 +441,7 @@ class TestDatabaseConnection:
             patch("src.database.utils.logger") as mock_logger,
         ):
             # Act
-            test_database_connection()
+            util_test_database_connection()
 
         # Assert
         # Verify logger was called and credentials were masked
