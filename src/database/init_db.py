@@ -5,6 +5,8 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 
+from src.core.decorators import database_error_handler
+
 from .models import Base
 from .utils import create_postgresql_enums, get_database_url, get_standard_enum_definitions
 
@@ -12,18 +14,20 @@ logger = logging.getLogger(__name__)
 
 # Runtime imports with proper error handling
 try:
-    from alembic.config import Config as AlembicConfig  # type: ignore[import-untyped,attr-defined]
+    from alembic.config import Config as AlembicConfig
 
-    from alembic import command  # type: ignore[import-untyped,attr-defined]
+    from alembic import command
 
     ALEMBIC_AVAILABLE = True
 except ImportError:
     ALEMBIC_AVAILABLE = False
-    command = None  # type: ignore[assignment,attr-defined]
-    AlembicConfig = None  # type: ignore[assignment,misc,attr-defined]
+    # Set these to None for type checking - will be checked at runtime
+    command = None  # type: ignore
+    AlembicConfig = None  # type: ignore
     logger.warning("Alembic not available - migrations will use fallback method")
 
 
+@database_error_handler("initialize database")
 async def init_db(engine=None) -> None:
     """Initialize the database using Alembic migrations for production-ready schema management.
 
@@ -38,42 +42,42 @@ async def init_db(engine=None) -> None:
 
     Reference: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
     """
+    # Use provided engine or create one (dependency injection pattern)
+    if engine is None:
+        engine = create_engine(get_database_url(), echo=False)
+
+    # Try to run Alembic migrations first (production approach)
     try:
-        # Use provided engine or create one (dependency injection pattern)
-        if engine is None:
-            engine = create_engine(get_database_url(), echo=False)
+        await _run_alembic_migrations()
+        logger.info("Database initialized using Alembic migrations")
+    except Exception as alembic_error:  # pylint: disable=broad-exception-caught
+        logger.warning(
+            "Alembic migration failed, falling back to direct creation: %s", alembic_error
+        )
 
-        # Try to run Alembic migrations first (production approach)
-        try:
-            await _run_alembic_migrations()
-            logger.info("Database initialized using Alembic migrations")
-        except Exception as alembic_error:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Alembic migration failed, falling back to direct creation: %s", alembic_error
-            )
+        # Fallback to direct enum creation (testing/development)
+        await _create_enums_safely(engine)
 
-            # Fallback to direct enum creation (testing/development)
-            await _create_enums_safely(engine)
+        # Create all tables using SQLAlchemy best practices
+        Base.metadata.create_all(engine, checkfirst=True)
 
-            # Create all tables using SQLAlchemy best practices
-            Base.metadata.create_all(engine, checkfirst=True)
+        logger.info("Database initialized using direct creation fallback")
 
-            logger.info("Database initialized using direct creation fallback")
-
-        # Final success message for test compatibility
-        logger.info("Database initialization completed successfully")
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Database initialization failed: %s", e)
-        raise
+    # Final success message for test compatibility
+    logger.info("Database initialization completed successfully")
 
 
+@database_error_handler("run Alembic migrations")
 async def _run_alembic_migrations() -> None:
     """Run Alembic migrations to upgrade database to latest schema.
 
     Handles multiple head revisions properly to ensure all migrations
     are applied when using branched migration structures.
+
+    FIXED: Uses asyncio.to_thread to run synchronous Alembic command in async context.
     """
+    import asyncio
+
     if not ALEMBIC_AVAILABLE:
         raise ImportError("Alembic is not available - cannot run migrations")
 
@@ -91,8 +95,8 @@ async def _run_alembic_migrations() -> None:
     alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))
 
     try:
-        # Run the upgrade command to all heads (handles branched migrations)
-        command.upgrade(alembic_cfg, "heads")
+        # FIXED: Run the synchronous upgrade command in thread pool to avoid blocking async event loop
+        await asyncio.to_thread(command.upgrade, alembic_cfg, "heads")
         logger.info("All Alembic migrations applied successfully")
     except Exception as e:
         # If migration fails, log specific heads that need to be applied
@@ -108,6 +112,7 @@ async def _run_alembic_migrations() -> None:
         raise
 
 
+@database_error_handler("create PostgreSQL enums safely")
 async def _create_enums_safely(engine) -> None:
     """Create PostgreSQL enum types safely for concurrent test execution.
 

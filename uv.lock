@@ -541,7 +541,7 @@ wheels = [
 
 [[package]]
 name = "csfrace-scraper"
-version = "5.10.2"
+version = "5.12.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -625,6 +625,7 @@ test = [
 [package.dev-dependencies]
 dev = [
     { name = "types-bleach" },
+    { name = "types-psutil" },
     { name = "types-pyyaml" },
 ]
 
@@ -702,6 +703,7 @@ provides-extras = ["dev", "test", "monitoring", "docs"]
 [package.metadata.requires-dev]
 dev = [
     { name = "types-bleach", specifier = ">=6.2.0.20250809" },
+    { name = "types-psutil", specifier = ">=7.0.0.20250822" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
 

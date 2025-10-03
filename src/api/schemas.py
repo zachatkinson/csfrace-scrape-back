@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+from src.core.decorators import api_error_handler
+
 from ..common.status import JobPriority
 from ..constants import (
     API_MAX_RETRIES_LIMIT,
@@ -73,19 +75,14 @@ class JobResponse(BaseSchema):
     def convert_priority_to_string(cls, v):
         """Convert database integer priority to string for API response."""
         if isinstance(v, int):
-            from ..common.status import db_to_priority
-
-            try:
-                return db_to_priority(v).value
-            except ValueError:
-                return JobPriority.NORMAL.value
+            result = _convert_db_priority_to_string_safe(v)
+            return result if result is not None else JobPriority.NORMAL.value
         return v
 
-    # Computed fields for backward compatibility - these will be derived
-    # from source_url rather than stored as separate fields
+    # Computed fields derived from source_url
     @property
     def url(self) -> str:
-        """Alias for source_url for backward compatibility."""
+        """Alias for source_url."""
         return self.source_url
 
     @property
@@ -215,9 +212,13 @@ class UserSettingsResponse(BaseSchema):
     # Additional settings
     custom_settings: dict[str, Any] | None = None
 
-    # Timestamps
-    created_at: datetime
-    updated_at: datetime
+
+@api_error_handler("convert database priority to string")
+def _convert_db_priority_to_string_safe(v: int) -> str:
+    """Safely convert database integer priority to string."""
+    from ..common.status import db_to_priority
+
+    return db_to_priority(v).value
 
 
 class UserSettingsUpdate(BaseModel):

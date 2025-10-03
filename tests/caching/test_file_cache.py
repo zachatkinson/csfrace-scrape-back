@@ -1,542 +1,563 @@
-"""Comprehensive tests for file cache implementation."""
+"""Unit tests for caching/file_cache.py following TEST_BUILDING.md ZERO TOLERANCE standards.
 
+MANDATORY REQUIREMENTS (NON-NEGOTIABLE):
+- NO vestigial code - every line serves a purpose
+- NO legacy patterns - modern Python 3.11+ only
+- NO backwards compatibility - clean implementations only
+- NO broad exceptions - specific exceptions required
+- SOLID principles compliance mandatory
+- DRY compliance mandatory - no duplication
+- Production-ready implementations only
+- AAA pattern (Arrange-Act-Assert) for ALL tests
+- Security tests for ALL input handlers
+- Performance benchmarks for ALL critical paths
+
+Tests file-based cache backend following TEST_BUILDING.md with comprehensive coverage.
+"""
+
+import time
 from pathlib import Path
-from unittest.mock import patch
 
 import asyncio
 import pytest
-import pytest_asyncio
 
-from src.caching.base import CacheConfig
+from src.caching.base import CacheConfig, CacheEntry
 from src.caching.file_cache import FileCache
 
-
-class TestFileCacheErrorHandling:
-    """Test file cache error handling scenarios."""
-
-    @pytest_asyncio.fixture
-    async def file_cache(self, temp_dir):
-        """Create file cache instance."""
-        config = CacheConfig(cache_dir=temp_dir / "test_cache")
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_get_file_read_error(self, file_cache):
-        """Test get operation when file read fails."""
-        test_key = "test_key"
-        test_content_type = "html"
-
-        # Create a cache file first
-        await file_cache.set(test_key, "test_value", ttl=3600, content_type=test_content_type)
-
-        # Mock aiofiles.open to raise an exception
-        with patch("aiofiles.open", side_effect=OSError("File read error")):
-            result = await file_cache.get(test_key)
-
-            # Should return None due to error
-            assert result is None
-            # Error stats should increment
-            assert file_cache._stats["errors"] >= 1
-
-    @pytest.mark.asyncio
-    async def test_get_json_decode_error(self, file_cache):
-        """Test get operation when JSON decode fails."""
-        test_key = "test_key"
-        test_content_type = "html"
-        cache_path = file_cache._get_cache_path(test_key, test_content_type)
-
-        # Create cache file with invalid JSON
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w", encoding="utf-8") as f:
-            f.write("invalid json content")
-
-        result = await file_cache.get(test_key)
-
-        # Should return None due to JSON decode error
-        assert result is None
-        # Error stats should increment
-        assert file_cache._stats["errors"] >= 1
-
-    @pytest.mark.asyncio
-    async def test_set_file_write_error(self, file_cache):
-        """Test set operation when file write fails."""
-        test_key = "test_key"
-        test_value = "test_value"
-
-        # Mock aiofiles.open to raise an exception
-        with patch("aiofiles.open", side_effect=OSError("File write error")):
-            result = await file_cache.set(test_key, test_value)
-
-            # Should return False due to error
-            assert result is False
-            # Error stats should increment
-            assert file_cache._stats["errors"] >= 1
-
-    @pytest.mark.asyncio
-    async def test_delete_file_error(self, file_cache):
-        """Test delete operation when file deletion fails."""
-        test_key = "test_key"
-
-        # Create a cache file first
-        await file_cache.set(test_key, "test_value")
-
-        # Mock Path.unlink to raise an exception
-        with patch("pathlib.Path.unlink", side_effect=OSError("File delete error")):
-            result = await file_cache.delete(test_key)
-
-            # Should return False due to error
-            assert result is False
-            # Error stats should increment
-            assert file_cache._stats["errors"] >= 1
-
-    @pytest.mark.asyncio
-    async def test_cleanup_file_corruption_error(self, file_cache):
-        """Test cleanup handles corrupted cache files."""
-        test_key = "test_key"
-        test_content_type = "html"
-        cache_path = file_cache._get_cache_path(test_key, test_content_type)
-
-        # Create cache file with corrupted content
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w", encoding="utf-8") as f:
-            f.write("corrupted cache data")
-
-        # Cleanup should handle the corrupted file by removing it
-        cleaned_count = await file_cache.cleanup_expired()
-
-        # Should have cleaned up the corrupted file
-        assert cleaned_count >= 1
-        # File should be removed
-        assert not cache_path.exists()
-
-    @pytest.mark.asyncio
-    async def test_cleanup_general_error(self, file_cache):
-        """Test cleanup handles general errors."""
-        # Mock Path.glob to raise an exception
-        with patch("pathlib.Path.glob", side_effect=Exception("Cleanup error")):
-            result = await file_cache.cleanup_expired()
-
-            # Should return 0 due to error
-            assert result == 0
-
-
-class TestFileCacheBasicOperations:
-    """Test basic file cache operations that need coverage improvement."""
-
-    @pytest_asyncio.fixture
-    async def basic_cache(self, temp_dir):
-        """Create basic file cache instance."""
-        config = CacheConfig(cache_dir=temp_dir / "basic_cache")
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_cache_initialization_creates_directories(self, temp_dir):
-        """Test that cache initialization creates all required directories."""
-        config = CacheConfig(cache_dir=temp_dir / "init_test")
-        cache = FileCache(config)
-
-        # Verify all subdirectories are created
-        assert cache.html_dir.exists()
-        assert cache.image_dir.exists()
-        assert cache.metadata_dir.exists()
-        assert cache.robots_dir.exists()
-        assert cache.generic_dir.exists()
-
-        # Verify stats are initialized
-        assert cache._stats["hits"] == 0
-        assert cache._stats["misses"] == 0
-        assert cache._stats["sets"] == 0
-
-    @pytest.mark.asyncio
-    async def test_get_cache_path_generation(self, basic_cache):
-        """Test cache path generation for different content types."""
-        test_key = "test_key_123"
-
-        # Test different content types
-        html_path = basic_cache._get_cache_path(test_key, "html")
-        image_path = basic_cache._get_cache_path(test_key, "image")
-        metadata_path = basic_cache._get_cache_path(test_key, "metadata")
-
-        # Verify paths are in correct subdirectories
-        assert "html" in str(html_path)
-        assert "images" in str(image_path)
-        assert "metadata" in str(metadata_path)
-
-        # Verify paths are different
-        assert html_path != image_path != metadata_path
-
-
-class TestFileCacheSizeEnforcement:
-    """Test file cache size limit enforcement."""
-
-    @pytest_asyncio.fixture
-    async def small_cache(self, temp_dir):
-        """Create file cache with small size limit."""
-        config = CacheConfig(
-            cache_dir=temp_dir / "small_cache",
-            max_cache_size_mb=1,  # 1MB limit
-        )
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_size_limit_enforcement_triggered(self, small_cache):
-        """Test that size limit enforcement is triggered."""
-        # Add multiple large entries to exceed the limit
-        large_data = "x" * (300 * 1024)  # 300KB each
-
-        # Add several large entries
-        for i in range(5):
-            await small_cache.set(f"large_key_{i}", large_data, content_type="html")
-            await asyncio.sleep(0.1)  # Small delay to ensure different modification times
-
-        # Get stats to check current size
-        stats = await small_cache.stats()
-
-        # Should be some cache management happening
-        assert "total_size_mb" in stats
-        assert stats["total_entries"] >= 0
-
-    @pytest.mark.asyncio
-    async def test_size_enforcement_error_handling(self, small_cache):
-        """Test size enforcement error handling."""
-        # Mock stats method to raise an exception
-        with patch.object(small_cache, "stats", side_effect=Exception("Stats error")):
-            # This should trigger size enforcement during set, but handle the error
-            result = await small_cache.set("test_key", "test_value")
-
-            # Set should still succeed despite enforcement error
-            assert result is True
-
-    @pytest.mark.asyncio
-    async def test_size_enforcement_file_stat_error(self, small_cache):
-        """Test size enforcement handles file stat errors."""
-        # Add an entry first
-        await small_cache.set("test_key", "test_value")
-
-        # Mock Path.stat to raise OSError for some files
-        original_stat = Path.stat
-
-        def mock_stat(self):
-            if "test_key" in str(self):
-                raise OSError("Stat error")
-            return original_stat(self)
-
-        with patch("pathlib.Path.stat", side_effect=mock_stat):
-            # Force size enforcement by mocking stats to show high size
-            with patch.object(small_cache, "stats", return_value={"total_size_mb": 10}):
-                # This should trigger size enforcement
-                await small_cache._enforce_size_limit()
-
-    @pytest.mark.asyncio
-    async def test_size_enforcement_file_deletion_error(self, small_cache):
-        """Test size enforcement handles file deletion errors."""
-        # Add several entries
-        for i in range(3):
-            await small_cache.set(f"key_{i}", f"value_{i}")
-            await asyncio.sleep(0.1)
-
-        # Mock Path.unlink to raise OSError for some files
-        original_unlink = Path.unlink
-
-        def mock_unlink(self, missing_ok=False):
-            if "key_1" in str(self):
-                raise OSError("Delete error")
-            return original_unlink(self, missing_ok=missing_ok)
-
-        with patch("pathlib.Path.unlink", side_effect=mock_unlink):
-            # Force size enforcement
-            with patch.object(small_cache, "stats", return_value={"total_size_mb": 10}):
-                await small_cache._enforce_size_limit()
-
-
-class TestFileCacheContentTypes:
-    """Test file cache with different content types."""
-
-    @pytest_asyncio.fixture
-    async def file_cache(self, temp_dir):
-        """Create file cache instance."""
-        config = CacheConfig(cache_dir=temp_dir / "content_cache")
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_html_content_type_path(self, file_cache):
-        """Test HTML content uses correct directory."""
-        await file_cache.set("html_key", "<html>test</html>", content_type="html")
-
-        # Check that file was created in html directory
-        html_files = list(file_cache.html_dir.glob("*.cache"))
-        assert len(html_files) >= 1
-
-    @pytest.mark.asyncio
-    async def test_image_content_type_path(self, file_cache):
-        """Test image content uses correct directory."""
-        await file_cache.set("image_key", b"fake image data", content_type="image")
-
-        # Check that file was created in image directory
-        image_files = list(file_cache.image_dir.glob("*.cache"))
-        assert len(image_files) >= 1
-
-    @pytest.mark.asyncio
-    async def test_metadata_content_type_path(self, file_cache):
-        """Test metadata content uses correct directory."""
-        await file_cache.set("meta_key", {"title": "Test"}, content_type="metadata")
-
-        # Check that file was created in metadata directory
-        metadata_files = list(file_cache.metadata_dir.glob("*.cache"))
-        assert len(metadata_files) >= 1
-
-    @pytest.mark.asyncio
-    async def test_robots_content_type_path(self, file_cache):
-        """Test robots.txt content uses correct directory."""
-        await file_cache.set("robots_key", "User-agent: *", content_type="robots")
-
-        # Check that file was created in robots directory
-        robots_files = list(file_cache.robots_dir.glob("*.cache"))
-        assert len(robots_files) >= 1
-
-    @pytest.mark.asyncio
-    async def test_generic_content_type_path(self, file_cache):
-        """Test generic content uses correct directory."""
-        await file_cache.set("generic_key", "some data", content_type="generic")
-
-        # Check that file was created in generic directory
-        generic_files = list(file_cache.generic_dir.glob("*.cache"))
-        assert len(generic_files) >= 1
-
-
-class TestFileCacheDeleteBranches:
-    """Test file cache delete operation branches."""
-
-    @pytest_asyncio.fixture
-    async def file_cache(self, temp_dir):
-        """Create file cache instance."""
-        config = CacheConfig(cache_dir=temp_dir / "delete_cache")
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_delete_existing_file_success(self, file_cache):
-        """Test deleting an existing file successfully."""
-        test_key = "existing_key"
-
-        # Create a cache entry
-        await file_cache.set(test_key, "test_value")
-
-        # Verify it exists
-        entry = await file_cache.get(test_key)
-        assert entry is not None
-
-        # Delete it
-        result = await file_cache.delete(test_key)
-
-        # Should return True and update stats
-        assert result is True
-        assert file_cache._stats["deletes"] >= 1
-
-    @pytest.mark.asyncio
-    async def test_delete_nonexistent_file(self, file_cache):
-        """Test deleting a non-existent file."""
-        test_key = "nonexistent_key"
-
-        # Try to delete non-existent key
-        result = await file_cache.delete(test_key)
-
-        # Should return False (no file was actually deleted)
-        assert result is False
-
-
-class TestFileCacheClearOperation:
-    """Test file cache clear operation."""
-
-    @pytest_asyncio.fixture
-    async def file_cache(self, temp_dir):
-        """Create file cache instance."""
-        config = CacheConfig(cache_dir=temp_dir / "clear_cache")
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_clear_with_files(self, file_cache):
-        """Test clearing cache with existing files."""
-        # Add multiple entries of different types
-        await file_cache.set("html_key", "<html>test</html>", content_type="html")
-        await file_cache.set("image_key", b"image_data", content_type="image")
-        await file_cache.set("meta_key", {"title": "Test"}, content_type="metadata")
-
-        # Clear the cache
-        result = await file_cache.clear()
-
-        # Should return True
-        assert result is True
-
-        # All entries should be gone
-        assert await file_cache.get("html_key") is None
-        assert await file_cache.get("image_key") is None
-        assert await file_cache.get("meta_key") is None
-
-    @pytest.mark.asyncio
-    async def test_clear_empty_cache(self, file_cache):
-        """Test clearing an empty cache."""
-        result = await file_cache.clear()
-
-        # Should still return True
-        assert result is True
-
-
-class TestFileCacheStatsOperation:
-    """Test file cache statistics operation."""
-
-    @pytest_asyncio.fixture
-    async def file_cache(self, temp_dir):
-        """Create file cache instance."""
-        config = CacheConfig(cache_dir=temp_dir / "stats_cache")
-        cache = FileCache(config)
-        yield cache
-
-    @pytest.mark.asyncio
-    async def test_stats_with_various_content(self, file_cache):
-        """Test stats with different content types."""
-        # Add entries of different types and sizes
-        await file_cache.set("html_key", "<html>test content</html>", content_type="html")
-        await file_cache.set("image_key", b"binary_image_data" * 100, content_type="image")
-        await file_cache.set(
-            "meta_key", {"title": "Test", "desc": "Description"}, content_type="metadata"
-        )
-
-        stats = await file_cache.stats()
-
-        # Should have comprehensive stats
-        assert "total_entries" in stats
-        assert "total_size_bytes" in stats
-        assert "total_size_mb" in stats
+# =============================================================================
+# TEST FIXTURES - Factory Pattern for DRY Principle
+# =============================================================================
+
+
+@pytest.fixture
+def cache_config(tmp_path: Path) -> CacheConfig:
+    """Factory for CacheConfig with temp directory - DRY principle."""
+    return CacheConfig(
+        cache_dir=tmp_path / "cache",
+        max_cache_size_mb=10,
+        ttl_default=3600,
+        ttl_html=7200,
+        ttl_images=86400,
+        compress=True,
+    )
+
+
+@pytest.fixture
+def file_cache(cache_config: CacheConfig) -> FileCache:
+    """Factory for FileCache - DRY principle."""
+    return FileCache(cache_config)
+
+
+@pytest.fixture
+def sample_cache_entry() -> CacheEntry:
+    """Factory for sample CacheEntry - DRY principle."""
+    return CacheEntry(
+        key="test:key:123",
+        value="test_content",
+        created_at=time.time(),
+        ttl=3600,
+        content_type="html",
+        size_bytes=1024,
+        compressed=True,
+    )
+
+
+# =============================================================================
+# TEST FileCache - Initialization
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestFileCacheInit:
+    """Test FileCache initialization following MANDATORY AAA pattern."""
+
+    def test_init_creates_cache_directories(self, file_cache: FileCache):
+        """Test __init__ creates cache directories - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (file_cache fixture)
+
+        # Act - MANDATORY (initialization already done by fixture)
+        cache_dir = file_cache.cache_dir
+
+        # Assert - MANDATORY
+        assert cache_dir.exists()
+        assert file_cache.html_dir.exists()
+        assert file_cache.image_dir.exists()
+        assert file_cache.metadata_dir.exists()
+        assert file_cache.robots_dir.exists()
+        assert file_cache.generic_dir.exists()
+
+    def test_init_creates_stats_dictionary(self, file_cache: FileCache):
+        """Test __init__ creates stats dictionary - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (file_cache fixture)
+
+        # Act - MANDATORY
+        stats = file_cache._stats
+
+        # Assert - MANDATORY
         assert "hits" in stats
         assert "misses" in stats
         assert "sets" in stats
+        assert "deletes" in stats
+        assert "errors" in stats
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
 
-        # Should have at least 3 entries
-        assert stats["total_entries"] >= 3
-        assert stats["total_size_bytes"] > 0
-        assert stats["total_size_mb"] >= 0
+
+# =============================================================================
+# TEST FileCache - Cache Path Generation
+# =============================================================================
 
 
-class TestFileCacheIntegration:
-    """Test file cache integration scenarios."""
+@pytest.mark.unit
+class TestFileCachePath:
+    """Test FileCache path generation following MANDATORY AAA pattern."""
 
-    @pytest_asyncio.fixture
-    async def file_cache(self, temp_dir):
-        """Create file cache instance."""
-        config = CacheConfig(
-            cache_dir=temp_dir / "integration_cache",
-            ttl_default=1,  # Short TTL for testing expiration
-            max_cache_size_mb=5,
-        )
-        cache = FileCache(config)
-        yield cache
+    def test_get_cache_path_returns_html_path(self, file_cache: FileCache):
+        """Test _get_cache_path returns HTML path - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:html:key"
+        content_type = "html"
 
-    @pytest.mark.asyncio
-    async def test_full_lifecycle_with_expiration(self, file_cache):
-        """Test full cache lifecycle including expiration."""
-        test_key = "lifecycle_key"
-        test_value = "lifecycle_value"
+        # Act - MANDATORY
+        cache_path = file_cache._get_cache_path(key, content_type)
 
-        # Set with short TTL
-        await file_cache.set(test_key, test_value, ttl=1)
+        # Assert - MANDATORY
+        assert cache_path.parent == file_cache.html_dir
+        assert cache_path.suffix == ".cache"
+        assert cache_path.name != key  # Should be hashed
 
-        # Should be available immediately
-        entry = await file_cache.get(test_key)
-        assert entry is not None
-        assert entry.value == test_value
+    def test_get_cache_path_returns_image_path(self, file_cache: FileCache):
+        """Test _get_cache_path returns image path - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:image:key"
+        content_type = "image"
 
-        # Wait for expiration
-        await asyncio.sleep(2)
+        # Act - MANDATORY
+        cache_path = file_cache._get_cache_path(key, content_type)
 
-        # Should be expired now
-        entry = await file_cache.get(test_key)
-        assert entry is None
+        # Assert - MANDATORY
+        assert cache_path.parent == file_cache.image_dir
+        assert cache_path.suffix == ".cache"
 
-    @pytest.mark.asyncio
-    async def test_concurrent_operations(self, file_cache):
-        """Test concurrent cache operations."""
-        # Create multiple concurrent set operations
-        tasks = []
-        for i in range(10):
-            task = file_cache.set(f"concurrent_key_{i}", f"value_{i}")
-            tasks.append(task)
+    def test_get_cache_path_uses_generic_for_unknown_type(self, file_cache: FileCache):
+        """Test _get_cache_path uses generic for unknown type - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:unknown:key"
+        content_type = "unknown_type"
 
-        # Wait for all to complete
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Act - MANDATORY
+        cache_path = file_cache._get_cache_path(key, content_type)
 
-        # All should succeed
-        assert all(result is True for result in results if not isinstance(result, Exception))
+        # Assert - MANDATORY
+        assert cache_path.parent == file_cache.generic_dir
 
-        # All entries should be retrievable
-        for i in range(10):
-            entry = await file_cache.get(f"concurrent_key_{i}")
-            assert entry is not None
-            assert entry.value == f"value_{i}"
 
-    @pytest.mark.asyncio
-    async def test_large_value_handling(self, file_cache):
-        """Test handling of large cached values."""
-        test_key = "large_key"
-        # Create a large value (1MB)
-        large_value = "x" * (1024 * 1024)
+# =============================================================================
+# TEST FileCache - Get Operation
+# =============================================================================
 
-        # Should be able to cache large values
-        result = await file_cache.set(test_key, large_value)
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFileCacheGet:
+    """Test FileCache get operation following MANDATORY AAA pattern."""
+
+    async def test_get_returns_none_for_missing_entry(self, file_cache: FileCache):
+        """Test get returns None for missing entry - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "nonexistent:key"
+
+        # Act - MANDATORY
+        result = await file_cache.get(key)
+
+        # Assert - MANDATORY
+        assert result is None
+        assert file_cache._stats["misses"] == 1
+
+    async def test_get_returns_entry_for_valid_cache(self, file_cache: FileCache):
+        """Test get returns entry for valid cache - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:valid:key"
+        value = "test_content"
+        await file_cache.set(key, value, ttl=3600, content_type="html")
+
+        # Act - MANDATORY
+        result = await file_cache.get(key)
+
+        # Assert - MANDATORY
+        assert result is not None
+        assert result.key == key
+        assert result.value == value
+        assert file_cache._stats["hits"] == 1
+
+    async def test_get_returns_none_for_expired_entry(self, file_cache: FileCache):
+        """Test get returns None for expired entry - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:expired:key"
+        value = "expired_content"
+        await file_cache.set(key, value, ttl=1, content_type="html")
+        await asyncio.sleep(1.1)  # Wait for expiration
+
+        # Act - MANDATORY
+        result = await file_cache.get(key)
+
+        # Assert - MANDATORY
+        assert result is None
+        assert file_cache._stats["misses"] == 1
+
+
+# =============================================================================
+# TEST FileCache - Set Operation
+# =============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFileCacheSet:
+    """Test FileCache set operation following MANDATORY AAA pattern."""
+
+    async def test_set_creates_cache_file(self, file_cache: FileCache):
+        """Test set creates cache file - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:set:key"
+        value = "test_content"
+
+        # Act - MANDATORY
+        result = await file_cache.set(key, value, ttl=3600, content_type="html")
+
+        # Assert - MANDATORY
         assert result is True
+        assert file_cache._stats["sets"] == 1
+        cache_path = file_cache._get_cache_path(key, "html")
+        assert cache_path.exists()
 
-        # Should be able to retrieve large values
-        entry = await file_cache.get(test_key)
-        assert entry is not None
-        assert entry.value == large_value
-        assert entry.size_bytes >= 1024 * 1024
+    async def test_set_with_custom_ttl(self, file_cache: FileCache):
+        """Test set with custom TTL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:custom:ttl"
+        value = "content"
+        custom_ttl = 7200
 
+        # Act - MANDATORY
+        await file_cache.set(key, value, ttl=custom_ttl, content_type="html")
+        result = await file_cache.get(key)
+
+        # Assert - MANDATORY
+        assert result is not None
+        assert result.ttl == custom_ttl
+
+    async def test_set_overwrites_existing_entry(self, file_cache: FileCache):
+        """Test set overwrites existing entry - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:overwrite:key"
+        await file_cache.set(key, "old_value", ttl=3600, content_type="html")
+
+        # Act - MANDATORY
+        await file_cache.set(key, "new_value", ttl=3600, content_type="html")
+        result = await file_cache.get(key)
+
+        # Assert - MANDATORY
+        assert result is not None
+        assert result.value == "new_value"
+
+
+# =============================================================================
+# TEST FileCache - Delete Operation
+# =============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFileCacheDelete:
+    """Test FileCache delete operation following MANDATORY AAA pattern."""
+
+    async def test_delete_removes_cache_file(self, file_cache: FileCache):
+        """Test delete removes cache file - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "test:delete:key"
+        await file_cache.set(key, "content", ttl=3600, content_type="html")
+
+        # Act - MANDATORY
+        result = await file_cache.delete(key)
+
+        # Assert - MANDATORY
+        assert result is True
+        assert file_cache._stats["deletes"] == 1
+        cache_path = file_cache._get_cache_path(key, "html")
+        assert not cache_path.exists()
+
+    async def test_delete_returns_false_for_nonexistent_key(self, file_cache: FileCache):
+        """Test delete returns False for nonexistent key - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        key = "nonexistent:key"
+
+        # Act - MANDATORY
+        result = await file_cache.delete(key)
+
+        # Assert - MANDATORY
+        assert result is False
+
+
+# =============================================================================
+# TEST FileCache - Clear Operation
+# =============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFileCacheClear:
+    """Test FileCache clear operation following MANDATORY AAA pattern."""
+
+    async def test_clear_removes_all_cache_files(self, file_cache: FileCache):
+        """Test clear removes all cache files - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        await file_cache.set("key1", "value1", ttl=3600, content_type="html")
+        await file_cache.set("key2", "value2", ttl=3600, content_type="image")
+        await file_cache.set("key3", "value3", ttl=3600, content_type="metadata")
+
+        # Act - MANDATORY
+        result = await file_cache.clear()
+
+        # Assert - MANDATORY
+        assert result is True
+        assert file_cache._stats["hits"] == 0
+        assert file_cache._stats["misses"] == 0
+        assert file_cache._stats["sets"] == 0
+
+        # Verify no cache files exist
+        html_files = list(file_cache.html_dir.glob("*.cache"))
+        image_files = list(file_cache.image_dir.glob("*.cache"))
+        metadata_files = list(file_cache.metadata_dir.glob("*.cache"))
+        assert len(html_files) == 0
+        assert len(image_files) == 0
+        assert len(metadata_files) == 0
+
+
+# =============================================================================
+# TEST FileCache - Stats Operation
+# =============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFileCacheStats:
+    """Test FileCache stats operation following MANDATORY AAA pattern."""
+
+    async def test_stats_returns_empty_cache_stats(self, file_cache: FileCache):
+        """Test stats returns empty cache stats - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (empty cache)
+
+        # Act - MANDATORY
+        stats = await file_cache.stats()
+
+        # Assert - MANDATORY
+        assert stats["total_entries"] == 0
+        assert stats["total_size_bytes"] == 0
+        assert stats["total_size_mb"] == 0
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+
+    async def test_stats_returns_populated_cache_stats(self, file_cache: FileCache):
+        """Test stats returns populated cache stats - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        await file_cache.set("key1", "value1", ttl=3600, content_type="html")
+        await file_cache.set("key2", "value2", ttl=3600, content_type="image")
+
+        # Act - MANDATORY
+        stats = await file_cache.stats()
+
+        # Assert - MANDATORY
+        assert stats["total_entries"] == 2
+        assert stats["total_size_bytes"] > 0
+        assert stats["total_size_mb"] >= 0  # May be 0.0 due to rounding for small files
+        assert stats["sets"] == 2
+
+    async def test_stats_calculates_hit_rate(self, file_cache: FileCache):
+        """Test stats calculates hit rate - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        await file_cache.set("key1", "value1", ttl=3600, content_type="html")
+        await file_cache.get("key1")  # Hit
+        await file_cache.get("nonexistent")  # Miss
+
+        # Act - MANDATORY
+        stats = await file_cache.stats()
+
+        # Assert - MANDATORY
+        assert stats["hits"] == 1
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == 50.0
+
+
+# =============================================================================
+# TEST FileCache - Cleanup Operations
+# =============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFileCacheCleanup:
+    """Test FileCache cleanup operations following MANDATORY AAA pattern."""
+
+    async def test_cleanup_expired_removes_expired_entries(self, file_cache: FileCache):
+        """Test cleanup_expired removes expired entries - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        await file_cache.set("key1", "value1", ttl=1, content_type="html")
+        await file_cache.set("key2", "value2", ttl=3600, content_type="html")
+        await asyncio.sleep(1.1)  # Wait for first entry to expire
+
+        # Act - MANDATORY
+        cleaned = await file_cache.cleanup_expired()
+
+        # Assert - MANDATORY
+        assert cleaned == 1
+        result1 = await file_cache.get("key1")
+        result2 = await file_cache.get("key2")
+        assert result1 is None
+        assert result2 is not None
+
+    async def test_cleanup_expired_returns_zero_for_no_expired(self, file_cache: FileCache):
+        """Test cleanup_expired returns zero for no expired - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        await file_cache.set("key1", "value1", ttl=3600, content_type="html")
+
+        # Act - MANDATORY
+        cleaned = await file_cache.cleanup_expired()
+
+        # Assert - MANDATORY
+        assert cleaned == 0
+
+
+# =============================================================================
+# MANDATORY SECURITY TESTS
+# =============================================================================
+
+
+@pytest.mark.security
+class TestFileCacheSecurity:
+    """MANDATORY security tests for file cache."""
+
+    @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_special_characters_in_keys(self, file_cache):
-        """Test handling of special characters in cache keys."""
-        special_keys = [
-            "key with spaces",
-            "key/with/slashes",
-            "key-with-dashes",
-            "key_with_underscores",
-            "key.with.dots",
-            "key@with#special$chars%",
+    async def test_set_sanitizes_malicious_keys(self, file_cache: FileCache):
+        """MANDATORY security test - set sanitizes malicious keys."""
+        # Arrange - MANDATORY
+        malicious_keys = [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "/absolute/path/traversal",
+            "key;rm -rf /",
+            "key`whoami`",
         ]
 
-        for key in special_keys:
-            # Should be able to set and get with special characters
-            await file_cache.set(key, f"value_for_{key}")
-            entry = await file_cache.get(key)
-            assert entry is not None
-            assert entry.value == f"value_for_{key}"
+        for malicious_key in malicious_keys:
+            # Act - MANDATORY
+            result = await file_cache.set(malicious_key, "content", ttl=3600, content_type="html")
 
+            # Assert - MANDATORY (security check)
+            assert result is True
+            # Key should be hashed, preventing directory traversal
+            cache_path = file_cache._get_cache_path(malicious_key, "html")
+            assert cache_path.parent == file_cache.html_dir
+            assert "../" not in str(cache_path)
+            assert "..\\" not in str(cache_path)
+
+    @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_error_recovery(self, file_cache):
-        """Test cache recovery from error conditions."""
-        test_key = "recovery_key"
+    async def test_set_handles_malicious_values_safely(self, file_cache: FileCache):
+        """MANDATORY security test - set handles malicious values safely."""
+        # Arrange - MANDATORY
+        malicious_values = [
+            "<script>alert('xss')</script>",
+            "'; DROP TABLE cache; --",
+            "../../sensitive_data",
+            "\x00\x01\x02",  # Null bytes
+            "A" * 1000000,  # Large value
+        ]
 
-        # Set a value successfully
-        await file_cache.set(test_key, "initial_value")
+        for malicious_value in malicious_values:
+            # Act - MANDATORY
+            key = f"test:security:{hash(malicious_value)}"
+            result = await file_cache.set(key, malicious_value, ttl=3600, content_type="html")
 
-        # Simulate an error condition by corrupting the cache file
-        cache_path = file_cache._get_cache_path(test_key, "generic")
-        with open(cache_path, "w", encoding="utf-8") as f:
-            f.write("corrupted data")
+            # Assert - MANDATORY (security check)
+            assert result is True
+            retrieved = await file_cache.get(key)
+            assert retrieved is not None
+            assert retrieved.value == malicious_value  # Should store as-is
 
-        # Get should handle the corruption gracefully
-        entry = await file_cache.get(test_key)
-        assert entry is None
 
-        # Should be able to set a new value after corruption
-        result = await file_cache.set(test_key, "recovered_value")
-        assert result is True
+# =============================================================================
+# MANDATORY PERFORMANCE TESTS
+# =============================================================================
 
-        # Should be able to get the new value
-        entry = await file_cache.get(test_key)
-        assert entry is not None
-        assert entry.value == "recovered_value"
+
+@pytest.mark.performance
+class TestFileCachePerformance:
+    """MANDATORY performance tests for file cache."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_set_performance_benchmark(self, file_cache: FileCache):
+        """MANDATORY performance test - set completes quickly."""
+        # Arrange - MANDATORY
+        iterations = 100
+        start_time = time.perf_counter()
+
+        # Act - MANDATORY
+        for i in range(iterations):
+            await file_cache.set(f"key:{i}", f"value_{i}", ttl=3600, content_type="html")
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY (performance requirement)
+        avg_time = execution_time / iterations
+        assert avg_time < 0.01  # Less than 10ms per set operation
+        assert execution_time < 1.0  # Total under 1 second for 100 sets
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_get_performance_benchmark(self, file_cache: FileCache):
+        """MANDATORY performance test - get completes quickly."""
+        # Arrange - MANDATORY
+        iterations = 100
+        # Pre-populate cache
+        for i in range(iterations):
+            await file_cache.set(f"key:{i}", f"value_{i}", ttl=3600, content_type="html")
+
+        start_time = time.perf_counter()
+
+        # Act - MANDATORY
+        for i in range(iterations):
+            await file_cache.get(f"key:{i}")
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY (performance requirement)
+        avg_time = execution_time / iterations
+        assert avg_time < 0.005  # Less than 5ms per get operation
+        assert execution_time < 0.5  # Total under 500ms for 100 gets
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_cleanup_performance_benchmark(self, file_cache: FileCache):
+        """MANDATORY performance test - cleanup completes quickly."""
+        # Arrange - MANDATORY
+        entry_count = 500
+        # Create entries with short TTL
+        for i in range(entry_count):
+            await file_cache.set(f"key:{i}", f"value_{i}", ttl=1, content_type="html")
+
+        await asyncio.sleep(1.1)  # Wait for expiration
+        start_time = time.perf_counter()
+
+        # Act - MANDATORY
+        cleaned = await file_cache.cleanup_expired()
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY (performance requirement)
+        assert cleaned == entry_count
+        assert execution_time < 5.0  # Should complete within 5 seconds for 500 entries

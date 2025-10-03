@@ -78,7 +78,3 @@ def db_to_priority(db_value: int) -> JobPriority:
         raise ValueError(f"Invalid priority database value: {db_value}")
 
     return DB_TO_PRIORITY_MAP[db_value]
-
-
-# For backward compatibility, alias the most commonly used status
-CommonStatus = JobStatus

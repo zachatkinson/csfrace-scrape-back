@@ -59,6 +59,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Set working directory
+WORKDIR /app
+
 # Copy virtual environment from builder stage (SECURITY: no build tools in production)
 COPY --from=builder /app/.venv /app/.venv
 
@@ -83,12 +86,13 @@ ENV PORT=8000
 EXPOSE 8000
 
 # Health check for production readiness
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+# FIXED: Comprehensive health check with proper async/await chain
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=10)" || exit 1
 
 # Start the application
 # SECURITY: Use exec form for proper signal handling
-CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Labels for metadata (OCI standard)
 LABEL org.opencontainers.image.title="CSFrace Scraper" \

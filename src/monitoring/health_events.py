@@ -10,14 +10,16 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import asyncio
-import structlog
+
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
     from redis.asyncio import Redis
 
-logger = structlog.get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 class SafeJSONEncoder(json.JSONEncoder):
@@ -262,6 +264,7 @@ class HealthEventPublisher:
         self.redis_client = redis_client
         self._logger = logger.bind(component="health_event_publisher")
 
+    @monitoring_error_handler("publish health event")
     async def publish_event(self, event: HealthEvent) -> bool:
         """Publish health event to Redis channel.
 
@@ -271,28 +274,18 @@ class HealthEventPublisher:
         Returns:
             True if event was published successfully
         """
-        try:
-            event_json = safe_json_dumps(event.to_dict())
-            subscribers = await self.redis_client.publish(self.HEALTH_EVENTS_CHANNEL, event_json)
+        event_json = safe_json_dumps(event.to_dict())
+        subscribers = await self.redis_client.publish(self.HEALTH_EVENTS_CHANNEL, event_json)
 
-            self._logger.debug(
-                "Health event published",
-                event_id=event.event_id,
-                event_type=event.event_type.value,
-                service=event.service_name,
-                subscribers=subscribers,
-            )
+        self._logger.debug(
+            "Health event published",
+            event_id=event.event_id,
+            event_type=event.event_type.value,
+            service=event.service_name,
+            subscribers=subscribers,
+        )
 
-            return True
-
-        except Exception as e:
-            self._logger.error(
-                "Failed to publish health event",
-                event_id=event.event_id,
-                service=event.service_name,
-                error=str(e),
-            )
-            return False
+        return True
 
     async def publish_multiple(self, events: list[HealthEvent]) -> int:
         """Publish multiple health events.
@@ -353,39 +346,38 @@ class HealthEventSubscriber:
         self._running = True
         self._logger.info("Starting health event subscription")
 
-        try:
-            pubsub = self.redis_client.pubsub()
-            await pubsub.subscribe(HealthEventPublisher.HEALTH_EVENTS_CHANNEL)
+        await _run_event_subscription_safe(self)
 
-            async for message in pubsub.listen():
-                if message["type"] == "message":
-                    await self._handle_message(message["data"])
-
-        except Exception as e:
-            self._logger.error("Health event subscription error", error=str(e))
-        finally:
-            self._running = False
-            self._logger.info("Health event subscription stopped")
-
+    @monitoring_error_handler("handle health event message")
     async def _handle_message(self, message_data: bytes) -> None:
         """Handle incoming health event message."""
-        try:
-            event_dict = json.loads(message_data.decode("utf-8"))
-            event = HealthEvent.from_dict(event_dict)
+        event_dict = json.loads(message_data.decode("utf-8"))
+        event = HealthEvent.from_dict(event_dict)
 
-            # Notify all subscribers
-            for callback in self._subscribers:
-                try:
-                    await callback(event)
-                except Exception as e:
-                    self._logger.error(
-                        "Event callback failed",
-                        event_id=event.event_id,
-                        error=str(e),
-                    )
+        # Notify all subscribers
+        for callback in self._subscribers:
+            await _notify_event_callback_safe(callback, event, self._logger)
 
-        except Exception as e:
-            self._logger.error("Failed to process health event message", error=str(e))
+
+@monitoring_error_handler("run health event subscription")
+async def _run_event_subscription_safe(subscriber: HealthEventSubscriber) -> None:
+    """Safely run health event subscription loop."""
+    try:
+        pubsub = subscriber.redis_client.pubsub()
+        await pubsub.subscribe(HealthEventPublisher.HEALTH_EVENTS_CHANNEL)
+
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                await subscriber._handle_message(message["data"])
+    finally:
+        subscriber._running = False
+        subscriber._logger.info("Health event subscription stopped")
+
+
+@monitoring_error_handler("notify event callback")
+async def _notify_event_callback_safe(callback, event: HealthEvent, _logger) -> None:
+    """Safely notify an event callback."""
+    await callback(event)
 
 
 # Global instances (will be initialized with Redis connection)

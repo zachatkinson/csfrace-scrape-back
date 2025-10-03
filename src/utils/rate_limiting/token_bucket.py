@@ -8,9 +8,10 @@ import time
 from dataclasses import dataclass
 
 import asyncio
-import structlog
 
-logger = structlog.get_logger(__name__)
+from src.core.logging_hierarchy import get_core_logger
+
+logger = get_core_logger()
 
 
 @dataclass

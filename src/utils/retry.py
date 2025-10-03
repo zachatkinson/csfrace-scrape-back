@@ -17,13 +17,14 @@ from enum import Enum
 from typing import Any, TypeVar
 
 import asyncio
-import structlog
 from aiohttp import ClientError, ServerTimeoutError
 
-from ..core.config import config
+from src.core.logging_hierarchy import get_scraping_logger
+
+from ..constants.api import BACKOFF_FACTOR, MAX_RETRIES
 from ..core.exceptions import RateLimitError
 
-logger = structlog.get_logger(__name__)
+logger = get_scraping_logger()
 
 T = TypeVar("T")
 
@@ -44,10 +45,10 @@ class RetryConfig:
     configuration management with environment variable support.
     """
 
-    max_attempts: int = config.http.max_retries
+    max_attempts: int = MAX_RETRIES
     base_delay: float = 1.0
     max_delay: float = 60.0
-    backoff_factor: float = config.http.backoff_factor
+    backoff_factor: float = BACKOFF_FACTOR
     jitter: bool = True
     jitter_factor: float = 0.1  # Add up to 10% random variation
 

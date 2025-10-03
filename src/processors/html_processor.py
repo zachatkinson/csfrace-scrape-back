@@ -4,10 +4,11 @@ This addresses the critical SRP violation identified in the audit by
 separating concerns into focused, single-responsibility processors.
 """
 
-import structlog
 from bs4 import BeautifulSoup
 
-from ..core.exceptions import ProcessingError
+from src.core.decorators import content_processing_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
+
 from ..security.sanitization import HTMLSanitizer
 from .content_extractors import (
     CleanupProcessor,
@@ -19,7 +20,7 @@ from .content_extractors import (
     MediaProcessor,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class HTMLProcessorOrchestrator:
@@ -77,6 +78,7 @@ class HTMLProcessorOrchestrator:
             CleanupProcessor(),
         ]
 
+    @content_processing_error_handler("process HTML through pipeline")
     async def process(self, soup: BeautifulSoup) -> str:
         """Main processing method that orchestrates all processors.
 
@@ -88,41 +90,34 @@ class HTMLProcessorOrchestrator:
 
         Returns:
             Converted HTML string
-
-        Raises:
-            ProcessingError: If processing fails
         """
-        try:
-            logger.info("Starting HTML processing pipeline", processors=len(self.pipeline))
+        logger.info("Starting HTML processing pipeline", processors=len(self.pipeline))
 
-            # Step 1: Extract main content
-            main_extractor = MainContentExtractor()
-            content = await main_extractor.extract(soup)
+        # Step 1: Extract main content
+        main_extractor = MainContentExtractor()
+        content = await main_extractor.extract(soup)
 
-            # Step 2: Execute processing pipeline
-            for processor in self.pipeline[1:]:  # Skip MainContentExtractor as it's already done
-                try:
-                    content = await processor.extract(content)
-                    logger.debug("Processor completed", processor=processor.name)
-                except Exception as e:
-                    logger.error("Processor failed", processor=processor.name, error=str(e))
-                    # Continue with other processors - graceful degradation
-                    continue
+        # Step 2: Execute processing pipeline
+        for processor in self.pipeline[1:]:  # Skip MainContentExtractor as it's already done
+            content = await self._process_single_step(processor, content)
 
-            # Step 3: Apply final sanitization if enabled
-            if self.sanitizer:
-                html_content = str(content)
-                html_content = self.sanitizer.sanitize_html(html_content)
-                logger.debug("HTML sanitization applied")
-            else:
-                html_content = str(content)
+        # Step 3: Apply final sanitization if enabled
+        if self.sanitizer:
+            html_content = str(content)
+            html_content = self.sanitizer.sanitize_html(html_content)
+            logger.debug("HTML sanitization applied")
+        else:
+            html_content = str(content)
 
-            logger.info("HTML processing pipeline completed successfully")
-            return html_content
+        logger.info("HTML processing pipeline completed successfully")
+        return html_content
 
-        except Exception as e:
-            logger.error("HTML processing pipeline failed", error=str(e))
-            raise ProcessingError(f"HTML processing failed: {e}") from e
+    @content_processing_error_handler("process single pipeline step")
+    async def _process_single_step(self, processor: ContentExtractorBase, content) -> any:
+        """Process a single step in the pipeline with centralized error handling."""
+        content = await processor.extract(content)
+        logger.debug("Processor completed", processor=processor.name)
+        return content
 
     def add_processor(self, processor: ContentExtractorBase, position: int | None = None) -> None:
         """Add a custom processor to the pipeline.
@@ -213,10 +208,6 @@ class HTMLProcessorFactory:
         orchestrator.pipeline = processors
         orchestrator.sanitizer = HTMLSanitizer(strict_mode=True) if enable_sanitization else None
         return orchestrator
-
-
-# Backward compatibility alias (can be removed after migration)
-HTMLProcessor = HTMLProcessorOrchestrator
 
 
 # ===== BENEFITS OF REFACTORED DESIGN =====

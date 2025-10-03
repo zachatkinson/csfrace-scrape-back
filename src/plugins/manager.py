@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import Any
 
 import asyncio
-import structlog
+
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_general_logger
 
 from .base import BasePlugin, PluginType
 from .registry import PluginRegistry, plugin_registry
 
-logger = structlog.get_logger(__name__)
+logger = get_general_logger()
 
 
 class PluginExecutionContext:
@@ -82,7 +84,7 @@ class PluginManager:
         if self._initialized:
             return
 
-        logger.info("Initializing plugin manager")
+        logger.logger.info("Initializing plugin manager")
 
         # Discover plugins from search paths
         self.registry.discover_plugins()
@@ -95,27 +97,24 @@ class PluginManager:
         self._build_pipeline()
 
         self._initialized = True
-        logger.info("Plugin manager initialized", loaded_plugins=len(self._plugins))
+        logger.logger.info("Plugin manager initialized", loaded_plugins=len(self._plugins))
 
     async def shutdown(self) -> None:
         """Shutdown the plugin manager and cleanup all plugins."""
         if not self._initialized:
             return
 
-        logger.info("Shutting down plugin manager")
+        logger.logger.info("Shutting down plugin manager")
 
         # Cleanup all plugins
         for plugin in self._plugins.values():
-            try:
-                await plugin.cleanup()
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.warning("Plugin cleanup failed", plugin=plugin.config.name, error=str(e))
+            await self._cleanup_plugin_safe(plugin)
 
         self._plugins.clear()
         self._pipeline.clear()
         self._initialized = False
 
-        logger.info("Plugin manager shutdown complete")
+        logger.logger.info("Plugin manager shutdown complete")
 
     async def _initialize_plugin(self, plugin_name: str) -> None:
         """Initialize a single plugin.
@@ -127,31 +126,12 @@ class PluginManager:
         plugin_config = self.registry.get_plugin_config(plugin_name)
 
         if not plugin_class or not plugin_config:
-            logger.warning("Plugin not found in registry", name=plugin_name)
+            logger.logger.warning("Plugin not found in registry", name=plugin_name)
             return
 
-        try:
-            # Create plugin instance
-            plugin = plugin_class(plugin_config)
-
-            # Validate configuration
-            if not await plugin.validate_config():
-                logger.warning("Plugin configuration validation failed", name=plugin_name)
-                return
-
-            # Initialize plugin
-            await plugin.initialize()
-            plugin._initialized = True  # pylint: disable=protected-access
-
-            # Store plugin
-            self._plugins[plugin_name] = plugin
-
-            logger.info(
-                "Plugin initialized", name=plugin_name, type=plugin_config.plugin_type.value
-            )
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Plugin initialization failed", name=plugin_name, error=str(e))
+        result = await self._initialize_plugin_safe(plugin_name, plugin_class, plugin_config)
+        if result:
+            self._plugins[plugin_name] = result
 
     def _build_pipeline(self) -> None:
         """Build the execution pipeline based on plugin priorities."""
@@ -166,7 +146,7 @@ class PluginManager:
         for plugin_type in self._pipeline:
             self._pipeline[plugin_type].sort(key=lambda name: self._plugins[name].config.priority)
 
-        logger.debug(
+        logger.logger.debug(
             "Built plugin execution pipeline",
             pipeline={ptype.value: plugins for ptype, plugins in self._pipeline.items()},
         )
@@ -197,10 +177,10 @@ class PluginManager:
 
         plugins = self._pipeline.get(plugin_type, [])
         if not plugins:
-            logger.debug("No plugins found for type", type=plugin_type.value)
+            logger.logger.debug("No plugins found for type", type=plugin_type.value)
             return data
 
-        logger.debug(
+        logger.logger.debug(
             "Executing plugin pipeline",
             type=plugin_type.value,
             plugins=plugins,
@@ -214,48 +194,9 @@ class PluginManager:
             if not plugin or not plugin.is_enabled():
                 continue
 
-            try:
-                start_time = asyncio.get_event_loop().time()
-
-                # Execute plugin
-                result = await plugin.process(result, context.shared_state)
-
-                end_time = asyncio.get_event_loop().time()
-                duration = end_time - start_time
-
-                # Record execution stats
-                context.record_plugin_stats(
-                    plugin_name,
-                    {
-                        "duration": duration,
-                        "success": True,
-                        "input_type": type(data).__name__,
-                        "output_type": type(result).__name__,
-                    },
-                )
-
-                logger.debug(
-                    "Plugin executed successfully",
-                    name=plugin_name,
-                    duration_ms=round(duration * 1000, 2),
-                )
-
-                # Call post-execution hooks
-                await self._call_hooks("post_plugin_execute", plugin_name, result, context)
-
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("Plugin execution failed", name=plugin_name, error=str(e))
-
-                # Record failure stats
-                context.record_plugin_stats(
-                    plugin_name, {"duration": 0, "success": False, "error": str(e)}
-                )
-
-                # Call error hooks
-                await self._call_hooks("plugin_error", plugin_name, e, context)
-
-                if stop_on_error:
-                    raise
+            result = await self._execute_plugin_safe(
+                plugin, plugin_name, result, data, context, stop_on_error
+            )
 
         return result
 
@@ -290,30 +231,7 @@ class PluginManager:
             "files": [],
         }
 
-        try:
-            # Execute plugin pipelines in order
-
-            # 1. Metadata extraction
-            data = await self.execute_pipeline(PluginType.METADATA_EXTRACTOR, data, context)
-
-            # 2. HTML processing
-            data = await self.execute_pipeline(PluginType.HTML_PROCESSOR, data, context)
-
-            # 3. Content filtering
-            data = await self.execute_pipeline(PluginType.CONTENT_FILTER, data, context)
-
-            # 4. Image processing
-            data = await self.execute_pipeline(PluginType.IMAGE_PROCESSOR, data, context)
-
-            # 5. Output formatting
-            data = await self.execute_pipeline(PluginType.OUTPUT_FORMATTER, data, context)
-
-            # 6. Post processing
-            data = await self.execute_pipeline(PluginType.POST_PROCESSOR, data, context)
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Plugin pipeline execution failed", url=url, error=str(e))
-            raise
+        data = await self._execute_full_pipeline_safe(data, context, url)
 
         context.end_time = asyncio.get_event_loop().time()
 
@@ -336,7 +254,7 @@ class PluginManager:
             callback: Callback function to call
         """
         self._hooks[event].append(callback)
-        logger.debug("Added plugin hook", event=event, callback=callback.__name__)
+        logger.logger.debug("Added plugin hook", event=event, callback=callback.__name__)
 
     async def _call_hooks(self, event: str, *args, **kwargs) -> None:
         """Call all hooks for a specific event.
@@ -347,15 +265,7 @@ class PluginManager:
             **kwargs: Event keyword arguments
         """
         for callback in self._hooks.get(event, []):
-            try:
-                if asyncio.iscoroutinefunction(callback):
-                    await callback(*args, **kwargs)
-                else:
-                    callback(*args, **kwargs)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.warning(
-                    "Hook callback failed", event=event, callback=callback.__name__, error=str(e)
-                )
+            await self._execute_hook_callback_safe(callback, event, *args, **kwargs)
 
     def enable_plugin(self, plugin_name: str) -> bool:
         """Enable a plugin.
@@ -370,7 +280,7 @@ class PluginManager:
         if config:
             config.enabled = True
             self._build_pipeline()
-            logger.info("Plugin enabled", name=plugin_name)
+            logger.logger.info("Plugin enabled", name=plugin_name)
             return True
         return False
 
@@ -387,7 +297,7 @@ class PluginManager:
         if config:
             config.enabled = False
             self._build_pipeline()
-            logger.info("Plugin disabled", name=plugin_name)
+            logger.logger.info("Plugin disabled", name=plugin_name)
             return True
         return False
 
@@ -452,6 +362,110 @@ class PluginManager:
             Dictionary mapping hook names to callback counts
         """
         return {event: len(callbacks) for event, callbacks in self._hooks.items()}
+
+    @database_error_handler("cleanup plugin")
+    async def _cleanup_plugin_safe(self, plugin: BasePlugin) -> None:
+        """Cleanup plugin with error handling."""
+        await plugin.cleanup()
+
+    @database_error_handler("initialize plugin")
+    async def _initialize_plugin_safe(
+        self, plugin_name: str, plugin_class: type, plugin_config
+    ) -> BasePlugin | None:
+        """Initialize plugin with error handling."""
+        # Create plugin instance
+        plugin = plugin_class(plugin_config)
+
+        # Validate configuration
+        if not await plugin.validate_config():
+            logger.logger.warning("Plugin configuration validation failed", name=plugin_name)
+            return None
+
+        # Initialize plugin
+        await plugin.initialize()
+        plugin._initialized = True  # pylint: disable=protected-access
+
+        logger.logger.info(
+            "Plugin initialized", name=plugin_name, type=plugin_config.plugin_type.value
+        )
+        return plugin
+
+    @database_error_handler("execute plugin")
+    async def _execute_plugin_safe(
+        self,
+        plugin: BasePlugin,
+        plugin_name: str,
+        result: Any,
+        data: Any,
+        context: PluginExecutionContext,
+        stop_on_error: bool,
+    ) -> Any:
+        """Execute plugin with error handling."""
+        start_time = asyncio.get_event_loop().time()
+
+        # Execute plugin
+        result = await plugin.process(result, context.shared_state)
+
+        end_time = asyncio.get_event_loop().time()
+        duration = end_time - start_time
+
+        # Record execution stats
+        context.record_plugin_stats(
+            plugin_name,
+            {
+                "duration": duration,
+                "success": True,
+                "input_type": type(data).__name__,
+                "output_type": type(result).__name__,
+            },
+        )
+
+        logger.logger.debug(
+            "Plugin executed successfully",
+            name=plugin_name,
+            duration_ms=round(duration * 1000, 2),
+        )
+
+        # Call post-execution hooks
+        await self._call_hooks("post_plugin_execute", plugin_name, result, context)
+        return result
+
+    @database_error_handler("execute full pipeline")
+    async def _execute_full_pipeline_safe(
+        self, data: dict, context: PluginExecutionContext, url: str
+    ) -> dict:
+        """Execute full pipeline with error handling."""
+        # Execute plugin pipelines in order
+
+        # 1. Metadata extraction
+        data = await self.execute_pipeline(PluginType.METADATA_EXTRACTOR, data, context)
+
+        # 2. HTML processing
+        data = await self.execute_pipeline(PluginType.HTML_PROCESSOR, data, context)
+
+        # 3. Content filtering
+        data = await self.execute_pipeline(PluginType.CONTENT_FILTER, data, context)
+
+        # 4. Image processing
+        data = await self.execute_pipeline(PluginType.IMAGE_PROCESSOR, data, context)
+
+        # 5. Output formatting
+        data = await self.execute_pipeline(PluginType.OUTPUT_FORMATTER, data, context)
+
+        # 6. Post processing
+        data = await self.execute_pipeline(PluginType.POST_PROCESSOR, data, context)
+
+        return data
+
+    @database_error_handler("execute hook callback")
+    async def _execute_hook_callback_safe(
+        self, callback: Callable, event: str, *args, **kwargs
+    ) -> None:
+        """Execute hook callback with error handling."""
+        if asyncio.iscoroutinefunction(callback):
+            await callback(*args, **kwargs)
+        else:
+            callback(*args, **kwargs)
 
 
 # Global plugin manager instance

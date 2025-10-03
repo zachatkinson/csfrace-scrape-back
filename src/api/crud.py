@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from ..common.status import JobStatus
 from ..constants import API_DEFAULT_LIMIT
-from ..database.models import ContentResult, ScrapingJob
+from ..database.models.jobs import ContentResult, ScrapingJob
 from ..monitoring.job_events import (
     publish_job_created,
     publish_job_deleted,
@@ -212,8 +212,8 @@ class JobCRUD:
         if not job:
             return None
 
-        # Store old status for event publishing
-        old_status = job.status
+        # Store previous status for event publishing
+        previous_status = job.status
         new_status = status.value if hasattr(status, "value") else str(status)
 
         # Extract domain from source_url for event publishing
@@ -244,10 +244,10 @@ class JobCRUD:
         await db.refresh(job)
 
         # Publish status update event (only if status actually changed)
-        if old_status != new_status:
+        if previous_status != new_status:
             await publish_job_status_update(
                 job_id=job.id,
-                old_status=old_status,
+                old_status=previous_status,
                 new_status=new_status,
                 url=job.source_url,
                 domain=job_domain,

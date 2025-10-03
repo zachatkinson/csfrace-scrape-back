@@ -7,13 +7,14 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 import asyncio
-import structlog
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.decorators import network_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
 from src.utils.retry import RetryConfig, with_retry
 
-logger = structlog.get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class BrowserConfig(BaseModel):
@@ -98,7 +99,7 @@ class BrowserPool:
     async def initialize(self) -> None:
         """Initialize the browser pool."""
         if self._playwright is None:
-            logger.info(
+            logger.logger.info(
                 "Initializing Playwright browser pool", browser_type=self.config.browser_type
             )
 
@@ -127,40 +128,46 @@ class BrowserPool:
 
             self._browser = await browser_type.launch(**launch_options)
 
-            logger.info("Browser pool initialized successfully")
+            logger.logger.info("Browser pool initialized successfully")
 
     async def cleanup(self) -> None:
         """Clean up browser resources."""
         if self._browser:
-            logger.info("Cleaning up browser pool")
+            logger.logger.info("Cleaning up browser pool")
 
             # Close all contexts
             for context in self._contexts:
-                try:
-                    await context.close()
-                except Exception as e:
-                    logger.warning("Error closing browser context", error=str(e))
+                await self._close_context_safe(context)
 
             self._contexts.clear()
             self._context_usage.clear()
 
             # Close browser
-            try:
-                await self._browser.close()
-            except Exception as e:
-                logger.warning("Error closing browser", error=str(e))
-
+            await self._close_browser_safe()
             self._browser = None
 
         if self._playwright:
-            try:
-                await self._playwright.stop()
-            except Exception as e:
-                logger.warning("Error stopping Playwright", error=str(e))
-
+            await self._stop_playwright_safe()
             self._playwright = None
 
-        logger.info("Browser pool cleanup completed")
+        logger.logger.info("Browser pool cleanup completed")
+
+    @network_error_handler("close browser context")
+    async def _close_context_safe(self, context: BrowserContext) -> None:
+        """Close browser context with error handling."""
+        await context.close()
+
+    @network_error_handler("close browser")
+    async def _close_browser_safe(self) -> None:
+        """Close browser with error handling."""
+        if self._browser:
+            await self._browser.close()
+
+    @network_error_handler("stop playwright")
+    async def _stop_playwright_safe(self) -> None:
+        """Stop Playwright with error handling."""
+        if self._playwright:
+            await self._playwright.stop()
 
     async def _create_context(self) -> BrowserContext:
         """Create a new browser context."""
@@ -206,15 +213,17 @@ class BrowserPool:
                 contexts_to_remove.append(context)
 
         for context in contexts_to_remove:
-            try:
-                await context.close()
-                self._contexts.remove(context)
-                self._context_usage.pop(context, None)
-                logger.debug("Cleaned up stale browser context")
-            except Exception as e:
-                logger.warning("Error cleaning up context", error=str(e))
+            await self._cleanup_single_context_safe(context)
 
         self._last_cleanup = current_time
+
+    @network_error_handler("cleanup single context")
+    async def _cleanup_single_context_safe(self, context: BrowserContext) -> None:
+        """Clean up a single context with error handling."""
+        await context.close()
+        self._contexts.remove(context)
+        self._context_usage.pop(context, None)
+        logger.logger.debug("Cleaned up stale browser context")
 
     @asynccontextmanager
     async def get_context(self) -> AsyncGenerator[BrowserContext]:
@@ -276,7 +285,7 @@ class JavaScriptRenderer:
             self._pool = BrowserPool(self.config, **self.pool_config)
             await self._pool.initialize()
 
-            logger.info("JavaScript renderer initialized")
+            logger.logger.info("JavaScript renderer initialized")
 
     async def cleanup(self) -> None:
         """Clean up renderer resources."""
@@ -284,7 +293,7 @@ class JavaScriptRenderer:
             await self._pool.cleanup()
             self._pool = None
 
-            logger.info("JavaScript renderer cleaned up")
+            logger.logger.info("JavaScript renderer cleaned up")
 
     async def render_page(
         self,
@@ -356,7 +365,7 @@ class JavaScriptRenderer:
                     page.on("request", handle_request)
 
                 # Navigate to page
-                logger.debug("Navigating to URL", url=url)
+                logger.logger.debug("Navigating to URL", url=url)
                 wait_until_literal = cast(
                     "Literal['commit', 'domcontentloaded', 'load', 'networkidle']",
                     self.config.wait_until,
@@ -373,14 +382,14 @@ class JavaScriptRenderer:
 
                 # Wait for specific selector if provided
                 if wait_for_selector:
-                    logger.debug("Waiting for selector", selector=wait_for_selector)
+                    logger.logger.debug("Waiting for selector", selector=wait_for_selector)
                     await page.wait_for_selector(
                         wait_for_selector, timeout=self.config.timeout * 1000
                     )
 
                 # Wait for custom function if provided
                 if wait_for_function:
-                    logger.debug("Waiting for function", function=wait_for_function)
+                    logger.logger.debug("Waiting for function", function=wait_for_function)
                     await page.wait_for_function(
                         wait_for_function, timeout=self.config.timeout * 1000
                     )
@@ -388,16 +397,12 @@ class JavaScriptRenderer:
                 # Execute custom JavaScript if provided
                 script_result = None
                 if execute_script:
-                    logger.debug("Executing custom script")
-                    try:
-                        script_result = await page.evaluate(execute_script)
-                    except Exception as e:
-                        logger.warning("JavaScript execution failed", error=str(e))
-                        script_result = None
+                    logger.logger.debug("Executing custom script")
+                    script_result = await self._execute_script_safe(page, execute_script)
 
                 # Additional wait time for dynamic content
                 if additional_wait_time > 0:
-                    logger.debug("Additional wait time", duration=additional_wait_time)
+                    logger.logger.debug("Additional wait time", duration=additional_wait_time)
                     await asyncio.sleep(additional_wait_time)
 
                 # Get page content
@@ -406,7 +411,7 @@ class JavaScriptRenderer:
                 # Take screenshots if requested
                 screenshots = {}
                 if take_screenshot:
-                    logger.debug("Taking screenshot")
+                    logger.logger.debug("Taking screenshot")
                     screenshot_options: dict[str, Any] = {"full_page": full_page_screenshot}
                     screenshots["main"] = await page.screenshot(**screenshot_options)
 
@@ -419,32 +424,11 @@ class JavaScriptRenderer:
                     "script_result": script_result,
                 }
 
-                # Try to get additional metadata
-                try:
-                    metadata.update(
-                        {
-                            "meta_description": await page.get_attribute(
-                                'meta[name="description"]', "content"
-                            )
-                            or "",
-                            "meta_keywords": await page.get_attribute(
-                                'meta[name="keywords"]', "content"
-                            )
-                            or "",
-                            "og_title": await page.get_attribute(
-                                'meta[property="og:title"]', "content"
-                            )
-                            or "",
-                            "og_description": await page.get_attribute(
-                                'meta[property="og:description"]', "content"
-                            )
-                            or "",
-                        }
-                    )
-                except Exception as e:
-                    logger.debug("Could not extract additional metadata", error=str(e))
+                # Get additional metadata
+                additional_metadata = await self._extract_metadata_safe(page)
+                metadata.update(additional_metadata)
 
-                logger.info(
+                logger.logger.info(
                     "Page rendered successfully",
                     url=url,
                     final_url=final_url,
@@ -467,6 +451,23 @@ class JavaScriptRenderer:
 
             finally:
                 await page.close()
+
+    @network_error_handler("execute custom script")
+    async def _execute_script_safe(self, page, script: str) -> Any:
+        """Execute custom JavaScript with error handling."""
+        return await page.evaluate(script)
+
+    @network_error_handler("extract page metadata")
+    async def _extract_metadata_safe(self, page) -> dict[str, str]:
+        """Extract additional page metadata with error handling."""
+        return {
+            "meta_description": await page.get_attribute('meta[name="description"]', "content")
+            or "",
+            "meta_keywords": await page.get_attribute('meta[name="keywords"]', "content") or "",
+            "og_title": await page.get_attribute('meta[property="og:title"]', "content") or "",
+            "og_description": await page.get_attribute('meta[property="og:description"]', "content")
+            or "",
+        }
 
     async def __aenter__(self):
         """Async context manager entry."""

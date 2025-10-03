@@ -7,13 +7,14 @@ for metrics visualization and dashboard management.
 from pathlib import Path
 from typing import Any
 
-import structlog
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ..constants import CONSTANTS
+from src.core.logging_hierarchy import get_monitoring_logger
 
-logger = structlog.get_logger(__name__)
+from ..constants import DEFAULT_OUTPUT_DIR
+
+logger = get_monitoring_logger()
 
 
 class GrafanaConfig(BaseSettings):
@@ -38,8 +39,8 @@ class GrafanaConfig(BaseSettings):
         default="CHANGE_ME_IN_PRODUCTION",
         description="Admin password - set GRAFANA_ADMIN_PASSWORD env var for production",
     )
-    dashboards_dir: Path = Path(CONSTANTS.DEFAULT_OUTPUT_DIR) / "grafana" / "dashboards"
-    provisioning_dir: Path = Path(CONSTANTS.DEFAULT_OUTPUT_DIR) / "grafana" / "provisioning"
+    dashboards_dir: Path = Path(DEFAULT_OUTPUT_DIR) / "grafana" / "dashboards"
+    provisioning_dir: Path = Path(DEFAULT_OUTPUT_DIR) / "grafana" / "provisioning"
     prometheus_url: str = "http://prometheus:9090"
     refresh_interval: str = "30s"
     time_range: str = "1h"

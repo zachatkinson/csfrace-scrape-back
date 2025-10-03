@@ -11,9 +11,11 @@ from typing import Any
 
 import asyncio
 import psutil
-import structlog
 
-logger = structlog.get_logger(__name__)
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
+
+logger = get_monitoring_logger()
 
 try:
     from prometheus_client import (
@@ -69,6 +71,7 @@ class MetricsCollector:
         self._response_times: list[float] = []
         self._max_response_time = 0.0
         self._active_connections = 0
+        self._queue_length = 0  # Track request queue length
 
         # Initialize application metrics with default values
         self._initialize_application_metrics()
@@ -88,7 +91,7 @@ class MetricsCollector:
                 "p95_response": 0.0,
                 "max_response": 0.0,
                 "active_connections": 0,
-                "queue_length": 0,
+                "queue_length": self._queue_length,
                 "uptime": uptime_str,
                 "total_requests": 0,
                 "timestamp": time.time(),
@@ -219,61 +222,53 @@ class MetricsCollector:
 
         logger.info("Stopped metrics collection")
 
+    @monitoring_error_handler("metrics collection loop")
     async def _collection_loop(self) -> None:
         """Main metrics collection loop."""
         while self._collecting:
-            try:
-                await self.collect_system_metrics()
-                await asyncio.sleep(self.config.collection_interval)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error("Metrics collection failed", error=str(e))
-                await asyncio.sleep(5.0)  # Back off on errors
+            await self.collect_system_metrics()
+            await asyncio.sleep(self.config.collection_interval)
 
+    @monitoring_error_handler("system metrics collection")
     async def collect_system_metrics(self) -> None:
         """Collect system resource metrics."""
         if not self.config.system_metrics_enabled:
             return
 
-        try:
-            # CPU usage
-            cpu_percent = psutil.cpu_percent(interval=1)
+        # CPU usage
+        cpu_percent = psutil.cpu_percent(interval=1)
 
-            # Memory usage
-            memory = psutil.virtual_memory()
+        # Memory usage
+        memory = psutil.virtual_memory()
 
-            # Disk usage (for root filesystem)
-            disk = psutil.disk_usage("/")
+        # Disk usage (for root filesystem)
+        disk = psutil.disk_usage("/")
 
-            # Network I/O
-            network = psutil.net_io_counters()
+        # Network I/O
+        network = psutil.net_io_counters()
 
-            with self._lock:
-                self.system_metrics.update(
-                    {
-                        "cpu_percent": cpu_percent,
-                        "memory_total": memory.total,
-                        "memory_used": memory.used,
-                        "memory_percent": memory.percent,
-                        "disk_total": disk.total,
-                        "disk_used": disk.used,
-                        "disk_percent": (disk.used / disk.total) * 100,
-                        "network_bytes_sent": network.bytes_sent,
-                        "network_bytes_recv": network.bytes_recv,
-                        "timestamp": time.time(),
-                    }
-                )
+        with self._lock:
+            self.system_metrics.update(
+                {
+                    "cpu_percent": cpu_percent,
+                    "memory_total": memory.total,
+                    "memory_used": memory.used,
+                    "memory_percent": memory.percent,
+                    "disk_total": disk.total,
+                    "disk_used": disk.used,
+                    "disk_percent": (disk.used / disk.total) * 100,
+                    "network_bytes_sent": network.bytes_sent,
+                    "network_bytes_recv": network.bytes_recv,
+                    "timestamp": time.time(),
+                }
+            )
 
-            # Update Prometheus metrics
-            if PROMETHEUS_AVAILABLE and self.registry:
-                self.metrics["cpu_usage"].set(cpu_percent)
-                self.metrics["memory_usage"].set(memory.used)
-                self.metrics["memory_usage_percent"].set(memory.percent)
-                self.metrics["disk_usage"].set((disk.used / disk.total) * 100)
-
-        except Exception as e:
-            logger.error("System metrics collection failed", error=str(e))
+        # Update Prometheus metrics
+        if PROMETHEUS_AVAILABLE and self.registry:
+            self.metrics["cpu_usage"].set(cpu_percent)
+            self.metrics["memory_usage"].set(memory.used)
+            self.metrics["memory_usage_percent"].set(memory.percent)
+            self.metrics["disk_usage"].set((disk.used / disk.total) * 100)
 
     def record_request(self, method: str, endpoint: str, status_code: int, duration: float) -> None:
         """Record HTTP request metrics.
@@ -321,7 +316,7 @@ class MetricsCollector:
                     "p95_response": p95_response,
                     "max_response": self._max_response_time,
                     "active_connections": self._active_connections,
-                    "queue_length": 0,  # TODO: Implement actual queue tracking
+                    "queue_length": self._queue_length,
                     "uptime": uptime_str,
                     "total_requests": len(self._response_times),
                     "timestamp": time.time(),
@@ -331,17 +326,18 @@ class MetricsCollector:
         if not self.config.application_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
-        try:
-            self.metrics["requests_total"].labels(
-                method=method, status=str(status_code), endpoint=endpoint
-            ).inc()
+        self._record_prometheus_request_metrics(method, status_code, endpoint, duration)
 
-            self.metrics["request_duration"].labels(method=method, endpoint=endpoint).observe(
-                duration
-            )
+    @monitoring_error_handler("record request metrics")
+    def _record_prometheus_request_metrics(
+        self, method: str, status_code: int, endpoint: str, duration: float
+    ) -> None:
+        """Record request metrics to Prometheus."""
+        self.metrics["requests_total"].labels(
+            method=method, status=str(status_code), endpoint=endpoint
+        ).inc()
 
-        except Exception as e:
-            logger.error("Failed to record request metrics", error=str(e))
+        self.metrics["request_duration"].labels(method=method, endpoint=endpoint).observe(duration)
 
     def increment_active_connections(self) -> None:
         """Increment active connections counter."""
@@ -353,6 +349,16 @@ class MetricsCollector:
         with self._lock:
             self._active_connections = max(0, self._active_connections - 1)
 
+    def increment_queue_length(self) -> None:
+        """Increment request queue length counter."""
+        with self._lock:
+            self._queue_length += 1
+
+    def decrement_queue_length(self) -> None:
+        """Decrement request queue length counter."""
+        with self._lock:
+            self._queue_length = max(0, self._queue_length - 1)
+
     def record_batch_job(self, status: str, duration: float | None = None) -> None:
         """Record batch job metrics.
 
@@ -363,14 +369,15 @@ class MetricsCollector:
         if not self.config.application_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
-        try:
-            self.metrics["batch_jobs_processed"].labels(status=status).inc()
+        self._record_prometheus_batch_metrics(status, duration)
 
-            if duration is not None:
-                self.metrics["batch_processing_duration"].observe(duration)
+    @monitoring_error_handler("record batch job metrics")
+    def _record_prometheus_batch_metrics(self, status: str, duration: float | None) -> None:
+        """Record batch job metrics to Prometheus."""
+        self.metrics["batch_jobs_processed"].labels(status=status).inc()
 
-        except Exception as e:
-            logger.error("Failed to record batch job metrics", error=str(e))
+        if duration is not None:
+            self.metrics["batch_processing_duration"].observe(duration)
 
     def record_cache_hit(self, cache_type: str) -> None:
         """Record cache hit.
@@ -381,10 +388,12 @@ class MetricsCollector:
         if not self.config.cache_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
-        try:
-            self.metrics["cache_hits"].labels(cache_type=cache_type).inc()
-        except Exception as e:
-            logger.error("Failed to record cache hit", error=str(e))
+        self._record_prometheus_cache_hit(cache_type)
+
+    @monitoring_error_handler("record cache hit")
+    def _record_prometheus_cache_hit(self, cache_type: str) -> None:
+        """Record cache hit to Prometheus."""
+        self.metrics["cache_hits"].labels(cache_type=cache_type).inc()
 
     def record_cache_miss(self, cache_type: str) -> None:
         """Record cache miss.
@@ -395,10 +404,12 @@ class MetricsCollector:
         if not self.config.cache_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
-        try:
-            self.metrics["cache_misses"].labels(cache_type=cache_type).inc()
-        except Exception as e:
-            logger.error("Failed to record cache miss", error=str(e))
+        self._record_prometheus_cache_miss(cache_type)
+
+    @monitoring_error_handler("record cache miss")
+    def _record_prometheus_cache_miss(self, cache_type: str) -> None:
+        """Record cache miss to Prometheus."""
+        self.metrics["cache_misses"].labels(cache_type=cache_type).inc()
 
     def update_cache_metrics(self, cache_type: str, size_bytes: int, entry_count: int) -> None:
         """Update cache size metrics.
@@ -411,11 +422,15 @@ class MetricsCollector:
         if not self.config.cache_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
-        try:
-            self.metrics["cache_size"].labels(cache_type=cache_type).set(size_bytes)
-            self.metrics["cache_entries"].labels(cache_type=cache_type).set(entry_count)
-        except Exception as e:
-            logger.error("Failed to update cache metrics", error=str(e))
+        self._update_prometheus_cache_metrics(cache_type, size_bytes, entry_count)
+
+    @monitoring_error_handler("update cache metrics")
+    def _update_prometheus_cache_metrics(
+        self, cache_type: str, size_bytes: int, entry_count: int
+    ) -> None:
+        """Update cache metrics in Prometheus."""
+        self.metrics["cache_size"].labels(cache_type=cache_type).set(size_bytes)
+        self.metrics["cache_entries"].labels(cache_type=cache_type).set(entry_count)
 
     def record_database_query(
         self, operation: str, status: str, duration: float | None = None
@@ -430,14 +445,17 @@ class MetricsCollector:
         if not self.config.database_metrics_enabled or not PROMETHEUS_AVAILABLE:
             return
 
-        try:
-            self.metrics["db_queries"].labels(operation=operation, status=status).inc()
+        self._record_prometheus_database_metrics(operation, status, duration)
 
-            if duration is not None:
-                self.metrics["db_query_duration"].labels(operation=operation).observe(duration)
+    @monitoring_error_handler("record database query metrics")
+    def _record_prometheus_database_metrics(
+        self, operation: str, status: str, duration: float | None
+    ) -> None:
+        """Record database query metrics to Prometheus."""
+        self.metrics["db_queries"].labels(operation=operation, status=status).inc()
 
-        except Exception as e:
-            logger.error("Failed to record database query metrics", error=str(e))
+        if duration is not None:
+            self.metrics["db_query_duration"].labels(operation=operation).observe(duration)
 
     def get_metrics_snapshot(self) -> dict[str, Any]:
         """Get current metrics snapshot.
@@ -470,11 +488,14 @@ class MetricsCollector:
         if not PROMETHEUS_AVAILABLE or not self.registry:
             return b"# Prometheus not available\n"
 
-        try:
-            return generate_latest(self.registry)
-        except Exception as e:
-            logger.error("Failed to export Prometheus metrics", error=str(e))
-            return b"# Export failed\n"
+        return self._export_prometheus_data()
+
+    @monitoring_error_handler("export Prometheus metrics")
+    def _export_prometheus_data(self) -> bytes:
+        """Export Prometheus metrics data."""
+        if self.registry is None:
+            raise RuntimeError("Registry not initialized")
+        return generate_latest(self.registry)
 
     async def shutdown(self) -> None:
         """Shutdown metrics collector."""

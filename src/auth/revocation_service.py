@@ -3,15 +3,16 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-import structlog
-from sqlalchemy import and_, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..api.dependencies import async_session
-from ..database.models import RevokedToken
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_auth_logger
 
-logger = structlog.get_logger(__name__)
+from ..api.dependencies import async_session
+from ..database.models.auth import RevokedToken
+
+logger = get_auth_logger()
 
 
 class TokenRevocationService:
@@ -28,6 +29,7 @@ class TokenRevocationService:
         """Initialize revocation service with optional database session injection."""
         self._db_session = db_session
 
+    @database_error_handler("revoke token")
     async def revoke_token(
         self,
         jti: str,
@@ -56,9 +58,9 @@ class TokenRevocationService:
         Returns:
             bool: True if successfully revoked, False otherwise
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             # Check if already revoked - DRY principle
             existing = await self._find_revoked_token(db, jti)
             if existing:
@@ -91,28 +93,11 @@ class TokenRevocationService:
             )
             return True
 
-        except SQLAlchemyError as e:
-            logger.error(
-                "Database error during token revocation",
-                jti=jti,
-                user_id=user_id,
-                error=str(e),
-            )
-            await db.rollback()
-            return False
-        except Exception as e:
-            logger.error(
-                "Unexpected error during token revocation",
-                jti=jti,
-                user_id=user_id,
-                error=str(e),
-            )
-            await db.rollback()
-            return False
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("check token revocation status")
     async def is_token_revoked(self, jti: str) -> bool:
         """Check if a token is revoked by its JTI - SOLID Single Responsibility.
 
@@ -122,19 +107,15 @@ class TokenRevocationService:
         Returns:
             bool: True if token is revoked, False otherwise
         """
+        db = self._db_session or async_session()
         try:
-            db = self._db_session or async_session()
             revoked_token = await self._find_revoked_token(db, jti)
             return revoked_token is not None
-
-        except Exception as e:
-            logger.error("Error checking token revocation status", jti=jti, error=str(e))
-            # Fail secure - assume revoked on error
-            return True
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("revoke all user tokens")
     async def revoke_all_user_tokens(
         self,
         user_id: str,
@@ -153,9 +134,9 @@ class TokenRevocationService:
         Returns:
             int: Number of tokens revoked
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             # This would require tracking active tokens
             # For now, we'll create a bulk revocation record
             # In production, you'd query active sessions/tokens
@@ -173,27 +154,28 @@ class TokenRevocationService:
             db.add(bulk_revocation)
             await db.commit()
 
+            # Get actual count of affected tokens for this user
+            count_result = await db.execute(
+                select(func.count(RevokedToken.jti))
+                .where(RevokedToken.user_id == user_id)
+                .where(RevokedToken.revoked_at >= datetime.now(UTC) - timedelta(seconds=10))
+            )
+            actual_count = count_result.scalar() or 0
+
             logger.warning(
                 "Bulk token revocation performed",
                 user_id=user_id,
                 reason=reason,
                 revoked_by=revoked_by,
+                tokens_revoked=actual_count,
             )
-            return 1  # Placeholder - in production would return actual count
+            return actual_count
 
-        except Exception as e:
-            logger.error(
-                "Error during bulk token revocation",
-                user_id=user_id,
-                error=str(e),
-            )
-            if self._db_session is None:
-                await db.rollback()
-            return 0
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("cleanup expired revocations")
     async def cleanup_expired_revocations(self, older_than_days: int = 30) -> int:
         """Clean up expired revocation records - SOLID Single Responsibility.
 
@@ -206,9 +188,9 @@ class TokenRevocationService:
         Returns:
             int: Number of records cleaned up
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             cutoff_date = datetime.now(UTC) - timedelta(days=older_than_days)
 
             # Delete revocation records where the original token would have expired
@@ -239,15 +221,11 @@ class TokenRevocationService:
 
             return records_count
 
-        except Exception as e:
-            logger.error("Error during revocation cleanup", error=str(e))
-            if self._db_session is None:
-                await db.rollback()
-            return 0
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("get revocation statistics")
     async def get_revocation_stats(self, user_id: str | None = None) -> dict:
         """Get revocation statistics for monitoring - SOLID Single Responsibility.
 
@@ -257,9 +235,9 @@ class TokenRevocationService:
         Returns:
             dict: Revocation statistics
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             base_query = select(RevokedToken)
             if user_id:
                 base_query = base_query.where(RevokedToken.user_id == user_id)
@@ -281,9 +259,6 @@ class TokenRevocationService:
 
             return stats
 
-        except Exception as e:
-            logger.error("Error getting revocation stats", user_id=user_id, error=str(e))
-            return {"error": str(e)}
         finally:
             if self._db_session is None:
                 await db.close()

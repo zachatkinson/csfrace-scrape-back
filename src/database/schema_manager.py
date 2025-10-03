@@ -18,6 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from alembic import command
+from src.core.decorators import database_error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,13 @@ class SchemaManager:
         self.engine = engine
         self.alembic_ini_path = alembic_ini_path or Path("alembic.ini")
 
+    @database_error_handler("ensure database readiness")
     async def ensure_database_ready(self, environment: str = "development") -> bool:
         """
         Ensure database schema is ready for application use.
+
+        NOTE: This function DOES NOT run migrations - migrations are handled by init_db().
+        This function only validates schema readiness following Single Responsibility Principle.
 
         Args:
             environment: Target environment (development, staging, production)
@@ -41,25 +46,20 @@ class SchemaManager:
         """
         logger.info(f"Starting database readiness check for {environment}")
 
-        try:
-            # Step 1: Test database connectivity
-            await self._test_connectivity()
+        # Step 1: Test database connectivity
+        await self._test_connectivity()
 
-            # Step 2: Run Alembic migrations to latest
-            await self._run_migrations()
+        # Step 2: REMOVED - Migrations are handled by init_db() to follow DRY principle
+        # await self._run_migrations()
 
-            # Step 3: Ensure critical schema elements exist (idempotent fallback)
-            await self._ensure_critical_schema()
+        # Step 3: Ensure critical schema elements exist (idempotent fallback)
+        await self._ensure_critical_schema()
 
-            # Step 4: Validate schema consistency
-            await self._validate_schema()
+        # Step 4: Validate schema consistency
+        await self._validate_schema()
 
-            logger.info(f"Database is ready for {environment}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Database readiness check failed: {e}")
-            return False
+        logger.info(f"Database is ready for {environment}")
+        return True
 
     async def _test_connectivity(self) -> None:
         """Test database connectivity."""
@@ -67,26 +67,21 @@ class SchemaManager:
             await conn.execute(text("SELECT 1"))
             logger.info("Database connectivity validated")
 
+    @database_error_handler("run database migrations")
     async def _run_migrations(self) -> None:
         """Run Alembic migrations to bring schema to latest version."""
-        try:
-            # TEMPORARY: Skip Alembic due to config issue, rely on manual schema fallback
-            logger.info("Skipping Alembic migrations, using manual schema creation")
-            # Note: Don't return early - continue to manual schema creation below
+        import asyncio
 
-            # Configure Alembic
-            alembic_cfg = Config(str(self.alembic_ini_path))
+        # Configure Alembic
+        alembic_cfg = Config(str(self.alembic_ini_path))
 
-            # Set the database URL for Alembic
-            alembic_cfg.set_main_option("sqlalchemy.url", str(self.engine.url))
+        # Set the database URL for Alembic
+        alembic_cfg.set_main_option("sqlalchemy.url", str(self.engine.url))
 
-            # Run migrations to head
-            command.upgrade(alembic_cfg, "head")
-            logger.info("Alembic migrations completed successfully")
-
-        except Exception as e:
-            logger.warning(f"Alembic migration failed, falling back to manual schema: {e}")
-            # Don't fail here - we'll handle with manual schema below
+        # FIXED: Run synchronous Alembic command in thread pool to avoid blocking async event loop
+        # Alembic's command.upgrade() is synchronous and must be run in a separate thread
+        await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+        logger.info("Alembic migrations completed successfully")
 
     async def _ensure_critical_schema(self) -> None:
         """Ensure critical schema elements exist (idempotent fallback)."""
@@ -162,39 +157,7 @@ class SchemaManager:
         ]
 
         for index_name, table_name, column_name in indexes:
-            try:
-                # Use parameterized query to prevent SQL injection
-                # Validate identifiers are safe (alphanumeric + underscore only)
-                if not all(
-                    identifier.replace("_", "").isalnum()
-                    for identifier in [index_name, table_name, column_name]
-                ):
-                    logger.error(
-                        f"Invalid identifier in index creation: {index_name}, {table_name}, {column_name}"
-                    )
-                    continue
-
-                await conn.execute(
-                    text("""
-                    DO $$
-                    BEGIN
-                        IF NOT EXISTS (
-                            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                            WHERE c.relname = :index_name AND n.nspname = 'public'
-                        ) THEN
-                            EXECUTE format('CREATE INDEX %I ON %I(%I)', :index_name, :table_name, :column_name);
-                            RAISE NOTICE 'Created index %', :index_name;
-                        END IF;
-                    END $$;
-                    """),
-                    {
-                        "index_name": index_name,
-                        "table_name": table_name,
-                        "column_name": column_name,
-                    },
-                )
-            except SQLAlchemyError as e:
-                logger.warning(f"Index creation warning for {index_name}: {e}")
+            await self._create_single_index_safe(conn, index_name, table_name, column_name)
 
     async def _validate_schema(self) -> None:
         """Validate schema consistency."""
@@ -229,6 +192,41 @@ class SchemaManager:
                 raise SQLAlchemyError("jobs.user_id column missing after creation attempt")
 
             logger.info("Schema consistency validation passed")
+
+    @database_error_handler("create database index")
+    async def _create_single_index_safe(
+        self, conn, index_name: str, table_name: str, column_name: str
+    ) -> None:
+        """Create a single index with error handling.
+
+        FIXED: PostgreSQL doesn't support parameters in DO $$ blocks for DDL.
+        Using safe string interpolation with validated identifiers instead.
+        """
+        # Validate identifiers are safe (alphanumeric + underscore only) to prevent SQL injection
+        if not all(
+            identifier.replace("_", "").isalnum()
+            for identifier in [index_name, table_name, column_name]
+        ):
+            logger.error(
+                f"Invalid identifier in index creation: {index_name}, {table_name}, {column_name}"
+            )
+            return
+
+        # Safe to use f-strings after validation - identifiers are alphanumeric only
+        await conn.execute(
+            text(f"""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE c.relname = '{index_name}' AND n.nspname = 'public'
+                ) THEN
+                    EXECUTE 'CREATE INDEX {index_name} ON {table_name}({column_name})';
+                    RAISE NOTICE 'Created index {index_name}';
+                END IF;
+            END $$;
+            """)
+        )
 
 
 async def ensure_database_ready(engine: AsyncEngine, environment: str = "development") -> bool:

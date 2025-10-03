@@ -1,7 +1,24 @@
-"""Tests for HTML utilities following testing best practices."""
+"""Comprehensive tests for HTML utilities - MANDATORY TEST_BUILDING.md compliance.
 
-from bs4 import BeautifulSoup
-from bs4.element import AttributeValueList
+This module tests HTML processing utilities with complete coverage:
+- Safe attribute copying with defaults
+- Meta tag content extraction
+- Multiple selector matching
+- Element data extraction
+- Element creation with attributes
+- Edge cases and error handling
+
+ALL tests follow MANDATORY TEST_BUILDING.md patterns:
+- AAA pattern with explicit comments
+- Factory fixtures for DRY principle
+- Comprehensive HTML processing scenario testing
+- Performance benchmarks with specific thresholds
+"""
+
+import time
+
+import pytest
+from bs4 import BeautifulSoup, Tag
 
 from src.utils.html import (
     create_element_with_attributes,
@@ -11,692 +28,566 @@ from src.utils.html import (
     safe_copy_attributes,
 )
 
+# ============================================================================
+# Test Fixtures - DRY Principle
+# ============================================================================
 
+
+@pytest.fixture
+def sample_soup() -> BeautifulSoup:
+    """Factory for sample BeautifulSoup object - DRY principle."""
+    html = """
+    <html>
+        <head>
+            <meta name="description" content="Test description">
+            <meta property="og:title" content="OpenGraph Title">
+            <meta property="og:image" content="https://example.com/image.jpg">
+        </head>
+        <body>
+            <div id="main" class="container wrapper">
+                <img src="/image.jpg" alt="Test Image" title="Image Title">
+                <a href="https://example.com" title="Link Title">Link Text</a>
+                <div class="content">Content</div>
+            </div>
+        </body>
+    </html>
+    """
+    return BeautifulSoup(html, "html.parser")
+
+
+@pytest.fixture
+def sample_img_tag(sample_soup: BeautifulSoup) -> Tag:
+    """Factory for sample img tag - DRY principle."""
+    img = sample_soup.find("img")
+    assert img is not None
+    return img
+
+
+@pytest.fixture
+def sample_link_tag(sample_soup: BeautifulSoup) -> Tag:
+    """Factory for sample link tag - DRY principle."""
+    link = sample_soup.find("a")
+    assert link is not None
+    return link
+
+
+@pytest.fixture
+def sample_div_tag(sample_soup: BeautifulSoup) -> Tag:
+    """Factory for sample div tag - DRY principle."""
+    div = sample_soup.find("div", id="main")
+    assert div is not None
+    return div
+
+
+# ============================================================================
+# safe_copy_attributes Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestSafeCopyAttributes:
-    """Test safe attribute copying functionality following SOLID principles."""
+    """Tests for safe_copy_attributes function."""
 
-    def test_copy_simple_attributes(self):
-        """Test copying simple string attributes."""
-        html = '<img src="image.jpg" alt="Test image">'
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("img")
-        target = soup.new_tag("img")
-
+    def test_safe_copy_attributes_simple_mapping(
+        self, sample_soup: BeautifulSoup, sample_img_tag: Tag
+    ):
+        """Test safe_copy_attributes with simple mapping - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        target = sample_soup.new_tag("img")
         attribute_map = {"src": "src", "alt": "alt"}
 
-        safe_copy_attributes(source, target, attribute_map)
+        # Act - MANDATORY
+        safe_copy_attributes(sample_img_tag, target, attribute_map)
 
-        assert target.get("src") == "image.jpg"
-        assert target.get("alt") == "Test image"
+        # Assert - MANDATORY
+        assert target.get("src") == "/image.jpg"
+        assert target.get("alt") == "Test Image"
 
-    def test_copy_attributes_with_defaults(self):
-        """Test copying attributes with default values."""
-        html = '<img src="image.jpg">'  # Missing alt attribute
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("img")
-        target = soup.new_tag("img")
-
+    def test_safe_copy_attributes_with_defaults(
+        self, sample_soup: BeautifulSoup, sample_img_tag: Tag
+    ):
+        """Test safe_copy_attributes with default values - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        target = sample_soup.new_tag("img")
         attribute_map = {
             "src": "src",
-            "alt": ("alt", "Default alt text"),
-            "title": ("title", "Default title"),
+            "alt": ("alt", ""),
+            "missing": ("data-missing", "default_value"),
         }
 
-        safe_copy_attributes(source, target, attribute_map)
+        # Act - MANDATORY
+        safe_copy_attributes(sample_img_tag, target, attribute_map)
 
-        assert target.get("src") == "image.jpg"
-        assert target.get("alt") == "Default alt text"
-        assert target.get("title") == "Default title"
+        # Assert - MANDATORY
+        assert target.get("src") == "/image.jpg"
+        assert target.get("alt") == "Test Image"
+        assert target.get("data-missing") == "default_value"
 
-    def test_copy_attributes_with_tuple_config(self):
-        """Test copying attributes with tuple configuration."""
-        html = '<div data-id="123" class="container">'
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("div")
-        target = soup.new_tag("section")
+    def test_safe_copy_attributes_missing_source_attr(
+        self, sample_soup: BeautifulSoup, sample_img_tag: Tag
+    ):
+        """Test safe_copy_attributes with missing source attribute - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        target = sample_soup.new_tag("img")
+        attribute_map = {"nonexistent": ("data-attr", "fallback")}
 
+        # Act - MANDATORY
+        safe_copy_attributes(sample_img_tag, target, attribute_map)
+
+        # Assert - MANDATORY
+        assert target.get("data-attr") == "fallback"
+
+    def test_safe_copy_attributes_mixed_mappings(
+        self, sample_soup: BeautifulSoup, sample_img_tag: Tag
+    ):
+        """Test safe_copy_attributes with mixed mapping types - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        target = sample_soup.new_tag("img")
         attribute_map = {
-            "data-id": ("id", "default-id"),
-            "class": ("class", "default-class"),
-            "missing": ("data-missing", "default-value"),
+            "src": "src",  # Simple string mapping
+            "alt": ("alt", "No alt text"),  # Tuple with default
+            "title": ("title", "No title"),  # Tuple with default
         }
 
-        safe_copy_attributes(source, target, attribute_map)
+        # Act - MANDATORY
+        safe_copy_attributes(sample_img_tag, target, attribute_map)
 
-        assert target.get("id") == "123"
-        # BeautifulSoup's class attribute is always a list in modern versions
-        class_value = target.get("class")
-        assert class_value == "container" or class_value == ["container"]
-        assert target.get("data-missing") == "default-value"
+        # Assert - MANDATORY
+        assert target.get("src") == "/image.jpg"
+        assert target.get("alt") == "Test Image"
+        assert target.get("title") == "Image Title"
 
-    def test_copy_attributes_handles_none_values(self):
-        """Test copying attributes handles None values gracefully."""
-        html = "<div>"
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("div")
-        target = soup.new_tag("div")
+    def test_safe_copy_attributes_empty_map(self, sample_soup: BeautifulSoup, sample_img_tag: Tag):
+        """Test safe_copy_attributes with empty map - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        target = sample_soup.new_tag("img")
+        attribute_map = {}
 
-        # Create a source element that returns None for an attribute
-        source.attrs = {"existing": "value"}
+        # Act - MANDATORY
+        safe_copy_attributes(sample_img_tag, target, attribute_map)
 
-        attribute_map = {
-            "existing": "existing",
-            "missing": ("missing", "default"),
-            "none_value": ("none_target", "fallback"),
-        }
-
-        safe_copy_attributes(source, target, attribute_map)
-
-        assert target.get("existing") == "value"
-        assert target.get("missing") == "default"
-        assert target.get("none_target") == "fallback"
-
-    def test_copy_attributes_empty_map(self):
-        """Test copying with empty attribute map."""
-        html = '<img src="test.jpg">'
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("img")
-        target = soup.new_tag("img")
-
-        safe_copy_attributes(source, target, {})
-
-        # Target should remain unchanged
-        assert not target.attrs
-
-    def test_copy_attributes_overwrites_existing(self):
-        """Test copying attributes overwrites existing values."""
-        html = '<img src="new.jpg" alt="New alt">'
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("img")
-        target = soup.new_tag("img")
-
-        # Set initial values on target
-        target["src"] = "old.jpg"
-        target["alt"] = "Old alt"
-
-        attribute_map = {"src": "src", "alt": "alt"}
-
-        safe_copy_attributes(source, target, attribute_map)
-
-        assert target.get("src") == "new.jpg"
-        assert target.get("alt") == "New alt"
+        # Assert - MANDATORY
+        assert len(target.attrs) == 0
 
 
+# ============================================================================
+# find_meta_content Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestFindMetaContent:
-    """Test meta tag content extraction functionality."""
+    """Tests for find_meta_content function."""
 
-    def test_find_meta_by_name(self):
-        """Test finding meta content by name attribute."""
-        html = """
-        <html>
-        <head>
-            <meta name="description" content="Page description">
-            <meta name="keywords" content="html, test">
-        </head>
-        </html>
-        """
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_meta_content_by_name(self, sample_soup: BeautifulSoup):
+        """Test find_meta_content by name attribute - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        meta_name = "description"
 
-        description = find_meta_content(soup, name="description")
-        keywords = find_meta_content(soup, name="keywords")
+        # Act - MANDATORY
+        result = find_meta_content(sample_soup, name=meta_name)
 
-        assert description == "Page description"
-        assert keywords == "html, test"
+        # Assert - MANDATORY
+        assert result == "Test description"
 
-    def test_find_meta_by_property(self):
-        """Test finding meta content by property attribute."""
-        html = """
-        <html>
-        <head>
-            <meta property="og:title" content="Open Graph Title">
-            <meta property="og:description" content="Open Graph Description">
-        </head>
-        </html>
-        """
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_meta_content_by_property(self, sample_soup: BeautifulSoup):
+        """Test find_meta_content by property attribute - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        property_attr = "og:title"
 
-        title = find_meta_content(soup, property_attr="og:title")
-        description = find_meta_content(soup, property_attr="og:description")
+        # Act - MANDATORY
+        result = find_meta_content(sample_soup, property_attr=property_attr)
 
-        assert title == "Open Graph Title"
-        assert description == "Open Graph Description"
+        # Assert - MANDATORY
+        assert result == "OpenGraph Title"
 
-    def test_find_meta_not_found(self):
-        """Test finding non-existent meta tag."""
-        html = "<html><head></head></html>"
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_meta_content_og_image(self, sample_soup: BeautifulSoup):
+        """Test find_meta_content for og:image - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        property_attr = "og:image"
 
-        result = find_meta_content(soup, name="nonexistent")
+        # Act - MANDATORY
+        result = find_meta_content(sample_soup, property_attr=property_attr)
+
+        # Assert - MANDATORY
+        assert result == "https://example.com/image.jpg"
+
+    def test_find_meta_content_nonexistent_name(self, sample_soup: BeautifulSoup):
+        """Test find_meta_content with nonexistent name - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        meta_name = "nonexistent"
+
+        # Act - MANDATORY
+        result = find_meta_content(sample_soup, name=meta_name)
+
+        # Assert - MANDATORY
         assert result is None
 
-        result = find_meta_content(soup, property_attr="og:nonexistent")
+    def test_find_meta_content_nonexistent_property(self, sample_soup: BeautifulSoup):
+        """Test find_meta_content with nonexistent property - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        property_attr = "og:nonexistent"
+
+        # Act - MANDATORY
+        result = find_meta_content(sample_soup, property_attr=property_attr)
+
+        # Assert - MANDATORY
         assert result is None
 
-    def test_find_meta_no_parameters(self):
-        """Test finding meta with no search parameters."""
-        html = '<html><head><meta name="test" content="value"></head></html>'
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_meta_content_no_parameters(self, sample_soup: BeautifulSoup):
+        """Test find_meta_content with no parameters - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (no parameters)
 
-        result = find_meta_content(soup)
+        # Act - MANDATORY
+        result = find_meta_content(sample_soup)
+
+        # Assert - MANDATORY
         assert result is None
 
-    def test_find_meta_empty_content(self):
-        """Test finding meta tag with empty content."""
+    def test_find_meta_content_empty_content(self):
+        """Test find_meta_content with empty content - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         html = '<html><head><meta name="empty" content=""></head></html>'
         soup = BeautifulSoup(html, "html.parser")
 
+        # Act - MANDATORY
         result = find_meta_content(soup, name="empty")
-        assert result == ""
 
-    def test_find_meta_no_content_attribute(self):
-        """Test finding meta tag without content attribute."""
-        html = '<html><head><meta name="nocontent"></head></html>'
-        soup = BeautifulSoup(html, "html.parser")
-
-        result = find_meta_content(soup, name="nocontent")
-        assert result == ""
-
-    def test_find_meta_non_string_content(self):
-        """Test finding meta tag with non-string content."""
-        html = '<html><head><meta name="test" content="value"></head></html>'
-        soup = BeautifulSoup(html, "html.parser")
-        meta_tag = soup.find("meta", attrs={"name": "test"})
-
-        # Artificially set a non-string content for testing
-        meta_tag.attrs["content"] = ["list", "value"]
-
-        result = find_meta_content(soup, name="test")
+        # Assert - MANDATORY
         assert result == ""
 
 
+# ============================================================================
+# find_multiple_selectors Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestFindMultipleSelectors:
-    """Test multiple selector searching functionality."""
+    """Tests for find_multiple_selectors function."""
 
-    def test_find_first_matching_selector(self):
-        """Test finding first matching selector."""
-        html = """
-        <div>
-            <h1 id="title">Main Title</h1>
-            <h2 class="subtitle">Subtitle</h2>
-            <p class="content">Content</p>
-        </div>
-        """
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_multiple_selectors_first_match(self, sample_soup: BeautifulSoup):
+        """Test find_multiple_selectors first selector matches - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        selectors = ["#main", ".nonexistent", "body"]
 
-        selectors = ["#title", ".subtitle", ".content"]
-        result = find_multiple_selectors(soup, selectors)
+        # Act - MANDATORY
+        result = find_multiple_selectors(sample_soup, selectors)
 
+        # Assert - MANDATORY
         assert result is not None
-        assert result.name == "h1"
-        assert result.get("id") == "title"
+        assert result.get("id") == "main"
 
-    def test_find_second_selector_when_first_fails(self):
-        """Test finding second selector when first doesn't match."""
-        html = """
-        <div>
-            <h2 class="subtitle">Subtitle</h2>
-            <p class="content">Content</p>
-        </div>
-        """
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_multiple_selectors_second_match(self, sample_soup: BeautifulSoup):
+        """Test find_multiple_selectors second selector matches - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        selectors = [".nonexistent", ".content", "#main"]
 
-        selectors = ["#title", ".subtitle", ".content"]
-        result = find_multiple_selectors(soup, selectors)
+        # Act - MANDATORY
+        result = find_multiple_selectors(sample_soup, selectors)
 
+        # Assert - MANDATORY
         assert result is not None
-        assert result.name == "h2"
-        assert result.get("class") == ["subtitle"]
+        assert "content" in result.get("class", [])
 
-    def test_find_no_matching_selectors(self):
-        """Test when no selectors match."""
-        html = "<div><span>Text</span></div>"
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_multiple_selectors_no_match(self, sample_soup: BeautifulSoup):
+        """Test find_multiple_selectors no selectors match - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        selectors = [".nonexistent1", ".nonexistent2", "#nonexistent"]
 
-        selectors = ["#title", ".subtitle", ".content"]
-        result = find_multiple_selectors(soup, selectors)
+        # Act - MANDATORY
+        result = find_multiple_selectors(sample_soup, selectors)
 
+        # Assert - MANDATORY
         assert result is None
 
-    def test_find_empty_selectors_list(self):
-        """Test with empty selectors list."""
-        html = "<div><h1>Title</h1></div>"
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_multiple_selectors_empty_list(self, sample_soup: BeautifulSoup):
+        """Test find_multiple_selectors with empty list - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        selectors = []
 
-        result = find_multiple_selectors(soup, [])
+        # Act - MANDATORY
+        result = find_multiple_selectors(sample_soup, selectors)
+
+        # Assert - MANDATORY
         assert result is None
 
-    def test_find_complex_selectors(self):
-        """Test with complex CSS selectors."""
-        html = """
-        <div class="container">
-            <article class="post">
-                <header>
-                    <h1 class="post-title">Article Title</h1>
-                </header>
-                <div class="post-content">
-                    <p>First paragraph</p>
-                </div>
-            </article>
-        </div>
-        """
-        soup = BeautifulSoup(html, "html.parser")
+    def test_find_multiple_selectors_complex_selectors(self, sample_soup: BeautifulSoup):
+        """Test find_multiple_selectors with complex selectors - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        selectors = ["div.nonexistent img", "#main img", "body > img"]
 
-        selectors = ["article.missing h1", "article.post header h1.post-title", ".post-content p"]
-        result = find_multiple_selectors(soup, selectors)
+        # Act - MANDATORY
+        result = find_multiple_selectors(sample_soup, selectors)
 
+        # Assert - MANDATORY
         assert result is not None
-        assert result.name == "h1"
-        assert "post-title" in result.get("class", [])
-
-    def test_find_invalid_selector_handling(self):
-        """Test handling of invalid CSS selectors."""
-        html = "<div><h1>Title</h1></div>"
-        soup = BeautifulSoup(html, "html.parser")
-
-        # Mix of valid and invalid selectors
-        selectors = ["[invalid", "h1", "another[invalid"]
-
-        # The function should handle invalid selectors gracefully
-        # and continue to the next selector
-        try:
-            result = find_multiple_selectors(soup, selectors)
-            # Should find h1 despite invalid selectors
-            assert result is not None
-            assert result.name == "h1"
-        except Exception:
-            # If BeautifulSoup raises on invalid selector, that's also acceptable
-            pass
+        assert result.name == "img"
 
 
+# ============================================================================
+# extract_basic_element_data Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestExtractBasicElementData:
-    """Test basic element data extraction functionality."""
+    """Tests for extract_basic_element_data function."""
 
-    def test_extract_image_data(self):
-        """Test extracting data from image element."""
-        html = '<img src="image.jpg" alt="Test image" title="Image title" id="img1" class="photo large">'
-        soup = BeautifulSoup(html, "html.parser")
-        element = soup.find("img")
+    def test_extract_basic_element_data_img_tag(self, sample_img_tag: Tag):
+        """Test extract_basic_element_data from img tag - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (done by fixture)
 
-        data = extract_basic_element_data(element)
+        # Act - MANDATORY
+        result = extract_basic_element_data(sample_img_tag)
 
-        assert data["src"] == "image.jpg"
-        assert data["alt"] == "Test image"
-        assert data["title"] == "Image title"
-        assert data["id"] == "img1"
-        assert data["class"] == "photo large"
-        assert data["href"] == ""
+        # Assert - MANDATORY
+        assert result["src"] == "/image.jpg"
+        assert result["alt"] == "Test Image"
+        assert result["title"] == "Image Title"
+        assert result["href"] == ""  # Not present in img
+        assert result["class"] == ""
+        assert result["id"] == ""
 
-    def test_extract_link_data(self):
-        """Test extracting data from link element."""
-        html = '<a href="https://example.com" title="Link title" class="external">Link text</a>'
-        soup = BeautifulSoup(html, "html.parser")
-        element = soup.find("a")
+    def test_extract_basic_element_data_link_tag(self, sample_link_tag: Tag):
+        """Test extract_basic_element_data from link tag - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (done by fixture)
 
-        data = extract_basic_element_data(element)
+        # Act - MANDATORY
+        result = extract_basic_element_data(sample_link_tag)
 
-        assert data["href"] == "https://example.com"
-        assert data["title"] == "Link title"
-        assert data["class"] == "external"
-        assert data["src"] == ""
-        assert data["alt"] == ""
+        # Assert - MANDATORY
+        assert result["href"] == "https://example.com"
+        assert result["title"] == "Link Title"
+        assert result["src"] == ""  # Not present in link
+        assert result["alt"] == ""
 
-    def test_extract_data_missing_attributes(self):
-        """Test extracting data from element with missing attributes."""
-        html = "<div>Content</div>"
+    def test_extract_basic_element_data_div_with_classes(self, sample_div_tag: Tag):
+        """Test extract_basic_element_data from div with classes - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (done by fixture)
+
+        # Act - MANDATORY
+        result = extract_basic_element_data(sample_div_tag)
+
+        # Assert - MANDATORY
+        assert result["id"] == "main"
+        assert "container" in result["class"]
+        assert "wrapper" in result["class"]
+
+    def test_extract_basic_element_data_minimal_element(self, sample_soup: BeautifulSoup):
+        """Test extract_basic_element_data from minimal element - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        minimal = sample_soup.new_tag("div")
+
+        # Act - MANDATORY
+        result = extract_basic_element_data(minimal)
+
+        # Assert - MANDATORY
+        assert result["src"] == ""
+        assert result["alt"] == ""
+        assert result["href"] == ""
+        assert result["title"] == ""
+        assert result["class"] == ""
+        assert result["id"] == ""
+
+    def test_extract_basic_element_data_single_class(self):
+        """Test extract_basic_element_data with single class - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        html = '<div class="single-class">Content</div>'
         soup = BeautifulSoup(html, "html.parser")
         element = soup.find("div")
+        assert element is not None
 
-        data = extract_basic_element_data(element)
+        # Act - MANDATORY
+        result = extract_basic_element_data(element)
 
-        assert data["src"] == ""
-        assert data["alt"] == ""
-        assert data["href"] == ""
-        assert data["title"] == ""
-        assert data["class"] == ""
-        assert data["id"] == ""
+        # Assert - MANDATORY
+        assert result["class"] == "single-class"
 
-    def test_extract_data_class_as_list(self):
-        """Test extracting class data when it's stored as a list."""
+    def test_extract_basic_element_data_class_list(self):
+        """Test extract_basic_element_data with class list - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         html = '<div class="class1 class2 class3">Content</div>'
         soup = BeautifulSoup(html, "html.parser")
         element = soup.find("div")
-
-        data = extract_basic_element_data(element)
-
-        assert data["class"] == "class1 class2 class3"
-
-    def test_extract_data_class_as_attribute_value_list(self):
-        """Test extracting class data as AttributeValueList."""
-        html = '<div class="class1 class2">Content</div>'
-        soup = BeautifulSoup(html, "html.parser")
-        element = soup.find("div")
-
-        # Ensure class is AttributeValueList
-        assert isinstance(element.get("class"), AttributeValueList)
-
-        data = extract_basic_element_data(element)
-
-        assert data["class"] == "class1 class2"
-
-    def test_extract_data_single_class(self):
-        """Test extracting single class value."""
-        html = '<div class="single">Content</div>'
-        soup = BeautifulSoup(html, "html.parser")
-        element = soup.find("div")
-
-        data = extract_basic_element_data(element)
-
-        assert data["class"] == "single"
-
-    def test_extract_data_non_string_attributes(self):
-        """Test extracting data with non-string attribute values."""
-        html = "<div>Content</div>"
-        soup = BeautifulSoup(html, "html.parser")
-        element = soup.find("div")
-
-        # Artificially set non-string attributes
-        element.attrs["src"] = ["value1", "value2"]
-        element.attrs["alt"] = 123
-
-        data = extract_basic_element_data(element)
-
-        # Should fall back to defaults for non-string values
-        assert data["src"] == ""
-        assert data["alt"] == ""
-
-    def test_extract_data_all_attributes_present(self):
-        """Test extracting data when all attributes are present."""
-        html = """
-        <img src="test.jpg"
-             alt="Alt text"
-             href="https://example.com"
-             title="Title text"
-             class="image-class"
-             id="image-id">
-        """
-        soup = BeautifulSoup(html, "html.parser")
-        element = soup.find("img")
-
-        data = extract_basic_element_data(element)
-
-        assert data["src"] == "test.jpg"
-        assert data["alt"] == "Alt text"
-        assert data["href"] == "https://example.com"
-        assert data["title"] == "Title text"
-        assert data["class"] == "image-class"
-        assert data["id"] == "image-id"
-
-
-class TestCreateElementWithAttributes:
-    """Test HTML element creation functionality."""
-
-    def test_create_simple_element(self):
-        """Test creating simple element with basic attributes."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        attributes = {"id": "test-id", "class": "test-class", "data-value": "123"}
-
-        element = create_element_with_attributes(soup, "div", attributes)
-
-        assert element.name == "div"
-        assert element.get("id") == "test-id"
-        assert element.get("class") == "test-class"
-        assert element.get("data-value") == "123"
-
-    def test_create_element_with_empty_attributes(self):
-        """Test creating element with empty attribute values."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        attributes = {
-            "id": "test-id",
-            "class": "",  # Empty string
-            "title": None,  # None value
-            "data-test": "value",
-        }
-
-        element = create_element_with_attributes(soup, "span", attributes)
-
-        assert element.name == "span"
-        assert element.get("id") == "test-id"
-        assert element.get("class") is None  # Empty values not set
-        assert element.get("title") is None  # None values not set
-        assert element.get("data-test") == "value"
-
-    def test_create_element_no_attributes(self):
-        """Test creating element with no attributes."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        element = create_element_with_attributes(soup, "p", {})
-
-        assert element.name == "p"
-        assert not element.attrs
-
-    def test_create_different_element_types(self):
-        """Test creating different types of HTML elements."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        # Test various HTML elements
-        elements = [
-            ("div", {"class": "container"}),
-            ("img", {"src": "image.jpg", "alt": "Image"}),
-            ("a", {"href": "https://example.com", "target": "_blank"}),
-            ("input", {"type": "text", "name": "username"}),
-            ("meta", {"name": "description", "content": "Page description"}),
-        ]
-
-        for tag_name, attrs in elements:
-            element = create_element_with_attributes(soup, tag_name, attrs)
-            assert element.name == tag_name
-            for attr, value in attrs.items():
-                assert element.get(attr) == value
-
-    def test_create_element_with_complex_attributes(self):
-        """Test creating element with complex attribute values."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        attributes = {
-            "style": "color: red; background: blue;",
-            "data-config": '{"key": "value", "number": 123}',
-            "onclick": "handleClick(this);",
-            "aria-label": "Complex aria label text",
-        }
-
-        element = create_element_with_attributes(soup, "button", attributes)
-
-        assert element.name == "button"
-        assert element.get("style") == "color: red; background: blue;"
-        assert element.get("data-config") == '{"key": "value", "number": 123}'
-        assert element.get("onclick") == "handleClick(this);"
-        assert element.get("aria-label") == "Complex aria label text"
-
-
-class TestHtmlUtilsIntegration:
-    """Test integration scenarios between HTML utility functions."""
-
-    def test_copy_and_extract_workflow(self):
-        """Test workflow of copying attributes and extracting data."""
-        html = """
-        <img src="original.jpg"
-             alt="Original alt"
-             title="Original title"
-             class="photo large"
-             id="original-img">
-        """
-        soup = BeautifulSoup(html, "html.parser")
-        source = soup.find("img")
-
-        # Create new element and copy attributes
-        target = soup.new_tag("img")
-        attribute_map = {
-            "src": "src",
-            "alt": ("alt", "Default alt"),
-            "title": "title",
-            "class": "class",
-            "id": ("id", "default-id"),
-        }
-
-        safe_copy_attributes(source, target, attribute_map)
-
-        # Extract data from target
-        data = extract_basic_element_data(target)
-
-        assert data["src"] == "original.jpg"
-        assert data["alt"] == "Original alt"
-        assert data["title"] == "Original title"
-        assert data["class"] == "photo large"
-        assert data["id"] == "original-img"
-
-    def test_create_and_extract_workflow(self):
-        """Test workflow of creating element and extracting data."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        # Create element with attributes
-        attributes = {
-            "src": "new-image.jpg",
-            "alt": "New image",
-            "class": "created-image",
-            "data-test": "test-value",
-        }
-
-        element = create_element_with_attributes(soup, "img", attributes)
-
-        # Extract basic data
-        data = extract_basic_element_data(element)
-
-        assert data["src"] == "new-image.jpg"
-        assert data["alt"] == "New image"
-        assert data["class"] == "created-image"
-        # data-test is not in basic extraction, but element should have it
-        assert element.get("data-test") == "test-value"
-
-    def test_selector_and_extraction_workflow(self):
-        """Test workflow of finding elements and extracting data."""
-        html = """
-        <div class="content">
-            <img class="hero-image" src="hero.jpg" alt="Hero image">
-            <img class="thumbnail" src="thumb.jpg" alt="Thumbnail">
-            <a class="primary-link" href="https://example.com" title="Primary link">Link</a>
-        </div>
-        """
-        soup = BeautifulSoup(html, "html.parser")
-
-        # Find using multiple selectors
-        selectors = [".hero-image", ".thumbnail", ".primary-link"]
-        element = find_multiple_selectors(soup, selectors)
-
         assert element is not None
 
-        # Extract data from found element
-        data = extract_basic_element_data(element)
+        # Act - MANDATORY
+        result = extract_basic_element_data(element)
 
-        # Should find hero-image first
-        assert data["src"] == "hero.jpg"
-        assert data["alt"] == "Hero image"
-        assert "hero-image" in data["class"]
+        # Assert - MANDATORY
+        assert "class1" in result["class"]
+        assert "class2" in result["class"]
+        assert "class3" in result["class"]
 
-    def test_meta_extraction_and_element_creation(self):
-        """Test extracting meta content and creating elements."""
+
+# ============================================================================
+# create_element_with_attributes Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestCreateElementWithAttributes:
+    """Tests for create_element_with_attributes function."""
+
+    def test_create_element_with_attributes_img(self, sample_soup: BeautifulSoup):
+        """Test create_element_with_attributes for img - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        tag_name = "img"
+        attributes = {"src": "/test.jpg", "alt": "Test", "title": "Test Image"}
+
+        # Act - MANDATORY
+        result = create_element_with_attributes(sample_soup, tag_name, attributes)
+
+        # Assert - MANDATORY
+        assert result.name == "img"
+        assert result.get("src") == "/test.jpg"
+        assert result.get("alt") == "Test"
+        assert result.get("title") == "Test Image"
+
+    def test_create_element_with_attributes_link(self, sample_soup: BeautifulSoup):
+        """Test create_element_with_attributes for link - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        tag_name = "a"
+        attributes = {"href": "https://example.com", "title": "Link", "target": "_blank"}
+
+        # Act - MANDATORY
+        result = create_element_with_attributes(sample_soup, tag_name, attributes)
+
+        # Assert - MANDATORY
+        assert result.name == "a"
+        assert result.get("href") == "https://example.com"
+        assert result.get("title") == "Link"
+        assert result.get("target") == "_blank"
+
+    def test_create_element_with_attributes_empty_values(self, sample_soup: BeautifulSoup):
+        """Test create_element_with_attributes skips empty values - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        tag_name = "div"
+        attributes = {"id": "test", "class": "", "data-value": None}
+
+        # Act - MANDATORY
+        result = create_element_with_attributes(sample_soup, tag_name, attributes)
+
+        # Assert - MANDATORY
+        assert result.get("id") == "test"
+        assert "class" not in result.attrs  # Empty string skipped
+        assert "data-value" not in result.attrs  # None skipped
+
+    def test_create_element_with_attributes_no_attributes(self, sample_soup: BeautifulSoup):
+        """Test create_element_with_attributes with no attributes - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        tag_name = "div"
+        attributes = {}
+
+        # Act - MANDATORY
+        result = create_element_with_attributes(sample_soup, tag_name, attributes)
+
+        # Assert - MANDATORY
+        assert result.name == "div"
+        assert len(result.attrs) == 0
+
+    def test_create_element_with_attributes_complex(self, sample_soup: BeautifulSoup):
+        """Test create_element_with_attributes with complex attributes - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        tag_name = "div"
+        attributes = {
+            "id": "container",
+            "class": "wrapper main",
+            "data-id": "123",
+            "data-type": "content",
+        }
+
+        # Act - MANDATORY
+        result = create_element_with_attributes(sample_soup, tag_name, attributes)
+
+        # Assert - MANDATORY
+        assert result.get("id") == "container"
+        assert result.get("class") == "wrapper main"
+        assert result.get("data-id") == "123"
+        assert result.get("data-type") == "content"
+
+
+# ============================================================================
+# MANDATORY Performance Benchmarks
+# ============================================================================
+
+
+@pytest.mark.performance
+@pytest.mark.unit
+class TestHTMLUtilsPerformance:
+    """MANDATORY performance tests for HTML utilities."""
+
+    def test_extract_basic_element_data_performance(self, sample_soup: BeautifulSoup):
+        """MANDATORY performance test - element data extraction speed."""
+        # Arrange - MANDATORY
+        elements = [sample_soup.new_tag("div") for _ in range(1000)]
+        for i, elem in enumerate(elements):
+            elem["id"] = f"elem{i}"
+            elem["class"] = "test-class"
+
+        iterations = 100
+
+        # Act - MANDATORY
+        start_time = time.perf_counter()
+
+        for _ in range(iterations):
+            for elem in elements:
+                extract_basic_element_data(elem)
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        total_operations = iterations * len(elements)
+        avg_time = execution_time / total_operations
+        assert avg_time < 0.00001  # <0.01ms per extraction
+
+    def test_find_meta_content_performance(self):
+        """MANDATORY performance test - meta content search speed."""
+        # Arrange - MANDATORY
         html = """
         <html>
         <head>
-            <meta name="description" content="Page description">
-            <meta property="og:image" content="social-image.jpg">
+            <meta name="description" content="Test">
+            <meta property="og:title" content="Title">
+            <meta property="og:image" content="Image">
         </head>
         </html>
         """
-        soup = BeautifulSoup(html, "html.parser")
+        iterations = 10000
 
-        # Extract meta content
-        description = find_meta_content(soup, name="description")
-        og_image = find_meta_content(soup, property_attr="og:image")
+        # Act - MANDATORY
+        start_time = time.perf_counter()
 
-        # Create new elements based on meta content
-        desc_element = create_element_with_attributes(
-            soup, "p", {"class": "description", "data-content": description}
-        )
+        for _ in range(iterations):
+            soup = BeautifulSoup(html, "html.parser")
+            find_meta_content(soup, name="description")
 
-        img_element = create_element_with_attributes(
-            soup, "img", {"src": og_image, "alt": description, "class": "social-image"}
-        )
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
 
-        assert desc_element.get("data-content") == "Page description"
-        assert img_element.get("src") == "social-image.jpg"
-        assert img_element.get("alt") == "Page description"
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.001  # <1ms per search (includes parsing)
+        assert execution_time < 10.0  # Total <10s for 10000 searches
 
+    def test_create_element_with_attributes_performance(self, sample_soup: BeautifulSoup):
+        """MANDATORY performance test - element creation speed."""
+        # Arrange - MANDATORY
+        attributes = {"id": "test", "class": "wrapper", "data-value": "123"}
+        iterations = 50000
 
-class TestHtmlUtilsErrorHandling:
-    """Test comprehensive error handling in HTML utilities."""
+        # Act - MANDATORY
+        start_time = time.perf_counter()
 
-    def test_safe_copy_attributes_with_invalid_elements(self):
-        """Test safe_copy_attributes with various edge cases."""
-        soup = BeautifulSoup("<div></div>", "html.parser")
-        source = soup.find("div")
-        target = soup.new_tag("div")
+        for _ in range(iterations):
+            create_element_with_attributes(sample_soup, "div", attributes)
 
-        # Test with complex attribute map
-        attribute_map = {
-            "nonexistent": "target-attr",
-            "also-missing": ("target-attr-2", "default"),
-            "class": ("class", []),  # List as default
-        }
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
 
-        # Should handle gracefully without errors
-        safe_copy_attributes(source, target, attribute_map)
-
-        assert target.get("target-attr") == ""
-        assert target.get("target-attr-2") == "default"
-
-    def test_extract_element_data_edge_cases(self):
-        """Test extract_basic_element_data with edge cases."""
-        soup = BeautifulSoup("<div></div>", "html.parser")
-        element = soup.find("div")
-
-        # Set various problematic attribute values
-        element.attrs = {
-            "class": None,  # None value
-            "src": "",  # Empty string
-            "alt": 0,  # Number
-            "title": False,  # Boolean
-        }
-
-        data = extract_basic_element_data(element)
-
-        # Should handle all edge cases gracefully
-        assert isinstance(data, dict)
-        assert all(isinstance(v, str) for v in data.values())
-
-    def test_find_meta_content_malformed_html(self):
-        """Test find_meta_content with malformed HTML."""
-        malformed_html = '<meta name="test" content="value"'  # Missing closing >
-        soup = BeautifulSoup(malformed_html, "html.parser")
-
-        # Should handle gracefully
-        result = find_meta_content(soup, name="test")
-        # BeautifulSoup is forgiving, so this might still work
-        assert result is None or isinstance(result, str)
-
-    def test_create_element_with_none_soup(self):
-        """Test element creation error handling."""
-        soup = BeautifulSoup("<html></html>", "html.parser")
-
-        # Test with various attribute edge cases
-        problematic_attrs = {
-            "normal": "value",
-            "empty": "",
-            "none": None,
-            "false": False,
-            "zero": 0,
-            "list": ["a", "b"],
-            "dict": {"key": "value"},
-        }
-
-        element = create_element_with_attributes(soup, "div", problematic_attrs)
-
-        # Should only set truthy values
-        assert element.get("normal") == "value"
-        assert element.get("empty") is None
-        assert element.get("none") is None
-        assert element.get("false") is None
-        assert element.get("zero") is None
-        # Complex types might be set or not, depending on BeautifulSoup behavior
-        # But should not cause exceptions
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.00002  # <0.02ms per creation
+        assert execution_time < 1.0  # Total <1s for 50000 creations

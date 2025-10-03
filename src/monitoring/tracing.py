@@ -10,12 +10,13 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import structlog
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
 
-logger = structlog.get_logger(__name__)
+logger = get_monitoring_logger()
 
 try:
     from opentelemetry import trace
@@ -88,6 +89,7 @@ class DistributedTracer:
             service=self.config.service_name,
         )
 
+    @monitoring_error_handler("OpenTelemetry initialization")
     def initialize(self) -> None:
         """Initialize OpenTelemetry tracing infrastructure."""
         if not self.config.enabled or not OPENTELEMETRY_AVAILABLE or self._initialized:
@@ -95,75 +97,67 @@ class DistributedTracer:
 
         logger.info("Initializing OpenTelemetry distributed tracing")
 
-        try:
-            # Create resource with service information
-            resource = Resource.create(
-                {
-                    "service.name": self.config.service_name,
-                    "service.version": self.config.service_version,
-                    "deployment.environment": self.config.environment,
-                    "telemetry.sdk.language": "python",
-                    "telemetry.sdk.name": "opentelemetry",
-                }
-            )
+        # Create resource with service information
+        resource = Resource.create(
+            {
+                "service.name": self.config.service_name,
+                "service.version": self.config.service_version,
+                "deployment.environment": self.config.environment,
+                "telemetry.sdk.language": "python",
+                "telemetry.sdk.name": "opentelemetry",
+            }
+        )
 
-            # Create tracer provider
-            self.tracer_provider = TracerProvider(resource=resource)
+        # Create tracer provider
+        self.tracer_provider = TracerProvider(resource=resource)
 
-            # Configure exporters
-            if self.config.export_to_console:
-                console_processor = BatchSpanProcessor(ConsoleSpanExporter())
-                self.tracer_provider.add_span_processor(console_processor)
-                logger.debug("Console span exporter configured")
+        # Configure exporters
+        if self.config.export_to_console:
+            console_processor = BatchSpanProcessor(ConsoleSpanExporter())
+            self.tracer_provider.add_span_processor(console_processor)
+            logger.debug("Console span exporter configured")
 
-            if self.config.export_to_otlp:
-                otlp_exporter = OTLPSpanExporter(endpoint=self.config.otlp_endpoint)
-                otlp_processor = BatchSpanProcessor(otlp_exporter)
-                self.tracer_provider.add_span_processor(otlp_processor)
-                logger.debug("OTLP span exporter configured", endpoint=self.config.otlp_endpoint)
+        if self.config.export_to_otlp:
+            otlp_exporter = OTLPSpanExporter(endpoint=self.config.otlp_endpoint)
+            otlp_processor = BatchSpanProcessor(otlp_exporter)
+            self.tracer_provider.add_span_processor(otlp_processor)
+            logger.debug("OTLP span exporter configured", endpoint=self.config.otlp_endpoint)
 
-            # Set global tracer provider
-            trace.set_tracer_provider(self.tracer_provider)
+        # Set global tracer provider
+        trace.set_tracer_provider(self.tracer_provider)
 
-            # Configure propagation (B3 format for compatibility)
-            set_global_textmap(B3MultiFormat())
+        # Configure propagation (B3 format for compatibility)
+        set_global_textmap(B3MultiFormat())
 
-            # Get tracer
-            self.tracer = trace.get_tracer(__name__)
+        # Get tracer
+        self.tracer = trace.get_tracer(__name__)
 
-            # Auto-instrument frameworks
-            self._setup_auto_instrumentation()
+        # Auto-instrument frameworks
+        self._setup_auto_instrumentation()
 
-            self._initialized = True
-            logger.info("OpenTelemetry distributed tracing initialized successfully")
+        self._initialized = True
+        logger.info("OpenTelemetry distributed tracing initialized successfully")
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to initialize distributed tracing", error=str(e))
-            raise
-
+    @monitoring_error_handler("auto-instrumentation setup")
     def _setup_auto_instrumentation(self) -> None:
         """Setup automatic instrumentation for common frameworks."""
         if not OPENTELEMETRY_AVAILABLE:
             return
 
-        try:
-            # FastAPI instrumentation
-            if self.config.instrument_fastapi:
-                FastAPIInstrumentor().instrument()
-                logger.debug("FastAPI auto-instrumentation enabled")
+        # FastAPI instrumentation
+        if self.config.instrument_fastapi:
+            FastAPIInstrumentor().instrument()
+            logger.debug("FastAPI auto-instrumentation enabled")
 
-            # aiohttp client instrumentation
-            if self.config.instrument_aiohttp:
-                AioHttpClientInstrumentor().instrument()
-                logger.debug("aiohttp client auto-instrumentation enabled")
+        # aiohttp client instrumentation
+        if self.config.instrument_aiohttp:
+            AioHttpClientInstrumentor().instrument()
+            logger.debug("aiohttp client auto-instrumentation enabled")
 
-            # SQLAlchemy instrumentation
-            if self.config.instrument_sqlalchemy:
-                SQLAlchemyInstrumentor().instrument()
-                logger.debug("SQLAlchemy auto-instrumentation enabled")
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to setup auto-instrumentation", error=str(e))
+        # SQLAlchemy instrumentation
+        if self.config.instrument_sqlalchemy:
+            SQLAlchemyInstrumentor().instrument()
+            logger.debug("SQLAlchemy auto-instrumentation enabled")
 
     @asynccontextmanager
     async def trace_operation(
@@ -194,35 +188,22 @@ class DistributedTracer:
             attributes=attributes,
             context=parent_context,
         ) as span:
-            try:
-                # Add custom attributes
-                span.set_attribute("operation.type", "async")
+            # Add custom attributes
+            span.set_attribute("operation.type", "async")
 
-                # Add correlation ID if available
-                correlation_id = attributes.get("correlation_id")
-                if correlation_id:
-                    span.set_attribute("correlation.id", correlation_id)
+            # Add correlation ID if available
+            correlation_id = attributes.get("correlation_id")
+            if correlation_id:
+                span.set_attribute("correlation.id", correlation_id)
 
-                logger.debug(
-                    "Started distributed trace span",
-                    operation=operation_name,
-                    span_id=span.get_span_context().span_id,
-                    trace_id=span.get_span_context().trace_id,
-                )
+            logger.debug(
+                "Started distributed trace span",
+                operation=operation_name,
+                span_id=span.get_span_context().span_id,
+                trace_id=span.get_span_context().trace_id,
+            )
 
-                yield span
-
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-                span.set_attribute("error.message", str(e))
-                span.set_attribute("error.type", type(e).__name__)
-
-                logger.error(
-                    "Distributed trace span failed",
-                    operation=operation_name,
-                    error=str(e),
-                )
-                raise
+            yield span
 
     def trace_function(
         self, operation_name: str, attributes: dict[str, Any] | None = None
@@ -254,15 +235,9 @@ class DistributedTracer:
                     operation_name or func.__name__,
                     attributes=span_attributes,
                 ) as span:
-                    try:
-                        result = func(*args, **kwargs)
-                        span.set_status(trace.Status(trace.StatusCode.OK))
-                        return result
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-                        span.set_attribute("error.message", str(e))
-                        span.set_attribute("error.type", type(e).__name__)
-                        raise
+                    result = func(*args, **kwargs)
+                    span.set_status(trace.Status(trace.StatusCode.OK))
+                    return result
 
             return wrapper
 
@@ -309,13 +284,14 @@ class DistributedTracer:
         if not self._initialized or not OPENTELEMETRY_AVAILABLE:
             return None
 
-        try:
-            current_span = trace.get_current_span()
-            if current_span and current_span.is_recording():
-                return format(current_span.get_span_context().trace_id, "032x")
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.debug("Failed to get current trace ID", error=str(e))
+        return self._get_trace_id_safe()
 
+    @monitoring_error_handler("get current trace ID")
+    def _get_trace_id_safe(self) -> str | None:
+        """Safely get current trace ID."""
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            return format(current_span.get_span_context().trace_id, "032x")
         return None
 
     def get_current_span_id(self) -> str | None:
@@ -327,13 +303,14 @@ class DistributedTracer:
         if not self._initialized or not OPENTELEMETRY_AVAILABLE:
             return None
 
-        try:
-            current_span = trace.get_current_span()
-            if current_span and current_span.is_recording():
-                return format(current_span.get_span_context().span_id, "016x")
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.debug("Failed to get current span ID", error=str(e))
+        return self._get_span_id_safe()
 
+    @monitoring_error_handler("get current span ID")
+    def _get_span_id_safe(self) -> str | None:
+        """Safely get current span ID."""
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            return format(current_span.get_span_context().span_id, "016x")
         return None
 
     def add_event(self, name: str, attributes: dict[str, Any] | None = None) -> None:
@@ -346,12 +323,14 @@ class DistributedTracer:
         if not self._initialized or not OPENTELEMETRY_AVAILABLE:
             return
 
-        try:
-            current_span = trace.get_current_span()
-            if current_span and current_span.is_recording():
-                current_span.add_event(name, attributes or {})
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.debug("Failed to add span event", event=name, error=str(e))
+        self._add_span_event_safe(name, attributes)
+
+    @monitoring_error_handler("add span event")
+    def _add_span_event_safe(self, name: str, attributes: dict[str, Any] | None) -> None:
+        """Safely add event to current span."""
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            current_span.add_event(name, attributes or {})
 
     def set_attribute(self, key: str, value: Any) -> None:
         """Set an attribute on the current span.
@@ -363,12 +342,14 @@ class DistributedTracer:
         if not self._initialized or not OPENTELEMETRY_AVAILABLE:
             return
 
-        try:
-            current_span = trace.get_current_span()
-            if current_span and current_span.is_recording():
-                current_span.set_attribute(key, value)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.debug("Failed to set span attribute", key=key, error=str(e))
+        self._set_span_attribute_safe(key, value)
+
+    @monitoring_error_handler("set span attribute")
+    def _set_span_attribute_safe(self, key: str, value: Any) -> None:
+        """Safely set attribute on current span."""
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            current_span.set_attribute(key, value)
 
     def record_exception(self, exception: Exception) -> None:
         """Record an exception in the current span.
@@ -379,13 +360,15 @@ class DistributedTracer:
         if not self._initialized or not OPENTELEMETRY_AVAILABLE:
             return
 
-        try:
-            current_span = trace.get_current_span()
-            if current_span and current_span.is_recording():
-                current_span.record_exception(exception)
-                current_span.set_status(trace.Status(trace.StatusCode.ERROR, str(exception)))
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.debug("Failed to record exception in span", error=str(e))
+        self._record_span_exception_safe(exception)
+
+    @monitoring_error_handler("record span exception")
+    def _record_span_exception_safe(self, exception: Exception) -> None:
+        """Safely record exception in current span."""
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            current_span.record_exception(exception)
+            current_span.set_status(trace.Status(trace.StatusCode.ERROR, str(exception)))
 
     def shutdown(self) -> None:
         """Shutdown the distributed tracer."""
@@ -393,16 +376,16 @@ class DistributedTracer:
             return
 
         logger.info("Shutting down distributed tracer")
+        self._shutdown_tracer_safe()
 
-        try:
-            if self.tracer_provider:
-                self.tracer_provider.shutdown()
+    @monitoring_error_handler("tracer shutdown")
+    def _shutdown_tracer_safe(self) -> None:
+        """Safely shutdown tracer provider."""
+        if self.tracer_provider:
+            self.tracer_provider.shutdown()
 
-            self._initialized = False
-            logger.info("Distributed tracer shutdown complete")
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Error during distributed tracer shutdown", error=str(e))
+        self._initialized = False
+        logger.info("Distributed tracer shutdown complete")
 
     def get_tracing_status(self) -> dict[str, Any]:
         """Get current tracing status and statistics.

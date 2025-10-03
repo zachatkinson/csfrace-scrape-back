@@ -3,11 +3,12 @@
 from pathlib import Path
 from typing import Any
 
-import structlog
+from src.core.decorators import content_processing_error_handler
+from src.core.logging_hierarchy import get_core_logger
 
 from ..plugins.manager import PluginManager, plugin_manager
 
-logger = structlog.get_logger(__name__)
+logger = get_core_logger()
 
 
 class PluginIntegration:
@@ -22,15 +23,12 @@ class PluginIntegration:
         self.manager = manager or plugin_manager
         self.enabled = False
 
+    @content_processing_error_handler("initialize plugin system")
     async def initialize(self) -> None:
         """Initialize plugin system if enabled."""
-        try:
-            await self.manager.initialize()
-            self.enabled = True
-            logger.info("Plugin system initialized")
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to initialize plugin system", error=str(e))
-            self.enabled = False
+        await self.manager.initialize()
+        self.enabled = True
+        logger.info("Plugin system initialized")
 
     async def process_content_with_plugins(
         self,
@@ -60,21 +58,20 @@ class PluginIntegration:
                 "plugin_processed": False,
             }
 
-        try:
-            result = await self.manager.process_content(html_content, url, output_dir, metadata)
-            result["plugin_processed"] = True
-            return result
+        result = await self._process_content_safe(html_content, url, output_dir, metadata)
+        result["plugin_processed"] = True
+        return result
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Plugin processing failed, falling back", error=str(e))
-            return {
-                "content": html_content,
-                "html": html_content,
-                "metadata": metadata or {},
-                "files": [],
-                "plugin_processed": False,
-                "plugin_error": str(e),
-            }
+    @content_processing_error_handler("process content with plugins")
+    async def _process_content_safe(
+        self,
+        html_content: str,
+        url: str,
+        output_dir: Path,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Process content through plugin pipeline with error handling."""
+        return await self.manager.process_content(html_content, url, output_dir, metadata)
 
     async def shutdown(self) -> None:
         """Shutdown plugin system."""

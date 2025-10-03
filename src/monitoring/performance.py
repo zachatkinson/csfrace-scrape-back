@@ -8,9 +8,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-import structlog
+from src.core.decorators import monitoring_error_handler
+from src.core.logging_hierarchy import get_monitoring_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_monitoring_logger()
 
 
 @dataclass
@@ -306,46 +307,10 @@ class PerformanceMonitor:
             yield None
             return
 
-        try:
-            yield trace_id
-            self.finish_trace(trace_id, "success")
-        except Exception as e:
-            self.finish_trace(trace_id, "error", str(e))
-            raise
+        yield trace_id
+        await _finish_trace_safe(self, trace_id)
 
-    @asynccontextmanager
-    async def trace_span(
-        self,
-        trace_id: str,
-        operation_name: str,
-        parent_span_id: str | None = None,
-        tags: dict[str, Any] | None = None,
-    ) -> AsyncGenerator[str | None]:
-        """Context manager for tracing spans.
-
-        Args:
-            trace_id: Parent trace ID
-            operation_name: Span operation name
-            parent_span_id: Parent span ID
-            tags: Span tags
-
-        Yields:
-            Span ID
-        """
-        span_id = self.start_span(trace_id, operation_name, parent_span_id, tags)
-
-        if span_id is None:
-            # Tracing is disabled
-            yield None
-            return
-
-        try:
-            yield span_id
-            self.finish_span(span_id)
-        except Exception as e:
-            self.finish_span(span_id, {"error": str(e)})
-            raise
-
+    @monitoring_error_handler("profile memory usage")
     async def profile_memory_usage(self, trace_id: str) -> dict[str, Any]:
         """Profile memory usage during a trace.
 
@@ -358,32 +323,27 @@ class PerformanceMonitor:
         if not self.config.memory_profiling_enabled:
             return {}
 
-        try:
-            import os
+        import os
 
-            import psutil
+        import psutil
 
-            process = psutil.Process(os.getpid())
-            memory_info = process.memory_info()
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
 
-            profile = {
-                "rss_bytes": memory_info.rss,
-                "vms_bytes": memory_info.vms,
-                "percent": process.memory_percent(),
-                "timestamp": datetime.now(UTC).isoformat(),
-            }
+        profile = {
+            "rss_bytes": memory_info.rss,
+            "vms_bytes": memory_info.vms,
+            "percent": process.memory_percent(),
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
 
-            # Add to trace metadata
-            if trace_id in self.active_traces:
-                if "memory_profile" not in self.active_traces[trace_id].metadata:
-                    self.active_traces[trace_id].metadata["memory_profile"] = []
-                self.active_traces[trace_id].metadata["memory_profile"].append(profile)
+        # Add to trace metadata
+        if trace_id in self.active_traces:
+            if "memory_profile" not in self.active_traces[trace_id].metadata:
+                self.active_traces[trace_id].metadata["memory_profile"] = []
+            self.active_traces[trace_id].metadata["memory_profile"].append(profile)
 
-            return profile
-
-        except Exception as e:
-            logger.error("Memory profiling failed", error=str(e))
-            return {}
+        return profile
 
     def get_performance_summary(self) -> dict[str, Any]:
         """Get performance monitoring summary.
@@ -636,6 +596,55 @@ class PerformanceMonitor:
             self.finish_trace(trace_id, "shutdown", "System shutdown")
 
         logger.info("Performance monitor shutdown")
+
+
+# Helper functions with error handling
+@monitoring_error_handler("finish trace")
+async def _finish_trace_safe(tracer: PerformanceMonitor, trace_id: str) -> None:
+    """Safely finish a trace with error handling."""
+    tracer.finish_trace(trace_id, "success")
+
+
+@monitoring_error_handler("finish span")
+async def _finish_span_safe(tracer: PerformanceMonitor, span_id: str) -> None:
+    """Safely finish a span with error handling."""
+    tracer.finish_span(span_id)
+
+
+class PerformanceTracer:
+    """Performance tracer with context managers for better usability."""
+
+    def __init__(self, monitor: PerformanceMonitor):
+        self.monitor = monitor
+
+    @asynccontextmanager
+    async def trace_span(
+        self,
+        trace_id: str,
+        operation_name: str,
+        parent_span_id: str | None = None,
+        tags: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[str | None]:
+        """Context manager for tracing spans.
+
+        Args:
+            trace_id: Parent trace ID
+            operation_name: Span operation name
+            parent_span_id: Parent span ID
+            tags: Span tags
+
+        Yields:
+            Span ID
+        """
+        span_id = self.monitor.start_span(trace_id, operation_name, parent_span_id, tags)
+
+        if span_id is None:
+            # Tracing is disabled
+            yield None
+            return
+
+        yield span_id
+        await _finish_span_safe(self.monitor, span_id)
 
 
 # Global performance monitor instance

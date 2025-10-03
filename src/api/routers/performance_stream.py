@@ -6,13 +6,15 @@ from decimal import Decimal
 from typing import Any
 
 import asyncio
-import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from src.core.decorators import api_error_handler
+from src.core.logging_hierarchy import get_api_logger
+
 from ...monitoring.metrics import metrics_collector
 
-logger = structlog.get_logger(__name__)
+logger = get_api_logger()
 
 router = APIRouter(prefix="/performance", tags=["Performance Monitoring"])
 
@@ -54,80 +56,8 @@ async def performance_stream(request: Request) -> StreamingResponse:
         """
         logger.info("Performance SSE stream started")
 
-        try:
-            # Send initial connection event
-            connection_data = {
-                "type": "connection",
-                "message": "Real-time performance monitoring connected",
-                "timestamp": "2025-09-18T00:00:00Z",  # Will be updated with real timestamp
-            }
-            yield f"event: connection\ndata: {safe_json_dumps(connection_data)}\n\n"
-
-            # Send initial performance metrics
-            try:
-                metrics_snapshot = metrics_collector.get_metrics_snapshot()
-                performance_event = {
-                    "type": "performance_metrics",
-                    "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
-                    "data": {
-                        "system_metrics": metrics_snapshot.get("system_metrics", {}),
-                        "application_metrics": metrics_snapshot.get("application_metrics", {}),
-                        "database_metrics": metrics_snapshot.get("database_metrics", {}),
-                    },
-                }
-                yield f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
-                logger.info("Initial performance metrics sent via SSE")
-            except Exception as e:
-                logger.warning("Failed to get initial performance metrics", error=str(e))
-
-            # Performance metrics update loop
-            while True:
-                try:
-                    # Check if client is still connected
-                    if await request.is_disconnected():
-                        logger.info("Performance SSE client disconnected")
-                        break
-
-                    # Wait 30 seconds before sending next update
-                    await asyncio.sleep(30.0)
-
-                    # Send performance metrics update
-                    try:
-                        metrics_snapshot = metrics_collector.get_metrics_snapshot()
-                        performance_event = {
-                            "type": "performance_metrics",
-                            "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
-                            "data": {
-                                "system_metrics": metrics_snapshot.get("system_metrics", {}),
-                                "application_metrics": metrics_snapshot.get(
-                                    "application_metrics", {}
-                                ),
-                                "database_metrics": metrics_snapshot.get("database_metrics", {}),
-                            },
-                        }
-                        yield f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
-                        logger.debug("Performance metrics update sent via SSE")
-                    except Exception as e:
-                        logger.warning("Failed to send performance metrics update", error=str(e))
-
-                except asyncio.CancelledError:
-                    logger.info("Performance SSE stream cancelled")
-                    break
-                except Exception as e:
-                    logger.error("Performance SSE stream error", error=str(e))
-                    # Send error event to client
-                    error_event = {
-                        "type": "error",
-                        "message": f"Performance monitoring error: {str(e)}",
-                        "timestamp": "2025-09-18T00:00:00Z",
-                    }
-                    yield f"event: error\ndata: {safe_json_dumps(error_event)}\n\n"
-                    break
-
-        except Exception as e:
-            logger.error("Performance SSE stream fatal error", error=str(e))
-        finally:
-            logger.info("Performance SSE stream ended")
+        async for event in _performance_event_stream_safe(request):
+            yield event
 
     return StreamingResponse(
         performance_event_generator(),
@@ -140,3 +70,93 @@ async def performance_stream(request: Request) -> StreamingResponse:
             "Access-Control-Allow-Headers": "Cache-Control",
         },
     )
+
+
+@api_error_handler("send initial performance metrics")
+def _send_initial_performance_metrics_safe() -> str:
+    """Safely get initial performance metrics for SSE."""
+    metrics_snapshot = metrics_collector.get_metrics_snapshot()
+    performance_event = {
+        "type": "performance_metrics",
+        "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
+        "data": {
+            "system_metrics": metrics_snapshot.get("system_metrics", {}),
+            "application_metrics": metrics_snapshot.get("application_metrics", {}),
+            "database_metrics": metrics_snapshot.get("database_metrics", {}),
+        },
+    }
+    return f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+
+
+@api_error_handler("send performance metrics update")
+def _send_performance_metrics_update_safe() -> str:
+    """Safely get performance metrics update for SSE."""
+    metrics_snapshot = metrics_collector.get_metrics_snapshot()
+    performance_event = {
+        "type": "performance_metrics",
+        "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
+        "data": {
+            "system_metrics": metrics_snapshot.get("system_metrics", {}),
+            "application_metrics": metrics_snapshot.get("application_metrics", {}),
+            "database_metrics": metrics_snapshot.get("database_metrics", {}),
+        },
+    }
+    return f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+
+
+async def _performance_event_stream_safe(request: Request) -> AsyncGenerator[str]:
+    """Safely generate performance event stream with proper exception handling."""
+    try:
+        # Send initial connection event
+        connection_data = {
+            "type": "connection",
+            "message": "Real-time performance monitoring connected",
+            "timestamp": "2025-09-18T00:00:00Z",  # Will be updated with real timestamp
+        }
+        yield f"event: connection\ndata: {safe_json_dumps(connection_data)}\n\n"
+
+        # Send initial performance metrics
+        initial_metrics = _send_initial_performance_metrics_safe()
+        if initial_metrics is not None:
+            yield initial_metrics
+            logger.info("Initial performance metrics sent via SSE")
+
+        # Performance metrics update loop
+        async for event in _performance_metrics_update_loop_safe(request):
+            yield event
+
+        logger.info("Performance SSE stream ended")
+    except Exception:
+        # Log full error details internally for debugging (exc_info captures full stack trace)
+        logger.error("Performance event stream error", exc_info=True)
+        # Send completely sanitized error to client - no exception data exposed
+        yield 'event: error\ndata: {"type":"error","message":"Performance monitoring temporarily unavailable","timestamp":"2025-09-18T00:00:00Z"}\n\n'
+
+
+async def _performance_metrics_update_loop_safe(request: Request) -> AsyncGenerator[str]:
+    """Safely run performance metrics update loop with asyncio control flow."""
+    while True:
+        try:
+            # Check if client is still connected
+            if await request.is_disconnected():
+                logger.info("Performance SSE client disconnected")
+                break
+
+            # Wait 30 seconds before sending next update
+            await asyncio.sleep(30.0)
+
+            # Send performance metrics update
+            update_metrics = _send_performance_metrics_update_safe()
+            if update_metrics is not None:
+                yield update_metrics
+                logger.debug("Performance metrics update sent via SSE")
+
+        except asyncio.CancelledError:
+            logger.info("Performance SSE stream cancelled")
+            break
+        except Exception:
+            # Log full error details internally for debugging (exc_info captures full stack trace)
+            logger.error("Performance SSE stream error", exc_info=True)
+            # Send completely sanitized error to client - no exception data exposed
+            yield 'event: error\ndata: {"type":"error","message":"Performance monitoring temporarily unavailable","timestamp":"2025-09-18T00:00:00Z"}\n\n'
+            break

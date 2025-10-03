@@ -9,13 +9,15 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import asyncio
-import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_database_logger
+
 from ..api.dependencies import async_session
 
-logger = structlog.get_logger(__name__)
+logger = get_database_logger()
 
 
 class TransactionError(Exception):
@@ -78,32 +80,12 @@ async def _transaction_handler(
 
     # Set isolation level if specified
     if isolation_level:
-        try:
-            from sqlalchemy import text
+        await _set_isolation_level_safe(db, transaction_id, isolation_level)
 
-            # Validate isolation level to prevent SQL injection (controlled enum values only)
-            valid_levels = {"READ_UNCOMMITTED", "READ_COMMITTED", "REPEATABLE_READ", "SERIALIZABLE"}
-            if isolation_level not in valid_levels:
-                raise ValueError(f"Invalid isolation level: {isolation_level}")
-
-            await db.execute(text(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"))
-            logger.debug(
-                "Set transaction isolation level",
-                transaction_id=transaction_id,
-                isolation_level=isolation_level,
-            )
-        except SQLAlchemyError as e:
-            logger.warning(
-                "Failed to set isolation level",
-                transaction_id=transaction_id,
-                isolation_level=isolation_level,
-                error=str(e),
-            )
+    # Begin transaction
+    logger.debug("Starting database transaction", transaction_id=transaction_id)
 
     try:
-        # Begin transaction
-        logger.debug("Starting database transaction", transaction_id=transaction_id)
-
         yield db
 
         # Commit if auto_commit is enabled and no errors occurred
@@ -170,14 +152,10 @@ async def batch_transaction(batch_size: int = 1000) -> AsyncGenerator[AsyncSessi
                     await db.commit()  # Manual commit for batch processing
     """
     async with database_transaction(auto_commit=False) as db:
-        try:
-            yield db
-            # Final commit for any remaining items
-            await db.commit()
-            logger.debug("Batch transaction completed successfully")
-        except Exception as e:
-            logger.error("Batch transaction failed", error=str(e))
-            raise
+        yield db
+        # Final commit for any remaining items
+        await db.commit()
+        logger.debug("Batch transaction completed successfully")
 
 
 @asynccontextmanager
@@ -196,19 +174,15 @@ async def read_only_transaction() -> AsyncGenerator[AsyncSession]:
             # No commit needed or attempted
     """
     async with database_transaction(auto_commit=False, isolation_level="READ_COMMITTED") as db:
-        try:
-            yield db
-            # No commit for read-only operations
-            logger.debug("Read-only transaction completed")
-        except Exception as e:
-            logger.error("Read-only transaction failed", error=str(e))
-            raise
+        yield db
+        # No commit for read-only operations
+        logger.debug("Read-only transaction completed")
 
 
 class TransactionManager:
     """Advanced transaction manager for complex scenarios."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._active_transactions: set[int] = set()
 
     async def execute_with_retry(
@@ -307,14 +281,7 @@ class TransactionManager:
             async with semaphore, database_transaction() as db:
                 return await operation(db)
 
-        try:
-            results = await asyncio.gather(*[_execute_with_semaphore(op) for op in operations])
-            logger.debug("Parallel operations completed", count=len(operations))
-            return results
-
-        except Exception as e:
-            logger.error("Parallel operations failed", error=str(e))
-            raise TransactionError(f"Parallel operations failed: {str(e)}", original_error=e) from e
+        return await _execute_parallel_operations_safe(operations, _execute_with_semaphore)
 
 
 # Global transaction manager instance
@@ -347,3 +314,33 @@ async def execute_with_retry(operation: Callable, **kwargs) -> Any:
         Result of the operation
     """
     return await transaction_manager.execute_with_retry(operation, **kwargs)
+
+
+@database_error_handler("set transaction isolation level")
+async def _set_isolation_level_safe(
+    db: AsyncSession, transaction_id: int, isolation_level: str
+) -> None:
+    """Safely set transaction isolation level."""
+    from sqlalchemy import text
+
+    # Validate isolation level to prevent SQL injection (controlled enum values only)
+    valid_levels = {"READ_UNCOMMITTED", "READ_COMMITTED", "REPEATABLE_READ", "SERIALIZABLE"}
+    if isolation_level not in valid_levels:
+        raise ValueError(f"Invalid isolation level: {isolation_level}")
+
+    await db.execute(text(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"))
+    logger.debug(
+        "Set transaction isolation level",
+        transaction_id=transaction_id,
+        isolation_level=isolation_level,
+    )
+
+
+@database_error_handler("execute parallel operations")
+async def _execute_parallel_operations_safe(
+    operations: list[Callable], execute_with_semaphore: Callable
+) -> list[Any]:
+    """Safely execute parallel operations."""
+    results = await asyncio.gather(*[execute_with_semaphore(op) for op in operations])
+    logger.debug("Parallel operations completed", count=len(operations))
+    return results

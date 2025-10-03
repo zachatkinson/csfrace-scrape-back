@@ -6,6 +6,8 @@ from collections.abc import Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from src.core.decorators import api_error_handler
+
 from ...monitoring import distributed_tracer, performance_monitor
 
 
@@ -22,6 +24,7 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-
         super().__init__(app)
         self.correlation_header = correlation_header
 
+    @api_error_handler("process enhanced tracing")
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process request with enhanced tracing.
 
@@ -120,6 +123,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-publ
         super().__init__(app)
         self.correlation_header = correlation_header
 
+    @api_error_handler("process correlation tracking")
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Add correlation ID to request/response.
 

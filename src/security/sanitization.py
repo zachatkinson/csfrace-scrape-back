@@ -8,10 +8,12 @@ import re
 from urllib.parse import urlparse
 
 import bleach
-import structlog
 from bs4 import BeautifulSoup, Tag
 
-logger = structlog.get_logger(__name__)
+from src.core.decorators import content_processing_error_handler
+from src.core.logging_hierarchy import get_core_logger
+
+logger = get_core_logger()
 
 
 class HTMLSanitizer:
@@ -194,33 +196,27 @@ class HTMLSanitizer:
         if not html_content or not isinstance(html_content, str):
             return ""
 
-        try:
-            logger.info("Starting HTML sanitization", strict_mode=self.strict_mode)
+        logger.info("Starting HTML sanitization", strict_mode=self.strict_mode)
 
-            # Pre-sanitization security checks
-            if self._detect_potential_xss(html_content):
-                logger.warning("Potential XSS content detected, applying strict sanitization")
+        # Pre-sanitization security checks
+        if self._detect_potential_xss(html_content):
+            logger.warning("Potential XSS content detected, applying strict sanitization")
 
-            # Pre-process to remove dangerous tags and their content
-            html_content = self._pre_process_html(html_content)
+        # Pre-process to remove dangerous tags and their content
+        html_content = self._pre_process_html(html_content)
 
-            # Apply bleach sanitization
-            sanitized = self.cleaner.clean(html_content)
+        # Apply bleach sanitization
+        sanitized = self.cleaner.clean(html_content)
 
-            # Apply additional filtering
-            sanitized = self._post_process_html(sanitized)
+        # Apply additional filtering
+        sanitized = self._post_process_html(sanitized)
 
-            # Post-sanitization validation
-            if self.strict_mode:
-                sanitized = self._apply_strict_rules(sanitized)
+        # Post-sanitization validation
+        if self.strict_mode:
+            sanitized = self._apply_strict_rules(sanitized)
 
-            logger.info("HTML sanitization completed successfully")
-            return sanitized
-
-        except Exception as e:
-            logger.error("HTML sanitization failed", error=str(e))
-            # In case of error, return empty string for security
-            return ""
+        logger.info("HTML sanitization completed successfully")
+        return sanitized
 
     def sanitize_attribute_value(self, attribute: str, value: str) -> str:
         """Sanitize individual HTML attribute values.
@@ -410,6 +406,7 @@ class HTMLSanitizer:
             return ""  # Remove unsafe iframe sources
         return value
 
+    @content_processing_error_handler("sanitize URL")
     def _sanitize_url(self, url: str) -> str:
         """Sanitize URL values to prevent XSS.
 
@@ -419,28 +416,23 @@ class HTMLSanitizer:
         Returns:
             Sanitized URL or empty string if unsafe
         """
-        try:
-            parsed = urlparse(url)
+        parsed = urlparse(url)
 
-            # Block dangerous protocols
-            if parsed.scheme and parsed.scheme.lower() not in self.ALLOWED_PROTOCOLS:
-                logger.warning("Blocked unsafe URL protocol", url=url, scheme=parsed.scheme)
-                return ""
-
-            # Block data: URLs which can contain scripts
-            if parsed.scheme == "data":
-                return ""
-
-            # For relative URLs, ensure they don't try to break out
-            if not parsed.scheme and "../" in url:
-                logger.warning("Blocked potentially dangerous relative URL", url=url)
-                return ""
-
-            return url
-
-        except Exception:
-            logger.warning("Failed to parse URL, blocking for security", url=url)
+        # Block dangerous protocols
+        if parsed.scheme and parsed.scheme.lower() not in self.ALLOWED_PROTOCOLS:
+            logger.warning("Blocked unsafe URL protocol", url=url, scheme=parsed.scheme)
             return ""
+
+        # Block data: URLs which can contain scripts
+        if parsed.scheme == "data":
+            return ""
+
+        # For relative URLs, ensure they don't try to break out
+        if not parsed.scheme and "../" in url:
+            logger.warning("Blocked potentially dangerous relative URL", url=url)
+            return ""
+
+        return url
 
     def _sanitize_css(self, css: str) -> str:
         """Sanitize CSS style attribute values.
@@ -506,6 +498,7 @@ class HTMLSanitizer:
 
         return text.strip()
 
+    @content_processing_error_handler("validate URL safety")
     def _is_safe_url(self, url: str) -> bool:
         """Check if URL is safe for links.
 
@@ -515,19 +508,16 @@ class HTMLSanitizer:
         Returns:
             True if URL is safe
         """
-        try:
-            parsed = urlparse(url)
+        parsed = urlparse(url)
 
-            # Allow relative URLs that don't break out of domain
-            if not parsed.scheme:
-                return not url.startswith("//") and "../" not in url
+        # Allow relative URLs that don't break out of domain
+        if not parsed.scheme:
+            return not url.startswith("//") and "../" not in url
 
-            # Check protocol
-            return parsed.scheme.lower() in self.ALLOWED_PROTOCOLS
+        # Check protocol
+        return parsed.scheme.lower() in self.ALLOWED_PROTOCOLS
 
-        except Exception:
-            return False
-
+    @content_processing_error_handler("validate iframe source")
     def _is_trusted_iframe_source(self, src: str) -> bool:
         """Check if iframe source is from trusted domain.
 
@@ -537,46 +527,11 @@ class HTMLSanitizer:
         Returns:
             True if source is trusted
         """
-        try:
-            parsed = urlparse(src)
-            domain = parsed.netloc.lower()
+        parsed = urlparse(src)
+        domain = parsed.netloc.lower()
 
-            # Remove www. prefix for comparison
-            if domain.startswith("www."):
-                domain = domain[4:]
+        # Remove www. prefix for comparison
+        if domain.startswith("www."):
+            domain = domain[4:]
 
-            return any(trusted in domain for trusted in self.TRUSTED_IFRAME_DOMAINS)
-
-        except Exception:
-            return False
-
-
-# Global sanitizer instance for convenience
-default_sanitizer = HTMLSanitizer(strict_mode=True)
-
-
-def sanitize_html_content(html: str, strict: bool = True) -> str:
-    """Convenience function for HTML sanitization.
-
-    Args:
-        html: HTML content to sanitize
-        strict: Whether to apply strict sanitization rules
-
-    Returns:
-        Sanitized HTML string
-    """
-    sanitizer = HTMLSanitizer(strict_mode=strict)
-    return sanitizer.sanitize_html(html)
-
-
-def sanitize_attribute(attribute: str, value: str) -> str:
-    """Convenience function for attribute sanitization.
-
-    Args:
-        attribute: Attribute name
-        value: Attribute value
-
-    Returns:
-        Sanitized attribute value
-    """
-    return default_sanitizer.sanitize_attribute_value(attribute, value)
+        return any(trusted in domain for trusted in self.TRUSTED_IFRAME_DOMAINS)

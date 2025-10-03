@@ -618,7 +618,7 @@ def test_large_html_processing_performance():
     large_html = "<div>" * 10000 + "content" + "</div>" * 10000
     
     start_time = time.time()
-    processor = HTMLProcessor()
+    processor = HTMLProcessorOrchestrator()
     result = processor.process(large_html)
     execution_time = time.time() - start_time
     

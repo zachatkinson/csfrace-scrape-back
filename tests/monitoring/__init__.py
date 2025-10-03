@@ -1,1 +1,1 @@
-"""Tests for the advanced monitoring and observability system (Phase 4C)."""
+"""Tests for monitoring system - alerts, health checks, metrics, performance, tracing."""

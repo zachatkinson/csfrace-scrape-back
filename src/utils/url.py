@@ -2,9 +2,9 @@
 
 from urllib.parse import ParseResult, urljoin, urlparse
 
-import structlog
+from src.core.logging_hierarchy import get_general_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_general_logger()
 
 
 def _is_valid_domain(domain: str) -> bool:
@@ -25,6 +25,16 @@ def _is_valid_domain(domain: str) -> bool:
     return "." in domain
 
 
+def _join_urls_safe(base_url: str, url: str) -> str:
+    """Join URLs safely - urlparse is a stdlib function, no network operation."""
+    return urljoin(base_url, url)
+
+
+def _parse_url_safe(url: str) -> ParseResult:
+    """Parse URL safely - urlparse is a stdlib function, no network operation."""
+    return urlparse(url)
+
+
 def safe_parse_url(url: str) -> ParseResult | None:
     """Safely parse URL with error handling.
 
@@ -34,15 +44,11 @@ def safe_parse_url(url: str) -> ParseResult | None:
     Returns:
         ParseResult object or None if parsing fails
     """
-    try:
-        parsed = urlparse(url)
-        if not parsed.scheme or not parsed.netloc:
-            logger.warning("Invalid URL structure", url=url)
-            return None
-        return parsed
-    except Exception as e:
-        logger.error("URL parsing failed", url=url, error=str(e))
+    parsed = _parse_url_safe(url)
+    if not parsed or not parsed.scheme or not parsed.netloc:
+        logger.logger.warning("Invalid URL structure", url=url)
         return None
+    return parsed
 
 
 def extract_domain(url: str) -> str | None:
@@ -101,21 +107,15 @@ def normalize_url(url: str, base_url: str | None = None) -> str | None:
 
     # If relative and we have base_url, resolve it
     if base_url and url.startswith("/"):
-        try:
-            return urljoin(base_url, url)
-        except Exception as e:
-            logger.warning("URL join failed", url=url, base_url=base_url, error=str(e))
-            return None
+        result = _join_urls_safe(base_url, url)
+        return result if result else None
 
     # If it looks like a relative URL without leading slash
     if base_url and not url.startswith(("http", "#")):
-        try:
-            return urljoin(base_url, url)
-        except Exception as e:
-            logger.warning("URL join failed", url=url, base_url=base_url, error=str(e))
-            return None
+        result = _join_urls_safe(base_url, url)
+        return result if result else None
 
-    logger.warning("Cannot normalize URL", url=url, base_url=base_url)
+    logger.logger.warning("Cannot normalize URL", url=url, base_url=base_url)
     return None
 
 

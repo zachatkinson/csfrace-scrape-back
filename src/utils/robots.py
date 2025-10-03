@@ -5,15 +5,22 @@ from urllib.robotparser import RobotFileParser
 
 import aiohttp
 import asyncio
-import structlog
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 
-from ..constants import CONSTANTS
-from ..core.config import config
+from src.core.decorators import network_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
+
+from ..constants.api import (
+    HTTP_STATUS_NOT_FOUND,
+    HTTP_STATUS_OK,
+    RATE_LIMIT_DELAY,
+    ROBOTS_TIMEOUT,
+)
+from ..constants.caching import RESPECT_ROBOTS_TXT
 from ..core.exceptions import RateLimitError
 from ..utils.http import safe_http_get
 
-logger = structlog.get_logger(__name__)
+logger = get_scraping_logger()
 
 
 class RobotsChecker:
@@ -24,6 +31,7 @@ class RobotsChecker:
         self._cache: dict[str, RobotFileParser | None] = {}
         self._last_request: dict[str, float] = {}
 
+    @network_error_handler("fetch robots.txt parser")
     async def get_robots_parser(
         self, base_url: str, session: aiohttp.ClientSession | None
     ) -> RobotFileParser | None:
@@ -62,14 +70,14 @@ class RobotsChecker:
                     http_response = await safe_http_get(
                         session,
                         robots_url,
-                        timeout=CONSTANTS.ROBOTS_TIMEOUT,
+                        timeout=ROBOTS_TIMEOUT,
                         expected_statuses={
-                            CONSTANTS.HTTP_STATUS_OK,
-                            CONSTANTS.HTTP_STATUS_NOT_FOUND,
+                            HTTP_STATUS_OK,
+                            HTTP_STATUS_NOT_FOUND,
                         },
                     )
 
-                    if http_response.status == CONSTANTS.HTTP_STATUS_OK:
+                    if http_response.status == HTTP_STATUS_OK:
                         robots_content = http_response.content
 
                         # Parse robots.txt content directly
@@ -83,7 +91,7 @@ class RobotsChecker:
 
                         result = rp
                         logger.info("Successfully loaded robots.txt", domain=domain, url=robots_url)
-                    elif http_response.status == CONSTANTS.HTTP_STATUS_NOT_FOUND:
+                    elif http_response.status == HTTP_STATUS_NOT_FOUND:
                         logger.info("No robots.txt found", domain=domain)
                         result = None
                     else:
@@ -94,14 +102,15 @@ class RobotsChecker:
                         )
                         result = None
 
-        except (TimeoutError, aiohttp.ClientError, OSError) as e:
-            logger.warning("Failed to fetch robots.txt", domain=domain, error=str(e))
+        except Exception as e:
+            logger.error("Failed to fetch robots.txt", domain=domain, error=str(e))
             result = None
 
         # Cache the result (success or failure) to avoid repeated requests
         self._cache[domain] = result
         return result
 
+    @network_error_handler("check robots.txt permissions")
     async def can_fetch(
         self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
     ) -> bool:
@@ -115,24 +124,19 @@ class RobotsChecker:
         Returns:
             True if allowed to fetch, False otherwise
         """
-        if not config.robots.respect_robots_txt:
+        if not RESPECT_ROBOTS_TXT:
             return True
 
-        try:
-            rp = await self.get_robots_parser(url, session)
-            if rp is None:
-                # No robots.txt means everything is allowed
-                return True
-
-            can_fetch = rp.can_fetch(user_agent, url)
-            logger.debug("Robots.txt check", url=url, allowed=can_fetch)
-            return can_fetch
-
-        except (TimeoutError, aiohttp.ClientError, OSError, ValueError) as e:
-            logger.warning("Error checking robots.txt", url=url, error=str(e))
-            # Default to allowing if we can't check
+        rp = await self.get_robots_parser(url, session)
+        if rp is None:
+            # No robots.txt means everything is allowed
             return True
 
+        can_fetch = rp.can_fetch(user_agent, url)
+        logger.debug("Robots.txt check", url=url, allowed=can_fetch)
+        return can_fetch
+
+    @network_error_handler("get robots.txt crawl delay")
     async def get_crawl_delay(
         self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None
     ) -> float:
@@ -146,26 +150,21 @@ class RobotsChecker:
         Returns:
             Crawl delay in seconds (returns config default if not specified)
         """
-        if not config.robots.respect_robots_txt:
-            return config.http.rate_limit_delay
+        if not RESPECT_ROBOTS_TXT:
+            return RATE_LIMIT_DELAY
 
-        try:
-            rp = await self.get_robots_parser(url, session)
-            if rp is None:
-                return config.http.rate_limit_delay
+        rp = await self.get_robots_parser(url, session)
+        if rp is None:
+            return RATE_LIMIT_DELAY
 
-            # Get crawl delay for specific user agent
-            crawl_delay = rp.crawl_delay(user_agent)
-            if crawl_delay is not None:
-                logger.debug("Using robots.txt crawl delay", url=url, delay=crawl_delay)
-                return float(crawl_delay)
+        # Get crawl delay for specific user agent
+        crawl_delay = rp.crawl_delay(user_agent)
+        if crawl_delay is not None:
+            logger.debug("Using robots.txt crawl delay", url=url, delay=crawl_delay)
+            return float(crawl_delay)
 
-            # Fallback to default
-            return config.http.rate_limit_delay
-
-        except (TimeoutError, aiohttp.ClientError, OSError, ValueError) as e:
-            logger.warning("Error getting crawl delay", url=url, error=str(e))
-            return config.http.rate_limit_delay
+        # Fallback to default
+        return RATE_LIMIT_DELAY
 
     async def enforce_crawl_delay(
         self, url: str, user_agent: str = "*", session: aiohttp.ClientSession | None = None

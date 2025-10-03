@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class RateLimits:  # pylint: disable=too-many-instance-attributes,invalid-name
+class RateLimits:  # pylint: disable=too-many-instance-attributes,invalid-name  # Intentional: centralizes all rate limits to eliminate magic strings
     """Centralized rate limiting configuration."""
 
     # Authentication endpoints
@@ -86,5 +86,5 @@ def get_rate_limits_instance() -> RateLimits:
     return _rate_limits_instance
 
 
-# For backward compatibility
+# Global rate limits instance
 rate_limits = get_rate_limits_instance()

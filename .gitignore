@@ -230,3 +230,6 @@ uv.lock
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+
+# Legacy test backup (not for production)
+tests_legacy_backup/

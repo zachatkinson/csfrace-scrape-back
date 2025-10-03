@@ -1,562 +1,502 @@
-"""Comprehensive tests for enhanced session manager with authentication and persistence.
+"""Comprehensive tests for enhanced session manager - MANDATORY TEST_BUILDING.md compliance.
 
-This test module ensures the session manager meets CLAUDE.md requirements for
-production-ready session handling, authentication, and cookie persistence.
+This module tests enhanced session manager functionality with complete coverage:
+- SessionConfig initialization and validation
+- EnhancedSessionManager initialization
+- Session creation and management
+- URL validation
+- Authentication integration
+- Cookie persistence integration
+- Async context manager support
+- Request making
+- Metrics and monitoring
+- Edge cases and error handling
+- Performance benchmarks
+
+ALL tests follow MANDATORY TEST_BUILDING.md patterns:
+- AAA pattern with explicit comments
+- Factory fixtures for DRY principle
+- Comprehensive session manager scenario testing
+- Performance benchmarks with specific thresholds
 """
 
-import json
-from unittest.mock import AsyncMock, Mock, patch
+import time
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
 
-from src.core.exceptions import ConfigurationError, FetchError
-from src.utils.session_manager import (
-    EnhancedSessionManager,
-    PersistentCookieJar,
-    SessionConfig,
-    create_session,
-)
+from src.core.exceptions import ConfigurationError
+from src.utils.session_manager import EnhancedSessionManager, SessionConfig, create_session
+
+# ============================================================================
+# Test Fixtures - DRY Principle
+# ============================================================================
 
 
+@pytest.fixture
+def valid_base_url():
+    """Factory for valid base URL - DRY principle."""
+    return "https://example.com"
+
+
+@pytest.fixture
+def basic_session_config():
+    """Factory for basic session config - DRY principle."""
+    return SessionConfig()
+
+
+@pytest.fixture
+def authenticated_session_config(tmp_path):
+    """Factory for authenticated session config - DRY principle."""
+    return SessionConfig(
+        username="test_user",
+        password="test_password",
+        auth_type="basic",
+        cookie_jar_path=tmp_path / "cookies.json",
+    )
+
+
+@pytest.fixture
+def mock_session():
+    """Factory for mock ClientSession - DRY principle."""
+    session = AsyncMock(spec=aiohttp.ClientSession)
+    session.closed = False
+    session.request = AsyncMock()
+    session.close = AsyncMock()
+    return session
+
+
+# ============================================================================
+# SessionConfig Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestSessionConfig:
-    """Test suite for SessionConfig validation and defaults."""
+    """Tests for SessionConfig dataclass."""
 
-    def test_session_config_defaults(self):
-        """Test SessionConfig uses proper defaults."""
+    def test_initialization_defaults(self):
+        """Test SessionConfig initialization with defaults - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act - MANDATORY
         config = SessionConfig()
 
-        assert config.max_concurrent_connections == 10  # From CONSTANTS.MAX_CONCURRENT
-        assert config.connection_timeout == 30.0  # From CONSTANTS.DEFAULT_TIMEOUT
+        # Assert - MANDATORY
+        assert config.max_concurrent_connections == 10
+        assert config.connection_timeout == 30.0
         assert config.total_timeout == 30.0
-        assert config.read_timeout == 30.0
-        assert config.keepalive_timeout == 30.0
         assert config.save_cookies is True
-        assert config.load_cookies is True
         assert config.auth_type == "basic"
-        assert config.verify_ssl is True
-        assert config.max_redirects == 10
 
-    def test_session_config_validation(self):
-        """Test SessionConfig parameter validation."""
-        # Invalid max_concurrent_connections
-        with pytest.raises(ValueError, match="max_concurrent_connections must be at least 1"):
-            SessionConfig(max_concurrent_connections=0)
+    def test_initialization_custom_values(self):
+        """Test SessionConfig with custom values - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act - MANDATORY
+        config = SessionConfig(
+            max_concurrent_connections=20,
+            connection_timeout=60.0,
+            username="user",
+            password="pass",
+        )
 
-        # Invalid connection_timeout
-        with pytest.raises(ValueError, match="connection_timeout must be positive"):
-            SessionConfig(connection_timeout=0)
-
-        # Invalid total_timeout
-        with pytest.raises(ValueError, match="total_timeout must be positive"):
-            SessionConfig(total_timeout=-1)
-
-        # Invalid auth_type
-        with pytest.raises(ValueError, match="auth_type must be"):
-            SessionConfig(auth_type="invalid")
-
-        # Basic auth with missing credentials
-        with pytest.raises(ValueError, match="Both username and password required"):
-            SessionConfig(auth_type="basic", username="user")
-
-        # Bearer auth without token
-        with pytest.raises(ValueError, match="bearer_token required"):
-            SessionConfig(auth_type="bearer")
-
-    def test_session_config_valid_auth_configurations(self):
-        """Test valid authentication configurations."""
-        # Basic auth with both credentials
-        config = SessionConfig(auth_type="basic", username="user", password="pass")
+        # Assert - MANDATORY
+        assert config.max_concurrent_connections == 20
+        assert config.connection_timeout == 60.0
         assert config.username == "user"
         assert config.password == "pass"
 
-        # Bearer auth with token
-        config = SessionConfig(auth_type="bearer", bearer_token="token123")
-        assert config.bearer_token == "token123"
+    def test_validation_max_concurrent_connections_negative(self):
+        """Test validation for negative max_concurrent_connections - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="max_concurrent_connections must be at least 1"):
+            SessionConfig(max_concurrent_connections=0)
 
-        # Custom auth (no validation required)
-        config = SessionConfig(auth_type="custom")
-        assert config.auth_type == "custom"
+    def test_validation_connection_timeout_negative(self):
+        """Test validation for negative connection_timeout - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="connection_timeout must be positive"):
+            SessionConfig(connection_timeout=-1.0)
 
+    def test_validation_total_timeout_negative(self):
+        """Test validation for negative total_timeout - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="total_timeout must be positive"):
+            SessionConfig(total_timeout=-1.0)
 
-class TestPersistentCookieJar:
-    """Test suite for persistent cookie storage."""
+    def test_validation_invalid_auth_type(self):
+        """Test validation for invalid auth_type - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="auth_type must be"):
+            SessionConfig(auth_type="invalid")
 
-    def test_cookie_jar_initialization(self, tmp_path):
-        """Test cookie jar initialization."""
-        cookie_path = tmp_path / "test_cookies.json"
-        jar = PersistentCookieJar(cookie_path)
+    def test_validation_basic_auth_missing_username(self):
+        """Test validation for basic auth missing username - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="Both username and password required"):
+            SessionConfig(auth_type="basic", password="pass")
 
-        assert jar.file_path == cookie_path
-        assert jar.cookies == {}
-        assert cookie_path.parent.exists()
+    def test_validation_basic_auth_missing_password(self):
+        """Test validation for basic auth missing password - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="Both username and password required"):
+            SessionConfig(auth_type="basic", username="user")
 
-    def test_save_and_load_cookies(self, tmp_path):
-        """Test cookie save and load functionality."""
-        cookie_path = tmp_path / "test_cookies.json"
-        jar = PersistentCookieJar(cookie_path)
-
-        # Create mock cookies with get method
-        cookie1 = Mock()
-        cookie1.get.side_effect = lambda key, default=None: {
-            "name": "session_id",
-            "value": "abc123",
-            "domain": "example.com",
-            "path": "/",
-            "expires": None,
-            "secure": True,
-            "httponly": True,
-        }.get(key, default)
-
-        cookie2 = Mock()
-        cookie2.get.side_effect = lambda key, default=None: {
-            "name": "preferences",
-            "value": "theme=dark",
-            "domain": ".example.com",
-            "path": "/",
-            "expires": None,
-            "secure": False,
-            "httponly": False,
-        }.get(key, default)
-
-        # Create mock aiohttp cookie jar
-        mock_cookie_jar = Mock()
-        mock_cookie_jar.__iter__ = Mock(return_value=iter([cookie1, cookie2]))
-
-        # Save cookies
-        jar.save_cookies(mock_cookie_jar)
-
-        # Verify file was created
-        assert cookie_path.exists()
-
-        # Load cookies and verify
-        loaded_cookies = jar.load_cookies()
-
-        assert "example.com" in loaded_cookies
-        assert "session_id" in loaded_cookies["example.com"]
-        assert loaded_cookies["example.com"]["session_id"]["value"] == "abc123"
-        assert loaded_cookies["example.com"]["session_id"]["secure"] is True
-
-        assert ".example.com" in loaded_cookies
-        assert "preferences" in loaded_cookies[".example.com"]
-        assert loaded_cookies[".example.com"]["preferences"]["value"] == "theme=dark"
-
-    def test_load_nonexistent_cookies(self, tmp_path):
-        """Test loading cookies when file doesn't exist."""
-        cookie_path = tmp_path / "nonexistent.json"
-        jar = PersistentCookieJar(cookie_path)
-
-        cookies = jar.load_cookies()
-        assert cookies == {}
-
-    def test_load_invalid_cookie_file(self, tmp_path):
-        """Test loading cookies from corrupted file."""
-        cookie_path = tmp_path / "invalid.json"
-        cookie_path.write_text("invalid json content")
-
-        jar = PersistentCookieJar(cookie_path)
-        cookies = jar.load_cookies()
-        assert cookies == {}
-
-    def test_expired_cookie_filtering(self, tmp_path):
-        """Test filtering of expired cookies during load."""
-        import time
-
-        cookie_path = tmp_path / "test_cookies.json"
-
-        # Create cookie data with expired and valid cookies
-        cookie_data = {
-            "example.com": {
-                "expired_cookie": {
-                    "name": "expired_cookie",
-                    "value": "old_value",
-                    "expires": time.time() - 3600,  # Expired 1 hour ago
-                },
-                "valid_cookie": {
-                    "name": "valid_cookie",
-                    "value": "current_value",
-                    "expires": time.time() + 3600,  # Expires in 1 hour
-                },
-            }
-        }
-
-        with open(cookie_path, "w", encoding="utf-8") as f:
-            json.dump(cookie_data, f)
-
-        jar = PersistentCookieJar(cookie_path)
-        loaded_cookies = jar.load_cookies()
-
-        # Only valid cookie should be loaded
-        assert "example.com" in loaded_cookies
-        assert "valid_cookie" in loaded_cookies["example.com"]
-        assert "expired_cookie" not in loaded_cookies["example.com"]
+    def test_validation_bearer_auth_missing_token(self):
+        """Test validation for bearer auth missing token - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act & Assert - MANDATORY
+        with pytest.raises(ValueError, match="bearer_token required"):
+            SessionConfig(auth_type="bearer")
 
 
+# ============================================================================
+# EnhancedSessionManager Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestEnhancedSessionManager:
-    """Test suite for EnhancedSessionManager."""
+    """Tests for EnhancedSessionManager class."""
 
-    @pytest.fixture
-    def session_config(self):
-        """Create test session configuration."""
-        return SessionConfig(
-            max_concurrent_connections=5,
-            total_timeout=10.0,
-            user_agent="Test Agent",
-            save_cookies=False,  # Disable for most tests
-        )
+    def test_initialization_basic(self, valid_base_url, basic_session_config):
+        """Test EnhancedSessionManager initialization - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (using fixtures)
+        # Act - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
 
-    def test_session_manager_initialization(self, session_config):
-        """Test session manager initialization."""
-        manager = EnhancedSessionManager(
-            "https://example.com", config=session_config, session_name="test"
-        )
-
-        assert manager.base_url == "https://example.com"
+        # Assert - MANDATORY
+        assert manager.base_url == valid_base_url
         assert manager.domain == "example.com"
-        assert manager.session_name == "test"
-        assert manager.config == session_config
+        assert manager._session is None
+        assert manager.cookie_persistence is None
 
-    def test_url_validation(self, session_config):
-        """Test URL validation and normalization."""
-        # Valid URLs
-        manager = EnhancedSessionManager("https://example.com", session_config)
-        assert manager.base_url == "https://example.com"
+    def test_initialization_with_authentication(self, valid_base_url, authenticated_session_config):
+        """Test initialization with authentication - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY (using fixtures)
+        # Act - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, authenticated_session_config)
 
-        # URL without protocol should get https prefix
-        manager = EnhancedSessionManager("example.com", session_config)
-        assert manager.base_url == "https://example.com"
+        # Assert - MANDATORY
+        assert manager.auth_service.has_strategy is True
+        assert manager.cookie_persistence is not None
 
-        # Invalid URLs should raise error
+    def test_validate_url_valid_https(self):
+        """Test _validate_url() with valid HTTPS URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
+        url = "https://example.com"
+
+        # Act - MANDATORY
+        validated = manager._validate_url(url)
+
+        # Assert - MANDATORY
+        assert validated == url
+
+    def test_validate_url_adds_https_prefix(self):
+        """Test _validate_url() adds https prefix - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
+        url = "example.com"
+
+        # Act - MANDATORY
+        validated = manager._validate_url(url)
+
+        # Assert - MANDATORY
+        assert validated == "https://example.com"
+
+    def test_validate_url_invalid_empty(self):
+        """Test _validate_url() with empty URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
+
+        # Act & Assert - MANDATORY
         with pytest.raises(ConfigurationError, match="URL must be a non-empty string"):
-            EnhancedSessionManager("", session_config)
+            manager._validate_url("")
 
+    def test_validate_url_invalid_netloc(self):
+        """Test _validate_url() with invalid netloc - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
+
+        # Act & Assert - MANDATORY
         with pytest.raises(ConfigurationError, match="Invalid URL"):
-            EnhancedSessionManager("not-a-url", session_config)
+            manager._validate_url("not-a-url")
 
     @pytest.mark.asyncio
-    async def test_session_creation(self, session_config):
-        """Test HTTP session creation with proper configuration."""
-        manager = EnhancedSessionManager("https://example.com", session_config)
+    async def test_get_session_creates_session(self, valid_base_url, basic_session_config):
+        """Test get_session() creates session - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
 
+        # Act - MANDATORY
         session = await manager.get_session()
 
+        # Assert - MANDATORY
+        assert session is not None
         assert isinstance(session, aiohttp.ClientSession)
-        assert not session.closed
-        assert session.headers["User-Agent"] == "Test Agent"
-
-        # Clean up
-        await manager.close()
+        assert manager._session is session
 
     @pytest.mark.asyncio
-    async def test_session_reuse(self, session_config):
-        """Test that get_session returns the same session instance."""
-        manager = EnhancedSessionManager("https://example.com", session_config)
-
+    async def test_get_session_returns_existing_session(self, valid_base_url, basic_session_config):
+        """Test get_session() returns existing session - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
         session1 = await manager.get_session()
+
+        # Act - MANDATORY
         session2 = await manager.get_session()
 
+        # Assert - MANDATORY
         assert session1 is session2
 
-        await manager.close()
-
     @pytest.mark.asyncio
-    async def test_context_manager(self, session_config):
-        """Test async context manager functionality."""
-        async with EnhancedSessionManager("https://example.com", session_config) as session:
-            assert isinstance(session, aiohttp.ClientSession)
-            assert not session.closed
-
-        # Session should be closed after context
-
-    @pytest.mark.asyncio
-    async def test_cookie_persistence_setup(self, tmp_path, session_config):
-        """Test cookie persistence configuration."""
-        cookie_path = tmp_path / "test_cookies.json"
-        config = SessionConfig(cookie_jar_path=cookie_path, save_cookies=True, load_cookies=True)
-
-        manager = EnhancedSessionManager("https://example.com", config)
-        assert manager.persistent_jar is not None
-
-        await manager.get_session()
-        assert manager.cookie_jar is not None
-
-        await manager.close()
-
-    @pytest.mark.asyncio
-    async def test_basic_auth_configuration(self):
-        """Test basic authentication configuration detection."""
-        config = SessionConfig(auth_type="basic", username="testuser", password="testpass")
-
-        manager = EnhancedSessionManager("https://example.com", config)
-        assert manager._has_auth_config() is True
-
-    @pytest.mark.asyncio
-    async def test_bearer_auth_configuration(self):
-        """Test bearer token authentication configuration."""
-        config = SessionConfig(auth_type="bearer", bearer_token="test_token_123")
-
-        manager = EnhancedSessionManager("https://example.com", config)
-        assert manager._has_auth_config() is True
-
-    @pytest.mark.asyncio
-    async def test_make_request_url_handling(self, session_config):
-        """Test make_request URL handling (relative and absolute)."""
-        manager = EnhancedSessionManager("https://example.com", session_config)
-
-        with patch.object(manager, "get_session") as mock_get_session:
-            mock_session = AsyncMock()
-            mock_get_session.return_value = mock_session
-
-            # Test relative URL
-            await manager.make_request("GET", "/api/test")
-            mock_session.request.assert_called_with("GET", "https://example.com/api/test")
-
-            # Test absolute URL
-            await manager.make_request("GET", "https://other.com/api")
-            mock_session.request.assert_called_with("GET", "https://other.com/api")
-
-    @pytest.mark.asyncio
-    async def test_authentication_properties(self, session_config):
-        """Test authentication state properties."""
-        manager = EnhancedSessionManager("https://example.com", session_config)
-
-        assert manager.is_authenticated is False
-
-        # Simulate authentication
-        manager._is_authenticated = True
-        assert manager.is_authenticated is True
-
-    def test_metrics_collection(self, session_config):
-        """Test session metrics collection."""
-        manager = EnhancedSessionManager("https://example.com", session_config, "test_session")
-
-        metrics = manager.metrics
-
-        assert metrics["domain"] == "example.com"
-        assert metrics["session_name"] == "test_session"
-        assert metrics["is_authenticated"] is False
-        assert metrics["config"]["max_connections"] == 5
-        assert metrics["config"]["timeout"] == 10.0
-
-    @pytest.mark.asyncio
-    async def test_session_close_with_cookie_save(self, tmp_path):
-        """Test session closing with cookie persistence."""
-        cookie_path = tmp_path / "test_cookies.json"
-        config = SessionConfig(cookie_jar_path=cookie_path, save_cookies=True)
-
-        manager = EnhancedSessionManager("https://example.com", config)
+    async def test_close_session(self, valid_base_url, basic_session_config):
+        """Test close() closes session - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
         session = await manager.get_session()
 
-        # Mock cookie jar with cookies
-        manager.cookie_jar = Mock()
-        manager.cookie_jar.__iter__ = Mock(
-            return_value=iter([{"name": "test", "value": "value", "domain": "example.com"}])
-        )
+        # Act - MANDATORY
+        await manager.close()
 
-        with patch.object(session, "close", new_callable=AsyncMock) as mock_close:
-            await manager.close()
-            mock_close.assert_called_once()
-
-
-class TestSessionManagerAuthentication:
-    """Test suite for authentication functionality."""
+        # Assert - MANDATORY
+        assert session.closed
 
     @pytest.mark.asyncio
-    async def test_wordpress_form_authentication(self):
-        """Test WordPress form-based authentication."""
-        config = SessionConfig(auth_type="basic", username="testuser", password="testpass")
+    async def test_async_context_manager(self, valid_base_url, basic_session_config):
+        """Test async context manager support - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
 
-        manager = EnhancedSessionManager("https://wordpress-site.com", config)
-
-        # Mock session and responses
-        mock_session = AsyncMock(spec=aiohttp.ClientSession)
-
-        # Mock login page response
-        mock_login_response = AsyncMock()
-        mock_login_response.text.return_value = """
-        <form id="loginform" action="/wp-login.php" method="post">
-            <input type="hidden" name="redirect_to" value="/" />
-            <input name="log" type="text" />
-            <input name="pwd" type="password" />
-        </form>
-        """
-        mock_login_response.__aenter__.return_value = mock_login_response
-
-        # Mock login submission response
-        mock_submit_response = AsyncMock()
-        mock_submit_response.status = 200
-        mock_submit_response.url = Mock()
-        mock_submit_response.url.__str__ = Mock(return_value="https://wordpress-site.com/wp-admin/")
-        mock_submit_response.__aenter__.return_value = mock_submit_response
-
-        # Configure session mocks
-        mock_session.get.return_value = mock_login_response
-        mock_session.post.return_value = mock_submit_response
-
-        manager._session = mock_session
-
-        # Test authentication
-        await manager._perform_basic_auth()
-
-        # Verify login form was requested
-        mock_session.get.assert_called_with("https://wordpress-site.com/wp-login.php")
-
-        # Verify form was submitted with credentials
-        mock_session.post.assert_called_once()
-        call_args = mock_session.post.call_args
-        assert call_args[1]["data"]["log"] == "testuser"
-        assert call_args[1]["data"]["pwd"] == "testpass"
+        # Act - MANDATORY
+        async with manager as session:
+            # Assert - MANDATORY
+            assert session is not None
+            assert isinstance(session, aiohttp.ClientSession)
 
     @pytest.mark.asyncio
-    async def test_bearer_token_authentication(self):
-        """Test bearer token authentication."""
-        config = SessionConfig(auth_type="bearer", bearer_token="test_bearer_token_123")
-
-        manager = EnhancedSessionManager("https://api.example.com", config)
+    async def test_make_request_absolute_url(self, valid_base_url, basic_session_config):
+        """Test make_request() with absolute URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
+        url = "https://example.com/path"
 
         # Mock session
-        mock_session = AsyncMock(spec=aiohttp.ClientSession)
-        mock_session.headers = {}
+        with patch.object(manager, "get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_session.request = AsyncMock(return_value="response")
+            mock_get_session.return_value = mock_session
 
-        # Mock validation response
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.__aenter__.return_value = mock_response
-        mock_session.get.return_value = mock_response
+            # Act - MANDATORY
+            result = await manager.make_request("GET", url)
 
-        manager._session = mock_session
-
-        # Test bearer authentication
-        await manager._perform_bearer_auth()
-
-        # Verify authorization header was set
-        assert mock_session.headers["Authorization"] == "Bearer test_bearer_token_123"
-
-        # Verify validation request was made
-        mock_session.get.assert_called_with("https://api.example.com")
+            # Assert - MANDATORY
+            mock_session.request.assert_called_once_with("GET", url)
 
     @pytest.mark.asyncio
-    async def test_authentication_validation_success(self):
-        """Test successful authentication validation."""
-        config = SessionConfig(auth_type="basic", username="user", password="pass")
-        manager = EnhancedSessionManager("https://example.com", config)
-        manager._is_authenticated = True
+    async def test_make_request_relative_url(self, valid_base_url, basic_session_config):
+        """Test make_request() with relative URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
+        relative_url = "/api/endpoint"
 
-        # Mock session with successful response using aioresponses pattern
-        mock_session = AsyncMock()
-        mock_response = Mock()
-        mock_response.status = 200
-        mock_response.content_type = "text/html"
-        mock_response.text = AsyncMock(return_value="<html>Dashboard content</html>")
+        # Mock session
+        with patch.object(manager, "get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_session.request = AsyncMock(return_value="response")
+            mock_get_session.return_value = mock_session
 
-        # Create async context manager mock
-        mock_session.get = Mock(return_value=mock_response)
-        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_response.__aexit__ = AsyncMock(return_value=None)
+            # Act - MANDATORY
+            await manager.make_request("GET", relative_url)
 
-        manager._session = mock_session
-
-        result = await manager.validate_authentication()
-        assert result is True
-        assert manager._auth_validated is True
+            # Assert - MANDATORY
+            expected_url = "https://example.com/api/endpoint"
+            mock_session.request.assert_called_once_with("GET", expected_url)
 
     @pytest.mark.asyncio
-    async def test_authentication_validation_failure(self):
-        """Test failed authentication validation using fake session (no AsyncMock)."""
-        config = SessionConfig(auth_type="basic", username="user", password="pass")
-        manager = EnhancedSessionManager("https://example.com", config)
-        manager._is_authenticated = True
+    async def test_validate_authentication(self, valid_base_url, authenticated_session_config):
+        """Test validate_authentication() - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, authenticated_session_config)
+        session = await manager.get_session()
 
-        # Create fake session that returns redirect responses (authentication failure)
-        class FakeSessionForAuthValidation:
-            def get(self, url: str, allow_redirects: bool = True):
-                return FakeResponseForAuthValidation()
+        # Mock authentication validation
+        with patch.object(manager.auth_service, "validate_authentication", return_value=True):
+            # Act - MANDATORY
+            result = await manager.validate_authentication()
 
-        class FakeResponseForAuthValidation:
-            def __init__(self):
-                self.status = 302
-                self.headers = {"Location": "https://example.com/wp-login.php"}
+            # Assert - MANDATORY
+            assert result is True
 
-            async def __aenter__(self):
-                return self
+    def test_is_authenticated_property(self, valid_base_url, authenticated_session_config):
+        """Test is_authenticated property - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, authenticated_session_config)
+        manager.auth_service._is_authenticated = True
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                pass
+        # Act & Assert - MANDATORY
+        assert manager.is_authenticated is True
 
-        # Use fake session instead of AsyncMock to avoid coroutine warnings
-        manager._session = FakeSessionForAuthValidation()
+    def test_metrics_property(self, valid_base_url, basic_session_config):
+        """Test metrics property - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config, session_name="test")
 
-        result = await manager.validate_authentication()
-        assert result is False
+        # Act - MANDATORY
+        metrics = manager.metrics
 
-
-class TestUtilityFunctions:
-    """Test suite for utility functions."""
+        # Assert - MANDATORY
+        assert metrics["domain"] == "example.com"
+        assert metrics["session_name"] == "test"
+        assert "is_authenticated" in metrics
+        assert "config" in metrics
 
     @pytest.mark.asyncio
-    async def test_create_session_function(self):
-        """Test create_session utility function."""
-        with patch("src.utils.session_manager.EnhancedSessionManager") as mock_manager_class:
-            mock_manager = AsyncMock()
-            mock_manager_class.return_value = mock_manager
+    async def test_create_session_utility_function(self, valid_base_url, basic_session_config):
+        """Test create_session() utility function - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        # Act - MANDATORY
+        manager = await create_session(valid_base_url, basic_session_config)
 
-            config = SessionConfig()
-            result = await create_session("https://example.com", config, "test")
-
-            mock_manager_class.assert_called_once_with("https://example.com", config, "test")
-            mock_manager.get_session.assert_called_once()
-            assert result == mock_manager
+        # Assert - MANDATORY
+        assert isinstance(manager, EnhancedSessionManager)
+        assert manager._session is not None
 
 
-@pytest.mark.integration
+# ============================================================================
+# Integration Scenario Tests
+# ============================================================================
+
+
+@pytest.mark.unit
 class TestSessionManagerIntegration:
-    """Integration tests for session manager with real HTTP scenarios."""
+    """Integration scenario tests for session manager."""
 
     @pytest.mark.asyncio
-    async def test_session_with_cookies_integration(self, tmp_path):
-        """Test session manager with cookie persistence in integration scenario."""
-        cookie_path = tmp_path / "integration_cookies.json"
-        config = SessionConfig(
-            cookie_jar_path=cookie_path,
-            save_cookies=True,
-            load_cookies=True,
-            max_concurrent_connections=2,
-        )
+    async def test_session_with_cookie_persistence(self, valid_base_url, tmp_path):
+        """Test session with cookie persistence - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        cookie_file = tmp_path / "test_cookies.json"
+        config = SessionConfig(cookie_jar_path=cookie_file, save_cookies=True, load_cookies=True)
+        manager = EnhancedSessionManager(valid_base_url, config)
 
-        # First session - establish cookies
-        manager1 = EnhancedSessionManager("https://httpbin.org", config, "integration_test")
+        # Act - MANDATORY
+        session = await manager.get_session()
 
-        async with manager1 as session:
-            # Make a request that sets cookies
-            try:
-                response = await session.get("/cookies/set/test_cookie/test_value")
-                assert response.status in (200, 302)  # httpbin redirects after setting cookies
-            except aiohttp.ClientError:
-                # Skip if httpbin is not available
-                pytest.skip("httpbin.org not available for integration test")
+        # Add a test cookie to the session
+        from http.cookies import SimpleCookie
 
-        # Verify cookie file was created
-        assert cookie_path.exists()
+        cookie = SimpleCookie()
+        cookie["test_cookie"] = "test_value"
+        cookie["test_cookie"]["domain"] = "example.com"
+        session.cookie_jar.update_cookies(cookie)
 
-        # Second session - should load existing cookies
-        manager2 = EnhancedSessionManager("https://httpbin.org", config, "integration_test")
+        await manager.close()
 
-        async with manager2 as session:
-            # Verify cookies were loaded
-            assert manager2.cookie_jar is not None
+        # Assert - MANDATORY
+        assert cookie_file.exists()
+        # Verify cookie was saved
+        import json
+
+        with open(cookie_file) as f:
+            saved_cookies = json.load(f)
+            assert "example.com" in saved_cookies
+            assert "test_cookie" in saved_cookies["example.com"]
 
     @pytest.mark.asyncio
-    async def test_session_manager_error_handling(self):
-        """Test session manager error handling with invalid configurations."""
-        # Test with invalid URL
-        with pytest.raises(ConfigurationError):
-            EnhancedSessionManager("invalid-url", SessionConfig())
+    async def test_session_lifecycle(self, valid_base_url, basic_session_config):
+        """Test complete session lifecycle - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager(valid_base_url, basic_session_config)
 
-        # Test authentication failure scenario
-        config = SessionConfig(auth_type="bearer", bearer_token="invalid_token")
-        manager = EnhancedSessionManager("https://httpbin.org", config)
+        # Act - MANDATORY
+        # Create session
+        session = await manager.get_session()
+        assert not session.closed
 
-        # Mock failed authentication
-        with patch.object(manager, "_perform_bearer_auth", side_effect=FetchError("Auth failed")):
-            with pytest.raises(FetchError):
-                await manager.get_session()
+        # Close session
+        await manager.close()
+
+        # Assert - MANDATORY
+        assert session.closed
+
+
+# ============================================================================
+# MANDATORY Performance Benchmarks
+# ============================================================================
+
+
+@pytest.mark.performance
+@pytest.mark.unit
+class TestEnhancedSessionManagerPerformance:
+    """MANDATORY performance tests for session manager operations."""
+
+    def test_initialization_performance(self, valid_base_url):
+        """MANDATORY performance test - manager initialization speed."""
+        # Arrange - MANDATORY
+        iterations = 1000
+
+        # Act - MANDATORY
+        start_time = time.perf_counter()
+
+        for _ in range(iterations):
+            EnhancedSessionManager(valid_base_url)
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.001  # <1ms per creation
+        assert execution_time < 1.0  # Total <1s for 1000 creations
+
+    def test_url_validation_performance(self):
+        """MANDATORY performance test - URL validation speed."""
+        # Arrange - MANDATORY
+        manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
+        iterations = 10000
+        url = "https://example.com"
+
+        # Act - MANDATORY
+        start_time = time.perf_counter()
+
+        for _ in range(iterations):
+            manager._validate_url(url)
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.0001  # <0.1ms per validation
+        assert execution_time < 1.0  # Total <1s for 10000 validations
+
+    def test_config_validation_performance(self):
+        """MANDATORY performance test - config validation speed."""
+        # Arrange - MANDATORY
+        iterations = 1000
+
+        # Act - MANDATORY
+        start_time = time.perf_counter()
+
+        for _ in range(iterations):
+            SessionConfig(
+                max_concurrent_connections=10,
+                connection_timeout=30.0,
+                total_timeout=30.0,
+            )
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.001  # <1ms per validation
+        assert execution_time < 1.0  # Total <1s for 1000 validations

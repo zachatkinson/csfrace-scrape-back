@@ -3,16 +3,17 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-import structlog
 from sqlalchemy import and_, select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.decorators import database_error_handler
+from src.core.logging_hierarchy import get_auth_logger
 
 from ..api.dependencies import async_session
 from ..core.environment import EnvironmentLoader
-from ..database.models import AccountLockout
+from ..database.models.auth import AccountLockout
 
-logger = structlog.get_logger(__name__)
+logger = get_auth_logger()
 
 
 class AccountLockoutConfig:
@@ -76,6 +77,7 @@ class AccountLockoutService:
         self._db_session = db_session
         self.config = config or AccountLockoutConfig()
 
+    @database_error_handler("record failed login attempt")
     async def record_failed_login_attempt(
         self,
         user_id: str,
@@ -94,9 +96,9 @@ class AccountLockoutService:
         Returns:
             bool: True if account was locked, False if just recorded
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             # Get or create lockout record for user
             lockout_record = await self._get_or_create_lockout_record(
                 db, user_id, username, client_ip, user_agent
@@ -145,30 +147,11 @@ class AccountLockoutService:
             await db.commit()
             return should_lock
 
-        except SQLAlchemyError as e:
-            logger.error(
-                "Database error recording failed login attempt",
-                user_id=user_id,
-                username=username,
-                error=str(e),
-            )
-            if self._db_session is None:
-                await db.rollback()
-            return False
-        except Exception as e:
-            logger.error(
-                "Unexpected error recording failed login attempt",
-                user_id=user_id,
-                username=username,
-                error=str(e),
-            )
-            if self._db_session is None:
-                await db.rollback()
-            return False
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("check account lockout status")
     async def is_account_locked(self, user_id: str) -> tuple[bool, int | None]:
         """Check if account is locked - SOLID Single Responsibility.
 
@@ -178,9 +161,9 @@ class AccountLockoutService:
         Returns:
             tuple: (is_locked, remaining_minutes)
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             # Get active lockout record
             result = await db.execute(
                 select(AccountLockout)
@@ -208,14 +191,11 @@ class AccountLockoutService:
 
             return True, lockout_record.lockout_remaining_minutes
 
-        except Exception as e:
-            logger.error("Error checking account lockout status", user_id=user_id, error=str(e))
-            # Fail secure - assume not locked on error to prevent lockout of all users
-            return False, None
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("record successful login")
     async def record_successful_login(self, user_id: str, username: str) -> None:
         """Record successful login and reset failed attempt counters - SOLID Single Responsibility.
 
@@ -223,9 +203,9 @@ class AccountLockoutService:
             user_id: User identifier
             username: Username for audit trail
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             # Get current lockout record
             result = await db.execute(
                 select(AccountLockout)
@@ -250,17 +230,11 @@ class AccountLockoutService:
                     username=username,
                 )
 
-        except Exception as e:
-            logger.error(
-                "Error recording successful login",
-                user_id=user_id,
-                username=username,
-                error=str(e),
-            )
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("unlock account")
     async def unlock_account(
         self, user_id: str, unlocked_by: str, reason: str = "admin_unlock"
     ) -> bool:
@@ -274,9 +248,9 @@ class AccountLockoutService:
         Returns:
             bool: True if account was unlocked, False if not found/already unlocked
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             # Find active lockout record
             result = await db.execute(
                 select(AccountLockout)
@@ -311,20 +285,11 @@ class AccountLockoutService:
 
             return True
 
-        except Exception as e:
-            logger.error(
-                "Error unlocking account",
-                user_id=user_id,
-                unlocked_by=unlocked_by,
-                error=str(e),
-            )
-            if self._db_session is None:
-                await db.rollback()
-            return False
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("get lockout statistics")
     async def get_lockout_stats(self, user_id: str | None = None) -> dict:
         """Get lockout statistics for monitoring - SOLID Single Responsibility.
 
@@ -334,9 +299,9 @@ class AccountLockoutService:
         Returns:
             dict: Lockout statistics
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             base_query = select(AccountLockout)
             if user_id:
                 base_query = base_query.where(AccountLockout.user_id == user_id)
@@ -367,13 +332,11 @@ class AccountLockoutService:
 
             return stats
 
-        except Exception as e:
-            logger.error("Error getting lockout stats", user_id=user_id, error=str(e))
-            return {"error": str(e)}
         finally:
             if self._db_session is None:
                 await db.close()
 
+    @database_error_handler("cleanup expired lockouts")
     async def cleanup_expired_lockouts(self, older_than_days: int = 30) -> int:
         """Clean up old lockout records - SOLID Single Responsibility.
 
@@ -383,9 +346,9 @@ class AccountLockoutService:
         Returns:
             int: Number of records cleaned up
         """
-        try:
-            db = self._db_session or async_session()
+        db = self._db_session or async_session()
 
+        try:
             cutoff_date = datetime.now(UTC) - timedelta(days=older_than_days)
 
             # Delete old unlocked records (keep locked ones for audit)
@@ -398,11 +361,11 @@ class AccountLockoutService:
                 )
             )
 
-            old_records = result.scalars().all()
-            records_count = len(old_records)
+            expired_records = result.scalars().all()
+            records_count = len(expired_records)
 
             if records_count > 0:
-                for record in old_records:
+                for record in expired_records:
                     await db.delete(record)
 
                 await db.commit()
@@ -415,11 +378,6 @@ class AccountLockoutService:
 
             return records_count
 
-        except Exception as e:
-            logger.error("Error during lockout cleanup", error=str(e))
-            if self._db_session is None:
-                await db.rollback()
-            return 0
         finally:
             if self._db_session is None:
                 await db.close()

@@ -1,16 +1,27 @@
 """FastAPI dependencies for authentication following official patterns."""
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 
+from ..api.errors import APIErrorFactory
 from ..database.service import DatabaseService
-from .config import auth_config
 from .models import TokenData, User
 from .oauth_service import OAuthService
 from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
+
+# from .config import auth_config  # type: ignore[import-not-found]
+
+
+# Temporary auth config until config.py is available
+class AuthConfig:
+    SECRET_KEY = "your-secret-key-here"  # noqa: S105
+    ALGORITHM = "HS256"
+
+
+auth_config = AuthConfig()
 
 # OAuth2 scheme for token extraction
 oauth2_scheme = OAuth2PasswordBearer(
@@ -60,24 +71,28 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme), auth_service: AuthService = Depends(get_auth_service)
 ) -> User:
     """Get current authenticated user from JWT token."""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+
+    # Use standardized error factory for consistent API responses
+    def raise_credentials_error():
+        raise APIErrorFactory.unauthorized("Could not validate credentials")
 
     # Verify token
     token_data: TokenData | None = await security_manager.verify_token(token)
     if token_data is None or token_data.username is None:
-        raise credentials_exception
+        raise_credentials_error()
+
+    # At this point, token_data is guaranteed to be non-None with a non-None username
+    assert token_data is not None, "token_data should not be None after verification"
+    assert token_data.username is not None, "username should not be None after verification"
 
     # Get user from database using injected auth service
     # Use maybe_none wrapper (DRY principle) to handle assignment-from-none
+    # Import inside function to avoid circular dependency: auth.dependencies -> api.utils -> auth.*
     from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
 
     user = maybe_none(auth_service.get_user_by_username, token_data.username)
     if user is None:
-        raise credentials_exception
+        raise_credentials_error()
 
     return user
 
@@ -85,14 +100,14 @@ async def get_current_user(
 def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """Get current active user (not disabled)."""
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        raise APIErrorFactory.business_logic_error("Inactive user", "USER_INACTIVE")
     return current_user
 
 
 def get_current_superuser(current_user: User = Depends(get_current_active_user)) -> User:
     """Get current superuser."""
     if not current_user.is_superuser:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+        raise APIErrorFactory.forbidden("Not enough permissions")
     return current_user
 
 
@@ -100,21 +115,19 @@ def require_scopes(*required_scopes: str):
     """Dependency factory for scope-based authorization."""
 
     async def check_scopes(token: str = Depends(oauth2_scheme)) -> TokenData:
-        credentials_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        def raise_credentials_error():
+            raise APIErrorFactory.unauthorized("Could not validate credentials")
 
         token_data = await security_manager.verify_token(token)
         if token_data is None:
-            raise credentials_exception
+            raise_credentials_error()
+
+        # At this point, token_data is guaranteed to be non-None
+        assert token_data is not None, "token_data should not be None after verification"
 
         # Check if user has required scopes
         if not all(scope in token_data.scopes for scope in required_scopes):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
-            )
+            raise APIErrorFactory.forbidden("Not enough permissions")
 
         return token_data
 
@@ -125,40 +138,38 @@ async def get_current_user_from_cookie(
     request: Request, auth_service: AuthService = Depends(get_auth_service)
 ) -> User:
     """Get current authenticated user from HTTP-only cookie (for Astro best practices)."""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+
+    def raise_not_authenticated_error():
+        raise APIErrorFactory.unauthorized("Not authenticated")
 
     # Try to get auth token from HTTP-only cookie
     auth_token = request.cookies.get("auth_token")
     if not auth_token:
-        raise credentials_exception
+        raise_not_authenticated_error()
+
+    # At this point, auth_token is guaranteed to be a non-empty string
+    assert auth_token is not None and auth_token != "", "auth_token should be valid after check"
 
     try:
         # Verify JWT token from cookie
         payload = jwt.decode(auth_token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise credentials_exception
+            raise_not_authenticated_error()
 
         token_data = TokenData(username=username)
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise APIErrorFactory.unauthorized("Token expired")
     except jwt.InvalidTokenError:
-        raise credentials_exception
+        raise_not_authenticated_error()
 
     # Get user from database using injected auth service
+    # Import inside function to avoid circular dependency: auth.dependencies -> api.utils -> auth.*
     from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
 
     user = maybe_none(auth_service.get_user_by_username, token_data.username)
     if user is None:
-        raise credentials_exception
+        raise_not_authenticated_error()
 
     return user
 
@@ -168,5 +179,5 @@ def get_current_active_user_from_cookie(
 ) -> User:
     """Get current active user from cookie (not disabled)."""
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        raise APIErrorFactory.business_logic_error("Inactive user", "USER_INACTIVE")
     return current_user

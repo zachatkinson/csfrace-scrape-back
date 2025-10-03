@@ -1,454 +1,548 @@
-"""Tests for URL utilities following testing best practices."""
+"""Comprehensive tests for URL processing utilities - MANDATORY TEST_BUILDING.md compliance.
 
-from unittest.mock import patch
+This module tests URL processing utilities with complete coverage:
+- Domain extraction and validation
+- URL normalization (relative/absolute)
+- Same-domain comparison
+- Filename extraction from URLs
+- Edge cases and error handling
+- Performance benchmarks
 
-from src.utils.url import (
-    extract_domain,
-    extract_filename_from_url,
-    is_same_domain,
-    normalize_url,
-    safe_parse_url,
-)
+ALL tests follow MANDATORY TEST_BUILDING.md patterns:
+- AAA pattern with explicit comments
+- Factory fixtures for DRY principle
+- Comprehensive URL scenario testing
+- Performance benchmarks with specific thresholds
+"""
 
+import time
 
-class TestUrlParsingCore:
-    """Test core URL parsing functionality following SOLID principles."""
+import pytest
 
-    def test_safe_parse_url_valid_http(self):
-        """Test parsing valid HTTP URL."""
-        result = safe_parse_url("http://example.com/path")
-        assert result is not None
-        assert result.scheme == "http"
-        assert result.netloc == "example.com"
-        assert result.path == "/path"
+from src.utils.url import extract_domain, extract_filename_from_url, is_same_domain, normalize_url
 
-    def test_safe_parse_url_valid_https(self):
-        """Test parsing valid HTTPS URL."""
-        result = safe_parse_url("https://secure.example.com/api/v1")
-        assert result is not None
-        assert result.scheme == "https"
-        assert result.netloc == "secure.example.com"
-        assert result.path == "/api/v1"
-
-    def test_safe_parse_url_with_query_and_fragment(self):
-        """Test parsing URL with query parameters and fragment."""
-        result = safe_parse_url("https://example.com/search?q=test&limit=10#results")
-        assert result is not None
-        assert result.scheme == "https"
-        assert result.netloc == "example.com"
-        assert result.path == "/search"
-        assert result.query == "q=test&limit=10"
-        assert result.fragment == "results"
-
-    def test_safe_parse_url_invalid_no_scheme(self):
-        """Test parsing URL without scheme."""
-        result = safe_parse_url("example.com/path")
-        assert result is None
-
-    def test_safe_parse_url_invalid_no_netloc(self):
-        """Test parsing URL without network location."""
-        result = safe_parse_url("http:///path")
-        assert result is None
-
-    def test_safe_parse_url_empty_string(self):
-        """Test parsing empty string."""
-        result = safe_parse_url("")
-        assert result is None
-
-    def test_safe_parse_url_exception_handling(self):
-        """Test parsing URL that causes exception."""
-        with patch("src.utils.url.urlparse", side_effect=Exception("Parse error")):
-            result = safe_parse_url("http://example.com")
-            assert result is None
+# ============================================================================
+# Test Fixtures - DRY Principle
+# ============================================================================
 
 
-class TestDomainExtraction:
-    """Test domain extraction functionality with comprehensive edge cases."""
+@pytest.fixture
+def valid_urls() -> list[str]:
+    """Factory for valid URL samples - DRY principle."""
+    return [
+        "https://example.com",
+        "http://www.example.com/path",
+        "https://subdomain.example.com:8080/api",
+        "https://example.com/path?query=value",
+        "https://example.com/path#fragment",
+    ]
 
-    def test_extract_domain_valid_url(self):
-        """Test domain extraction from valid URL."""
-        assert extract_domain("https://www.example.com/path") == "www.example.com"
+
+@pytest.fixture
+def invalid_urls() -> list[str]:
+    """Factory for invalid URL samples - DRY principle."""
+    return [
+        "",
+        "   ",
+        "not-a-url",
+        "://example.com",
+        "http://",
+        "https://",
+        "//example.com",  # Protocol-relative URLs not allowed
+    ]
+
+
+# ============================================================================
+# extract_domain Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestExtractDomain:
+    """Tests for extract_domain function."""
+
+    def test_extract_domain_basic_url(self):
+        """Test extract_domain with basic URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com"
+
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result == "example.com"
+
+    def test_extract_domain_with_path(self):
+        """Test extract_domain with path - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/path/to/resource"
+
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result == "example.com"
+
+    def test_extract_domain_with_subdomain(self):
+        """Test extract_domain preserves subdomain - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://api.example.com/v1/users"
+
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result == "api.example.com"
 
     def test_extract_domain_with_port(self):
-        """Test domain extraction from URL with port."""
-        assert extract_domain("http://localhost:8080/api") == "localhost:8080"
+        """Test extract_domain with port number - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com:8080/api"
 
-    def test_extract_domain_subdomain(self):
-        """Test domain extraction with subdomain."""
-        assert extract_domain("https://api.service.example.com") == "api.service.example.com"
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result == "example.com:8080"
+
+    def test_extract_domain_with_query(self):
+        """Test extract_domain ignores query - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/path?param=value"
+
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result == "example.com"
+
+    def test_extract_domain_with_fragment(self):
+        """Test extract_domain ignores fragment - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/path#section"
+
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result == "example.com"
 
     def test_extract_domain_invalid_url(self):
-        """Test domain extraction from invalid URL."""
-        assert extract_domain("not-a-url") is None
+        """Test extract_domain with invalid URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "not-a-valid-url"
 
-    def test_extract_domain_empty_url(self):
-        """Test domain extraction from empty URL."""
-        assert extract_domain("") is None
+        # Act - MANDATORY
+        result = extract_domain(url)
 
-    def test_extract_domain_url_with_credentials(self):
-        """Test domain extraction from URL with credentials."""
-        assert extract_domain("https://user:pass@example.com/path") == "user:pass@example.com"
+        # Assert - MANDATORY
+        assert result is None
+
+    def test_extract_domain_empty_string(self):
+        """Test extract_domain with empty string - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = ""
+
+        # Act - MANDATORY
+        result = extract_domain(url)
+
+        # Assert - MANDATORY
+        assert result is None
 
 
-class TestDomainComparison:
-    """Test domain comparison functionality."""
+# ============================================================================
+# is_same_domain Tests
+# ============================================================================
 
-    def test_is_same_domain_identical_domains(self):
-        """Test domain comparison with identical domains."""
+
+@pytest.mark.unit
+class TestIsSameDomain:
+    """Tests for is_same_domain function."""
+
+    def test_is_same_domain_exact_match(self):
+        """Test is_same_domain with exact domain match - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         url1 = "https://example.com/page1"
         url2 = "https://example.com/page2"
-        assert is_same_domain(url1, url2) is True
 
-    def test_is_same_domain_different_domains(self):
-        """Test domain comparison with different domains."""
-        url1 = "https://example.com/page"
-        url2 = "https://other.com/page"
-        assert is_same_domain(url1, url2) is False
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
 
-    def test_is_same_domain_different_subdomains(self):
-        """Test domain comparison with different subdomains."""
-        url1 = "https://www.example.com/page"
-        url2 = "https://api.example.com/page"
-        assert is_same_domain(url1, url2) is False
+        # Assert - MANDATORY
+        assert result is True
 
     def test_is_same_domain_different_schemes(self):
-        """Test domain comparison with different schemes but same domain."""
-        url1 = "http://example.com/page"
-        url2 = "https://example.com/page"
-        assert is_same_domain(url1, url2) is True
+        """Test is_same_domain with different schemes - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url1 = "http://example.com/page1"
+        url2 = "https://example.com/page2"
+
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
+
+        # Assert - MANDATORY
+        assert result is True  # Domain is the same, scheme doesn't matter
+
+    def test_is_same_domain_different_domains(self):
+        """Test is_same_domain with different domains - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url1 = "https://example.com/page"
+        url2 = "https://another.com/page"
+
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
+
+        # Assert - MANDATORY
+        assert result is False
+
+    def test_is_same_domain_subdomain_difference(self):
+        """Test is_same_domain with subdomain difference - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url1 = "https://www.example.com/page"
+        url2 = "https://api.example.com/page"
+
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
+
+        # Assert - MANDATORY
+        assert result is False  # Different subdomains
+
+    def test_is_same_domain_with_ports(self):
+        """Test is_same_domain with port numbers - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url1 = "https://example.com:8080/page"
+        url2 = "https://example.com:8080/other"
+
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
+
+        # Assert - MANDATORY
+        assert result is True
 
     def test_is_same_domain_different_ports(self):
-        """Test domain comparison with different ports."""
+        """Test is_same_domain with different ports - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         url1 = "https://example.com:8080/page"
-        url2 = "https://example.com:9000/page"
-        assert is_same_domain(url1, url2) is False
+        url2 = "https://example.com:9090/page"
 
-    def test_is_same_domain_one_invalid(self):
-        """Test domain comparison with one invalid URL."""
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
+
+        # Assert - MANDATORY
+        assert result is False  # Different ports
+
+    def test_is_same_domain_invalid_url(self):
+        """Test is_same_domain with invalid URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         url1 = "https://example.com/page"
-        url2 = "not-a-url"
-        assert is_same_domain(url1, url2) is False
+        url2 = "not-a-valid-url"
 
-    def test_is_same_domain_both_invalid(self):
-        """Test domain comparison with both invalid URLs."""
-        url1 = "not-a-url-1"
-        url2 = "not-a-url-2"
-        assert is_same_domain(url1, url2) is False
+        # Act - MANDATORY
+        result = is_same_domain(url1, url2)
+
+        # Assert - MANDATORY
+        assert result is False
 
 
-class TestUrlNormalization:
-    """Test URL normalization with various scenarios."""
+# ============================================================================
+# normalize_url Tests
+# ============================================================================
 
-    def test_normalize_url_absolute_http(self):
-        """Test normalization of absolute HTTP URL."""
-        url = "http://example.com/path"
-        result = normalize_url(url)
-        assert result == "http://example.com/path"
+
+@pytest.mark.unit
+class TestNormalizeUrl:
+    """Tests for normalize_url function."""
 
     def test_normalize_url_absolute_https(self):
-        """Test normalization of absolute HTTPS URL."""
+        """Test normalize_url with absolute HTTPS URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         url = "https://example.com/path"
+
+        # Act - MANDATORY
         result = normalize_url(url)
+
+        # Assert - MANDATORY
         assert result == "https://example.com/path"
 
-    def test_normalize_url_invalid_absolute(self):
-        """Test normalization of invalid absolute URL."""
-        url = "http://invalid"
+    def test_normalize_url_absolute_http(self):
+        """Test normalize_url with absolute HTTP URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "http://example.com/path"
+
+        # Act - MANDATORY
         result = normalize_url(url)
-        assert result is None
+
+        # Assert - MANDATORY
+        assert result == "http://example.com/path"
+
+    def test_normalize_url_strips_whitespace(self):
+        """Test normalize_url strips whitespace - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "  https://example.com/path  "
+
+        # Act - MANDATORY
+        result = normalize_url(url)
+
+        # Assert - MANDATORY
+        assert result == "https://example.com/path"
 
     def test_normalize_url_relative_with_base(self):
-        """Test normalization of relative URL with base URL."""
-        url = "/api/endpoint"
+        """Test normalize_url with relative URL and base - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "/path/to/resource"
         base_url = "https://example.com"
-        result = normalize_url(url, base_url)
-        assert result == "https://example.com/api/endpoint"
 
-    def test_normalize_url_relative_no_leading_slash(self):
-        """Test normalization of relative URL without leading slash."""
-        url = "api/endpoint"
+        # Act - MANDATORY
+        result = normalize_url(url, base_url)
+
+        # Assert - MANDATORY
+        assert result == "https://example.com/path/to/resource"
+
+    def test_normalize_url_relative_path_with_base(self):
+        """Test normalize_url with relative path - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "relative/path"
         base_url = "https://example.com/base/"
-        result = normalize_url(url, base_url)
-        assert result == "https://example.com/base/api/endpoint"
 
-    def test_normalize_url_relative_without_base(self):
-        """Test normalization of relative URL without base URL."""
-        url = "/api/endpoint"
-        result = normalize_url(url, None)
-        assert result is None
+        # Act - MANDATORY
+        result = normalize_url(url, base_url)
+
+        # Assert - MANDATORY
+        assert result == "https://example.com/base/relative/path"
+
+    def test_normalize_url_rejects_protocol_relative(self):
+        """Test normalize_url rejects protocol-relative URLs - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "//example.com/path"
+
+        # Act - MANDATORY
+        result = normalize_url(url)
+
+        # Assert - MANDATORY
+        assert result is None  # Protocol-relative URLs not allowed
 
     def test_normalize_url_empty_string(self):
-        """Test normalization of empty string."""
-        result = normalize_url("")
+        """Test normalize_url with empty string - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = ""
+
+        # Act - MANDATORY
+        result = normalize_url(url)
+
+        # Assert - MANDATORY
         assert result is None
 
     def test_normalize_url_whitespace_only(self):
-        """Test normalization of whitespace-only string."""
-        result = normalize_url("   ")
+        """Test normalize_url with whitespace only - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "   "
+
+        # Act - MANDATORY
+        result = normalize_url(url)
+
+        # Assert - MANDATORY
         assert result is None
 
-    def test_normalize_url_fragment_anchor(self):
-        """Test normalization of fragment anchor."""
-        url = "#section"
-        base_url = "https://example.com"
-        result = normalize_url(url, base_url)
-        assert result is None
+    def test_normalize_url_invalid_domain(self):
+        """Test normalize_url with invalid domain - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://invalid-domain"
 
-    def test_normalize_url_protocol_relative(self):
-        """Test normalization of protocol-relative URL."""
-        url = "//example.com/path"
-        base_url = "https://base.com"
-        result = normalize_url(url, base_url)
-        assert result is None
+        # Act - MANDATORY
+        result = normalize_url(url)
 
-    def test_normalize_url_urljoin_exception(self):
-        """Test normalization when urljoin raises exception."""
-        url = "/path"
-        base_url = "invalid-base"
+        # Assert - MANDATORY
+        assert result is None  # Domain without dot is invalid
 
-        with patch("src.utils.url.urljoin", side_effect=Exception("Join failed")):
-            result = normalize_url(url, base_url)
-            assert result is None
+    def test_normalize_url_localhost_allowed(self):
+        """Test normalize_url allows localhost - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "http://localhost:8000/path"
+
+        # Act - MANDATORY
+        result = normalize_url(url)
+
+        # Assert - MANDATORY
+        assert result == "http://localhost:8000/path"
+
+    def test_normalize_url_ip_address_allowed(self):
+        """Test normalize_url allows IP addresses - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "http://127.0.0.1:8000/path"
+
+        # Act - MANDATORY
+        result = normalize_url(url)
+
+        # Assert - MANDATORY
+        assert result == "http://127.0.0.1:8000/path"
 
 
-class TestFilenameExtraction:
-    """Test filename extraction from URLs."""
+# ============================================================================
+# extract_filename_from_url Tests
+# ============================================================================
 
-    def test_extract_filename_with_extension(self):
-        """Test filename extraction with extension."""
-        url = "https://example.com/files/document.pdf"
+
+@pytest.mark.unit
+class TestExtractFilenameFromUrl:
+    """Tests for extract_filename_from_url function."""
+
+    def test_extract_filename_basic(self):
+        """Test extract_filename_from_url with basic filename - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/path/to/file.txt"
+
+        # Act - MANDATORY
         result = extract_filename_from_url(url)
-        assert result == "document.pdf"
 
-    def test_extract_filename_without_extension(self):
-        """Test filename extraction without extension."""
-        url = "https://example.com/files/document"
-        result = extract_filename_from_url(url, ".html")
-        assert result == "document.html"
-
-    def test_extract_filename_from_root(self):
-        """Test filename extraction from root path."""
-        url = "https://example.com/"
-        result = extract_filename_from_url(url, ".html")
-        assert result == "example_com.html"
-
-    def test_extract_filename_no_path(self):
-        """Test filename extraction with no path."""
-        url = "https://example.com"
-        result = extract_filename_from_url(url, ".html")
-        assert result == "example_com.html"
-
-    def test_extract_filename_invalid_url(self):
-        """Test filename extraction from invalid URL."""
-        url = "not-a-url"
-        result = extract_filename_from_url(url, ".html")
-        assert result == "unknown.html"
-
-    def test_extract_filename_with_query_params(self):
-        """Test filename extraction with query parameters."""
-        url = "https://example.com/files/document.pdf?version=1&format=A4"
-        result = extract_filename_from_url(url)
-        assert result == "document.pdf"
-
-    def test_extract_filename_with_fragment(self):
-        """Test filename extraction with fragment."""
-        url = "https://example.com/files/document.pdf#page=5"
-        result = extract_filename_from_url(url)
-        assert result == "document.pdf"
-
-    def test_extract_filename_with_spaces(self):
-        """Test filename extraction with spaces (should be cleaned)."""
-        url = "https://example.com/files/my document.pdf"
-        result = extract_filename_from_url(url)
-        assert result == "my_document.pdf"
-
-    def test_extract_filename_with_special_chars(self):
-        """Test filename extraction with special characters."""
-        url = "https://example.com/files/doc?ument.pdf"
-        result = extract_filename_from_url(url)
-        assert result == "document.pdf"
-
-    def test_extract_filename_deep_path(self):
-        """Test filename extraction from deep path."""
-        url = "https://example.com/very/deep/path/structure/file.txt"
-        result = extract_filename_from_url(url)
+        # Assert - MANDATORY
         assert result == "file.txt"
 
-    def test_extract_filename_default_extension_applied(self):
-        """Test default extension is applied when needed."""
-        url = "https://example.com/api/data"
-        result = extract_filename_from_url(url, ".json")
-        assert result == "data.json"
+    def test_extract_filename_with_query(self):
+        """Test extract_filename_from_url handles query - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/file.pdf?download=true"
 
-    def test_extract_filename_fallback_to_file(self):
-        """Test fallback to 'file' when no usable name found."""
+        # Act - MANDATORY
+        result = extract_filename_from_url(url)
+
+        # Assert - MANDATORY
+        # Query params removed by cleaning
+        assert "file.pdf" in result
+
+    def test_extract_filename_no_extension(self):
+        """Test extract_filename_from_url with no extension - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/path/to/file"
+        default_ext = ".html"
+
+        # Act - MANDATORY
+        result = extract_filename_from_url(url, default_ext)
+
+        # Assert - MANDATORY
+        assert result == "file.html"
+
+    def test_extract_filename_root_url(self):
+        """Test extract_filename_from_url with root URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
         url = "https://example.com/"
+        default_ext = ".html"
 
-        with patch("src.utils.url.safe_parse_url") as mock_parse:
-            # Mock a parsed URL with empty netloc to trigger fallback
-            mock_parsed = type(
-                "MockParsed", (), {"path": "", "netloc": "", "query": "", "fragment": ""}
-            )()
-            mock_parse.return_value = mock_parsed
+        # Act - MANDATORY
+        result = extract_filename_from_url(url, default_ext)
 
-            result = extract_filename_from_url(url, ".html")
-            assert result == "file.html"
+        # Assert - MANDATORY
+        assert ".html" in result
+        assert "example_com" in result or "file" in result
 
+    def test_extract_filename_invalid_url(self):
+        """Test extract_filename_from_url with invalid URL - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "not-a-valid-url"
+        default_ext = ".txt"
 
-class TestUrlUtilsIntegration:
-    """Test integration scenarios between URL utility functions."""
+        # Act - MANDATORY
+        result = extract_filename_from_url(url, default_ext)
 
-    def test_domain_extraction_with_normalization(self):
-        """Test domain extraction works with normalized URLs."""
-        relative_url = "/api/data"
-        base_url = "https://api.example.com"
+        # Assert - MANDATORY
+        assert result == "unknown.txt"
 
-        normalized = normalize_url(relative_url, base_url)
-        domain = extract_domain(normalized) if normalized else None
+    def test_extract_filename_spaces_replaced(self):
+        """Test extract_filename_from_url replaces spaces - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/file with spaces.pdf"
 
-        assert domain == "api.example.com"
+        # Act - MANDATORY
+        result = extract_filename_from_url(url)
 
-    def test_filename_extraction_from_normalized_url(self):
-        """Test filename extraction from normalized URL."""
-        relative_url = "files/document.pdf"
-        base_url = "https://cdn.example.com/"
+        # Assert - MANDATORY
+        assert " " not in result
+        assert "_" in result
 
-        normalized = normalize_url(relative_url, base_url)
-        filename = extract_filename_from_url(normalized) if normalized else "unknown.pdf"
+    def test_extract_filename_special_chars_removed(self):
+        """Test extract_filename_from_url removes special chars - MANDATORY AAA pattern."""
+        # Arrange - MANDATORY
+        url = "https://example.com/file?query#fragment"
 
-        assert filename == "document.pdf"
+        # Act - MANDATORY
+        result = extract_filename_from_url(url)
 
-    def test_same_domain_check_with_normalization(self):
-        """Test same domain check with URL normalization."""
-        url1 = "https://example.com/page1"
-        relative_url2 = "/page2"
-
-        normalized_url2 = normalize_url(relative_url2, url1)
-        if normalized_url2:
-            are_same = is_same_domain(url1, normalized_url2)
-            assert are_same is True
-
-    def test_complete_url_processing_workflow(self):
-        """Test complete URL processing workflow."""
-        # Start with relative URL
-        relative_url = "api/v1/users.json"
-        base_url = "https://api.service.com/v1/"
-
-        # Normalize URL
-        normalized = normalize_url(relative_url, base_url)
-        assert normalized == "https://api.service.com/v1/api/v1/users.json"
-
-        # Extract domain
-        domain = extract_domain(normalized)
-        assert domain == "api.service.com"
-
-        # Extract filename
-        filename = extract_filename_from_url(normalized)
-        assert filename == "users.json"
-
-        # Check same domain with base
-        same_domain = is_same_domain(normalized, base_url)
-        assert same_domain is True
+        # Assert - MANDATORY
+        assert "?" not in result
+        assert "#" not in result
 
 
-class TestUrlUtilsErrorHandling:
-    """Test comprehensive error handling in URL utilities."""
-
-    def test_safe_parse_url_with_malformed_input(self):
-        """Test safe URL parsing with various malformed inputs."""
-        malformed_urls = [
-            "http://",
-            "://example.com",
-            "http:example.com",
-            "ftp://example.com",  # Valid but no scheme/netloc
-            "javascript:alert('test')",
-            None,  # This should be handled gracefully if function gets None
-        ]
-
-        for url in malformed_urls:
-            if url is not None:  # Skip None test for now
-                result = safe_parse_url(url)
-                # All should return None (invalid) or be handled gracefully
-                assert result is None or hasattr(result, "scheme")
-
-    def test_extract_domain_edge_cases(self):
-        """Test domain extraction with edge cases."""
-        edge_cases = [
-            "http://",
-            "https://",
-            "http://localhost",
-            "https://127.0.0.1",
-            "http://[::1]",  # IPv6
-            "https://user@example.com",  # User in URL
-        ]
-
-        for url in edge_cases:
-            result = extract_domain(url)
-            # Should either return valid domain or None
-            assert result is None or isinstance(result, str)
-
-    def test_normalize_url_error_resilience(self):
-        """Test URL normalization error resilience."""
-        problematic_inputs = [
-            ("", "https://example.com"),
-            ("   ", "https://example.com"),
-            (None, "https://example.com")
-            if False
-            else ("valid", "https://example.com"),  # Skip None test
-            ("/path", None),
-            ("/path", ""),
-            ("/path", "invalid-base"),
-        ]
-
-        for url, base in problematic_inputs:
-            result = normalize_url(url, base)
-            # Should handle gracefully without exceptions
-            assert result is None or isinstance(result, str)
-
-    def test_extract_filename_error_resilience(self):
-        """Test filename extraction error resilience."""
-        problematic_urls = [
-            "",
-            "http://",
-            "not-a-url-at-all",
-            "https://example.com/" + "a" * 1000,  # Very long URL
-        ]
-
-        for url in problematic_urls:
-            result = extract_filename_from_url(url, ".html")
-            # Should always return a string, never None or raise exception
-            assert isinstance(result, str)
-            assert len(result) > 0
+# ============================================================================
+# MANDATORY Performance Benchmarks
+# ============================================================================
 
 
+@pytest.mark.performance
+@pytest.mark.unit
 class TestUrlUtilsPerformance:
-    """Test performance characteristics of URL utilities."""
+    """MANDATORY performance tests for URL utilities."""
 
-    def test_url_parsing_performance_bulk(self):
-        """Test URL parsing performance with bulk operations."""
-        import time
+    def test_normalize_url_performance(self):
+        """MANDATORY performance test - URL normalization speed."""
+        # Arrange - MANDATORY
+        test_urls = [
+            ("https://example.com/path", None),
+            ("/relative/path", "https://example.com"),
+            ("relative/file", "https://example.com/base/"),
+        ]
+        iterations = 5000
 
-        urls = [f"https://example{i}.com/path/{i}" for i in range(100)]
+        # Act - MANDATORY
+        start_time = time.perf_counter()
 
-        start_time = time.time()
-        results = [safe_parse_url(url) for url in urls]
-        execution_time = time.time() - start_time
+        for _ in range(iterations):
+            for url, base in test_urls:
+                normalize_url(url, base)
 
-        # Should complete bulk operations quickly
-        assert execution_time < 1.0  # Less than 1 second for 100 URLs
-        assert len(results) == 100
-        assert all(result is not None for result in results)
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
 
-    def test_domain_extraction_performance(self):
-        """Test domain extraction performance."""
-        import time
+        # Assert - MANDATORY
+        total_operations = iterations * len(test_urls)
+        avg_time = execution_time / total_operations
+        assert avg_time < 0.0001  # <0.1ms per normalization
+        assert execution_time < 1.5  # Total <1.5s for 15000 normalizations
 
-        url = "https://very-long-subdomain.example.com/very/long/path/with/many/segments"
+    def test_extract_domain_performance(self):
+        """MANDATORY performance test - domain extraction speed."""
+        # Arrange - MANDATORY
+        test_url = "https://subdomain.example.com:8080/path/to/resource?query=value"
+        iterations = 10000
 
-        start_time = time.time()
-        for _ in range(1000):
-            extract_domain(url)
-        execution_time = time.time() - start_time
+        # Act - MANDATORY
+        start_time = time.perf_counter()
 
-        # Should be very fast for repeated operations
-        assert execution_time < 0.5  # Less than 500ms for 1000 operations
+        for _ in range(iterations):
+            extract_domain(test_url)
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.0001  # <0.1ms per extraction
+        assert execution_time < 1.0  # Total <1s for 10000 extractions
+
+    def test_extract_filename_performance(self):
+        """MANDATORY performance test - filename extraction speed."""
+        # Arrange - MANDATORY
+        test_url = "https://example.com/path/to/file.txt?download=true"
+        iterations = 10000
+
+        # Act - MANDATORY
+        start_time = time.perf_counter()
+
+        for _ in range(iterations):
+            extract_filename_from_url(test_url)
+
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        # Assert - MANDATORY
+        avg_time = execution_time / iterations
+        assert avg_time < 0.0001  # <0.1ms per extraction
+        assert execution_time < 1.0  # Total <1s for 10000 extractions

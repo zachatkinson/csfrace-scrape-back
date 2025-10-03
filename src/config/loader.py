@@ -3,21 +3,22 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
-import structlog
 import yaml
 
+from src.core.decorators import content_processing_error_handler
+from src.core.logging_hierarchy import get_core_logger
+
 from ..batch.processor import BatchConfig
-from ..constants import CONSTANTS
-from ..core.config import (
-    ConverterConfig,
-    HttpConfig,
-    OutputConfig,
-    RobotsConfig,
-    ShopifyConfig,
-    config,
+from ..constants import (
+    DEFAULT_IMAGES_DIR,
+    DEFAULT_OUTPUT_DIR,
+    HTML_FILE,
+    METADATA_FILE,
+    SHOPIFY_FILE,
 )
+from .converter import ConverterConfig
 
 # Configuration types - using Any is acceptable here for JSON/YAML flexibility
 # Best practice: Use TypedDict to document expected structure while allowing Any for values
@@ -53,7 +54,7 @@ class ConverterConfigDict(TypedDict, total=False):
     preserve_ids: list[str]
 
 
-logger = structlog.get_logger(__name__)
+logger = get_core_logger()
 
 
 class ConfigLoader:
@@ -90,30 +91,26 @@ class ConfigLoader:
         raise ValueError(f"Unsupported config format: {file_type}")
 
     @staticmethod
+    @content_processing_error_handler("load YAML config")
     def _load_yaml(config_path: Path) -> ConfigDict:
         """Load YAML configuration file."""
-        try:
-            with open(config_path, encoding="utf-8") as f:
-                loaded_config = yaml.safe_load(f) or {}
-                logger.info(
-                    "Loaded YAML config", path=str(config_path), keys=list(loaded_config.keys())
-                )
-                return loaded_config
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML in {config_path}: {e}") from e
+        with open(config_path, encoding="utf-8") as f:
+            loaded_config = yaml.safe_load(f) or {}
+            logger.info(
+                "Loaded YAML config", path=str(config_path), keys=list(loaded_config.keys())
+            )
+            return loaded_config
 
     @staticmethod
+    @content_processing_error_handler("load JSON config")
     def _load_json(config_path: Path) -> ConfigDict:
         """Load JSON configuration file."""
-        try:
-            with open(config_path, encoding="utf-8") as f:
-                loaded_config = json.load(f)
-                logger.info(
-                    "Loaded JSON config", path=str(config_path), keys=list(loaded_config.keys())
-                )
-                return loaded_config
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in {config_path}: {e}") from e
+        with open(config_path, encoding="utf-8") as f:
+            loaded_config = json.load(f)
+            logger.info(
+                "Loaded JSON config", path=str(config_path), keys=list(loaded_config.keys())
+            )
+            return loaded_config
 
     @staticmethod
     def create_converter_config(
@@ -123,82 +120,91 @@ class ConfigLoader:
 
         Args:
             config_dict: Configuration dictionary
-            base_config: Base config to extend (defaults to global config)
+            base_config: Base config to extend
 
         Returns:
             ConverterConfig instance
         """
-        base = base_config or config
+        base = base_config or ConverterConfig(
+            debug_mode=False, log_level="INFO", enable_metrics=True
+        )
 
         # Get converter-specific settings
         converter_settings = config_dict.get("converter", {})
 
-        # Create a merged flat dictionary for backwards compatibility
+        # Create a merged dictionary from base config
         merged = {}
         if base:
-            # Extract current values from nested structure
-            if hasattr(base, "http"):
-                merged.update(asdict(base.http))
-            if hasattr(base, "output"):
-                merged.update(asdict(base.output))
-            if hasattr(base, "robots"):
-                merged.update(asdict(base.robots))
-            if hasattr(base, "shopify"):
-                merged.update(asdict(base.shopify))
+            # Extract current values from base config
+            merged.update(
+                {
+                    "default_timeout": base.http.timeout,
+                    "max_concurrent": base.http.max_concurrent,
+                    "rate_limit_delay": base.http.rate_limit_delay,
+                    "max_retries": base.http.max_retries,
+                    "backoff_factor": base.http.backoff_factor,
+                    "user_agent": base.http.user_agent,
+                    "default_dir": base.output.default_dir,
+                    "images_subdir": base.output.images_subdir,
+                    "metadata_file": base.output.metadata_file,
+                    "html_file": base.output.html_file,
+                    "shopify_file": base.output.shopify_file,
+                    "respect_robots_txt": base.robots.respect_robots_txt,
+                    "robots_cache_duration": base.robots.cache_duration,
+                }
+            )
 
         # Merge with new settings (but handle preserve_classes specially)
         converter_settings_copy = converter_settings.copy()
         preserve_classes_override = converter_settings_copy.pop("preserve_classes", None)
         merged.update(converter_settings_copy)
 
-        # Map old flat structure to new nested structure
-        http_config = HttpConfig(
-            timeout=merged.get("default_timeout", merged.get("timeout", 30)),
-            max_concurrent=merged.get("max_concurrent_downloads", merged.get("max_concurrent", 5)),
-            rate_limit_delay=merged.get("rate_limit_delay", 0.5),
-            max_retries=merged.get("max_retries", 3),
-            backoff_factor=merged.get("backoff_factor", 2.0),
-            user_agent=merged.get("user_agent", "CSFrace-Scraper/1.0"),
+        # Create ConverterConfig with values from merged dict
+        converter_config = ConverterConfig(debug_mode=False, log_level="INFO", enable_metrics=True)
+
+        # Update HTTP settings
+        converter_config.http.timeout = cast(
+            "int", merged.get("default_timeout", merged.get("timeout", 30))
+        )
+        converter_config.http.max_concurrent = cast(
+            "int", merged.get("max_concurrent_downloads", merged.get("max_concurrent", 5))
+        )
+        converter_config.http.rate_limit_delay = cast("float", merged.get("rate_limit_delay", 0.5))
+        converter_config.http.max_retries = cast("int", merged.get("max_retries", 3))
+        converter_config.http.backoff_factor = cast("float", merged.get("backoff_factor", 2.0))
+        converter_config.http.user_agent = cast(
+            "str", merged.get("user_agent", "CSFrace-Scraper/1.0")
         )
 
-        output_config = OutputConfig(
-            default_dir=merged.get("default_dir", CONSTANTS.DEFAULT_OUTPUT_DIR),
-            images_subdir=merged.get("images_subdir", CONSTANTS.DEFAULT_IMAGES_DIR),
-            metadata_file=merged.get("metadata_file", CONSTANTS.METADATA_FILE),
-            html_file=merged.get("html_file", CONSTANTS.HTML_FILE),
-            shopify_file=merged.get("shopify_file", CONSTANTS.SHOPIFY_FILE),
+        # Update Output settings
+        converter_config.output.default_dir = cast(
+            "str", merged.get("default_dir", DEFAULT_OUTPUT_DIR)
+        )
+        converter_config.output.images_subdir = cast(
+            "str", merged.get("images_subdir", DEFAULT_IMAGES_DIR)
+        )
+        converter_config.output.metadata_file = cast(
+            "str", merged.get("metadata_file", METADATA_FILE)
+        )
+        converter_config.output.html_file = cast("str", merged.get("html_file", HTML_FILE))
+        converter_config.output.shopify_file = cast("str", merged.get("shopify_file", SHOPIFY_FILE))
+
+        # Update Robots settings
+        converter_config.robots.respect_robots_txt = cast(
+            "bool", merged.get("respect_robots_txt", True)
+        )
+        converter_config.robots.cache_duration = cast(
+            "int", merged.get("robots_cache_duration", 3600)
         )
 
-        robots_config = RobotsConfig(
-            respect_robots_txt=merged.get("respect_robots_txt", True),
-            cache_duration=merged.get("robots_cache_duration", 3600),
-        )
-
-        # Handle frozenset conversion for preserve_classes
-        # Need to handle preserve_classes specially since it should override defaults
+        # Handle preserve_classes specially
         if preserve_classes_override is not None and isinstance(preserve_classes_override, list):
-            # If config provides new classes, use only those (replace, not merge)
-            preserve_classes = frozenset(preserve_classes_override)
-        else:
-            # Use existing classes as fallback
-            existing_classes = (
-                base.shopify.preserve_classes if base and hasattr(base, "shopify") else frozenset()
-            )
-            preserve_classes = existing_classes
+            converter_config.shopify.preserve_classes = preserve_classes_override
 
-        shopify_config = ShopifyConfig(
-            preserve_classes=preserve_classes,
-            content_type_extensions=merged.get(
-                "content_type_extensions", CONSTANTS.IMAGE_CONTENT_TYPES
-            ),
-        )
-
-        # Create empty ConverterConfig and set attributes directly to avoid __init__ interference
-        converter_config = object.__new__(ConverterConfig)
-        object.__setattr__(converter_config, "http", http_config)
-        object.__setattr__(converter_config, "output", output_config)
-        object.__setattr__(converter_config, "robots", robots_config)
-        object.__setattr__(converter_config, "shopify", shopify_config)
+        # Update content type extensions if provided
+        content_type_extensions = merged.get("content_type_extensions")
+        if content_type_extensions and isinstance(content_type_extensions, dict):
+            converter_config.shopify.content_type_extensions = dict(content_type_extensions)
 
         logger.debug("Created converter config", settings=list(converter_settings.keys()))
         return converter_config

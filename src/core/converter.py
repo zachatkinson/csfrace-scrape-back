@@ -6,20 +6,67 @@ from urllib.parse import urljoin, urlparse
 
 import aiohttp
 import asyncio
-import structlog
 from bs4 import BeautifulSoup
 
-from ..constants import CONSTANTS, PROGRESS_CONSTANTS
+from src.core.decorators import content_processing_error_handler, network_error_handler
+from src.core.logging_hierarchy import get_scraping_logger
+
+from ..constants import (
+    DEFAULT_IMAGES_DIR,
+    DEFAULT_TIMEOUT,
+    HTTP_PROTOCOL,
+    HTTPS_PROTOCOL,
+    LOCALHOST_DOMAIN,
+    MAX_RETRIES,
+    PROGRESS_COMPLETE,
+    PROGRESS_FETCH,
+    PROGRESS_PROCESS,
+    PROGRESS_SETUP,
+)
 from ..processors.html_processor import HTMLProcessorOrchestrator
 from ..processors.image_downloader import AsyncImageDownloader
 from ..processors.metadata_extractor import MetadataExtractor
 from ..utils.http import safe_http_get_with_raise
 from ..utils.retry import with_retry
 from ..utils.robots import robots_checker
-from .config import ConverterConfig, config as default_config
-from .exceptions import ConversionError, FetchError, ProcessingError, SaveError
 
-logger = structlog.get_logger(__name__)
+# from .config import ConverterConfig, config as default_config  # type: ignore[import-not-found]
+from .exceptions import ConversionError
+
+logger = get_scraping_logger()
+
+
+# Temporary config class until config.py is available
+class OutputConfig:
+    """Output configuration."""
+
+    def __init__(self) -> None:
+        self.images_subdir = DEFAULT_IMAGES_DIR
+        self.metadata_file = "metadata.txt"
+        self.html_file = "converted_content.html"
+        self.shopify_file = "shopify_ready_content.html"
+
+
+class HttpConfig:
+    """HTTP configuration."""
+
+    def __init__(self) -> None:
+        self.timeout = DEFAULT_TIMEOUT
+        self.max_concurrent = 10
+        self.user_agent = "Mozilla/5.0 (compatible; CSFRaceScraper/1.0)"
+
+
+class ConverterConfig:
+    """Temporary converter configuration."""
+
+    def __init__(self) -> None:
+        self.timeout = DEFAULT_TIMEOUT
+        self.max_retries = MAX_RETRIES
+        self.output = OutputConfig()
+        self.http = HttpConfig()
+
+
+default_config = ConverterConfig()
 
 
 class AsyncWordPressConverter:
@@ -69,8 +116,8 @@ class AsyncWordPressConverter:
             raise ConversionError("URL cannot be empty")
 
         # Add protocol if missing
-        if not url.startswith((CONSTANTS.HTTP_PROTOCOL, CONSTANTS.HTTPS_PROTOCOL)):
-            url = f"{CONSTANTS.HTTPS_PROTOCOL}{url}"
+        if not url.startswith((HTTP_PROTOCOL, HTTPS_PROTOCOL)):
+            url = f"{HTTPS_PROTOCOL}{url}"
 
         # Validate URL structure
         parsed = urlparse(url)
@@ -78,21 +125,20 @@ class AsyncWordPressConverter:
             raise ConversionError(f"Invalid URL: {url}")
 
         # Check for valid domain structure (must have at least one dot or be localhost)
-        if "." not in parsed.netloc and parsed.netloc != CONSTANTS.LOCALHOST_DOMAIN:
+        if "." not in parsed.netloc and parsed.netloc != LOCALHOST_DOMAIN:
             raise ConversionError(f"Invalid domain: {parsed.netloc}")
 
         return url
 
+    @content_processing_error_handler("setup output directories")
     async def _setup_directories(self) -> None:
         """Create necessary output directories."""
-        try:
-            self.output_dir.mkdir(parents=True, exist_ok=True)
-            self.images_dir.mkdir(exist_ok=True)
-            logger.debug("Created output directories", output_dir=str(self.output_dir))
-        except OSError as e:
-            raise ConversionError(f"Failed to create directories: {e}") from e
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.images_dir.mkdir(exist_ok=True)
+        logger.debug("Created output directories", output_dir=str(self.output_dir))
 
     @with_retry()
+    @network_error_handler("fetch content")
     async def _fetch_content(self, session: aiohttp.ClientSession) -> str:
         """Fetch webpage content using aiohttp.
 
@@ -105,27 +151,20 @@ class AsyncWordPressConverter:
         Raises:
             FetchError: If fetching fails
         """
-        try:
-            logger.info("Fetching content", url=self.base_url)
+        logger.info("Fetching content", url=self.base_url)
 
-            # Check robots.txt and enforce crawl delay
-            await robots_checker.check_and_delay(
-                self.base_url, self.config.http.user_agent, session
-            )
+        # Check robots.txt and enforce crawl delay
+        await robots_checker.check_and_delay(self.base_url, self.config.http.user_agent, session)
 
-            content = await safe_http_get_with_raise(
-                session, self.base_url, timeout=self.config.http.timeout
-            )
+        content = await safe_http_get_with_raise(
+            session, self.base_url, timeout=self.config.http.timeout
+        )
 
-            logger.info("Successfully fetched content", url=self.base_url, size=len(content))
+        logger.info("Successfully fetched content", url=self.base_url, size=len(content))
 
-            return content
+        return content
 
-        except aiohttp.ClientError as e:
-            raise FetchError(f"Failed to fetch content: {e}", url=self.base_url, cause=e) from e
-        except TimeoutError as e:
-            raise FetchError(f"Request timed out: {e}", url=self.base_url, cause=e) from e
-
+    @content_processing_error_handler("process HTML content")
     async def _process_content(self, html_content: str) -> tuple[dict[str, str], str, list[str]]:
         """Process HTML content and extract components.
 
@@ -138,34 +177,28 @@ class AsyncWordPressConverter:
         Raises:
             ProcessingError: If processing fails
         """
-        try:
-            logger.info("Processing HTML content")
+        logger.info("Processing HTML content")
 
-            # Parse HTML
-            soup = BeautifulSoup(html_content, "html.parser")
+        # Parse HTML
+        soup = BeautifulSoup(html_content, "html.parser")
 
-            # Extract metadata
-            metadata = await self.metadata_extractor.extract(soup)
+        # Extract metadata
+        metadata = await self.metadata_extractor.extract(soup)
 
-            # Process HTML content
-            processed_html = await self.html_processor.process(soup)
+        # Process HTML content
+        processed_html = await self.html_processor.process(soup)
 
-            # Extract image URLs
-            image_urls = self._extract_image_urls(processed_html)
+        # Extract image URLs
+        image_urls = self._extract_image_urls(processed_html)
 
-            logger.info(
-                "Content processing completed",
-                metadata_fields=len(metadata),
-                html_size=len(processed_html),
-                image_count=len(image_urls),
-            )
+        logger.info(
+            "Content processing completed",
+            metadata_fields=len(metadata),
+            html_size=len(processed_html),
+            image_count=len(image_urls),
+        )
 
-            return metadata, processed_html, image_urls
-
-        except Exception as e:
-            raise ProcessingError(
-                f"Failed to process content: {e}", url=self.base_url, cause=e
-            ) from e
+        return metadata, processed_html, image_urls
 
     def _extract_image_urls(self, html_content: str) -> list[str]:
         """Extract image URLs from HTML content.
@@ -198,6 +231,7 @@ class AsyncWordPressConverter:
 
         return unique_urls
 
+    @content_processing_error_handler("save content")
     async def _save_content(self, metadata: dict[str, str], html_content: str) -> None:
         """Save converted content and metadata to files.
 
@@ -208,30 +242,26 @@ class AsyncWordPressConverter:
         Raises:
             SaveError: If saving fails
         """
-        try:
-            logger.info("Saving converted content")
+        logger.info("Saving converted content")
 
-            # Save metadata
-            metadata_path = self.output_dir / self.config.output.metadata_file
-            await self._write_metadata_file(metadata_path, metadata)
+        # Save metadata
+        metadata_path = self.output_dir / self.config.output.metadata_file
+        await self._write_metadata_file(metadata_path, metadata)
 
-            # Save HTML only
-            html_path = self.output_dir / self.config.output.html_file
-            await self._write_text_file(html_path, html_content)
+        # Save HTML only
+        html_path = self.output_dir / self.config.output.html_file
+        await self._write_text_file(html_path, html_content)
 
-            # Save combined Shopify-ready content
-            shopify_path = self.output_dir / self.config.output.shopify_file
-            await self._write_shopify_file(shopify_path, metadata, html_content)
+        # Save combined Shopify-ready content
+        shopify_path = self.output_dir / self.config.output.shopify_file
+        await self._write_shopify_file(shopify_path, metadata, html_content)
 
-            logger.info(
-                "Files saved successfully",
-                metadata_file=str(metadata_path),
-                html_file=str(html_path),
-                shopify_file=str(shopify_path),
-            )
-
-        except OSError as e:
-            raise SaveError(f"Failed to save content: {e}", cause=e) from e
+        logger.info(
+            "Files saved successfully",
+            metadata_file=str(metadata_path),
+            html_file=str(html_path),
+            shopify_file=str(shopify_path),
+        )
 
     async def _write_metadata_file(self, path: Path, metadata: dict[str, str]) -> None:
         """Write metadata to text file."""
@@ -281,7 +311,7 @@ class AsyncWordPressConverter:
             await self._setup_directories()
 
             if progress_callback:
-                progress_callback(PROGRESS_CONSTANTS.SETUP)
+                progress_callback(PROGRESS_SETUP)
 
             # Create HTTP session with proper headers
             connector = aiohttp.TCPConnector(limit=self.config.http.max_concurrent)
@@ -293,7 +323,7 @@ class AsyncWordPressConverter:
                 headers={"User-Agent": self.config.http.user_agent},
             ) as session:
                 if progress_callback:
-                    progress_callback(PROGRESS_CONSTANTS.FETCH)
+                    progress_callback(PROGRESS_FETCH)
 
                 # Fetch webpage content
                 html_content = await self._fetch_content(session)
@@ -305,7 +335,7 @@ class AsyncWordPressConverter:
                 metadata, processed_html, image_urls = await self._process_content(html_content)
 
                 if progress_callback:
-                    progress_callback(PROGRESS_CONSTANTS.PROCESS)
+                    progress_callback(PROGRESS_PROCESS)
 
                 # Save converted content
                 await self._save_content(metadata, processed_html)
@@ -324,7 +354,7 @@ class AsyncWordPressConverter:
                     )
 
                 if progress_callback:
-                    progress_callback(PROGRESS_CONSTANTS.COMPLETE)
+                    progress_callback(PROGRESS_COMPLETE)
 
             logger.info(
                 "Conversion completed successfully",
@@ -336,4 +366,6 @@ class AsyncWordPressConverter:
             raise
         except Exception as e:
             logger.exception("Unexpected error during conversion", error=str(e))
-            raise ConversionError(f"Conversion failed: {e}", url=self.base_url, cause=e) from e
+            raise ConversionError(
+                f"Conversion failed: {e}", url=self.base_url, original_error=e
+            ) from e

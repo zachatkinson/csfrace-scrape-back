@@ -8,7 +8,8 @@ from alembic.runtime.migration import MigrationContext  # pylint: disable=no-nam
 from alembic.script import ScriptDirectory  # pylint: disable=no-name-in-module
 from sqlalchemy import create_engine
 
-from alembic import command  # type: ignore[attr-defined]  # pylint: disable=no-name-in-module
+from alembic import command  # pylint: disable=no-name-in-module
+from src.core.decorators import database_error_handler
 
 from .utils import get_database_url
 
@@ -45,6 +46,7 @@ class MigrationManager:
             and (alembic_dir / "env.py").exists()
         )
 
+    @database_error_handler("create database migration")
     def create_migration(self, description: str, autogenerate: bool = True) -> str:
         """Create a new migration.
 
@@ -55,120 +57,73 @@ class MigrationManager:
         Returns:
             Migration revision ID
         """
-        try:
-            logger.info("Creating migration: %s", description)
+        logger.info("Creating migration: %s", description)
 
-            if autogenerate:
-                # Create auto-generated migration
-                command.revision(
-                    self.config,
-                    message=description,
-                    autogenerate=True,
-                )
-            else:
-                # Create empty migration
-                command.revision(
-                    self.config,
-                    message=description,
-                )
+        if autogenerate:
+            # Create auto-generated migration
+            command.revision(
+                self.config,
+                message=description,
+                autogenerate=True,
+            )
+        else:
+            # Create empty migration
+            command.revision(
+                self.config,
+                message=description,
+            )
 
-            logger.info("Created migration: %s", description)
-            return description
+        logger.info("Created migration: %s", description)
+        return description
 
-        except Exception as e:
-            logger.error("Failed to create migration: %s", e)
-            raise
-
+    @database_error_handler("upgrade database")
     def upgrade_database(self, revision: str = "head") -> None:  # pylint: disable=redefined-outer-name
         """Upgrade database to specified revision.
 
         Args:
             revision: Target revision (default: head)
         """
-        try:
-            logger.info("Upgrading database to %s", revision)
-            command.upgrade(self.config, revision)
-            logger.info("Database upgrade completed successfully")
+        logger.info("Upgrading database to %s", revision)
+        command.upgrade(self.config, revision)
+        logger.info("Database upgrade completed successfully")
 
-        except Exception as e:
-            logger.error("Failed to upgrade database: %s", e)
-            raise
-
+    @database_error_handler("downgrade database")
     def downgrade_database(self, revision: str) -> None:  # pylint: disable=redefined-outer-name
         """Downgrade database to specified revision.
 
         Args:
             revision: Target revision
         """
-        try:
-            logger.info("Downgrading database to %s", revision)
-            command.downgrade(self.config, revision)
-            logger.info("Database downgrade completed successfully")
-
-        except Exception as e:
-            logger.error("Failed to downgrade database: %s", e)
-            raise
+        logger.info("Downgrading database to %s", revision)
+        command.downgrade(self.config, revision)
+        logger.info("Database downgrade completed successfully")
 
     def get_current_revision(self) -> str | None:
         """Get current database revision."""
-        try:
-            database_url = self.config.get_main_option("sqlalchemy.url")
-            if database_url is None:
-                logger.error("Database URL not configured")
-                return None
-            engine = create_engine(database_url)
-            with engine.connect() as connection:
-                migration_ctx = MigrationContext.configure(connection)
-                current_rev = migration_ctx.get_current_revision()
-                return current_rev
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to get current revision: %s", e)
-            return None
+        return _get_current_revision_safe(self)
 
     def get_migration_history(self) -> list[str]:  # pylint: disable=redefined-outer-name
         """Get migration history."""
-        try:
-            script_dir = ScriptDirectory.from_config(self.config)
-            revisions = []
-
-            for rev in script_dir.walk_revisions():
-                revisions.append(f"{rev.revision}: {rev.doc}")
-
-            return revisions
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to get migration history: %s", e)
-            return []
+        return _get_migration_history_safe(self)
 
     def show_current_head(self) -> str | None:
         """Show current head revision."""
-        try:
-            script_dir = ScriptDirectory.from_config(self.config)
-            return script_dir.get_current_head()
+        return _show_current_head_safe(self)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to get current head: %s", e)
-            return None
-
+    @database_error_handler("ensure database current")
     def ensure_database_current(self) -> None:
         """Ensure database is at current migration head."""
-        try:
-            current_rev = self.get_current_revision()
-            head_rev = self.show_current_head()
+        current_rev = self.get_current_revision()
+        head_rev = self.show_current_head()
 
-            if current_rev is None:
-                logger.info("Database not initialized, running initial migration")
-                self.upgrade_database()
-            elif current_rev != head_rev:
-                logger.info("Database at %s, upgrading to %s", current_rev, head_rev)
-                self.upgrade_database()
-            else:
-                logger.info("Database is current")
-
-        except Exception as e:
-            logger.error("Failed to ensure database currency: %s", e)
-            raise
+        if current_rev is None:
+            logger.info("Database not initialized, running initial migration")
+            self.upgrade_database()
+        elif current_rev != head_rev:
+            logger.info("Database at %s, upgrading to %s", current_rev, head_rev)
+            self.upgrade_database()
+        else:
+            logger.info("Database is current")
 
 
 # CLI interface for migration management
@@ -177,58 +132,92 @@ def get_migration_manager() -> MigrationManager:
     return MigrationManager()
 
 
+@database_error_handler("execute CLI command")
+def _execute_cli_command_safe(manager: MigrationManager, cmd: str) -> None:
+    """Safely execute CLI command."""
+    if cmd == "init":
+        logger.error("Alembic initialization must be done manually with 'alembic init alembic'")
+        sys.exit(1)
+    elif cmd == "create":
+        if len(sys.argv) < 3:
+            logger.error("Migration message required")
+            sys.exit(1)
+        migration_description = " ".join(sys.argv[2:])  # pylint: disable=invalid-name
+        manager.create_migration(migration_description)
+    elif cmd == "upgrade":
+        revision = sys.argv[2] if len(sys.argv) > 2 else "head"
+        manager.upgrade_database(revision)
+    elif cmd == "downgrade":
+        if len(sys.argv) < 3:
+            logger.error("Target revision required")
+            sys.exit(1)
+        revision = sys.argv[2]
+        manager.downgrade_database(revision)
+    elif cmd == "current":
+        current = manager.get_current_revision()
+        logger.info("Current revision: %s", current)
+    elif cmd == "history":
+        history = manager.get_migration_history()
+        for item in history:
+            logger.info("%s", item)
+    elif cmd == "head":
+        head = manager.show_current_head()
+        logger.info("Head revision: %s", head)
+    else:
+        logger.error("Unknown command: %s", cmd)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     # Command-line interface for migrations
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python -m src.database.migrations <command> [args]")
-        print("Commands:")
-        print("  init                    - Initialize migrations")
-        print("  create <message>        - Create new migration")
-        print("  upgrade [revision]      - Upgrade to revision (default: head)")
-        print("  downgrade <revision>    - Downgrade to revision")
-        print("  current                 - Show current revision")
-        print("  history                 - Show migration history")
-        print("  head                    - Show head revision")
+        logger.info("Usage: python -m src.database.migrations <command> [args]")
+        logger.info("Commands:")
+        logger.info("  init                    - Initialize migrations")
+        logger.info("  create <message>        - Create new migration")
+        logger.info("  upgrade [revision]      - Upgrade to revision (default: head)")
+        logger.info("  downgrade <revision>    - Downgrade to revision")
+        logger.info("  current                 - Show current revision")
+        logger.info("  history                 - Show migration history")
+        logger.info("  head                    - Show head revision")
         sys.exit(1)
 
     manager = get_migration_manager()
     cmd = sys.argv[1]
 
-    try:
-        if cmd == "init":
-            print("Error: Alembic initialization must be done manually with 'alembic init alembic'")
-            sys.exit(1)
-        elif cmd == "create":
-            if len(sys.argv) < 3:
-                print("Error: Migration message required")
-                sys.exit(1)
-            migration_description = " ".join(sys.argv[2:])  # pylint: disable=invalid-name
-            manager.create_migration(migration_description)
-        elif cmd == "upgrade":
-            revision = sys.argv[2] if len(sys.argv) > 2 else "head"
-            manager.upgrade_database(revision)
-        elif cmd == "downgrade":
-            if len(sys.argv) < 3:
-                print("Error: Target revision required")
-                sys.exit(1)
-            revision = sys.argv[2]
-            manager.downgrade_database(revision)
-        elif cmd == "current":
-            current = manager.get_current_revision()
-            print(f"Current revision: {current}")
-        elif cmd == "history":
-            history = manager.get_migration_history()
-            for item in history:
-                print(item)
-        elif cmd == "head":
-            head = manager.show_current_head()
-            print(f"Head revision: {head}")
-        else:
-            print(f"Unknown command: {cmd}")
-            sys.exit(1)
+    _execute_cli_command_safe(manager, cmd)
 
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error: {e}")
-        sys.exit(1)
+
+@database_error_handler("get current revision")
+def _get_current_revision_safe(manager: MigrationManager) -> str | None:
+    """Safely get current database revision."""
+    database_url = manager.config.get_main_option("sqlalchemy.url")
+    if database_url is None:
+        logger.error("Database URL not configured")
+        return None
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        migration_ctx = MigrationContext.configure(connection)
+        current_rev = migration_ctx.get_current_revision()
+        return current_rev
+
+
+@database_error_handler("get migration history")
+def _get_migration_history_safe(manager: MigrationManager) -> list[str]:
+    """Safely get migration history."""
+    script_dir = ScriptDirectory.from_config(manager.config)
+    revisions = []
+
+    for rev in script_dir.walk_revisions():
+        revisions.append(f"{rev.revision}: {rev.doc}")
+
+    return revisions
+
+
+@database_error_handler("show current head")
+def _show_current_head_safe(manager: MigrationManager) -> str | None:
+    """Safely show current head revision."""
+    script_dir = ScriptDirectory.from_config(manager.config)
+    return script_dir.get_current_head()

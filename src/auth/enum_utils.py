@@ -82,7 +82,7 @@ class EnumHandler:
         return EnumHandler.get_enum_value(provider)
 
 
-# Convenience functions for backward compatibility - Liskov Substitution Principle
+# Convenience functions following Liskov Substitution Principle
 def ensure_oauth_provider(value: OAuthProvider | str) -> OAuthProvider:
     """Convenience function for OAuth provider handling."""
     return EnumHandler.ensure_oauth_provider(value)

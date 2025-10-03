@@ -4,15 +4,16 @@ import os
 from enum import Enum
 
 import sqlalchemy.exc
-import structlog
 from sqlalchemy import Connection, text
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
+
+from src.core.logging_hierarchy import get_database_logger
 
 from ..common.status import JobPriority, JobStatus
 
 # Import for type checking only to avoid circular dependencies
 
-logger = structlog.get_logger(__name__)
+logger = get_database_logger()
 
 
 def create_postgresql_enums(
@@ -43,9 +44,9 @@ def create_postgresql_enums(
                 # Create enum type using SQLAlchemy PostgreSQL dialect
                 pg_enum = PostgreSQLEnum(enum_class, name=enum_name, create_type=True)
                 pg_enum.create(connection, checkfirst=True)
-                logger.debug("Created PostgreSQL enum type: %s", enum_name)
+                logger.debug("Created PostgreSQL enum type", enum_name=enum_name)
             else:
-                logger.debug("PostgreSQL enum type already exists: %s", enum_name)
+                logger.debug("PostgreSQL enum type already exists", enum_name=enum_name)
 
         except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError) as e:
             # Handle concurrent enum creation gracefully (for parallel tests)
@@ -61,7 +62,7 @@ def create_postgresql_enums(
                     "violates unique constraint",
                 ]
             ):
-                logger.debug("Enum type already exists (concurrent creation): %s", enum_name)
+                logger.debug("Enum type already exists (concurrent creation)", enum_name=enum_name)
                 continue
             logger.error("Failed to create enum type", enum_name=enum_name, error=str(e))
             raise

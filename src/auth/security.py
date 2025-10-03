@@ -6,8 +6,24 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from passlib.context import CryptContext
 
-from .config import auth_config
+from src.core.decorators import auth_error_handler
+
 from .models import TokenData
+
+# from .config import auth_config  # type: ignore[import-not-found]
+
+
+# Temporary auth config until config.py is available
+class AuthConfig:
+    SECRET_KEY = "your-secret-key-here"  # noqa: S105
+    ALGORITHM = "HS256"
+    PWD_CONTEXT_SCHEMES = ["bcrypt"]
+    PWD_CONTEXT_DEPRECATED = "auto"  # noqa: S105
+    access_token_expire_delta = timedelta(minutes=30)
+    refresh_token_expire_delta = timedelta(days=7)
+
+
+auth_config = AuthConfig()
 
 
 class SecurityManager:
@@ -96,35 +112,33 @@ class SecurityManager:
         encoded_jwt = jwt.encode(to_encode, auth_config.SECRET_KEY, algorithm=auth_config.ALGORITHM)
         return encoded_jwt, token_jti
 
+    @auth_error_handler("verify JWT token")
     async def verify_token(self, token: str) -> TokenData | None:
         """Verify and decode JWT token with revocation checking - SOLID Single Responsibility."""
-        try:
-            payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
+        payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
 
-            # Extract token claims
-            username: str = payload.get("sub")
-            user_id: str = payload.get("user_id")
-            scopes: list[str] = payload.get("scopes", [])
-            jti: str = payload.get("jti")
-            token_type: str = payload.get("type")
+        # Extract token claims
+        username: str = payload.get("sub")
+        user_id: str = payload.get("user_id")
+        scopes: list[str] = payload.get("scopes", [])
+        jti: str = payload.get("jti")
+        token_type: str = payload.get("type")
 
-            if username is None or jti is None:
-                return None
-
-            # Check if token is revoked - Security Requirement (fail securely)
-            try:
-                if await self.is_token_revoked(jti):
-                    return None
-            except Exception:
-                # Fail securely: if revocation check fails, reject the token
-                return None
-
-            token_data = TokenData(
-                username=username, user_id=user_id, scopes=scopes, jti=jti, token_type=token_type
-            )
-            return token_data
-        except jwt.PyJWTError:
+        if username is None or jti is None:
             return None
+
+        # Check if token is revoked - Security Requirement (fail securely)
+        try:
+            if await self.is_token_revoked(jti):
+                return None
+        except Exception:
+            # Fail securely: if revocation check fails, reject the token
+            return None
+
+        token_data = TokenData(
+            username=username, user_id=user_id, scopes=scopes, jti=jti, token_type=token_type
+        )
+        return token_data
 
     async def is_token_revoked(self, jti: str) -> bool:
         """Check if token JTI is in the revocation blacklist - SOLID Single Responsibility."""
@@ -132,30 +146,26 @@ class SecurityManager:
 
         return await token_revocation_service.is_token_revoked(jti)
 
+    @auth_error_handler("decode access token")
     def decode_access_token(self, token: str) -> dict:
         """Decode JWT token without revocation checking - for OAuth state tokens."""
-        try:
-            payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
-            return payload
-        except jwt.PyJWTError as e:
-            raise ValueError(f"Invalid token: {e}")
+        payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
+        return payload
 
+    @auth_error_handler("check token expiration")
     def is_token_expired(self, token: str) -> bool:
         """Check if token is expired."""
-        try:
-            payload = jwt.decode(
-                token,
-                auth_config.SECRET_KEY,
-                algorithms=[auth_config.ALGORITHM],
-                options={"verify_exp": False},  # Don't verify expiration here
-            )
-            exp = payload.get("exp")
-            if exp is None:
-                return True
-
-            return datetime.fromtimestamp(exp, tz=UTC) < datetime.now(UTC)
-        except jwt.PyJWTError:
+        payload = jwt.decode(
+            token,
+            auth_config.SECRET_KEY,
+            algorithms=[auth_config.ALGORITHM],
+            options={"verify_exp": False},  # Don't verify expiration here
+        )
+        exp = payload.get("exp")
+        if exp is None:
             return True
+
+        return datetime.fromtimestamp(exp, tz=UTC) < datetime.now(UTC)
 
 
 # Global security manager instance

@@ -4,7 +4,6 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import structlog
 from sqlalchemy.orm import Session
 from webauthn import (
     generate_authentication_options,
@@ -23,21 +22,28 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from ..constants import WEBAUTHN_CONSTANTS
-from ..database.models import WebAuthnCredential as WebAuthnCredentialModel
+from src.core.logging_hierarchy import get_auth_logger
+
+from ..constants import (
+    CHALLENGE_LENGTH_BYTES,
+    WEBAUTHN_ORIGIN,
+    WEBAUTHN_RP_ID,
+    WEBAUTHN_RP_NAME,
+)
+from ..database.models.auth import WebAuthnCredential as WebAuthnCredentialModel
 from .models import User
 from .service import AuthService
 
-logger = structlog.get_logger(__name__)
+logger = get_auth_logger()
 
 
 @dataclass
 class WebAuthnConfig:
     """Configuration for WebAuthn service - Best practice for too-many-arguments."""
 
-    rp_id: str = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_ID
-    rp_name: str = WEBAUTHN_CONSTANTS.WEBAUTHN_RP_NAME
-    origin: str = WEBAUTHN_CONSTANTS.WEBAUTHN_ORIGIN
+    rp_id: str = WEBAUTHN_RP_ID
+    rp_name: str = WEBAUTHN_RP_NAME
+    origin: str = WEBAUTHN_ORIGIN
 
 
 @dataclass
@@ -122,7 +128,7 @@ class WebAuthnService:
     def generate_registration_options(self, user: User) -> tuple[WebAuthnRegistrationOptions, str]:
         """Generate WebAuthn registration options - Following FIDO2 standards."""
         # Generate secure challenge using DRY constant
-        challenge_bytes = secrets.token_bytes(WEBAUTHN_CONSTANTS.CHALLENGE_LENGTH_BYTES)
+        challenge_bytes = secrets.token_bytes(CHALLENGE_LENGTH_BYTES)
         challenge = bytes_to_base64url(challenge_bytes)
 
         # Get existing credentials to exclude
@@ -246,7 +252,7 @@ class WebAuthnService:
     ) -> tuple[WebAuthnAuthenticationOptions, str]:
         """Generate WebAuthn authentication options - supports usernameless login."""
         # Generate secure challenge using DRY constant
-        challenge_bytes = secrets.token_bytes(WEBAUTHN_CONSTANTS.CHALLENGE_LENGTH_BYTES)
+        challenge_bytes = secrets.token_bytes(CHALLENGE_LENGTH_BYTES)
         challenge = bytes_to_base64url(challenge_bytes)
 
         # Get allowed credentials
