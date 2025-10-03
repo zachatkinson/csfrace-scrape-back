@@ -158,11 +158,12 @@ async def _performance_metrics_update_loop_safe(request: Request) -> AsyncGenera
             logger.info("Performance SSE stream cancelled")
             break
         except Exception as e:
-            logger.error("Performance SSE stream error", error=str(e))
-            # Send error event to client
+            # Log full error details internally for debugging
+            logger.error("Performance SSE stream error", error=str(e), exc_info=True)
+            # Send sanitized error to client without exposing internal details
             error_event = {
                 "type": "error",
-                "message": f"Performance monitoring error: {str(e)}",
+                "message": "Performance monitoring temporarily unavailable",
                 "timestamp": "2025-09-18T00:00:00Z",
             }
             yield f"event: error\ndata: {safe_json_dumps(error_event)}\n\n"
