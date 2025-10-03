@@ -126,16 +126,11 @@ async def _performance_event_stream_safe(request: Request) -> AsyncGenerator[str
             yield event
 
         logger.info("Performance SSE stream ended")
-    except Exception as e:
-        # Log full error details internally for debugging
-        logger.error("Performance event stream error", error=str(e), exc_info=True)
-        # Send sanitized error to client without exposing internal details
-        error_event = {
-            "type": "error",
-            "message": "Performance monitoring temporarily unavailable",
-            "timestamp": "2025-09-18T00:00:00Z",
-        }
-        yield f"event: error\ndata: {safe_json_dumps(error_event)}\n\n"
+    except Exception:
+        # Log full error details internally for debugging (exc_info captures full stack trace)
+        logger.error("Performance event stream error", exc_info=True)
+        # Send completely sanitized error to client - no exception data exposed
+        yield 'event: error\ndata: {"type":"error","message":"Performance monitoring temporarily unavailable","timestamp":"2025-09-18T00:00:00Z"}\n\n'
 
 
 async def _performance_metrics_update_loop_safe(request: Request) -> AsyncGenerator[str]:
@@ -159,14 +154,9 @@ async def _performance_metrics_update_loop_safe(request: Request) -> AsyncGenera
         except asyncio.CancelledError:
             logger.info("Performance SSE stream cancelled")
             break
-        except Exception as e:
-            # Log full error details internally for debugging
-            logger.error("Performance SSE stream error", error=str(e), exc_info=True)
-            # Send sanitized error to client without exposing internal details
-            error_event = {
-                "type": "error",
-                "message": "Performance monitoring temporarily unavailable",
-                "timestamp": "2025-09-18T00:00:00Z",
-            }
-            yield f"event: error\ndata: {safe_json_dumps(error_event)}\n\n"
+        except Exception:
+            # Log full error details internally for debugging (exc_info captures full stack trace)
+            logger.error("Performance SSE stream error", exc_info=True)
+            # Send completely sanitized error to client - no exception data exposed
+            yield 'event: error\ndata: {"type":"error","message":"Performance monitoring temporarily unavailable","timestamp":"2025-09-18T00:00:00Z"}\n\n'
             break
