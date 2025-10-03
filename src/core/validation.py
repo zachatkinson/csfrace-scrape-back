@@ -163,7 +163,11 @@ class ValidationEngine:
 
         # DRY: Use appropriate pattern based on allow_dots parameter
         pattern = USERNAME_PATTERN_WITH_DOTS if allow_dots else USERNAME_PATTERN
-        allowed_chars = "letters, numbers, dots, hyphens, and underscores" if allow_dots else "letters, numbers, hyphens, and underscores"
+        allowed_chars = (
+            "letters, numbers, dots, hyphens, and underscores"
+            if allow_dots
+            else "letters, numbers, hyphens, and underscores"
+        )
 
         if not pattern.match(username_value):
             raise ValidationError(

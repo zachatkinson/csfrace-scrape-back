@@ -308,7 +308,9 @@ class TestValidateUsername:
         username = "user.name"
 
         # Act & Assert
-        with pytest.raises(ValidationError, match="can only contain letters, numbers, hyphens, and underscores"):
+        with pytest.raises(
+            ValidationError, match="can only contain letters, numbers, hyphens, and underscores"
+        ):
             ValidationEngine.username(username)
 
     @pytest.mark.unit
