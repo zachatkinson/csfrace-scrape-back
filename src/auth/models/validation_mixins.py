@@ -41,13 +41,8 @@ class PasswordValidatorMixin:
             return None
 
         try:
-            # Use centralized ValidationEngine - ZERO TOLERANCE for duplication
-            validated = ValidationEngine.username(username)
-
-            # Additional validation for dots (OAuth-specific extension)
-            if not allow_dots and "." in validated:
-                raise ValueError("Username cannot contain dots")
-
+            # Use centralized ValidationEngine with allow_dots parameter - ZERO TOLERANCE for duplication
+            validated = ValidationEngine.username(username, allow_dots=allow_dots)
             return validated
 
         except Exception as e:

@@ -301,6 +301,52 @@ class TestValidateUsername:
         # Assert
         assert result == username
 
+    @pytest.mark.unit
+    def test_username_rejects_dots_by_default(self):
+        """Test username rejects dots when allow_dots=False (default)."""
+        # Arrange
+        username = "user.name"
+
+        # Act & Assert
+        with pytest.raises(ValidationError, match="can only contain letters, numbers, hyphens, and underscores"):
+            ValidationEngine.username(username)
+
+    @pytest.mark.unit
+    def test_username_allows_dots_when_enabled(self):
+        """Test username allows dots when allow_dots=True (OAuth usernames)."""
+        # Arrange
+        username = "user.name123"
+
+        # Act
+        result = ValidationEngine.username(username, allow_dots=True)
+
+        # Assert
+        assert result == username
+
+    @pytest.mark.unit
+    def test_username_oauth_with_multiple_dots(self):
+        """Test OAuth username with multiple dots (e.g., Google usernames)."""
+        # Arrange
+        username = "zach.atkinson85"
+
+        # Act
+        result = ValidationEngine.username(username, allow_dots=True)
+
+        # Assert
+        assert result == username
+
+    @pytest.mark.unit
+    def test_username_oauth_complex_format(self):
+        """Test OAuth username with dots, underscores, and hyphens."""
+        # Arrange
+        username = "user.name_test-123"
+
+        # Act
+        result = ValidationEngine.username(username, allow_dots=True)
+
+        # Assert
+        assert result == username
+
 
 # ============================================================================
 # Test Suite 5: Email Validation (4 tests) - Lines 162-179
