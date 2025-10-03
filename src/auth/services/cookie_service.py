@@ -20,6 +20,8 @@ class CookieService:
         """Initialize cookie service with environment-aware settings."""
         self.environment = os.getenv("ENVIRONMENT", "development").lower()
         self.is_production = self.environment == "production"
+        # Allow forcing secure cookies in development (for HTTPS development environments)
+        self.force_secure_cookies = os.getenv("FORCE_SECURE_COOKIES", "false").lower() == "true"
 
     def set_auth_cookies(self, response: Response, token: Token) -> None:
         """Set HTTP-only cookies for secure token storage.
@@ -30,8 +32,8 @@ class CookieService:
         """
         # Environment-aware security settings
         secure_cookies = (
-            self.is_production
-        )  # Only use secure cookies in production (HTTPS required)
+            self.is_production or self.force_secure_cookies
+        )  # Secure cookies in production or when forced (for HTTPS development)
         cookie_domain = self._get_cookie_domain()
         samesite_policy = self._get_samesite_policy()
 
