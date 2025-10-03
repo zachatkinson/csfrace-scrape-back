@@ -208,6 +208,34 @@ async def refresh_access_token(
     return TokenService.create_access_token_only(user=user)
 
 
+@router.post("/logout")
+@auth_error_handler("logout")
+async def logout(
+    response: Response,
+    current_user: User = Depends(get_current_active_user_from_cookie),
+) -> dict[str, str]:
+    """
+    Logout user by clearing HTTP-only authentication cookies.
+
+    This endpoint clears the auth_token, refresh_token, and auth_user cookies,
+    effectively logging out the user. Works with httpOnly cookies for security.
+
+    Returns:
+        dict: Success message confirming logout
+    """
+    # Initialize cookie service
+    cookie_service = CookieService()
+
+    # Clear all authentication cookies
+    cookie_service.clear_auth_cookies(response)
+
+    logger.info(
+        "User logged out successfully", user_id=current_user.id, username=current_user.username
+    )
+
+    return {"message": "Successfully logged out"}
+
+
 @router.get("/me", response_model=User)
 def read_users_me(current_user: User = Depends(get_current_active_user_from_cookie)) -> User:
     """Get current user information from HTTP-only cookie (Astro best practices)."""
