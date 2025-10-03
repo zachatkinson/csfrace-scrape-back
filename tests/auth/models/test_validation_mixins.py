@@ -119,27 +119,28 @@ class TestValidateUsername:
         assert result == username
 
     @pytest.mark.unit
-    def test_validate_username_with_dots_rejected_by_engine(self):
-        """Test validate_username rejects dots (ValidationEngine level)."""
-        # Arrange - Dots are rejected by ValidationEngine before allow_dots check
+    def test_validate_username_with_dots_allowed_when_enabled(self):
+        """Test validate_username allows dots when allow_dots=True (OAuth usernames)."""
+        # Arrange - Dots are allowed by ValidationEngine when allow_dots=True
         username = "test.user"
 
-        # Act & Assert - ValidationEngine rejects dots first
-        with pytest.raises(ValueError, match="letters, numbers, hyphens, and underscores"):
-            PasswordValidatorMixin.validate_username(username, allow_dots=True)
-
-    @pytest.mark.unit
-    def test_validate_username_dots_parameter_exists(self):
-        """Test validate_username has allow_dots parameter (for future use)."""
-        # Arrange - Currently ValidationEngine doesn't allow dots regardless
-        # This test verifies the parameter exists for future extension
-        username = "testuser"  # Valid without dots
-
         # Act
-        result = PasswordValidatorMixin.validate_username(username, allow_dots=False)
+        result = PasswordValidatorMixin.validate_username(username, allow_dots=True)
 
         # Assert
         assert result == username
+
+    @pytest.mark.unit
+    def test_validate_username_with_dots_rejected_when_disabled(self):
+        """Test validate_username rejects dots when allow_dots=False (default)."""
+        # Arrange - Dots are rejected by ValidationEngine when allow_dots=False
+        username = "test.user"
+
+        # Act & Assert - ValidationEngine rejects dots
+        with pytest.raises(
+            ValueError, match="can only contain letters, numbers, hyphens, and underscores"
+        ):
+            PasswordValidatorMixin.validate_username(username, allow_dots=False)
 
     @pytest.mark.unit
     def test_validate_username_nullable_empty_string(self):

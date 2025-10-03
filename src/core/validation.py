@@ -20,6 +20,7 @@ UUID_PATTERN = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
 )
 USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{3,50}$")
+USERNAME_PATTERN_WITH_DOTS = re.compile(r"^[a-zA-Z0-9._-]{3,50}$")  # OAuth usernames allow dots
 URL_SCHEMES = {"http", "https"}
 FORBIDDEN_URL_PATTERNS = {
     "localhost",
@@ -127,8 +128,20 @@ class ValidationEngine:
         return user_id_value
 
     @staticmethod
-    def username(value: str, field_name: str = "username") -> str:
-        """Perfect username validation - used everywhere."""
+    def username(value: str, field_name: str = "username", allow_dots: bool = False) -> str:
+        """Perfect username validation - used everywhere.
+
+        Args:
+            value: Username to validate
+            field_name: Field name for error messages
+            allow_dots: Whether to allow dots in username (for OAuth providers like Google)
+
+        Returns:
+            Validated username string
+
+        Raises:
+            ValidationError: If username doesn't meet validation criteria
+        """
         if not value or not value.strip():
             raise ValidationError(f"{field_name} cannot be empty", field=field_name, value=value)
 
@@ -148,9 +161,17 @@ class ValidationEngine:
                 value=username_value,
             )
 
-        if not USERNAME_PATTERN.match(username_value):
+        # DRY: Use appropriate pattern based on allow_dots parameter
+        pattern = USERNAME_PATTERN_WITH_DOTS if allow_dots else USERNAME_PATTERN
+        allowed_chars = (
+            "letters, numbers, dots, hyphens, and underscores"
+            if allow_dots
+            else "letters, numbers, hyphens, and underscores"
+        )
+
+        if not pattern.match(username_value):
             raise ValidationError(
-                f"{field_name} can only contain letters, numbers, hyphens, and underscores",
+                f"{field_name} can only contain {allowed_chars}",
                 field=field_name,
                 value=username_value,
             )
