@@ -2,6 +2,54 @@
 
 <!-- version list -->
 
+## v5.13.1 (2025-10-03)
+
+### Bug Fixes
+
+- Support dots in OAuth usernames (e.g., Google usernames)
+  ([#28](https://github.com/zachatkinson/csfrace-scrape-back/pull/28),
+  [`ef98bd6`](https://github.com/zachatkinson/csfrace-scrape-back/commit/ef98bd67932ae43ed24b84bad03c84c036e47359))
+
+* fix: support dots in OAuth usernames (e.g., Google usernames)
+
+## Problem OAuth callback was failing with 500 error when Google accounts have usernames containing
+  dots (e.g., "zach.atkinson85"). The ValidationEngine was rejecting these valid OAuth usernames.
+
+Error: "username can only contain letters, numbers, hyphens, and underscores"
+
+## Solution - Add `USERNAME_PATTERN_WITH_DOTS` regex pattern for OAuth usernames - Update
+  `ValidationEngine.username()` to accept `allow_dots` parameter - Properly pass `allow_dots` from
+  validation mixin to ValidationEngine - Remove duplicate dot validation logic (DRY compliance)
+
+## Changes **src/core/validation.py** - Added `USERNAME_PATTERN_WITH_DOTS` constant for OAuth
+  usernames - Updated `ValidationEngine.username()` with `allow_dots` parameter - Enhanced
+  validation to support dots when OAuth provider needs it
+
+**src/auth/models/validation_mixins.py** - Simplified validation to pass `allow_dots` to
+  ValidationEngine - Removed duplicate dot-checking logic (DRY/SOLID compliance)
+
+**tests/core/test_validation.py** - Added 5 comprehensive tests for OAuth username validation - Test
+  coverage for dots, multiple dots, and complex formats - Ensures backward compatibility (dots
+  rejected by default)
+
+## Testing - ✅ All linting checks pass - ✅ MyPy type checking passes - ✅ Follows DRY/SOLID
+  principles - ✅ Comprehensive test coverage added
+
+## Impact Fixes OAuth login for users with dots in their provider usernames (Google, GitHub, etc.)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* style: fix Ruff formatting for long lines
+
+* test: fix validation mixin tests to reflect correct allow_dots behavior
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.13.0 (2025-10-03)
 
 ### Features
