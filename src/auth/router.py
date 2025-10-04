@@ -1041,7 +1041,7 @@ async def auth_status_stream(request: Request) -> StreamingResponse:
 @auth_error_handler("account deletion")
 async def delete_user_account(
     request: Request,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user_from_cookie),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     """

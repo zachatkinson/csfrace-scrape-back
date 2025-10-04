@@ -92,7 +92,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Start the application
 # SECURITY: Use exec form for proper signal handling
-CMD ["/app/.venv/bin/uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Labels for metadata (OCI standard)
 LABEL org.opencontainers.image.title="CSFrace Scraper" \

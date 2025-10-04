@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.core.decorators import auth_error_handler
@@ -253,14 +253,22 @@ class AuthService:
     @with_transaction_rollback
     @auth_error_handler("delete user account")
     def delete_user_account(self, user_id: str) -> bool:
-        """Permanently delete user account and all associated data.
+        """Permanently delete user account and ALL associated data (GDPR compliant).
 
-        This method performs a complete account deletion including:
-        - User record
-        - Linked OAuth accounts (cascade delete)
-        - WebAuthn credentials (cascade delete)
-        - User settings (cascade delete)
-        - Preserves scraping jobs (for audit/historical purposes)
+        This method performs a complete GDPR "right to be forgotten" deletion including:
+        - User record (users table)
+        - OAuth linked accounts (linked_accounts table)
+        - WebAuthn/passkey credentials (webauthn_credentials table)
+        - User settings and preferences (user_settings table)
+        - Scraping jobs created by user (jobs table)
+        - Account lockout history (account_lockouts table)
+        - Revoked token records (revoked_tokens table)
+
+        The deletion follows a defense-in-depth approach:
+        1. Explicit deletion of all related records (belt)
+        2. Database CASCADE constraints as backup (suspenders)
+
+        This ensures complete data removal even if CASCADE constraints are missing.
 
         Args:
             user_id: The ID of the user to delete
@@ -270,30 +278,109 @@ class AuthService:
 
         Raises:
             Exception: If database operation fails
+
+        GDPR Compliance:
+            - Complete data removal (right to be forgotten)
+            - Comprehensive audit logging
+            - No orphaned records
+            - Irreversible deletion
         """
+        from ..database.models.auth import (
+            AccountLockout,
+            LinkedAccount,
+            RevokedToken,
+            UserSettings,
+            WebAuthnCredential,
+        )
+        from ..database.models.jobs import ScrapingJob
+
         # Find the user first
         stmt = select(UserTable).where(UserTable.id == user_id)
         result = self.db.execute(stmt)
         user_row = result.scalar_one_or_none()
 
         if not user_row:
-            logger.warning("User not found for deletion", user_id=user_id)
+            logger.warning(
+                "GDPR deletion failed: User not found", user_id=user_id, action="user_deletion"
+            )
             return False
 
-        # Log the deletion for audit purposes
-        logger.info(
-            "Deleting user account",
+        # GDPR audit log: Record deletion request
+        logger.warning(
+            "GDPR user deletion initiated",
             user_id=user_id,
             username=user_row.username,
             email=user_row.email,
+            action="gdpr_deletion_start",
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
-        # Delete the user - cascades will handle related records
-        # Note: scraping_jobs relationship has no cascade, so jobs are preserved
+        # Count related records before deletion (for audit trail)
+        deletion_summary: dict[str, str | int] = {
+            "user_id": user_id,
+            "username": user_row.username,
+            "email": user_row.email,
+        }
+
+        # Step 1: Explicitly delete all related records (defense in depth)
+        # Even with CASCADE, explicit deletion ensures nothing is missed
+
+        # Delete linked OAuth accounts
+        linked_accounts = (
+            self.db.execute(select(LinkedAccount).where(LinkedAccount.user_id == user_id))
+            .scalars()
+            .all()
+        )
+        deletion_summary["linked_accounts"] = len(linked_accounts)
+        for account in linked_accounts:
+            self.db.delete(account)
+
+        # Delete WebAuthn credentials (passkeys)
+        webauthn_creds = (
+            self.db.execute(select(WebAuthnCredential).where(WebAuthnCredential.user_id == user_id))
+            .scalars()
+            .all()
+        )
+        deletion_summary["webauthn_credentials"] = len(webauthn_creds)
+        for cred in webauthn_creds:
+            self.db.delete(cred)
+
+        # Delete user settings
+        user_settings = self.db.execute(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        ).scalar_one_or_none()
+        deletion_summary["user_settings"] = 1 if user_settings else 0
+        if user_settings:
+            self.db.delete(user_settings)
+
+        # Delete scraping jobs (GDPR: remove all user data)
+        jobs_result = self.db.execute(delete(ScrapingJob).where(ScrapingJob.user_id == user_id))
+        deletion_summary["scraping_jobs"] = jobs_result.rowcount
+
+        # Delete account lockout records
+        lockouts_result = self.db.execute(
+            delete(AccountLockout).where(AccountLockout.user_id == user_id)
+        )
+        deletion_summary["account_lockouts"] = lockouts_result.rowcount
+
+        # Delete revoked token records
+        tokens_result = self.db.execute(delete(RevokedToken).where(RevokedToken.user_id == user_id))
+        deletion_summary["revoked_tokens"] = tokens_result.rowcount
+
+        # Step 2: Delete the user record (CASCADE will handle any missed records)
         self.db.delete(user_row)
+
+        # Commit all deletions
         self.db.commit()
 
-        logger.info("User account deleted successfully", user_id=user_id)
+        # GDPR audit log: Record successful deletion with summary
+        logger.warning(
+            "GDPR user deletion completed",
+            action="gdpr_deletion_complete",
+            timestamp=datetime.now(UTC).isoformat(),
+            **deletion_summary,
+        )
+
         return True
 
     @auth_error_handler("authenticate user")
