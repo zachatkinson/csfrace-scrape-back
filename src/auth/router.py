@@ -442,12 +442,16 @@ def list_oauth_providers() -> list[str]:
 
 
 @router.get("/providers")
-def list_oauth_providers_simple() -> dict[str, list[dict[str, str]]]:
+def list_oauth_providers_simple(request: Request) -> dict[str, list[dict[str, str]]]:
     """List available OAuth2 providers - API contract endpoint."""
-    providers = [
-        {"name": get_oauth_provider_value(provider)}
-        for provider in OAuthProvider
-    ]
+    providers = []
+    for provider in OAuthProvider:
+        provider_name = get_oauth_provider_value(provider)
+        providers.append({
+            "name": provider_name,
+            "display_name": provider_name.capitalize(),
+            "authorization_url": str(request.url_for("get_oauth_authorization_url", provider=provider_name))
+        })
     return {"providers": providers}
 
 
