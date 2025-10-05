@@ -5,10 +5,9 @@ Analyzes ALL exception handling patterns to identify DRY violations
 """
 
 import ast
-import os
-from pathlib import Path
-from typing import List, Dict, Any, Set
 from dataclasses import dataclass
+from pathlib import Path
+
 
 @dataclass
 class ExceptionPattern:
@@ -21,12 +20,13 @@ class ExceptionPattern:
     code_context: str
     violation_type: str = ""
 
+
 class ExceptionAnalyzer(ast.NodeVisitor):
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.patterns: List[ExceptionPattern] = []
+        self.patterns: list[ExceptionPattern] = []
         self.current_function = None
-        self.function_decorators: Set[str] = set()
+        self.function_decorators: set[str] = set()
 
     def visit_FunctionDef(self, node):
         # Track current function and its decorators
@@ -71,12 +71,12 @@ class ExceptionAnalyzer(ast.NodeVisitor):
 
             # Get code context
             try:
-                with open(self.file_path, 'r') as f:
+                with open(self.file_path) as f:
                     lines = f.readlines()
                     start_line = max(0, node.lineno - 3)
                     end_line = min(len(lines), node.end_lineno + 2)
-                    context = ''.join(lines[start_line:end_line]).strip()
-            except:
+                    context = "".join(lines[start_line:end_line]).strip()
+            except Exception:
                 context = "Unable to read context"
 
             # Determine pattern type
@@ -92,13 +92,13 @@ class ExceptionAnalyzer(ast.NodeVisitor):
                 exception_type=exception_type,
                 has_decorator=has_decorator,
                 pattern_type=pattern_type,
-                code_context=context
+                code_context=context,
             )
 
             # Determine violation type
-            if pattern_type in ['database', 'http', 'cache', 'auth'] and not has_decorator:
+            if pattern_type in ["database", "http", "cache", "auth"] and not has_decorator:
                 pattern.violation_type = f"Missing @{pattern_type}_error_handler decorator"
-            elif pattern_type == 'unclear':
+            elif pattern_type == "unclear":
                 pattern.violation_type = "Needs manual review"
 
             self.patterns.append(pattern)
@@ -110,87 +110,162 @@ class ExceptionAnalyzer(ast.NodeVisitor):
         context_lower = context.lower()
 
         # Database patterns
-        if any(keyword in context_lower for keyword in [
-            'sqlalchemy', 'database', 'db.', 'session.', 'execute', 'commit', 'rollback',
-            'query', 'select', 'insert', 'update', 'delete', 'psycopg2', 'asyncpg'
-        ]):
-            return 'database'
+        if any(
+            keyword in context_lower
+            for keyword in [
+                "sqlalchemy",
+                "database",
+                "db.",
+                "session.",
+                "execute",
+                "commit",
+                "rollback",
+                "query",
+                "select",
+                "insert",
+                "update",
+                "delete",
+                "psycopg2",
+                "asyncpg",
+            ]
+        ):
+            return "database"
 
-        if any(exc in exception_type for exc in [
-            'SQLAlchemyError', 'DatabaseError', 'IntegrityError', 'OperationalError'
-        ]):
-            return 'database'
+        if any(
+            exc in exception_type
+            for exc in ["SQLAlchemyError", "DatabaseError", "IntegrityError", "OperationalError"]
+        ):
+            return "database"
 
         # HTTP patterns
-        if any(keyword in context_lower for keyword in [
-            'request', 'response', 'aiohttp', 'httpx', 'requests', 'fetch', 'get(', 'post(',
-            'put(', 'delete(', 'patch(', 'session.', 'client.', 'timeout', 'connection'
-        ]):
-            return 'http'
+        if any(
+            keyword in context_lower
+            for keyword in [
+                "request",
+                "response",
+                "aiohttp",
+                "httpx",
+                "requests",
+                "fetch",
+                "get(",
+                "post(",
+                "put(",
+                "delete(",
+                "patch(",
+                "session.",
+                "client.",
+                "timeout",
+                "connection",
+            ]
+        ):
+            return "http"
 
-        if any(exc in exception_type for exc in [
-            'HTTPError', 'RequestException', 'Timeout', 'ConnectionError', 'ClientError'
-        ]):
-            return 'http'
+        if any(
+            exc in exception_type
+            for exc in [
+                "HTTPError",
+                "RequestException",
+                "Timeout",
+                "ConnectionError",
+                "ClientError",
+            ]
+        ):
+            return "http"
 
         # Cache patterns
-        if any(keyword in context_lower for keyword in [
-            'cache', 'redis', 'memcached', 'get_cache', 'set_cache', 'cache_key'
-        ]):
-            return 'cache'
+        if any(
+            keyword in context_lower
+            for keyword in ["cache", "redis", "memcached", "get_cache", "set_cache", "cache_key"]
+        ):
+            return "cache"
 
-        if any(exc in exception_type for exc in [
-            'RedisError', 'CacheError', 'ConnectionError'
-        ]):
-            return 'cache'
+        if any(exc in exception_type for exc in ["RedisError", "CacheError", "ConnectionError"]):
+            return "cache"
 
         # Auth patterns
-        if any(keyword in context_lower for keyword in [
-            'auth', 'token', 'jwt', 'login', 'logout', 'oauth', 'permission', 'user'
-        ]):
-            return 'auth'
+        if any(
+            keyword in context_lower
+            for keyword in [
+                "auth",
+                "token",
+                "jwt",
+                "login",
+                "logout",
+                "oauth",
+                "permission",
+                "user",
+            ]
+        ):
+            return "auth"
 
-        if any(exc in exception_type for exc in [
-            'AuthenticationError', 'AuthorizationError', 'TokenError'
-        ]):
-            return 'auth'
+        if any(
+            exc in exception_type
+            for exc in ["AuthenticationError", "AuthorizationError", "TokenError"]
+        ):
+            return "auth"
 
         # Legitimate patterns (infrastructure/framework)
-        if any(keyword in context_lower for keyword in [
-            'importerror', 'modulenotfounderror', 'keyboardinterrupt', 'systemexit',
-            'filenotfounderror', 'json.', 'yaml.', 'configparser', 'pydantic',
-            'validation', 'environment', 'startup', 'shutdown'
-        ]):
-            return 'legitimate'
+        if any(
+            keyword in context_lower
+            for keyword in [
+                "importerror",
+                "modulenotfounderror",
+                "keyboardinterrupt",
+                "systemexit",
+                "filenotfounderror",
+                "json.",
+                "yaml.",
+                "configparser",
+                "pydantic",
+                "validation",
+                "environment",
+                "startup",
+                "shutdown",
+            ]
+        ):
+            return "legitimate"
 
-        if any(exc in exception_type for exc in [
-            'ImportError', 'ModuleNotFoundError', 'KeyboardInterrupt', 'SystemExit',
-            'FileNotFoundError', 'JSONDecodeError', 'ValidationError', 'ValueError',
-            'TypeError', 'AttributeError', 'KeyError'
-        ]):
-            return 'legitimate'
+        if any(
+            exc in exception_type
+            for exc in [
+                "ImportError",
+                "ModuleNotFoundError",
+                "KeyboardInterrupt",
+                "SystemExit",
+                "FileNotFoundError",
+                "JSONDecodeError",
+                "ValidationError",
+                "ValueError",
+                "TypeError",
+                "AttributeError",
+                "KeyError",
+            ]
+        ):
+            return "legitimate"
 
-        return 'unclear'
+        return "unclear"
 
     def has_appropriate_decorator(self, pattern_type: str) -> bool:
         """Check if function has appropriate error handling decorator"""
-        if pattern_type == 'database':
-            return 'database_error_handler' in self.function_decorators
-        elif pattern_type == 'http':
-            return any(dec in self.function_decorators for dec in [
-                'api_error_handler', 'http_error_handler'
-            ])
-        elif pattern_type == 'cache':
-            return 'cache_error_handler' in self.function_decorators
-        elif pattern_type == 'auth':
-            return 'auth_error_handler' in self.function_decorators
+        if pattern_type == "database":
+            return "database_error_handler" in self.function_decorators
+        elif pattern_type == "http":
+            return any(
+                dec in self.function_decorators
+                for dec in ["api_error_handler", "http_error_handler"]
+            )
+        elif pattern_type == "cache":
+            return "cache_error_handler" in self.function_decorators
+        elif pattern_type == "auth":
+            return "auth_error_handler" in self.function_decorators
 
         return True  # Legitimate patterns don't need decorators
 
-def analyze_file(file_path: str) -> List[ExceptionPattern]:
+
+def analyze_file(file_path: str) -> list[ExceptionPattern]:
     """Analyze a single Python file for exception patterns"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             tree = ast.parse(f.read(), filename=file_path)
 
         analyzer = ExceptionAnalyzer(file_path)
@@ -199,6 +274,7 @@ def analyze_file(file_path: str) -> List[ExceptionPattern]:
     except Exception as e:
         print(f"Error analyzing {file_path}: {e}")
         return []
+
 
 def main():
     """Main analysis function"""
@@ -213,8 +289,10 @@ def main():
 
     # Categorize results
     violations = [p for p in all_patterns if p.violation_type]
-    legitimate = [p for p in all_patterns if p.pattern_type == 'legitimate' and not p.violation_type]
-    needs_review = [p for p in all_patterns if p.pattern_type == 'unclear']
+    legitimate = [
+        p for p in all_patterns if p.pattern_type == "legitimate" and not p.violation_type
+    ]
+    needs_review = [p for p in all_patterns if p.pattern_type == "unclear"]
 
     print("=" * 80)
     print("COMPREHENSIVE EXCEPTION ANALYSIS - AUDIT_2.md COMPLIANCE")
@@ -273,6 +351,7 @@ def main():
         print("   ZERO technical debt achieved!")
 
     return violations, needs_review
+
 
 if __name__ == "__main__":
     violations, needs_review = main()

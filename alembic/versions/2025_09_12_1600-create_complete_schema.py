@@ -36,33 +36,33 @@ def upgrade() -> None:
     if "batches" not in existing_tables:
         op.create_table(
             "batches",
-        sa.Column("id", sa.String(), nullable=False),
-        sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("status", sa.String(), server_default="pending", nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("CURRENT_TIMESTAMP"),
-            nullable=False,
-        ),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("CURRENT_TIMESTAMP"),
-            nullable=False,
-        ),
-        sa.Column("concurrent_limit", sa.Integer(), server_default="5", nullable=False),
-        sa.Column("rate_limit_per_second", sa.Integer(), server_default="10", nullable=False),
-        sa.Column("options", sa.JSON(), server_default="{}", nullable=True),
-        sa.Column("total_jobs", sa.Integer(), server_default="0", nullable=False),
-        sa.Column("completed_jobs", sa.Integer(), server_default="0", nullable=False),
-        sa.Column("failed_jobs", sa.Integer(), server_default="0", nullable=False),
-        sa.Column("statistics", sa.JSON(), server_default="{}", nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
+            sa.Column("id", sa.String(), nullable=False),
+            sa.Column("name", sa.String(length=255), nullable=False),
+            sa.Column("description", sa.Text(), nullable=True),
+            sa.Column("status", sa.String(), server_default="pending", nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("CURRENT_TIMESTAMP"),
+                nullable=False,
+            ),
+            sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("CURRENT_TIMESTAMP"),
+                nullable=False,
+            ),
+            sa.Column("concurrent_limit", sa.Integer(), server_default="5", nullable=False),
+            sa.Column("rate_limit_per_second", sa.Integer(), server_default="10", nullable=False),
+            sa.Column("options", sa.JSON(), server_default="{}", nullable=True),
+            sa.Column("total_jobs", sa.Integer(), server_default="0", nullable=False),
+            sa.Column("completed_jobs", sa.Integer(), server_default="0", nullable=False),
+            sa.Column("failed_jobs", sa.Integer(), server_default="0", nullable=False),
+            sa.Column("statistics", sa.JSON(), server_default="{}", nullable=True),
+            sa.PrimaryKeyConstraint("id"),
+        )
     op.create_index(op.f("ix_batches_status"), "batches", ["status"], unique=False)
 
     # Create jobs table with foreign key to batches

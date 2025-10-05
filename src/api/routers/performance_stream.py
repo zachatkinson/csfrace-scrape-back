@@ -9,7 +9,6 @@ import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
 
 from ...monitoring.metrics import metrics_collector
@@ -72,36 +71,42 @@ async def performance_stream(request: Request) -> StreamingResponse:
     )
 
 
-@api_error_handler("send initial performance metrics")
-def _send_initial_performance_metrics_safe() -> str:
+def _send_initial_performance_metrics_safe() -> str | None:
     """Safely get initial performance metrics for SSE."""
-    metrics_snapshot = metrics_collector.get_metrics_snapshot()
-    performance_event = {
-        "type": "performance_metrics",
-        "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
-        "data": {
-            "system_metrics": metrics_snapshot.get("system_metrics", {}),
-            "application_metrics": metrics_snapshot.get("application_metrics", {}),
-            "database_metrics": metrics_snapshot.get("database_metrics", {}),
-        },
-    }
-    return f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+    try:
+        metrics_snapshot = metrics_collector.get_metrics_snapshot()
+        performance_event = {
+            "type": "performance_metrics",
+            "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
+            "data": {
+                "system_metrics": metrics_snapshot.get("system_metrics", {}),
+                "application_metrics": metrics_snapshot.get("application_metrics", {}),
+                "database_metrics": metrics_snapshot.get("database_metrics", {}),
+            },
+        }
+        return f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+    except Exception as e:
+        logger.error("Failed to get initial performance metrics", error=str(e))
+        return None
 
 
-@api_error_handler("send performance metrics update")
-def _send_performance_metrics_update_safe() -> str:
+def _send_performance_metrics_update_safe() -> str | None:
     """Safely get performance metrics update for SSE."""
-    metrics_snapshot = metrics_collector.get_metrics_snapshot()
-    performance_event = {
-        "type": "performance_metrics",
-        "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
-        "data": {
-            "system_metrics": metrics_snapshot.get("system_metrics", {}),
-            "application_metrics": metrics_snapshot.get("application_metrics", {}),
-            "database_metrics": metrics_snapshot.get("database_metrics", {}),
-        },
-    }
-    return f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+    try:
+        metrics_snapshot = metrics_collector.get_metrics_snapshot()
+        performance_event = {
+            "type": "performance_metrics",
+            "timestamp": metrics_snapshot.get("timestamp", "2025-09-18T00:00:00Z"),
+            "data": {
+                "system_metrics": metrics_snapshot.get("system_metrics", {}),
+                "application_metrics": metrics_snapshot.get("application_metrics", {}),
+                "database_metrics": metrics_snapshot.get("database_metrics", {}),
+            },
+        }
+        return f"event: performance-update\ndata: {safe_json_dumps(performance_event)}\n\n"
+    except Exception as e:
+        logger.error("Failed to get performance metrics update", error=str(e))
+        return None
 
 
 async def _performance_event_stream_safe(request: Request) -> AsyncGenerator[str]:
