@@ -233,3 +233,5 @@ uv.lock
 
 # Legacy test backup (not for production)
 tests_legacy_backup/
+# Semantic Release generated files
+CHANGELOG.md
