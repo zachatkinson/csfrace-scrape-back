@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## v5.15.0 (2025-10-04)
+
+### Features
+
+- Gdpr-compliant user deletion with CASCADE constraints
+  ([#30](https://github.com/zachatkinson/csfrace-scrape-back/pull/30),
+  [`2b89700`](https://github.com/zachatkinson/csfrace-scrape-back/commit/2b89700e18c5e5c79862b4ef1eeb756576051cff))
+
+Implements comprehensive GDPR "right to be forgotten" user deletion including:
+
+BACKEND CHANGES: ✅ Defense-in-depth deletion (explicit + CASCADE constraints) ✅ Complete data
+  removal across 7 tables (users, linked_accounts, webauthn_credentials, user_settings,
+  scraping_jobs, account_lockouts, revoked_tokens) ✅ Comprehensive audit logging (deletion initiated
+  & completed) ✅ Database migration for CASCADE foreign keys ✅ Fix 401 error on account deletion
+  endpoint (use cookie auth)
+
+DATABASE MIGRATION: ✅ Add ON DELETE CASCADE to 5 foreign key constraints ✅ Clean up orphaned
+  account_lockouts and revoked_tokens records ✅ Ensure complete user data removal at database level
+
+DOCUMENTATION: ✅ Comprehensive README update (1060 lines) ✅ OAuth2/SSO documentation (Google,
+  GitHub, Microsoft, Facebook, Apple) ✅ WebAuthn/FIDO2 passwordless authentication ✅ GDPR compliance
+  features ✅ Hierarchical logging and monitoring ✅ Kubernetes deployment examples ✅ Production
+  deployment checklists
+
+TESTING: ✅ Verified CASCADE deletion (all related records removed) ✅ No orphaned records after user
+  deletion ✅ Audit logging captures all deletions
+
+This ensures complete GDPR compliance with: - Right to be forgotten (complete data removal) - Audit
+  trail (comprehensive logging) - Defense in depth (explicit + CASCADE) - No orphaned records
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.14.0 (2025-10-03)
 
 ### Features
