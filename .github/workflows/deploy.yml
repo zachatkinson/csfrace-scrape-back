@@ -1,223 +1,73 @@
-name: 🚀 Production Deployment Pipeline
+# ⚠️ DEPRECATED: This workflow has been moved to the orchestrator repository
+#
+# Deployment is now coordinated by the orchestrator at:
+# https://github.com/zachatkinson/csfrace-scrape/.github/workflows/coordinated-deployment.yml
+#
+# Reason for deprecation:
+# - Separation of Concerns: Individual repos publish artifacts, orchestrator deploys
+# - Multi-service coordination: Deploy backend + frontend together atomically
+# - Integration testing: Cross-service tests before deployment
+# - Better monitoring: Orchestrator monitors all services together
+#
+# Migration path:
+# 1. Individual repos (backend/frontend) publish versioned Docker images
+# 2. Orchestrator pulls pre-built images and deploys them
+# 3. Orchestrator runs integration tests before production
+# 4. Orchestrator monitors health across all services
+#
+# To deploy:
+# - Automatic: Push to master → Semantic release → Orchestrator auto-deploys to staging
+# - Manual: GitHub Actions → csfrace-scrape → Coordinated Deployment → Run workflow
+#
+# Deprecated on: 2025-10-04
+# Replaced by: zachatkinson/csfrace-scrape/.github/workflows/coordinated-deployment.yml
+
+name: 🚫 DEPRECATED - Production Deployment Pipeline
 
 on:
-  release:
-    types: [published]  # Triggered when semantic-release creates and publishes a release
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Deployment environment'
+      confirm-deprecated:
+        description: 'This workflow is DEPRECATED. Use orchestrator deployment instead.'
         required: true
-        default: 'staging'
-        type: choice
-        options:
-          - staging
-          - production
-      force_deploy:
-        description: 'Force deployment (skip quality gates)'
-        required: false
-        default: false
         type: boolean
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-# Ensure only one deployment runs at a time
-concurrency:
-  group: deployment-${{ github.ref }}
-  cancel-in-progress: false  # Don't cancel deployments in progress
+        default: false
 
 jobs:
-  # Get release information from semantic release workflow
-  get-release-info:
-    name: 📋 Get Release Information
+  deprecation-notice:
+    name: ⚠️ Deprecation Notice
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    # Run on published releases or manual dispatch
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    outputs:
-      should-deploy: ${{ steps.check-release.outputs.should-deploy }}
-      image-tag: ${{ steps.check-release.outputs.image-tag }}
-      version: ${{ steps.check-release.outputs.version }}
-      released: ${{ steps.check-release.outputs.released }}
-
     steps:
-      - name: Check semantic release outputs
-        id: check-release
+      - name: Show deprecation notice
         run: |
-          # Production deployment triggers after semantic release publishes a release
-          # This ensures the sequence: CI → Semantic Release → Tag/Release → Production Deployment
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            echo "Triggered by semantic release publication"
-            echo "should-deploy=true" >> $GITHUB_OUTPUT
-            echo "image-tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
-            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
-            echo "released=true" >> $GITHUB_OUTPUT
-          else
-            echo "Manual deployment trigger"
-            echo "should-deploy=true" >> $GITHUB_OUTPUT
-            echo "image-tag=latest" >> $GITHUB_OUTPUT
-            echo "version=manual" >> $GITHUB_OUTPUT
-            echo "released=false" >> $GITHUB_OUTPUT
-          fi
-
-  # Deploy to Staging (automatic from master)
-  deploy-staging:
-    name: 🧪 Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [get-release-info]
-    if: |
-      needs.get-release-info.outputs.should-deploy == 'true' &&
-      (github.event_name == 'release' || github.event.inputs.environment == 'staging')
-    timeout-minutes: 10
-
-    environment:
-      name: staging
-      url: https://staging.csfrace-scraper.example.com
-
-    steps:
-      - name: Deploy to staging
-        run: |
-          echo "🚀 Deploying to staging environment"
-          echo "Version: ${{ needs.get-release-info.outputs.version }}"
-          echo "Image Tag: ${{ needs.get-release-info.outputs.image-tag }}"
-          echo "Released: ${{ needs.get-release-info.outputs.released }}"
-
-          # Here you would add your actual deployment commands using the pre-built image
-          # Examples:
-          # - kubectl set image deployment/app app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-release-info.outputs.version }}
-          # - docker-compose -f docker-compose.staging.yml up -d
-          # - Deploy to cloud provider using semantic version tag
-
-          echo "::notice::Staging deployment completed successfully"
-
-      - name: Run smoke tests
-        run: |
-          echo "🔍 Running staging smoke tests"
-
-          # Wait for service to be ready
-          sleep 30
-
-          # Example smoke tests
-          # curl -f https://staging.csfrace-scraper.example.com/health || exit 1
-          # python scripts/smoke-tests.py --env staging
-
-          echo "::notice::Staging smoke tests passed"
-
-  # Deploy to Production (manual approval required)
-  deploy-production:
-    name: 🌟 Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [get-release-info, deploy-staging]
-    if: |
-      always() &&
-      needs.get-release-info.outputs.should-deploy == 'true' &&
-      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped') &&
-      github.event.inputs.environment == 'production'
-    timeout-minutes: 15
-
-    environment:
-      name: production
-      url: https://csfrace-scraper.example.com
-
-    steps:
-      - name: Deploy to production
-        run: |
-          echo "🌟 Deploying to production environment"
-          echo "Version: ${{ needs.get-release-info.outputs.version }}"
-          echo "Image Tag: ${{ needs.get-release-info.outputs.image-tag }}"
-          echo "Released: ${{ needs.get-release-info.outputs.released }}"
-
-          # Here you would add your actual production deployment commands using pre-built image
-          # Examples:
-          # - kubectl set image deployment/app app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-release-info.outputs.version }}
-          # - docker-compose -f docker-compose.prod.yml up -d
-          # - Deploy to cloud provider with rolling update using semantic version
-
-          echo "::notice::Production deployment completed successfully"
-
-      - name: Post-deployment verification
-        run: |
-          echo "🔍 Running production verification"
-
-          # Wait for service to be ready
-          sleep 60
-
-          # Example health checks
-          # curl -f https://csfrace-scraper.example.com/health || exit 1
-          # python scripts/production-verification.py
-
-          echo "::notice::Production verification passed"
-
-      - name: Notify deployment success
-        run: |
-          echo "::notice title=🎉 Production Deployment::Successfully deployed version ${{ needs.get-release-info.outputs.version }} to production"
-
-          # Add notifications here:
-          # - Slack webhook
-          # - Email notification
-          # - Teams webhook
-          # - Discord webhook
-
-  # Post-deployment monitoring with auto-rollback
-  post-deployment-monitoring:
-    name: 📊 Post-Deployment Monitoring
-    uses: ./.github/workflows/monitoring-gates.yml
-    needs: [get-release-info, deploy-staging, deploy-production]
-    if: |
-      always() &&
-      needs.get-release-info.outputs.should-deploy == 'true' &&
-      (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
-    with:
-      environment: ${{ github.event.inputs.environment == 'production' && 'production' || 'staging' }}
-      deployment_id: ${{ github.run_id }}
-      image_tag: ${{ needs.get-release-info.outputs.image-tag }}
-      rollback_enabled: true
-    secrets:
-      MONITORING_WEBHOOK: ${{ secrets.MONITORING_WEBHOOK }}
-      ROLLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Deployment status summary
-  deployment-summary:
-    name: 📊 Deployment Summary
-    runs-on: ubuntu-latest
-    needs: [get-release-info, deploy-staging, deploy-production, post-deployment-monitoring]
-    if: always()
-    timeout-minutes: 5
-
-    steps:
-      - name: Generate deployment summary
-        run: |
-          echo "## 🚀 Deployment Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "::error title=Workflow Deprecated::This workflow has been deprecated and moved to the orchestrator repository"
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Release Information
-          echo "### 📋 Release Information" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: ${{ needs.get-release-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Released**: ${{ needs.get-release-info.outputs.released }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image Tag**: \`${{ needs.get-release-info.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚠️ This Workflow is Deprecated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Staging Deployment
-          if [[ "${{ needs.deploy-staging.result }}" == "success" ]]; then
-            echo "🧪 **Staging**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ needs.deploy-staging.result }}" == "skipped" ]]; then
-            echo "⏭️ **Staging**: Skipped" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Staging**: Failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Production Deployment
-          if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
-            echo "🌟 **Production**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ needs.deploy-production.result }}" == "skipped" ]]; then
-            echo "⏭️ **Production**: Manual trigger required" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Production**: Failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
+          echo "Deployment is now coordinated by the orchestrator repository." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "_Generated on $(date -u)_" >> $GITHUB_STEP_SUMMARY
+          echo "### New Deployment Process" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🐳 **Container images are pre-built by Semantic Release workflow**" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Individual repos** (this repo): Publish versioned Docker images" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Orchestrator**: Pulls images and coordinates multi-service deployment" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Orchestrator**: Runs integration tests before production" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Orchestrator**: Monitors all services together" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### How to Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Automatic (Staging):**" >> $GITHUB_STEP_SUMMARY
+          echo "- Push to master → CI passes → Semantic release → Orchestrator auto-deploys" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Manual (Production):**" >> $GITHUB_STEP_SUMMARY
+          echo "- Go to: https://github.com/zachatkinson/csfrace-scrape/actions" >> $GITHUB_STEP_SUMMARY
+          echo "- Select: Coordinated Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Run workflow with specific backend and frontend versions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Benefits of New Architecture" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Atomic multi-service deployments" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Integration tests before production" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cross-service health monitoring" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Automatic rollback on failures" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Clear separation of concerns" >> $GITHUB_STEP_SUMMARY
+          exit 1

@@ -1,4 +1,8 @@
-name: Semantic Release
+name: Semantic Release & Publish
+
+# SOLID: Single Responsibility - Version management and artifact publishing
+# DRY: Uses reusable workflows from orchestrator, no duplication
+# SOC: Individual repo publishes, orchestrator deploys
 
 on:
   workflow_run:
@@ -7,46 +11,36 @@ on:
       - completed
     branches:
       - master
-  workflow_dispatch:  # Add manual trigger for testing
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  workflow_dispatch:  # Manual trigger for testing
 
 jobs:
-  release:
-    name: Semantic Release
+  # Job 1: Semantic versioning (SOLID: Single responsibility)
+  semantic-release:
+    name: 📦 Semantic Release
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-release-${{ github.ref_name }}
-      cancel-in-progress: false  # Don't cancel releases in progress
+      cancel-in-progress: false
     # Only run if CI workflow completed successfully or manually triggered
-    # Skip if triggered by our own release commits to prevent cascading releases
+    # Skip if triggered by our own release commits to prevent cascading
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        !contains(github.event.workflow_run.head_commit.message, 'chore(release):'))
     permissions:
-      id-token: write  # For provenance
-      contents: write  # For creating releases
-      issues: write    # For creating issues
-      pull-requests: write  # For creating PRs
-      packages: write  # For container registry
-      attestations: write  # For build provenance
-      actions: write  # For workflow dispatch
-      checks: write  # For status checks
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       released: ${{ steps.semantic.outputs.released }}
       version: ${{ steps.semantic.outputs.version }}
       tag: ${{ steps.semantic.outputs.tag }}
-      image-tag: ${{ steps.container-outputs.outputs.image-tag }}
-      image-digest: ${{ steps.container-outputs.outputs.image-digest }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for semantic release
+          fetch-depth: 0
           token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Python Semantic Release
@@ -54,97 +48,93 @@ jobs:
         uses: python-semantic-release/python-semantic-release@v9.21.1
         with:
           github_token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          root_options: "-vv"  # Very verbose mode for detailed traceback
+          root_options: "-vv"
 
-      # Container Build & Publish - Only if release was created
-      - name: Set up Docker Buildx
+      - name: Release summary
         if: steps.semantic.outputs.released == 'true'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        if: steps.semantic.outputs.released == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract container metadata
-        if: steps.semantic.outputs.released == 'true'
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ steps.semantic.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.semantic.outputs.version }}
-            type=semver,pattern={{major}},value=${{ steps.semantic.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix={{branch}}-
-
-      - name: Build and push container image
-        if: steps.semantic.outputs.released == 'true'
-        id: container
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          target: production
-
-      - name: Generate container attestation
-        if: steps.semantic.outputs.released == 'true'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.container.outputs.digest }}
-          push-to-registry: true
-
-      - name: Set container outputs
-        if: steps.semantic.outputs.released == 'true'
-        id: container-outputs
         run: |
-          echo "image-tag=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> $GITHUB_OUTPUT
-          echo "image-digest=${{ steps.container.outputs.digest }}" >> $GITHUB_OUTPUT
+          echo "## ✅ Version Released" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ steps.semantic.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${{ steps.semantic.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next: Docker image will be built and published" >> $GITHUB_STEP_SUMMARY
 
-      - name: Update Umbrella Repository
-        if: steps.semantic.outputs.released == 'true'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
-          repository: zachatkinson/csfrace-scrape
-          event-type: backend-updated
-          client-payload: |
-            {
-              "repository": "${{ github.repository }}",
-              "ref": "${{ github.ref }}",
-              "sha": "${{ github.sha }}",
-              "version": "${{ steps.semantic.outputs.version }}",
-              "release_url": "${{ steps.semantic.outputs.release-url }}"
-            }
-          
-      - name: Create release success summary
-        if: success()
+  # Job 2: Docker build & publish (DRY: Reusable workflow)
+  docker-publish:
+    name: 🐳 Build & Publish Docker Image
+    needs: [semantic-release]
+    if: needs.semantic-release.outputs.released == 'true'
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    uses: zachatkinson/csfrace-scrape/.github/workflows/reusable-docker-publish.yml@master
+    with:
+      service-name: backend
+      version: ${{ needs.semantic-release.outputs.version }}
+      dockerfile-path: ./Dockerfile
+      build-context: .
+      build-target: production
+
+  # Job 3: Notify orchestrator (DRY: Reusable workflow)
+  notify-orchestrator:
+    name: 📢 Notify Orchestrator
+    needs: [semantic-release, docker-publish]
+    if: needs.semantic-release.outputs.released == 'true'
+    uses: zachatkinson/csfrace-scrape/.github/workflows/reusable-notify-orchestrator.yml@master
+    with:
+      service-name: backend
+      version: ${{ needs.semantic-release.outputs.version }}
+      image-tag: ${{ needs.docker-publish.outputs.image-tag }}
+      image-digest: ${{ needs.docker-publish.outputs.image-digest }}
+    secrets:
+      orchestrator-token: ${{ secrets.UMBRELLA_REPO_TOKEN }}
+
+  # Job 4: Release summary
+  release-summary:
+    name: 📊 Release Summary
+    runs-on: ubuntu-latest
+    needs: [semantic-release, docker-publish, notify-orchestrator]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate release summary
         run: |
-          echo "## ✅ Semantic Release Completed" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Backend Release Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** Release created successfully" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Release Details" >> $GITHUB_STEP_SUMMARY
-          echo "Check the [Releases page](https://github.com/${{ github.repository }}/releases) for the new release." >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ steps.semantic.outputs.released }}" == "true" ]]; then
+          if [[ "${{ needs.semantic-release.outputs.released }}" == "true" ]]; then
+            echo "### ✅ Release Created" >> $GITHUB_STEP_SUMMARY
+            echo "**Version:** \`${{ needs.semantic-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🐳 Container Image" >> $GITHUB_STEP_SUMMARY
-            echo "**Version:** \`${{ steps.semantic.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "**Image:** \`${{ steps.container-outputs.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "**Digest:** \`${{ steps.container-outputs.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Container image published to GitHub Container Registry with semantic version tags." >> $GITHUB_STEP_SUMMARY
+
+            if [[ "${{ needs.docker-publish.result }}" == "success" ]]; then
+              echo "### ✅ Docker Image Published" >> $GITHUB_STEP_SUMMARY
+              echo "**Image:** \`${{ needs.docker-publish.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**Digest:** \`${{ needs.docker-publish.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "### ❌ Docker Publish Failed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [[ "${{ needs.notify-orchestrator.result }}" == "success" ]]; then
+              echo "### ✅ Orchestrator Notified" >> $GITHUB_STEP_SUMMARY
+              echo "Orchestrator will coordinate deployment to staging" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "### ⚠️ Orchestrator Notification Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "### ℹ️ No Release Created" >> $GITHUB_STEP_SUMMARY
+            echo "No conventional commits detected that trigger a release" >> $GITHUB_STEP_SUMMARY
           fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Architecture:** Individual repo publishes artifacts, orchestrator coordinates deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_This workflow follows DRY/SOLID/SOC principles using reusable workflows from the orchestrator repository_" >> $GITHUB_STEP_SUMMARY
