@@ -1057,3 +1057,4 @@ Built with ❤️ using FastAPI, Python 3.13, PostgreSQL 17, and modern security
 [🚀 Get Started](#-quick-start) • [📚 Documentation](#-api-documentation) • [🤝 Contributing](#-contributing)
 
 </div>
+
