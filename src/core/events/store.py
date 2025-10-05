@@ -7,9 +7,9 @@ Following Open/Closed Principle - easily extensible with new storage backends.
 
 from abc import ABC, abstractmethod
 from collections import deque
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime
 from uuid import UUID
+
 import structlog
 
 from .base import Event

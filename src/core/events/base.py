@@ -8,10 +8,12 @@ Following SOLID principles:
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from datetime import datetime
-from typing import Any, Callable, Awaitable
-from pydantic import BaseModel, Field
+from typing import Any
 from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
 
 
 class Event(BaseModel):

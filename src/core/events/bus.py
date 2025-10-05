@@ -8,12 +8,12 @@ Following SOLID principles:
 - Dependency Inversion: Uses abstract interfaces
 """
 
-import asyncio
 from collections import defaultdict
-from typing import Any
+
+import asyncio
 import structlog
 
-from .base import Event, EventHandler, EventFilter, EventPublisher, EventSubscriber
+from .base import Event, EventFilter, EventHandler, EventPublisher
 from .store import EventStore, InMemoryEventStore
 
 logger = structlog.get_logger(__name__)

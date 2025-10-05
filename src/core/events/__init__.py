@@ -16,12 +16,12 @@ Modern 2025 best practices:
 - Async-first design
 """
 
-from .base import Event, EventSubscriber, EventPublisher
+from .base import Event, EventPublisher, EventSubscriber
 from .bus import EventBus, get_event_bus
 from .models import (
     HealthEvent,
-    ScrapingProgressEvent,
     NotificationEvent,
+    ScrapingProgressEvent,
     SystemEvent,
 )
 from .store import EventStore, InMemoryEventStore

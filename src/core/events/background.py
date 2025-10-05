@@ -4,13 +4,13 @@ Background tasks for event publishing.
 Following Single Responsibility Principle - only manages background event publishing.
 """
 
-import asyncio
 from datetime import datetime
 
+import asyncio
 import structlog
 
 from .bus import get_event_bus
-from .models import HealthEvent, SystemEvent
+from .models import HealthEvent
 
 logger = structlog.get_logger(__name__)
 

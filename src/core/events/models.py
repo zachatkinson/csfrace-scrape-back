@@ -7,7 +7,9 @@ All events inherit from base Event class (Liskov Substitution Principle).
 
 from enum import Enum
 from typing import Any, Literal
+
 from pydantic import Field
+
 from .base import Event
 
 
