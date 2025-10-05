@@ -92,7 +92,9 @@ def upgrade():
     # Drop old constraints
     op.drop_constraint("linked_accounts_user_id_fkey", "linked_accounts", type_="foreignkey")
     op.drop_constraint("user_settings_user_id_fkey", "user_settings", type_="foreignkey")
-    op.drop_constraint("webauthn_credentials_user_id_fkey", "webauthn_credentials", type_="foreignkey")
+    op.drop_constraint(
+        "webauthn_credentials_user_id_fkey", "webauthn_credentials", type_="foreignkey"
+    )
 
     # Recreate with CASCADE (DRY: consistent deletion behavior)
     op.create_foreign_key(
@@ -137,7 +139,9 @@ def downgrade():
     # Restore original foreign key constraints (without CASCADE)
     op.drop_constraint("fk_linked_accounts_user_id", "linked_accounts", type_="foreignkey")
     op.drop_constraint("fk_user_settings_user_id", "user_settings", type_="foreignkey")
-    op.drop_constraint("fk_webauthn_credentials_user_id", "webauthn_credentials", type_="foreignkey")
+    op.drop_constraint(
+        "fk_webauthn_credentials_user_id", "webauthn_credentials", type_="foreignkey"
+    )
 
     # Recreate original constraints
     op.create_foreign_key(

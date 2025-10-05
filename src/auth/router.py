@@ -447,11 +447,15 @@ def list_oauth_providers_simple(request: Request) -> dict[str, list[dict[str, st
     providers = []
     for provider in OAuthProvider:
         provider_name = get_oauth_provider_value(provider)
-        providers.append({
-            "name": provider_name,
-            "display_name": provider_name.capitalize(),
-            "authorization_url": str(request.url_for("get_oauth_authorization_url", provider=provider_name))
-        })
+        providers.append(
+            {
+                "name": provider_name,
+                "display_name": provider_name.capitalize(),
+                "authorization_url": str(
+                    request.url_for("get_oauth_authorization_url", provider=provider_name)
+                ),
+            }
+        )
     return {"providers": providers}
 
 
@@ -465,8 +469,7 @@ def get_oauth_authorization_url(
 ) -> SSOLoginResponse:
     """Get OAuth authorization URL for a specific provider - API contract endpoint."""
     return oauth_service.initiate_oauth_login(
-        provider=provider,
-        redirect_uri=redirect_uri or "http://localhost:8000/auth/oauth/callback"
+        provider=provider, redirect_uri=redirect_uri or "http://localhost:8000/auth/oauth/callback"
     )
 
 
