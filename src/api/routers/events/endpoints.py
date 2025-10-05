@@ -5,14 +5,13 @@ Provides REST API for event data (not real-time).
 Following SOLID principles - separate from real-time transports.
 """
 
-from datetime import datetime
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from src.core.events import Event, get_event_bus
+from src.core.events import get_event_bus
 
 logger = structlog.get_logger(__name__)
 

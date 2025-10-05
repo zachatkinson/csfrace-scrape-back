@@ -13,12 +13,12 @@ Usage:
     app.include_router(events_router)
 """
 
-from .sse import router as sse_router
-from .websocket import router as websocket_router
-from .endpoints import router as http_router
-
 # Combine all event routers into a single router for easier registration
 from fastapi import APIRouter
+
+from .endpoints import router as http_router
+from .sse import router as sse_router
+from .websocket import router as websocket_router
 
 events_router = APIRouter()
 

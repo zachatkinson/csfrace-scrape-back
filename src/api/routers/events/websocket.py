@@ -12,11 +12,10 @@ Modern 2025 best practices:
 - Type-safe event serialization
 """
 
-import asyncio
-import json
 from datetime import UTC, datetime
 from typing import Any
 
+import asyncio
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ValidationError
@@ -107,7 +106,7 @@ async def websocket_endpoint(websocket: WebSocket):
         """Push event to queue without blocking."""
         try:
             await asyncio.wait_for(event_queue.put(event), timeout=0.1)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("websocket_queue_full", event_id=str(event.id))
 
     # Get event bus
@@ -209,11 +208,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         },
                     )
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Send keep-alive ping
                     try:
                         await websocket.send_json({"type": "ping"})
-                    except:
+                    except Exception:
                         break
 
         # Run both tasks concurrently

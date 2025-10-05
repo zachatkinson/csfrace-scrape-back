@@ -13,11 +13,11 @@ Modern 2025 best practices:
 - Structured logging
 """
 
-import asyncio
 import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import Any, AsyncGenerator
 
+import asyncio
 import structlog
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -71,16 +71,12 @@ def serialize_sse_event(event: Event) -> str:
     except Exception as e:
         logger.error("sse_serialization_error", error=str(e), event_id=str(event.id))
         # Return error event
-        return (
-            f"id: error\n"
-            f"event: error\n"
-            f"data: {json.dumps({'error': 'Serialization failed'})}\n\n"
-        )
+        return f"id: error\nevent: error\ndata: {json.dumps({'error': 'Serialization failed'})}\n\n"
 
 
 async def event_stream_generator(
     event_type: str | None = None,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """
     Generate SSE stream from event bus.
 
@@ -99,7 +95,7 @@ async def event_stream_generator(
         try:
             # Non-blocking put with timeout
             await asyncio.wait_for(event_queue.put(event), timeout=0.1)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("event_queue_full", event_id=str(event.id))
 
     # Get event bus and subscribe
@@ -130,7 +126,7 @@ async def event_stream_generator(
                 sse_data = serialize_sse_event(event)
                 yield sse_data
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send keep-alive comment (prevents connection timeout)
                 yield ": keep-alive\n\n"
 
