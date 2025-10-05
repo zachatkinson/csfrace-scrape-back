@@ -17,7 +17,8 @@ from .exception_handlers import setup_exception_handlers
 from .lifecycle import lifespan
 from .metrics_endpoints import router as metrics_router
 from .middleware_setup import setup_middleware
-from .routers import health, health_stream, jobs, performance_stream, user_settings
+from .routers import health, health_stream, jobs, performance_stream, scraper, user_settings
+from .routers.events import events_router
 
 logger = get_api_logger()
 
@@ -60,8 +61,10 @@ setup_exception_handlers(app)
 app.include_router(health.router)
 app.include_router(health_stream.router)  # Real-time health events via SSE
 app.include_router(performance_stream.router)  # Real-time performance metrics via SSE
+app.include_router(events_router)  # Unified real-time events (SSE + WebSocket + HTTP)
 app.include_router(auth_router)  # Authentication endpoints
 app.include_router(jobs.router)
+app.include_router(scraper.router)  # Scraper endpoints (/scraper/jobs for API contract)
 app.include_router(user_settings.router)  # User settings endpoints
 app.include_router(metrics_router)  # Metrics endpoints
 

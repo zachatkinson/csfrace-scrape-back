@@ -75,6 +75,38 @@ class ObservabilityInitializer:
         return True
 
 
+class EventSystemInitializer:
+    """Handles event system initialization."""
+
+    @staticmethod
+    @api_error_handler("initialize event system")
+    async def initialize() -> bool:
+        """Initialize event system and background publishing."""
+        from ..core.events.background import start_event_publishing
+
+        logger.info("Starting event system initialization")
+
+        # Start background event publishing
+        await start_event_publishing()
+        logger.info("Event system initialized and background publishing started")
+
+        return True
+
+    @staticmethod
+    @api_error_handler("shutdown event system")
+    async def shutdown() -> bool:
+        """Shutdown event system."""
+        from ..core.events.background import stop_event_publishing
+
+        logger.info("Starting event system shutdown")
+
+        # Stop background event publishing
+        await stop_event_publishing()
+        logger.info("Event system shutdown completed")
+
+        return True
+
+
 class HealthMonitoringInitializer:
     """Handles health monitoring services initialization."""
 
@@ -145,6 +177,9 @@ class LifecycleManager:
         # Observability initialization (allow app to start even if fails)
         await _initialize_observability_safe()
 
+        # Event system initialization (allow app to start even if fails)
+        await _initialize_event_system_safe()
+
         # Health monitoring initialization (allow app to start even if fails)
         await _initialize_health_monitoring_safe()
 
@@ -158,6 +193,9 @@ class LifecycleManager:
 
         # Health monitoring shutdown
         await _shutdown_health_monitoring_safe()
+
+        # Event system shutdown
+        await _shutdown_event_system_safe()
 
         # Observability shutdown
         await _shutdown_observability_safe()
@@ -199,6 +237,18 @@ async def _initialize_health_monitoring_safe() -> None:
 async def _shutdown_health_monitoring_safe() -> None:
     """Safely shutdown health monitoring."""
     await HealthMonitoringInitializer.shutdown()
+
+
+@api_error_handler("event system initialization")
+async def _initialize_event_system_safe() -> None:
+    """Safely initialize event system, allowing app to start even if it fails."""
+    await EventSystemInitializer.initialize()
+
+
+@api_error_handler("event system shutdown")
+async def _shutdown_event_system_safe() -> None:
+    """Safely shutdown event system."""
+    await EventSystemInitializer.shutdown()
 
 
 @api_error_handler("observability shutdown")
