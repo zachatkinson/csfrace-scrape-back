@@ -2,6 +2,62 @@
 
 <!-- version list -->
 
+## v5.16.0 (2025-10-05)
+
+### Features
+
+- Gdpr-compliant user deletion with CASCADE constraints + code quality improvements
+  ([#31](https://github.com/zachatkinson/csfrace-scrape-back/pull/31),
+  [`2b14e12`](https://github.com/zachatkinson/csfrace-scrape-back/commit/2b14e12d4903c7ff461a0901b001dccfde858b84))
+
+* feat: GDPR-compliant user deletion with CASCADE constraints
+
+Implements comprehensive GDPR "right to be forgotten" user deletion including:
+
+BACKEND CHANGES: ✅ Defense-in-depth deletion (explicit + CASCADE constraints) ✅ Complete data
+  removal across 7 tables (users, linked_accounts, webauthn_credentials, user_settings,
+  scraping_jobs, account_lockouts, revoked_tokens) ✅ Comprehensive audit logging (deletion initiated
+  & completed) ✅ Database migration for CASCADE foreign keys ✅ Fix 401 error on account deletion
+  endpoint (use cookie auth)
+
+DATABASE MIGRATION: ✅ Add ON DELETE CASCADE to 5 foreign key constraints ✅ Clean up orphaned
+  account_lockouts and revoked_tokens records ✅ Ensure complete user data removal at database level
+
+DOCUMENTATION: ✅ Comprehensive README update (1060 lines) ✅ OAuth2/SSO documentation (Google,
+  GitHub, Microsoft, Facebook, Apple) ✅ WebAuthn/FIDO2 passwordless authentication ✅ GDPR compliance
+  features ✅ Hierarchical logging and monitoring ✅ Kubernetes deployment examples ✅ Production
+  deployment checklists
+
+TESTING: ✅ Verified CASCADE deletion (all related records removed) ✅ No orphaned records after user
+  deletion ✅ Audit logging captures all deletions
+
+This ensures complete GDPR compliance with: - Right to be forgotten (complete data removal) - Audit
+  trail (comprehensive logging) - Defense in depth (explicit + CASCADE) - No orphaned records
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* refactor: code quality improvements and dead code removal
+
+## Code Quality Fixes - Fixed bare `except` clause in analyze_all_exceptions.py (E722) - Fixed
+  nested `with` statements in health_stream.py (SIM117) - Fixed type annotations in
+  performance_stream.py (return type str | None) - Auto-fixed import sorting and unused imports
+  across multiple files
+
+## Dead Code Removal - Removed unused `/stream-original` endpoint from streaming.py (225 lines) -
+  Removed helper functions: `_check_frontend_health`, `_generate_initial_health_events_safe`,
+  `_generate_health_update_events_safe` - Reduced streaming.py from 249 lines to 24 lines (91%
+  reduction) - Updated tests to remove references to deleted endpoints (250 lines removed)
+
+## Improvements - All code now passes ruff format, ruff check, and mypy validation - Cleaner, more
+  maintainable architecture - Zero technical debt from linting issues
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+
+
 ## v5.15.0 (2025-10-04)
 
 ### Features
