@@ -818,13 +818,13 @@ class TestJobServiceEdgeCases:
         # Arrange - Create user for foreign key constraint (MANDATORY)
         test_user_id = JobFactory._ensure_user_exists(test_session)
 
-        # Create batch with single job in uncommon final state
-        urls = ["https://example.com/1"]
+        # Create batch with multiple jobs in uncommon final state
+        urls = ["https://example.com/1", "https://example.com/2"]
         jobs = job_service.create_jobs(urls, output_directory="/tmp/batch", user_id=test_user_id)
         batch_id = jobs[0].batch_id
         assert batch_id is not None  # Multiple URLs should have batch_id
 
-        # Update to FAILED status (single status but not completed/running/pending)
+        # Update first job to FAILED status (one failed, one pending = mixed status)
         job_service.update_job_status(jobs[0].id, JobStatus.FAILED, error_message="Test")
         test_session.commit()
 
@@ -833,10 +833,11 @@ class TestJobServiceEdgeCases:
 
         # Assert
         assert summary["batch_id"] == batch_id
-        assert summary["total_jobs"] == 1
-        # With single job in FAILED status, should be "failed" not "mixed"
-        assert summary["overall_status"] == "failed"  # Line 446
+        assert summary["total_jobs"] == 2
+        # With mixed statuses (one failed, one pending), should be "mixed"
+        assert summary["overall_status"] == "mixed"
         assert summary["status_counts"][JobStatus.FAILED.value] == 1
+        assert summary["status_counts"][JobStatus.PENDING.value] == 1
 
     @pytest.mark.unit
     @pytest.mark.database
@@ -847,8 +848,8 @@ class TestJobServiceEdgeCases:
         # Arrange - Create user for foreign key constraint (MANDATORY)
         test_user_id = JobFactory._ensure_user_exists(test_session)
 
-        # Create batch with single CANCELLED job (not completed/running/pending/failed)
-        urls = ["https://example.com/1"]
+        # Create batch with multiple CANCELLED jobs (not completed/running/pending/failed)
+        urls = ["https://example.com/1", "https://example.com/2"]
         jobs = job_service.create_jobs(urls, output_directory="/tmp/batch", user_id=test_user_id)
         batch_id = jobs[0].batch_id
         assert batch_id is not None  # Multiple URLs should have batch_id
@@ -871,7 +872,9 @@ class TestJobServiceEdgeCases:
         # Act
         summary = job_service.get_batch_summary(batch_id)
 
-        # Assert - Expect "failed" since CANCELLED is in the failed/cancelled group
+        # Assert - Expect "mixed" since one is CANCELLED and one is PENDING
         assert summary["batch_id"] == batch_id
-        assert summary["total_jobs"] == 1
-        assert summary["overall_status"] == "failed"  # CANCELLED counts as failed (line 446)
+        assert summary["total_jobs"] == 2
+        assert summary["overall_status"] == "mixed"  # One cancelled, one pending = mixed
+        assert summary["status_counts"][JobStatus.CANCELLED.value] == 1
+        assert summary["status_counts"][JobStatus.PENDING.value] == 1
