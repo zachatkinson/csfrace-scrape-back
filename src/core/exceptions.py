@@ -199,6 +199,27 @@ class AuthorizationError(BaseApplicationError):
         )
 
 
+class AccountMergeRequiredError(BaseApplicationError):
+    """Error raised when account merge is required to proceed with OAuth linking.
+
+    This exception carries the AccountMergeDetection data and is caught by the
+    router to return the appropriate response to the frontend.
+    """
+
+    def __init__(
+        self,
+        merge_detection: Any,  # AccountMergeDetection from auth.models
+        message: str = "Account merge required to proceed",
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            error_code="ACCOUNT_MERGE_REQUIRED",
+            details=details or {},
+        )
+        self.merge_detection = merge_detection
+
+
 class RateLimitError(BaseApplicationError):
     """Error for rate limiting violations."""
 

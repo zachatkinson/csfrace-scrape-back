@@ -56,6 +56,9 @@ from .api import (
 # Authentication Constants - All OAuth/WebAuthn/security related configuration
 from .auth import (
     ALLOWED_ORIGINS,
+    APPLE_AUTHORIZATION_URL,
+    APPLE_SCOPES,
+    APPLE_TOKEN_URL,
     ATTESTATION_CONVEYANCE,
     AUTHENTICATION_TIMEOUT_MS,
     AUTHENTICATOR_ATTACHMENT,
@@ -272,6 +275,9 @@ __all__ = [
     "MICROSOFT_TOKEN_URL",
     "MICROSOFT_USER_INFO_URL",
     "MICROSOFT_SCOPES",
+    "APPLE_AUTHORIZATION_URL",
+    "APPLE_TOKEN_URL",
+    "APPLE_SCOPES",
     "STATE_TOKEN_LENGTH",
     "OAUTH_TIMEOUT",
     "OAUTH_MAX_RETRIES",

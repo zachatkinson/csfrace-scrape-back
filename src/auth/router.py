@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -12,6 +12,7 @@ from webauthn.helpers import base64url_to_bytes
 from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
 
 from src.core.decorators import auth_error_handler, oauth_error_handler
+from src.core.exceptions import AccountMergeRequiredError
 from src.core.logging_hierarchy import get_auth_logger
 
 from ..api.errors import APIErrorFactory
@@ -32,6 +33,8 @@ from .dependencies import (
 from .enum_utils import get_oauth_provider_value
 from .models import (
     AccountLockoutStatusResponse,
+    AccountMergeRequest,
+    AccountMergeResult,
     BulkTokenRevocationRequest,
     LockoutStatsResponse,
     OAuthCallback,
@@ -366,111 +369,10 @@ def initiate_oauth_login(
     )
 
 
-@router.get("/oauth/{provider}/callback", response_model=Token)
-@limiter.limit(rate_limits.AUTH_OAUTH)
-@oauth_error_handler("OAuth callback processing")
-async def handle_oauth_callback(
-    request: Request,  # Required for SlowAPI rate limiting and query params
-    response: Response,  # Required for setting HTTP-only cookies
-    provider: OAuthProvider,
-    code: str | None = None,
-    state: str | None = None,
-    error: str | None = None,
-    error_description: str | None = None,
-    oauth_service: OAuthService = Depends(get_oauth_service),
-    auth_service: AuthService = Depends(get_auth_service),
-) -> Token:
-    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
-
-    This endpoint implements the OAuth2 Authorization Code Flow callback handling
-    according to RFC 6749 and FastAPI security best practices.
-    """
-    # Create OAuthCallback object from query parameters
-    oauth_callback = OAuthCallback(
-        code=code or "",
-        state=state or "",
-        provider=provider,
-        error=error,
-        error_description=error_description,
-    )
-
-    # Validate OAuth callback parameters using service
-    OAuthValidationService.validate_callback_parameters(provider, oauth_callback)
-
-    # Process OAuth callback using injected services
-    logger.info(
-        "Processing OAuth callback",
-        provider=get_oauth_provider_value(provider),
-        code_present=bool(oauth_callback.code),
-        state_present=bool(oauth_callback.state),
-    )
-
-    # Exchange authorization code for access token and get user
-    # OAuth service will extract the original redirect URI from JWT state and use it
-    # for token exchange (as required by OAuth2 spec)
-    user, is_new_user = await oauth_service.handle_oauth_callback(
-        provider=provider,
-        code=oauth_callback.code,
-        state=oauth_callback.state,
-        redirect_uri="",  # Not used - OAuth service extracts from JWT state
-    )
-
-    # Log successful OAuth authentication
-    logger.info(
-        "OAuth authentication successful",
-        provider=get_oauth_provider_value(provider),
-        user_id=user.id,
-        email=user.email,
-        is_new_user=is_new_user,
-    )
-
-    # Generate JWT tokens using TokenService
-    token = TokenService.create_tokens_for_user(user, is_new_user)
-
-    # Set secure HTTP-only cookies using CookieService
-    cookie_service = CookieService()
-    cookie_service.set_auth_cookies(response, token)
-
-    # Return token for immediate frontend use
-    return token
-
-
 @router.get("/oauth/providers", response_model=list[str])
 def list_oauth_providers() -> list[str]:
     """List available OAuth2 providers - Simple endpoint per REST principles."""
     return [get_oauth_provider_value(provider) for provider in OAuthProvider]
-
-
-@router.get("/providers")
-def list_oauth_providers_simple(request: Request) -> dict[str, list[dict[str, str]]]:
-    """List available OAuth2 providers - API contract endpoint."""
-    providers = []
-    for provider in OAuthProvider:
-        provider_name = get_oauth_provider_value(provider)
-        providers.append(
-            {
-                "name": provider_name,
-                "display_name": provider_name.capitalize(),
-                "authorization_url": str(
-                    request.url_for("get_oauth_authorization_url", provider=provider_name)
-                ),
-            }
-        )
-    return {"providers": providers}
-
-
-@router.get("/{provider}/authorize")
-@limiter.limit(rate_limits.AUTH_OAUTH)
-def get_oauth_authorization_url(
-    request: Request,  # Required for SlowAPI rate limiting
-    provider: OAuthProvider,
-    redirect_uri: str | None = None,
-    oauth_service: OAuthService = Depends(get_oauth_service),
-) -> SSOLoginResponse:
-    """Get OAuth authorization URL for a specific provider - API contract endpoint."""
-    return oauth_service.initiate_oauth_login(
-        provider=provider, redirect_uri=redirect_uri or "http://localhost:8000/auth/oauth/callback"
-    )
 
 
 @router.get("/oauth/connections", response_model=list[OAuthConnectionResponse])
@@ -511,6 +413,303 @@ def get_oauth_connections(
     )
 
     return connections
+
+
+@router.get("/oauth/{provider}")
+@limiter.limit(rate_limits.AUTH_OAUTH)
+@oauth_error_handler("OAuth login initiation")
+def initiate_oauth_login_redirect(
+    request: Request,  # Required for SlowAPI rate limiting - framework constraint  # pylint: disable=unused-argument
+    provider: OAuthProvider,
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> RedirectResponse:
+    """Initiate OAuth2 login flow with direct redirect - Convenience endpoint for browser navigation.
+
+    This GET endpoint provides a simpler alternative to the POST /oauth/login endpoint,
+    allowing direct browser navigation (e.g., window.location.href = '/auth/oauth/github').
+
+    Uses the same redirect_uri configuration as the main OAuth flow (OAUTH_REDIRECT_URI_BASE).
+
+    Args:
+        provider: OAuth provider (google, github, microsoft, facebook, apple)
+        oauth_service: OAuth service dependency
+
+    Returns:
+        RedirectResponse: Redirects browser to OAuth provider's authorization page
+
+    Example:
+        Navigate to: https://localhost/auth/oauth/github
+        Redirects to: https://github.com/login/oauth/authorize?client_id=...
+    """
+    logger.info(
+        "Initiating OAuth login via redirect",
+        provider=get_oauth_provider_value(provider),
+    )
+
+    # Get authorization URL from OAuth service (uses default redirect_uri from config)
+    sso_response = oauth_service.initiate_oauth_login(provider=provider, redirect_uri=None)
+
+    # Redirect user to OAuth provider's authorization page
+    return RedirectResponse(url=sso_response.authorization_url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/oauth/{provider}/callback", response_model=Token)
+@limiter.limit(rate_limits.AUTH_OAUTH)
+@oauth_error_handler("OAuth callback processing")
+async def handle_oauth_callback(
+    request: Request,  # Required for SlowAPI rate limiting and query params
+    response: Response,  # Required for setting HTTP-only cookies
+    provider: OAuthProvider,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
+    oauth_service: OAuthService = Depends(get_oauth_service),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> Token | JSONResponse:
+    """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
+
+    This endpoint implements the OAuth2 Authorization Code Flow callback handling
+    according to RFC 6749 and FastAPI security best practices.
+
+    Supports two scenarios:
+    1. User signing in/up with OAuth (no existing session)
+    2. Logged-in user connecting a new OAuth provider (existing session)
+    """
+    # Check if user is already logged in (linking scenario)
+    existing_user_id: str | None = None
+    try:
+        # Try to get current user from cookie without raising error
+        auth_token = request.cookies.get("auth_token")
+        if auth_token:
+            payload = jwt.decode(
+                auth_token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM]
+            )
+            username: str | None = payload.get("sub")
+            if username:
+                existing_user = auth_service.get_user_by_username(username)
+                if existing_user:
+                    existing_user_id = existing_user.id
+                    logger.info(
+                        "User already logged in, will link OAuth account",
+                        user_id=existing_user_id,
+                        provider=get_oauth_provider_value(provider),
+                    )
+    except Exception:
+        # User not logged in, proceed with normal OAuth flow
+        pass
+
+    # Create OAuthCallback object from query parameters
+    oauth_callback = OAuthCallback(
+        code=code or "",
+        state=state or "",
+        provider=provider,
+        error=error,
+        error_description=error_description,
+    )
+
+    # Validate OAuth callback parameters using service
+    OAuthValidationService.validate_callback_parameters(provider, oauth_callback)
+
+    # Process OAuth callback using injected services
+    logger.info(
+        "Processing OAuth callback",
+        provider=get_oauth_provider_value(provider),
+        code_present=bool(oauth_callback.code),
+        state_present=bool(oauth_callback.state),
+        linking_to_existing_user=existing_user_id is not None,
+    )
+
+    # Exchange authorization code for access token and get user
+    # OAuth service will extract the original redirect URI from JWT state and use it
+    # for token exchange (as required by OAuth2 spec)
+    try:
+        user, is_new_user = await oauth_service.handle_oauth_callback(
+            provider=provider,
+            code=oauth_callback.code,
+            state=oauth_callback.state,
+            redirect_uri="",  # Not used - OAuth service extracts from JWT state
+            existing_user_id=existing_user_id,  # Pass existing user ID for linking
+        )
+    except AccountMergeRequiredError as e:
+        # Account merge is required - return merge detection as 409 Conflict
+        logger.info(
+            "Account merge required",
+            merge_detection=e.merge_detection.model_dump(),
+        )
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=e.merge_detection.model_dump(),
+        )
+
+    # Log successful OAuth authentication
+    logger.info(
+        "OAuth authentication successful",
+        provider=get_oauth_provider_value(provider),
+        user_id=user.id,
+        email=user.email,
+        is_new_user=is_new_user,
+    )
+
+    # Generate JWT tokens using TokenService
+    token = TokenService.create_tokens_for_user(user, is_new_user)
+
+    # Set secure HTTP-only cookies using CookieService
+    cookie_service = CookieService()
+    cookie_service.set_auth_cookies(response, token)
+
+    # Return token for immediate frontend use
+    return token
+
+
+@router.post("/oauth/merge", response_model=AccountMergeResult)
+@limiter.limit(rate_limits.AUTH_OAUTH)
+@auth_error_handler("account merge execution")
+async def execute_account_merge(
+    request: Request,  # Required for SlowAPI rate limiting
+    merge_request: AccountMergeRequest,
+    current_user: User = Depends(get_current_active_user_from_cookie),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> AccountMergeResult:
+    """Execute account merge after user confirmation.
+
+    This endpoint handles the actual merging of two user accounts after the user
+    has confirmed the merge operation. It validates the merge token, checks permissions,
+    and executes the merge using the AccountMergeService.
+
+    Args:
+        request: FastAPI request object (for rate limiting)
+        merge_request: Contains merge_token and confirm_merge flag
+        current_user: Currently logged-in user (must be the target user)
+        oauth_service: Injected OAuth service with merge service
+
+    Returns:
+        AccountMergeResult with merge details
+
+    Raises:
+        HTTPException 400: If merge token is invalid or user is not authorized
+        HTTPException 422: If validation fails
+    """
+    logger.info(
+        "Account merge requested",
+        current_user_id=current_user.id,
+        confirm_merge=merge_request.confirm_merge,
+    )
+
+    # Validate merge token and execute merge using AccountMergeService
+    result = oauth_service.merge_service.merge_accounts(
+        merge_request=merge_request,
+        initiated_by_user_id=current_user.id,
+    )
+
+    logger.info(
+        "Account merge completed successfully",
+        result=result.model_dump(),
+    )
+
+    return result
+
+
+@router.get("/providers")
+def list_oauth_providers_simple(request: Request) -> dict[str, list[dict[str, str]]]:
+    """List available OAuth2 providers - API contract endpoint."""
+    providers = []
+    for provider in OAuthProvider:
+        provider_name = get_oauth_provider_value(provider)
+        providers.append(
+            {
+                "name": provider_name,
+                "display_name": provider_name.capitalize(),
+                "authorization_url": str(
+                    request.url_for("get_oauth_authorization_url", provider=provider_name)
+                ),
+            }
+        )
+    return {"providers": providers}
+
+
+@router.get("/{provider}/authorize")
+@limiter.limit(rate_limits.AUTH_OAUTH)
+def get_oauth_authorization_url(
+    request: Request,  # Required for SlowAPI rate limiting
+    provider: OAuthProvider,
+    redirect_uri: str | None = None,
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> SSOLoginResponse:
+    """Get OAuth authorization URL for a specific provider - API contract endpoint."""
+    return oauth_service.initiate_oauth_login(
+        provider=provider, redirect_uri=redirect_uri or "http://localhost:8000/auth/oauth/callback"
+    )
+
+
+@router.delete("/oauth/connections/{provider}", response_model=dict[str, bool | str])
+@oauth_error_handler("OAuth account disconnection")
+def disconnect_oauth_provider(
+    provider: OAuthProvider,
+    current_user: User = Depends(get_current_active_user_from_cookie),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> dict[str, bool | str]:
+    """Disconnect OAuth provider from current user account - Single Responsibility Principle.
+
+    Removes the linked OAuth account for the specified provider with comprehensive
+    safety checks to prevent user lockout.
+
+    **Safety Features:**
+    - Cannot disconnect if it's the only authentication method (no password set)
+    - Cannot disconnect if it's the only OAuth account and no password exists
+    - Validates account is actually linked before attempting removal
+
+    **Security:**
+    - HTTP-only cookie authentication required
+    - User can only disconnect their own accounts
+    - Comprehensive audit logging
+
+    Args:
+        provider: OAuth provider to disconnect (e.g., github, google)
+        current_user: Authenticated user from cookie
+        oauth_service: OAuth service dependency
+
+    Returns:
+        dict with success status and confirmation message
+
+    Raises:
+        HTTPException 404: Account not connected
+        HTTPException 400: Disconnection would lock user out
+    """
+    logger.info(
+        "User requesting OAuth disconnect",
+        user_id=current_user.id,
+        provider=get_oauth_provider_value(provider),
+    )
+
+    try:
+        success = oauth_service.disconnect_oauth_account(current_user.id, provider)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"{provider.value.capitalize()} account not connected",
+            )
+
+        logger.info(
+            "OAuth account disconnected via API",
+            user_id=current_user.id,
+            provider=get_oauth_provider_value(provider),
+        )
+
+        return {
+            "success": True,
+            "message": f"{provider.value.capitalize()} account disconnected successfully",
+        }
+    except ValueError as e:
+        # Safety check failed (would lock user out)
+        logger.warning(
+            "OAuth disconnect prevented by safety check",
+            user_id=current_user.id,
+            provider=get_oauth_provider_value(provider),
+            error=str(e),
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # WebAuthn/Passkeys Endpoints - Passwordless Authentication

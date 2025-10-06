@@ -52,6 +52,11 @@ MICROSOFT_TOKEN_URL: str = "https://login.microsoftonline.com/common/oauth2/v2.0
 MICROSOFT_USER_INFO_URL: str = "https://graph.microsoft.com/v1.0/me"
 MICROSOFT_SCOPES: list[str] = ["openid", "profile", "email", "User.Read"]
 
+# Apple OAuth2 Configuration
+APPLE_AUTHORIZATION_URL: str = "https://appleid.apple.com/auth/authorize"
+APPLE_TOKEN_URL: str = "https://appleid.apple.com/auth/token"  # noqa: S105
+APPLE_SCOPES: list[str] = ["name", "email"]
+
 # OAuth2 Security Settings
 STATE_TOKEN_LENGTH: int = 32  # Length for OAuth2 state parameter
 OAUTH_TIMEOUT: int = EnvironmentLoader.get_int(

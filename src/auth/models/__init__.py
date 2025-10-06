@@ -1,6 +1,13 @@
 """Authentication models organized by domain following SOLID principles."""
 
 # Import all models from domain-specific modules for convenient access
+from .account_merge_models import (
+    AccountMergeDetection,
+    AccountMergeRequest,
+    AccountMergeResult,
+    DuplicateAccountInfo,
+    MergeAuditLog,
+)
 from .oauth_models import (
     LinkedAccount,
     OAuthCallback,
@@ -83,6 +90,12 @@ __all__ = [
     "SSOLoginResponse",
     "LinkedAccount",
     "OAuthConnectionResponse",
+    # Account merge models
+    "AccountMergeDetection",
+    "AccountMergeRequest",
+    "AccountMergeResult",
+    "DuplicateAccountInfo",
+    "MergeAuditLog",
     # WebAuthn models
     "PasskeyRegistrationRequest",
     "PasskeyRegistrationResponse",
