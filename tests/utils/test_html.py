@@ -60,6 +60,7 @@ def sample_img_tag(sample_soup: BeautifulSoup) -> Tag:
     """Factory for sample img tag - DRY principle."""
     img = sample_soup.find("img")
     assert img is not None
+    assert isinstance(img, Tag)
     return img
 
 
@@ -68,6 +69,7 @@ def sample_link_tag(sample_soup: BeautifulSoup) -> Tag:
     """Factory for sample link tag - DRY principle."""
     link = sample_soup.find("a")
     assert link is not None
+    assert isinstance(link, Tag)
     return link
 
 
@@ -76,6 +78,7 @@ def sample_div_tag(sample_soup: BeautifulSoup) -> Tag:
     """Factory for sample div tag - DRY principle."""
     div = sample_soup.find("div", id="main")
     assert div is not None
+    assert isinstance(div, Tag)
     return div
 
 
@@ -90,11 +93,11 @@ class TestSafeCopyAttributes:
 
     def test_safe_copy_attributes_simple_mapping(
         self, sample_soup: BeautifulSoup, sample_img_tag: Tag
-    ):
+    ) -> None:
         """Test safe_copy_attributes with simple mapping - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         target = sample_soup.new_tag("img")
-        attribute_map = {"src": "src", "alt": "alt"}
+        attribute_map: dict[str, str | tuple[str, str]] = {"src": "src", "alt": "alt"}
 
         # Act - MANDATORY
         safe_copy_attributes(sample_img_tag, target, attribute_map)
@@ -105,11 +108,11 @@ class TestSafeCopyAttributes:
 
     def test_safe_copy_attributes_with_defaults(
         self, sample_soup: BeautifulSoup, sample_img_tag: Tag
-    ):
+    ) -> None:
         """Test safe_copy_attributes with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         target = sample_soup.new_tag("img")
-        attribute_map = {
+        attribute_map: dict[str, str | tuple[str, str]] = {
             "src": "src",
             "alt": ("alt", ""),
             "missing": ("data-missing", "default_value"),
@@ -125,11 +128,11 @@ class TestSafeCopyAttributes:
 
     def test_safe_copy_attributes_missing_source_attr(
         self, sample_soup: BeautifulSoup, sample_img_tag: Tag
-    ):
+    ) -> None:
         """Test safe_copy_attributes with missing source attribute - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         target = sample_soup.new_tag("img")
-        attribute_map = {"nonexistent": ("data-attr", "fallback")}
+        attribute_map: dict[str, str | tuple[str, str]] = {"nonexistent": ("data-attr", "fallback")}
 
         # Act - MANDATORY
         safe_copy_attributes(sample_img_tag, target, attribute_map)
@@ -139,11 +142,11 @@ class TestSafeCopyAttributes:
 
     def test_safe_copy_attributes_mixed_mappings(
         self, sample_soup: BeautifulSoup, sample_img_tag: Tag
-    ):
+    ) -> None:
         """Test safe_copy_attributes with mixed mapping types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         target = sample_soup.new_tag("img")
-        attribute_map = {
+        attribute_map: dict[str, str | tuple[str, str]] = {
             "src": "src",  # Simple string mapping
             "alt": ("alt", "No alt text"),  # Tuple with default
             "title": ("title", "No title"),  # Tuple with default
@@ -157,11 +160,13 @@ class TestSafeCopyAttributes:
         assert target.get("alt") == "Test Image"
         assert target.get("title") == "Image Title"
 
-    def test_safe_copy_attributes_empty_map(self, sample_soup: BeautifulSoup, sample_img_tag: Tag):
+    def test_safe_copy_attributes_empty_map(
+        self, sample_soup: BeautifulSoup, sample_img_tag: Tag
+    ) -> None:
         """Test safe_copy_attributes with empty map - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         target = sample_soup.new_tag("img")
-        attribute_map = {}
+        attribute_map: dict[str, str | tuple[str, str]] = {}
 
         # Act - MANDATORY
         safe_copy_attributes(sample_img_tag, target, attribute_map)
@@ -179,7 +184,7 @@ class TestSafeCopyAttributes:
 class TestFindMetaContent:
     """Tests for find_meta_content function."""
 
-    def test_find_meta_content_by_name(self, sample_soup: BeautifulSoup):
+    def test_find_meta_content_by_name(self, sample_soup: BeautifulSoup) -> None:
         """Test find_meta_content by name attribute - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         meta_name = "description"
@@ -190,7 +195,7 @@ class TestFindMetaContent:
         # Assert - MANDATORY
         assert result == "Test description"
 
-    def test_find_meta_content_by_property(self, sample_soup: BeautifulSoup):
+    def test_find_meta_content_by_property(self, sample_soup: BeautifulSoup) -> None:
         """Test find_meta_content by property attribute - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         property_attr = "og:title"
@@ -201,7 +206,7 @@ class TestFindMetaContent:
         # Assert - MANDATORY
         assert result == "OpenGraph Title"
 
-    def test_find_meta_content_og_image(self, sample_soup: BeautifulSoup):
+    def test_find_meta_content_og_image(self, sample_soup: BeautifulSoup) -> None:
         """Test find_meta_content for og:image - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         property_attr = "og:image"
@@ -212,7 +217,7 @@ class TestFindMetaContent:
         # Assert - MANDATORY
         assert result == "https://example.com/image.jpg"
 
-    def test_find_meta_content_nonexistent_name(self, sample_soup: BeautifulSoup):
+    def test_find_meta_content_nonexistent_name(self, sample_soup: BeautifulSoup) -> None:
         """Test find_meta_content with nonexistent name - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         meta_name = "nonexistent"
@@ -223,7 +228,7 @@ class TestFindMetaContent:
         # Assert - MANDATORY
         assert result is None
 
-    def test_find_meta_content_nonexistent_property(self, sample_soup: BeautifulSoup):
+    def test_find_meta_content_nonexistent_property(self, sample_soup: BeautifulSoup) -> None:
         """Test find_meta_content with nonexistent property - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         property_attr = "og:nonexistent"
@@ -234,7 +239,7 @@ class TestFindMetaContent:
         # Assert - MANDATORY
         assert result is None
 
-    def test_find_meta_content_no_parameters(self, sample_soup: BeautifulSoup):
+    def test_find_meta_content_no_parameters(self, sample_soup: BeautifulSoup) -> None:
         """Test find_meta_content with no parameters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no parameters)
 
@@ -244,7 +249,7 @@ class TestFindMetaContent:
         # Assert - MANDATORY
         assert result is None
 
-    def test_find_meta_content_empty_content(self):
+    def test_find_meta_content_empty_content(self) -> None:
         """Test find_meta_content with empty content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html = '<html><head><meta name="empty" content=""></head></html>'
@@ -266,10 +271,10 @@ class TestFindMetaContent:
 class TestFindMultipleSelectors:
     """Tests for find_multiple_selectors function."""
 
-    def test_find_multiple_selectors_first_match(self, sample_soup: BeautifulSoup):
+    def test_find_multiple_selectors_first_match(self, sample_soup: BeautifulSoup) -> None:
         """Test find_multiple_selectors first selector matches - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        selectors = ["#main", ".nonexistent", "body"]
+        selectors: list[str] = ["#main", ".nonexistent", "body"]
 
         # Act - MANDATORY
         result = find_multiple_selectors(sample_soup, selectors)
@@ -278,22 +283,24 @@ class TestFindMultipleSelectors:
         assert result is not None
         assert result.get("id") == "main"
 
-    def test_find_multiple_selectors_second_match(self, sample_soup: BeautifulSoup):
+    def test_find_multiple_selectors_second_match(self, sample_soup: BeautifulSoup) -> None:
         """Test find_multiple_selectors second selector matches - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        selectors = [".nonexistent", ".content", "#main"]
+        selectors: list[str] = [".nonexistent", ".content", "#main"]
 
         # Act - MANDATORY
         result = find_multiple_selectors(sample_soup, selectors)
 
         # Assert - MANDATORY
         assert result is not None
-        assert "content" in result.get("class", [])
+        class_attr = result.get("class")
+        if isinstance(class_attr, list):
+            assert "content" in class_attr
 
-    def test_find_multiple_selectors_no_match(self, sample_soup: BeautifulSoup):
+    def test_find_multiple_selectors_no_match(self, sample_soup: BeautifulSoup) -> None:
         """Test find_multiple_selectors no selectors match - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        selectors = [".nonexistent1", ".nonexistent2", "#nonexistent"]
+        selectors: list[str] = [".nonexistent1", ".nonexistent2", "#nonexistent"]
 
         # Act - MANDATORY
         result = find_multiple_selectors(sample_soup, selectors)
@@ -301,10 +308,10 @@ class TestFindMultipleSelectors:
         # Assert - MANDATORY
         assert result is None
 
-    def test_find_multiple_selectors_empty_list(self, sample_soup: BeautifulSoup):
+    def test_find_multiple_selectors_empty_list(self, sample_soup: BeautifulSoup) -> None:
         """Test find_multiple_selectors with empty list - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        selectors = []
+        selectors: list[str] = []
 
         # Act - MANDATORY
         result = find_multiple_selectors(sample_soup, selectors)
@@ -312,10 +319,10 @@ class TestFindMultipleSelectors:
         # Assert - MANDATORY
         assert result is None
 
-    def test_find_multiple_selectors_complex_selectors(self, sample_soup: BeautifulSoup):
+    def test_find_multiple_selectors_complex_selectors(self, sample_soup: BeautifulSoup) -> None:
         """Test find_multiple_selectors with complex selectors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        selectors = ["div.nonexistent img", "#main img", "body > img"]
+        selectors: list[str] = ["div.nonexistent img", "#main img", "body > img"]
 
         # Act - MANDATORY
         result = find_multiple_selectors(sample_soup, selectors)
@@ -334,7 +341,7 @@ class TestFindMultipleSelectors:
 class TestExtractBasicElementData:
     """Tests for extract_basic_element_data function."""
 
-    def test_extract_basic_element_data_img_tag(self, sample_img_tag: Tag):
+    def test_extract_basic_element_data_img_tag(self, sample_img_tag: Tag) -> None:
         """Test extract_basic_element_data from img tag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -349,7 +356,7 @@ class TestExtractBasicElementData:
         assert result["class"] == ""
         assert result["id"] == ""
 
-    def test_extract_basic_element_data_link_tag(self, sample_link_tag: Tag):
+    def test_extract_basic_element_data_link_tag(self, sample_link_tag: Tag) -> None:
         """Test extract_basic_element_data from link tag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -362,7 +369,7 @@ class TestExtractBasicElementData:
         assert result["src"] == ""  # Not present in link
         assert result["alt"] == ""
 
-    def test_extract_basic_element_data_div_with_classes(self, sample_div_tag: Tag):
+    def test_extract_basic_element_data_div_with_classes(self, sample_div_tag: Tag) -> None:
         """Test extract_basic_element_data from div with classes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -374,7 +381,7 @@ class TestExtractBasicElementData:
         assert "container" in result["class"]
         assert "wrapper" in result["class"]
 
-    def test_extract_basic_element_data_minimal_element(self, sample_soup: BeautifulSoup):
+    def test_extract_basic_element_data_minimal_element(self, sample_soup: BeautifulSoup) -> None:
         """Test extract_basic_element_data from minimal element - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         minimal = sample_soup.new_tag("div")
@@ -390,13 +397,14 @@ class TestExtractBasicElementData:
         assert result["class"] == ""
         assert result["id"] == ""
 
-    def test_extract_basic_element_data_single_class(self):
+    def test_extract_basic_element_data_single_class(self) -> None:
         """Test extract_basic_element_data with single class - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html = '<div class="single-class">Content</div>'
         soup = BeautifulSoup(html, "html.parser")
         element = soup.find("div")
         assert element is not None
+        assert isinstance(element, Tag)
 
         # Act - MANDATORY
         result = extract_basic_element_data(element)
@@ -404,13 +412,14 @@ class TestExtractBasicElementData:
         # Assert - MANDATORY
         assert result["class"] == "single-class"
 
-    def test_extract_basic_element_data_class_list(self):
+    def test_extract_basic_element_data_class_list(self) -> None:
         """Test extract_basic_element_data with class list - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html = '<div class="class1 class2 class3">Content</div>'
         soup = BeautifulSoup(html, "html.parser")
         element = soup.find("div")
         assert element is not None
+        assert isinstance(element, Tag)
 
         # Act - MANDATORY
         result = extract_basic_element_data(element)
@@ -430,11 +439,15 @@ class TestExtractBasicElementData:
 class TestCreateElementWithAttributes:
     """Tests for create_element_with_attributes function."""
 
-    def test_create_element_with_attributes_img(self, sample_soup: BeautifulSoup):
+    def test_create_element_with_attributes_img(self, sample_soup: BeautifulSoup) -> None:
         """Test create_element_with_attributes for img - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tag_name = "img"
-        attributes = {"src": "/test.jpg", "alt": "Test", "title": "Test Image"}
+        attributes: dict[str, str | None] = {
+            "src": "/test.jpg",
+            "alt": "Test",
+            "title": "Test Image",
+        }
 
         # Act - MANDATORY
         result = create_element_with_attributes(sample_soup, tag_name, attributes)
@@ -445,11 +458,15 @@ class TestCreateElementWithAttributes:
         assert result.get("alt") == "Test"
         assert result.get("title") == "Test Image"
 
-    def test_create_element_with_attributes_link(self, sample_soup: BeautifulSoup):
+    def test_create_element_with_attributes_link(self, sample_soup: BeautifulSoup) -> None:
         """Test create_element_with_attributes for link - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tag_name = "a"
-        attributes = {"href": "https://example.com", "title": "Link", "target": "_blank"}
+        attributes: dict[str, str | None] = {
+            "href": "https://example.com",
+            "title": "Link",
+            "target": "_blank",
+        }
 
         # Act - MANDATORY
         result = create_element_with_attributes(sample_soup, tag_name, attributes)
@@ -460,11 +477,11 @@ class TestCreateElementWithAttributes:
         assert result.get("title") == "Link"
         assert result.get("target") == "_blank"
 
-    def test_create_element_with_attributes_empty_values(self, sample_soup: BeautifulSoup):
+    def test_create_element_with_attributes_empty_values(self, sample_soup: BeautifulSoup) -> None:
         """Test create_element_with_attributes skips empty values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tag_name = "div"
-        attributes = {"id": "test", "class": "", "data-value": None}
+        attributes: dict[str, str | None] = {"id": "test", "class": "", "data-value": None}
 
         # Act - MANDATORY
         result = create_element_with_attributes(sample_soup, tag_name, attributes)
@@ -474,11 +491,11 @@ class TestCreateElementWithAttributes:
         assert "class" not in result.attrs  # Empty string skipped
         assert "data-value" not in result.attrs  # None skipped
 
-    def test_create_element_with_attributes_no_attributes(self, sample_soup: BeautifulSoup):
+    def test_create_element_with_attributes_no_attributes(self, sample_soup: BeautifulSoup) -> None:
         """Test create_element_with_attributes with no attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tag_name = "div"
-        attributes = {}
+        attributes: dict[str, str | None] = {}
 
         # Act - MANDATORY
         result = create_element_with_attributes(sample_soup, tag_name, attributes)
@@ -487,11 +504,11 @@ class TestCreateElementWithAttributes:
         assert result.name == "div"
         assert len(result.attrs) == 0
 
-    def test_create_element_with_attributes_complex(self, sample_soup: BeautifulSoup):
+    def test_create_element_with_attributes_complex(self, sample_soup: BeautifulSoup) -> None:
         """Test create_element_with_attributes with complex attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tag_name = "div"
-        attributes = {
+        attributes: dict[str, str | None] = {
             "id": "container",
             "class": "wrapper main",
             "data-id": "123",
@@ -518,7 +535,7 @@ class TestCreateElementWithAttributes:
 class TestHTMLUtilsPerformance:
     """MANDATORY performance tests for HTML utilities."""
 
-    def test_extract_basic_element_data_performance(self, sample_soup: BeautifulSoup):
+    def test_extract_basic_element_data_performance(self, sample_soup: BeautifulSoup) -> None:
         """MANDATORY performance test - element data extraction speed."""
         # Arrange - MANDATORY
         elements = [sample_soup.new_tag("div") for _ in range(1000)]
@@ -543,7 +560,7 @@ class TestHTMLUtilsPerformance:
         avg_time = execution_time / total_operations
         assert avg_time < 0.00001  # <0.01ms per extraction
 
-    def test_find_meta_content_performance(self):
+    def test_find_meta_content_performance(self) -> None:
         """MANDATORY performance test - meta content search speed."""
         # Arrange - MANDATORY
         html = """
@@ -572,10 +589,10 @@ class TestHTMLUtilsPerformance:
         assert avg_time < 0.001  # <1ms per search (includes parsing)
         assert execution_time < 10.0  # Total <10s for 10000 searches
 
-    def test_create_element_with_attributes_performance(self, sample_soup: BeautifulSoup):
+    def test_create_element_with_attributes_performance(self, sample_soup: BeautifulSoup) -> None:
         """MANDATORY performance test - element creation speed."""
         # Arrange - MANDATORY
-        attributes = {"id": "test", "class": "wrapper", "data-value": "123"}
+        attributes: dict[str, str | None] = {"id": "test", "class": "wrapper", "data-value": "123"}
         iterations = 50000
 
         # Act - MANDATORY

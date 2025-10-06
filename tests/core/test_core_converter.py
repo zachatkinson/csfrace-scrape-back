@@ -10,6 +10,7 @@ MANDATORY COMPLIANCE:
 Tests AsyncWordPressConverter async content conversion.
 """
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,19 +24,19 @@ from src.core.exceptions import ConversionError
 
 
 @pytest.fixture
-def temp_output_dir(tmp_path):
+def temp_output_dir(tmp_path: Path) -> Path:
     """Factory for temporary output directory - DRY principle."""
     return tmp_path / "output"
 
 
 @pytest.fixture
-def converter_config():
+def converter_config() -> ConverterConfig:
     """Factory for converter configuration."""
     return ConverterConfig()
 
 
 @pytest.fixture
-def sample_html():
+def sample_html() -> str:
     """Factory for sample HTML content."""
     return """
     <html>
@@ -54,7 +55,7 @@ def sample_html():
 
 
 @pytest.fixture
-def sample_metadata():
+def sample_metadata() -> dict[str, str]:
     """Factory for sample metadata."""
     return {
         "title": "Test Page",
@@ -72,7 +73,7 @@ class TestConfigurationClasses:
     """Test configuration dataclasses."""
 
     @pytest.mark.unit
-    def test_output_config_defaults(self):
+    def test_output_config_defaults(self) -> None:
         """Test OutputConfig sets correct defaults."""
         # Arrange & Act
         config = OutputConfig()
@@ -84,7 +85,7 @@ class TestConfigurationClasses:
         assert config.shopify_file == "shopify_ready_content.html"
 
     @pytest.mark.unit
-    def test_http_config_defaults(self):
+    def test_http_config_defaults(self) -> None:
         """Test HttpConfig sets correct defaults."""
         # Arrange & Act
         config = HttpConfig()
@@ -95,7 +96,7 @@ class TestConfigurationClasses:
         assert config.user_agent == "Mozilla/5.0 (compatible; CSFRaceScraper/1.0)"
 
     @pytest.mark.unit
-    def test_converter_config_defaults(self):
+    def test_converter_config_defaults(self) -> None:
         """Test ConverterConfig initializes sub-configs."""
         # Arrange & Act
         config = ConverterConfig()
@@ -116,7 +117,9 @@ class TestAsyncWordPressConverterInit:
     """Test AsyncWordPressConverter initialization - Lines 75-101."""
 
     @pytest.mark.unit
-    def test_converter_init_basic(self, temp_output_dir, converter_config):
+    def test_converter_init_basic(
+        self, temp_output_dir: Path, converter_config: ConverterConfig
+    ) -> None:
         """Test converter initializes with basic parameters."""
         # Arrange & Act
         converter = AsyncWordPressConverter(
@@ -130,7 +133,7 @@ class TestAsyncWordPressConverterInit:
         assert converter.images_dir == temp_output_dir / "images"
 
     @pytest.mark.unit
-    def test_converter_init_uses_default_config(self, temp_output_dir):
+    def test_converter_init_uses_default_config(self, temp_output_dir: Path) -> None:
         """Test converter uses default config when none provided."""
         # Arrange & Act
         converter = AsyncWordPressConverter(
@@ -142,7 +145,9 @@ class TestAsyncWordPressConverterInit:
         assert isinstance(converter.config, ConverterConfig)
 
     @pytest.mark.unit
-    def test_converter_init_creates_processors(self, temp_output_dir, converter_config):
+    def test_converter_init_creates_processors(
+        self, temp_output_dir: Path, converter_config: ConverterConfig
+    ) -> None:
         """Test converter initializes all processors."""
         # Arrange & Act
         converter = AsyncWordPressConverter(
@@ -155,7 +160,7 @@ class TestAsyncWordPressConverterInit:
         assert converter.image_downloader is not None
 
     @pytest.mark.unit
-    def test_converter_init_normalizes_url(self, temp_output_dir):
+    def test_converter_init_normalizes_url(self, temp_output_dir: Path) -> None:
         """Test converter normalizes URL during init."""
         # Arrange & Act - URL without protocol
         converter = AsyncWordPressConverter(base_url="example.com", output_dir=temp_output_dir)
@@ -173,7 +178,7 @@ class TestValidateUrl:
     """Test _validate_url method - Lines 103-131."""
 
     @pytest.mark.unit
-    def test_validate_url_valid_https(self, temp_output_dir):
+    def test_validate_url_valid_https(self, temp_output_dir: Path) -> None:
         """Test _validate_url accepts valid HTTPS URL."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -187,7 +192,7 @@ class TestValidateUrl:
         assert result == "https://example.com"
 
     @pytest.mark.unit
-    def test_validate_url_valid_http(self, temp_output_dir):
+    def test_validate_url_valid_http(self, temp_output_dir: Path) -> None:
         """Test _validate_url accepts valid HTTP URL."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -201,7 +206,7 @@ class TestValidateUrl:
         assert result == "http://example.com"
 
     @pytest.mark.unit
-    def test_validate_url_adds_https_when_missing(self, temp_output_dir):
+    def test_validate_url_adds_https_when_missing(self, temp_output_dir: Path) -> None:
         """Test _validate_url adds HTTPS when protocol missing."""
         # Arrange
         converter = AsyncWordPressConverter(base_url="example.com", output_dir=temp_output_dir)
@@ -213,28 +218,28 @@ class TestValidateUrl:
         assert result == "https://example.com"
 
     @pytest.mark.unit
-    def test_validate_url_empty_string_raises(self, temp_output_dir):
+    def test_validate_url_empty_string_raises(self, temp_output_dir: Path) -> None:
         """Test _validate_url raises ConversionError for empty URL."""
         # Arrange & Act & Assert
         with pytest.raises(ConversionError, match="URL cannot be empty"):
             AsyncWordPressConverter(base_url="", output_dir=temp_output_dir)
 
     @pytest.mark.unit
-    def test_validate_url_invalid_structure_raises(self, temp_output_dir):
+    def test_validate_url_invalid_structure_raises(self, temp_output_dir: Path) -> None:
         """Test _validate_url raises ConversionError for invalid structure."""
         # Arrange & Act & Assert
         with pytest.raises(ConversionError, match="Invalid URL"):
             AsyncWordPressConverter(base_url="https://", output_dir=temp_output_dir)
 
     @pytest.mark.unit
-    def test_validate_url_invalid_domain_raises(self, temp_output_dir):
+    def test_validate_url_invalid_domain_raises(self, temp_output_dir: Path) -> None:
         """Test _validate_url raises ConversionError for invalid domain."""
         # Arrange & Act & Assert
         with pytest.raises(ConversionError, match="Invalid domain"):
             AsyncWordPressConverter(base_url="https://invaliddomain", output_dir=temp_output_dir)
 
     @pytest.mark.unit
-    def test_validate_url_localhost_accepted(self, temp_output_dir):
+    def test_validate_url_localhost_accepted(self, temp_output_dir: Path) -> None:
         """Test _validate_url accepts localhost as valid domain."""
         # Arrange & Act
         converter = AsyncWordPressConverter(base_url="http://localhost", output_dir=temp_output_dir)
@@ -253,7 +258,7 @@ class TestSetupDirectories:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_setup_directories_creates_dirs(self, temp_output_dir):
+    async def test_setup_directories_creates_dirs(self, temp_output_dir: Path) -> None:
         """Test _setup_directories creates output and images directories."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -269,7 +274,7 @@ class TestSetupDirectories:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_setup_directories_idempotent(self, temp_output_dir):
+    async def test_setup_directories_idempotent(self, temp_output_dir: Path) -> None:
         """Test _setup_directories is idempotent (can run multiple times)."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -294,7 +299,7 @@ class TestExtractImageUrls:
     """Test _extract_image_urls method - Lines 203-232."""
 
     @pytest.mark.unit
-    def test_extract_image_urls_basic(self, temp_output_dir):
+    def test_extract_image_urls_basic(self, temp_output_dir: Path) -> None:
         """Test _extract_image_urls extracts basic image URLs."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -311,7 +316,7 @@ class TestExtractImageUrls:
         assert "https://example.com/image2.jpg" in result
 
     @pytest.mark.unit
-    def test_extract_image_urls_converts_relative_to_absolute(self, temp_output_dir):
+    def test_extract_image_urls_converts_relative_to_absolute(self, temp_output_dir: Path) -> None:
         """Test _extract_image_urls converts relative URLs to absolute."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -327,7 +332,7 @@ class TestExtractImageUrls:
         assert result[0].startswith("https://example.com")
 
     @pytest.mark.unit
-    def test_extract_image_urls_removes_duplicates(self, temp_output_dir):
+    def test_extract_image_urls_removes_duplicates(self, temp_output_dir: Path) -> None:
         """Test _extract_image_urls removes duplicate URLs."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -343,7 +348,7 @@ class TestExtractImageUrls:
         assert result[0] == "https://example.com/image.jpg"
 
     @pytest.mark.unit
-    def test_extract_image_urls_empty_html(self, temp_output_dir):
+    def test_extract_image_urls_empty_html(self, temp_output_dir: Path) -> None:
         """Test _extract_image_urls handles empty HTML."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -357,7 +362,7 @@ class TestExtractImageUrls:
         assert result == []
 
     @pytest.mark.unit
-    def test_extract_image_urls_no_images(self, temp_output_dir):
+    def test_extract_image_urls_no_images(self, temp_output_dir: Path) -> None:
         """Test _extract_image_urls handles HTML without images."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -382,7 +387,7 @@ class TestFileWriting:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_write_text_file(self, temp_output_dir):
+    async def test_write_text_file(self, temp_output_dir: Path) -> None:
         """Test _write_text_file writes content correctly."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -401,7 +406,9 @@ class TestFileWriting:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_write_metadata_file(self, temp_output_dir, sample_metadata):
+    async def test_write_metadata_file(
+        self, temp_output_dir: Path, sample_metadata: dict[str, str]
+    ) -> None:
         """Test _write_metadata_file formats metadata correctly."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -422,7 +429,9 @@ class TestFileWriting:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_write_shopify_file(self, temp_output_dir, sample_metadata):
+    async def test_write_shopify_file(
+        self, temp_output_dir: Path, sample_metadata: dict[str, str]
+    ) -> None:
         """Test _write_shopify_file includes metadata as HTML comments."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -445,7 +454,7 @@ class TestFileWriting:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_write_metadata_file_formats_keys(self, temp_output_dir):
+    async def test_write_metadata_file_formats_keys(self, temp_output_dir: Path) -> None:
         """Test _write_metadata_file formats underscore keys to title case."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -464,7 +473,7 @@ class TestFileWriting:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_write_shopify_file_formats_keys(self, temp_output_dir):
+    async def test_write_shopify_file_formats_keys(self, temp_output_dir: Path) -> None:
         """Test _write_shopify_file formats underscore keys to title case."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -484,7 +493,7 @@ class TestFileWriting:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_write_text_file_creates_parent_dirs(self, temp_output_dir):
+    async def test_write_text_file_creates_parent_dirs(self, temp_output_dir: Path) -> None:
         """Test _write_text_file creates parent directories if needed."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -511,7 +520,9 @@ class TestConverterIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_convert_basic_flow_with_mocks(self, temp_output_dir, sample_html):
+    async def test_convert_basic_flow_with_mocks(
+        self, temp_output_dir: Path, sample_html: str
+    ) -> None:
         """Test convert method with mocked HTTP and processors."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -545,7 +556,9 @@ class TestConverterIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_convert_calls_progress_callback(self, temp_output_dir, sample_html):
+    async def test_convert_calls_progress_callback(
+        self, temp_output_dir: Path, sample_html: str
+    ) -> None:
         """Test convert method calls progress callback with correct values."""
         # Arrange
         converter = AsyncWordPressConverter(
@@ -553,7 +566,7 @@ class TestConverterIntegration:
         )
         progress_values = []
 
-        def progress_callback(value):
+        def progress_callback(value: int) -> None:
             progress_values.append(value)
 
         # Mock dependencies
@@ -577,7 +590,7 @@ class TestConverterIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_convert_handles_exception(self, temp_output_dir):
+    async def test_convert_handles_exception(self, temp_output_dir: Path) -> None:
         """Test convert method wraps exceptions in ConversionError."""
         # Arrange
         converter = AsyncWordPressConverter(

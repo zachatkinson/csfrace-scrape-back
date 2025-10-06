@@ -7,11 +7,11 @@ import asyncio
 from src.core.decorators import monitoring_error_handler
 from src.core.logging_hierarchy import get_monitoring_logger
 
-from .alerts import AlertConfig, alert_manager
-from .health import HealthConfig, health_checker
-from .metrics import MetricsConfig, metrics_collector
+from .alerts import AlertConfig, AlertManager, alert_manager
+from .health import HealthChecker, HealthConfig, health_checker
+from .metrics import MetricsCollector, MetricsConfig, metrics_collector
 from .performance import PerformanceConfig, performance_monitor
-from .tracing import TracingConfig, distributed_tracer
+from .tracing import DistributedTracer, TracingConfig, distributed_tracer
 
 logger = get_monitoring_logger()
 
@@ -178,25 +178,25 @@ class ObservabilityManager:
 
 
 @monitoring_error_handler("start metrics collector")
-async def _start_metrics_collector_safe(metrics_collector) -> None:
+async def _start_metrics_collector_safe(metrics_collector: MetricsCollector) -> None:
     """Safely start metrics collector."""
     await metrics_collector.start_collection()
 
 
 @monitoring_error_handler("start health checker")
-async def _start_health_checker_safe(health_checker) -> None:
+async def _start_health_checker_safe(health_checker: HealthChecker) -> None:
     """Safely start health checker."""
     await health_checker.start_monitoring()
 
 
 @monitoring_error_handler("start alert manager")
-async def _start_alert_manager_safe(alert_manager) -> None:
+async def _start_alert_manager_safe(alert_manager: AlertManager) -> None:
     """Safely start alert manager."""
     await alert_manager.start_evaluation()
 
 
 @monitoring_error_handler("initialize tracer")
-async def _initialize_tracer_safe(tracer) -> None:
+async def _initialize_tracer_safe(tracer: DistributedTracer) -> None:
     """Safely initialize distributed tracer."""
     tracer.initialize()
 

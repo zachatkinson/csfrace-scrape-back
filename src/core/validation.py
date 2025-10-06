@@ -7,7 +7,7 @@ Single source of truth for ALL validation logic across the entire codebase.
 import re
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 from uuid import UUID
 
 from src.core.decorators import database_error_handler
@@ -443,7 +443,7 @@ class BulkValidator:
 
     @staticmethod
     @database_error_handler("parse URL")
-    def _parse_url_safe(url_value: str, _field_name: str):
+    def _parse_url_safe(url_value: str, _field_name: str) -> ParseResult:
         """Parse URL with error handling."""
         return urlparse(url_value)
 

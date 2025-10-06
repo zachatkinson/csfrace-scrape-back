@@ -23,8 +23,8 @@ class SessionFactory:
         verify_ssl: bool = True,
         ssl_context: Any = None,
         user_agent: str = "Enhanced Session Manager/1.0",
-        custom_headers: dict[str, str] = None,
-        cookie_jar: aiohttp.CookieJar = None,
+        custom_headers: dict[str, str] | None = None,
+        cookie_jar: aiohttp.CookieJar | None = None,
     ) -> ClientSession:
         """Create a configured HTTP session.
 

@@ -4,7 +4,9 @@ Test coverage: 54 statements, 52% → 85%+
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from collections.abc import Generator
 from enum import Enum
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -24,15 +26,15 @@ from src.database.utils import (
 
 
 @pytest.fixture
-def mock_connection():
+def mock_connection() -> Generator[Mock]:
     """Factory for mock SQLAlchemy connection - DRY principle."""
     connection = Mock(spec=Connection)
     connection.execute = Mock()
-    return connection
+    yield connection
 
 
 @pytest.fixture
-def sample_enum_class():
+def sample_enum_class() -> type[Enum]:
     """Factory for sample Enum class - DRY principle."""
 
     class SampleStatus(str, Enum):
@@ -44,13 +46,13 @@ def sample_enum_class():
 
 
 @pytest.fixture
-def sample_enum_definitions(sample_enum_class):
+def sample_enum_definitions(sample_enum_class: type[Enum]) -> list[tuple[str, type[Enum]]]:
     """Factory for sample enum definitions - DRY principle."""
     return [("sample_status", sample_enum_class)]
 
 
 @pytest.fixture
-def mock_env_vars():
+def mock_env_vars() -> dict[str, Any]:
     """Factory for mock environment variables - DRY principle."""
     return {
         "DATABASE_URL": None,
@@ -71,7 +73,9 @@ def mock_env_vars():
 class TestCreatePostgreSQLEnumsSuccess:
     """Test create_postgresql_enums success cases."""
 
-    def test_create_enum_when_not_exists(self, mock_connection, sample_enum_definitions):
+    def test_create_enum_when_not_exists(
+        self, mock_connection: Mock, sample_enum_definitions: list[tuple[str, type[Enum]]]
+    ) -> None:
         """Test creates enum when it doesn't exist."""
         # Arrange
         mock_result = Mock()
@@ -90,7 +94,9 @@ class TestCreatePostgreSQLEnumsSuccess:
         mock_pg_enum.assert_called_once()
         mock_enum_instance.create.assert_called_once_with(mock_connection, checkfirst=True)
 
-    def test_skips_existing_enum(self, mock_connection, sample_enum_definitions):
+    def test_skips_existing_enum(
+        self, mock_connection: Mock, sample_enum_definitions: list[tuple[str, type[Enum]]]
+    ) -> None:
         """Test skips creating enum when it already exists."""
         # Arrange
         mock_result = Mock()
@@ -105,7 +111,9 @@ class TestCreatePostgreSQLEnumsSuccess:
         mock_connection.execute.assert_called_once()
         mock_pg_enum.assert_not_called()  # Should not attempt creation
 
-    def test_handles_multiple_enums(self, mock_connection, sample_enum_class):
+    def test_handles_multiple_enums(
+        self, mock_connection: Mock, sample_enum_class: type[Enum]
+    ) -> None:
         """Test handles multiple enum definitions."""
 
         # Arrange
@@ -113,7 +121,10 @@ class TestCreatePostgreSQLEnumsSuccess:
             ACTIVE = "active"
             INACTIVE = "inactive"
 
-        enum_defs = [("first_enum", sample_enum_class), ("second_enum", SecondEnum)]
+        enum_defs: list[tuple[str, type[Enum]]] = [
+            ("first_enum", sample_enum_class),
+            ("second_enum", SecondEnum),
+        ]
         mock_result = Mock()
         mock_result.scalar = Mock(return_value=False)
         mock_connection.execute = Mock(return_value=mock_result)
@@ -140,8 +151,8 @@ class TestCreatePostgreSQLEnumsErrors:
     """Test create_postgresql_enums error handling."""
 
     def test_handles_concurrent_creation_already_exists(
-        self, mock_connection, sample_enum_definitions
-    ):
+        self, mock_connection: Mock, sample_enum_definitions: list[tuple[str, type[Enum]]]
+    ) -> None:
         """Test handles concurrent enum creation gracefully."""
         # Arrange
         mock_result = Mock()
@@ -150,8 +161,10 @@ class TestCreatePostgreSQLEnumsErrors:
 
         with patch("src.database.utils.PostgreSQLEnum") as mock_pg_enum:
             mock_enum_instance = Mock()
+            # Create mock exception with proper type
+            mock_exc = Mock(spec=Exception)
             mock_enum_instance.create.side_effect = sqlalchemy.exc.ProgrammingError(
-                "statement", "params", "orig", connection_invalidated=False
+                "statement", "params", mock_exc, connection_invalidated=False
             )
             # Mock the error message check
             mock_pg_enum.return_value = mock_enum_instance
@@ -162,7 +175,9 @@ class TestCreatePostgreSQLEnumsErrors:
                 # Act - should not raise
                 create_postgresql_enums(mock_connection, sample_enum_definitions)
 
-    def test_handles_duplicate_key_error(self, mock_connection, sample_enum_definitions):
+    def test_handles_duplicate_key_error(
+        self, mock_connection: Mock, sample_enum_definitions: list[tuple[str, type[Enum]]]
+    ) -> None:
         """Test handles duplicate key errors gracefully."""
         # Arrange
         mock_result = Mock()
@@ -171,7 +186,8 @@ class TestCreatePostgreSQLEnumsErrors:
 
         with patch("src.database.utils.PostgreSQLEnum") as mock_pg_enum:
             mock_enum_instance = Mock()
-            error = sqlalchemy.exc.IntegrityError("statement", "params", "orig")
+            mock_exc = Mock(spec=Exception)
+            error = sqlalchemy.exc.IntegrityError("statement", "params", mock_exc)
             mock_enum_instance.create.side_effect = error
             mock_pg_enum.return_value = mock_enum_instance
 
@@ -181,7 +197,9 @@ class TestCreatePostgreSQLEnumsErrors:
                 # Act - should not raise
                 create_postgresql_enums(mock_connection, sample_enum_definitions)
 
-    def test_handles_unique_constraint_violation(self, mock_connection, sample_enum_definitions):
+    def test_handles_unique_constraint_violation(
+        self, mock_connection: Mock, sample_enum_definitions: list[tuple[str, type[Enum]]]
+    ) -> None:
         """Test handles unique constraint violations gracefully."""
         # Arrange
         mock_result = Mock()
@@ -190,7 +208,8 @@ class TestCreatePostgreSQLEnumsErrors:
 
         with patch("src.database.utils.PostgreSQLEnum") as mock_pg_enum:
             mock_enum_instance = Mock()
-            error = sqlalchemy.exc.IntegrityError("statement", "params", "orig")
+            mock_exc = Mock(spec=Exception)
+            error = sqlalchemy.exc.IntegrityError("statement", "params", mock_exc)
             mock_enum_instance.create.side_effect = error
             mock_pg_enum.return_value = mock_enum_instance
 
@@ -200,7 +219,9 @@ class TestCreatePostgreSQLEnumsErrors:
                 # Act - should not raise
                 create_postgresql_enums(mock_connection, sample_enum_definitions)
 
-    def test_raises_non_concurrent_errors(self, mock_connection, sample_enum_definitions):
+    def test_raises_non_concurrent_errors(
+        self, mock_connection: Mock, sample_enum_definitions: list[tuple[str, type[Enum]]]
+    ) -> None:
         """Test raises non-concurrent errors."""
         # Arrange
         mock_result = Mock()
@@ -209,8 +230,9 @@ class TestCreatePostgreSQLEnumsErrors:
 
         with patch("src.database.utils.PostgreSQLEnum") as mock_pg_enum:
             mock_enum_instance = Mock()
+            mock_exc = Mock(spec=Exception)
             error = sqlalchemy.exc.ProgrammingError(
-                "statement", "params", "orig", connection_invalidated=False
+                "statement", "params", mock_exc, connection_invalidated=False
             )
             mock_enum_instance.create.side_effect = error
             mock_pg_enum.return_value = mock_enum_instance
@@ -232,7 +254,7 @@ class TestCreatePostgreSQLEnumsErrors:
 class TestGetStandardEnumDefinitions:
     """Test get_standard_enum_definitions function."""
 
-    def test_returns_list_of_tuples(self):
+    def test_returns_list_of_tuples(self) -> None:
         """Test returns list of tuples."""
         # Act
         result = get_standard_enum_definitions()
@@ -242,7 +264,7 @@ class TestGetStandardEnumDefinitions:
         assert all(isinstance(item, tuple) for item in result)
         assert all(len(item) == 2 for item in result)
 
-    def test_includes_jobstatus_enum(self):
+    def test_includes_jobstatus_enum(self) -> None:
         """Test includes JobStatus enum."""
         # Act
         result = get_standard_enum_definitions()
@@ -251,7 +273,7 @@ class TestGetStandardEnumDefinitions:
         enum_names = [name for name, _ in result]
         assert "jobstatus" in enum_names
 
-    def test_includes_jobpriority_when_available(self):
+    def test_includes_jobpriority_when_available(self) -> None:
         """Test includes JobPriority enum when available."""
         # Act
         result = get_standard_enum_definitions()
@@ -271,7 +293,7 @@ class TestGetStandardEnumDefinitions:
 class TestGetDatabaseURL:
     """Test get_database_url function."""
 
-    def test_uses_database_url_env_var_when_set(self, mock_env_vars):
+    def test_uses_database_url_env_var_when_set(self, mock_env_vars: dict[str, Any]) -> None:
         """Test uses DATABASE_URL environment variable when set."""
         # Arrange
         mock_env_vars["DATABASE_URL"] = "postgresql://user:pass@host:5432/db"
@@ -283,10 +305,10 @@ class TestGetDatabaseURL:
         # Assert
         assert result == "postgresql+psycopg://user:pass@host:5432/db"
 
-    def test_converts_postgresql_to_psycopg_driver(self):
+    def test_converts_postgresql_to_psycopg_driver(self) -> None:
         """Test converts postgresql:// to postgresql+psycopg://."""
         # Arrange
-        env_vars = {"DATABASE_URL": "postgresql://user:pass@host:5432/db"}
+        env_vars: dict[str, str] = {"DATABASE_URL": "postgresql://user:pass@host:5432/db"}
 
         with patch.dict("os.environ", env_vars, clear=True):
             # Act
@@ -295,10 +317,10 @@ class TestGetDatabaseURL:
         # Assert
         assert "postgresql+psycopg://" in result
 
-    def test_builds_url_from_individual_vars(self):
+    def test_builds_url_from_individual_vars(self) -> None:
         """Test builds URL from individual environment variables."""
         # Arrange
-        env_vars = {
+        env_vars: dict[str, str] = {
             "DATABASE_HOST": "testhost",
             "DATABASE_PORT": "5433",
             "DATABASE_NAME": "testdb",
@@ -313,10 +335,10 @@ class TestGetDatabaseURL:
         # Assert
         assert result == "postgresql+psycopg://testuser:testpass@testhost:5433/testdb"
 
-    def test_uses_default_host(self):
+    def test_uses_default_host(self) -> None:
         """Test uses default host when not set."""
         # Arrange
-        env_vars = {
+        env_vars: dict[str, str] = {
             "DATABASE_NAME": "testdb",
             "DATABASE_USER": "testuser",
             "DATABASE_PASSWORD": "testpass",
@@ -329,10 +351,10 @@ class TestGetDatabaseURL:
         # Assert
         assert "localhost" in result
 
-    def test_uses_default_port(self):
+    def test_uses_default_port(self) -> None:
         """Test uses default port when not set."""
         # Arrange
-        env_vars = {
+        env_vars: dict[str, str] = {
             "DATABASE_HOST": "testhost",
             "DATABASE_NAME": "testdb",
             "DATABASE_USER": "testuser",
@@ -346,10 +368,10 @@ class TestGetDatabaseURL:
         # Assert
         assert ":5432/" in result
 
-    def test_uses_default_database_name(self):
+    def test_uses_default_database_name(self) -> None:
         """Test uses default database name when not set."""
         # Arrange
-        env_vars = {"DATABASE_USER": "testuser", "DATABASE_PASSWORD": "testpass"}
+        env_vars: dict[str, str] = {"DATABASE_USER": "testuser", "DATABASE_PASSWORD": "testpass"}
 
         with patch.dict("os.environ", env_vars, clear=True):
             # Act
@@ -358,10 +380,10 @@ class TestGetDatabaseURL:
         # Assert
         assert "scraper_db" in result
 
-    def test_uses_default_username(self):
+    def test_uses_default_username(self) -> None:
         """Test uses default username when not set."""
         # Arrange
-        env_vars = {"DATABASE_NAME": "testdb", "DATABASE_PASSWORD": "testpass"}
+        env_vars: dict[str, str] = {"DATABASE_NAME": "testdb", "DATABASE_PASSWORD": "testpass"}
 
         with patch.dict("os.environ", env_vars, clear=True):
             # Act
@@ -370,10 +392,10 @@ class TestGetDatabaseURL:
         # Assert
         assert "postgres:" in result
 
-    def test_uses_default_password(self):
+    def test_uses_default_password(self) -> None:
         """Test uses default password when not set."""
         # Arrange
-        env_vars = {"DATABASE_NAME": "testdb", "DATABASE_USER": "testuser"}
+        env_vars: dict[str, str] = {"DATABASE_NAME": "testdb", "DATABASE_USER": "testuser"}
 
         with patch.dict("os.environ", env_vars, clear=True):
             # Act
@@ -392,7 +414,7 @@ class TestGetDatabaseURL:
 class TestDatabaseConnection:
     """Test test_database_connection function."""
 
-    def test_successful_connection_returns_true(self):
+    def test_successful_connection_returns_true(self) -> None:
         """Test successful database connection returns True."""
         # Arrange
         mock_engine = Mock()
@@ -412,7 +434,7 @@ class TestDatabaseConnection:
         assert result is True
         mock_connection.execute.assert_called_once()
 
-    def test_failed_connection_raises_exception(self):
+    def test_failed_connection_raises_exception(self) -> None:
         """Test failed database connection raises exception."""
         # Arrange
         with (
@@ -423,7 +445,7 @@ class TestDatabaseConnection:
             with pytest.raises(Exception, match="Connection failed"):
                 util_test_database_connection()
 
-    def test_masks_credentials_in_log(self):
+    def test_masks_credentials_in_log(self) -> None:
         """Test masks credentials in log messages."""
         # Arrange
         mock_engine = Mock()

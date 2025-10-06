@@ -24,7 +24,7 @@ from src.auth.services.oauth_validation_service import OAuthValidationService
 
 
 @pytest.fixture
-def valid_google_callback():
+def valid_google_callback() -> OAuthCallback:
     """Factory for valid Google OAuth callback data - DRY principle."""
     return OAuthCallback(
         provider=OAuthProvider.GOOGLE,
@@ -36,7 +36,7 @@ def valid_google_callback():
 
 
 @pytest.fixture
-def valid_github_callback():
+def valid_github_callback() -> OAuthCallback:
     """Factory for valid GitHub OAuth callback data."""
     return OAuthCallback(
         provider=OAuthProvider.GITHUB,
@@ -48,7 +48,7 @@ def valid_github_callback():
 
 
 @pytest.fixture
-def callback_with_error():
+def callback_with_error() -> OAuthCallback:
     """Factory for OAuth callback with error."""
     # When OAuth error occurs, code/state might not be sent, but Pydantic requires them
     # Provide dummy values - validation service checks error field first anyway
@@ -62,7 +62,7 @@ def callback_with_error():
 
 
 @pytest.fixture
-def callback_missing_code():
+def callback_missing_code() -> OAuthCallback:
     """Factory for OAuth callback missing authorization code."""
     # Use empty string to represent missing code (Pydantic requires string type)
     return OAuthCallback(
@@ -75,7 +75,7 @@ def callback_missing_code():
 
 
 @pytest.fixture
-def callback_missing_state():
+def callback_missing_state() -> OAuthCallback:
     """Factory for OAuth callback missing state parameter."""
     # Use empty string to represent missing state (Pydantic requires string type)
     return OAuthCallback(
@@ -96,7 +96,9 @@ class TestValidateCallbackParameters:
     """Test main validation entry point - Lines 17-31."""
 
     @pytest.mark.unit
-    def test_validate_callback_parameters_success(self, valid_google_callback):
+    def test_validate_callback_parameters_success(
+        self, valid_google_callback: OAuthCallback
+    ) -> None:
         """Test validate_callback_parameters succeeds with valid data.
 
         AAA Pattern:
@@ -115,7 +117,9 @@ class TestValidateCallbackParameters:
             pytest.fail("validate_callback_parameters raised HTTPException unexpectedly")
 
     @pytest.mark.unit
-    def test_validate_callback_parameters_with_error(self, callback_with_error):
+    def test_validate_callback_parameters_with_error(
+        self, callback_with_error: OAuthCallback
+    ) -> None:
         """Test validate_callback_parameters fails when callback has error."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -129,7 +133,9 @@ class TestValidateCallbackParameters:
         assert "User denied access" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_callback_parameters_provider_mismatch(self, valid_google_callback):
+    def test_validate_callback_parameters_provider_mismatch(
+        self, valid_google_callback: OAuthCallback
+    ) -> None:
         """Test validate_callback_parameters fails on provider mismatch."""
         # Act & Assert - Expect GitHub but callback has Google
         with pytest.raises(HTTPException) as exc_info:
@@ -153,7 +159,7 @@ class TestValidateOAuthErrors:
     """Test OAuth error validation - SECURITY REQUIREMENT."""
 
     @pytest.mark.unit
-    def test_validate_oauth_errors_no_error(self, valid_google_callback):
+    def test_validate_oauth_errors_no_error(self, valid_google_callback: OAuthCallback) -> None:
         """Test _validate_oauth_errors succeeds when no error present."""
         # Act & Assert - Should not raise exception
         try:
@@ -164,7 +170,7 @@ class TestValidateOAuthErrors:
             pytest.fail("_validate_oauth_errors raised HTTPException unexpectedly")
 
     @pytest.mark.unit
-    def test_validate_oauth_errors_with_error_and_description(self):
+    def test_validate_oauth_errors_with_error_and_description(self) -> None:
         """Test _validate_oauth_errors fails with error and description."""
         # Arrange - Provide dummy code/state since Pydantic requires them
         callback = OAuthCallback(
@@ -186,7 +192,7 @@ class TestValidateOAuthErrors:
         assert "User cancelled authorization" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_oauth_errors_with_error_no_description(self):
+    def test_validate_oauth_errors_with_error_no_description(self) -> None:
         """Test _validate_oauth_errors uses error when description missing."""
         # Arrange - Provide dummy code/state since Pydantic requires them
         callback = OAuthCallback(
@@ -208,7 +214,7 @@ class TestValidateOAuthErrors:
         assert "server_error" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_oauth_errors_invalid_grant(self):
+    def test_validate_oauth_errors_invalid_grant(self) -> None:
         """Test _validate_oauth_errors handles invalid_grant error."""
         # Arrange - Provide dummy code/state since Pydantic requires them
         callback = OAuthCallback(
@@ -230,7 +236,7 @@ class TestValidateOAuthErrors:
         assert "authorization grant is invalid" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_oauth_errors_empty_error_string(self):
+    def test_validate_oauth_errors_empty_error_string(self) -> None:
         """Test _validate_oauth_errors treats empty string as no error (Python falsy behavior)."""
         # Arrange - Empty string is falsy in Python, treated as no error
         callback = OAuthCallback(
@@ -259,7 +265,9 @@ class TestValidateProviderConsistency:
     """Test provider consistency validation - CSRF PROTECTION."""
 
     @pytest.mark.unit
-    def test_validate_provider_consistency_match(self, valid_google_callback):
+    def test_validate_provider_consistency_match(
+        self, valid_google_callback: OAuthCallback
+    ) -> None:
         """Test _validate_provider_consistency succeeds with matching providers."""
         # Act & Assert - Should not raise exception
         try:
@@ -270,7 +278,9 @@ class TestValidateProviderConsistency:
             pytest.fail("_validate_provider_consistency raised HTTPException unexpectedly")
 
     @pytest.mark.unit
-    def test_validate_provider_consistency_google_github_mismatch(self, valid_google_callback):
+    def test_validate_provider_consistency_google_github_mismatch(
+        self, valid_google_callback: OAuthCallback
+    ) -> None:
         """Test _validate_provider_consistency fails on Google vs GitHub mismatch."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -284,7 +294,9 @@ class TestValidateProviderConsistency:
         assert "CSRF" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_provider_consistency_github_google_mismatch(self, valid_github_callback):
+    def test_validate_provider_consistency_github_google_mismatch(
+        self, valid_github_callback: OAuthCallback
+    ) -> None:
         """Test _validate_provider_consistency fails on GitHub vs Google mismatch."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -298,7 +310,9 @@ class TestValidateProviderConsistency:
         assert "CSRF" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_provider_consistency_github_match(self, valid_github_callback):
+    def test_validate_provider_consistency_github_match(
+        self, valid_github_callback: OAuthCallback
+    ) -> None:
         """Test _validate_provider_consistency succeeds with GitHub match."""
         # Act & Assert - Should not raise exception
         try:
@@ -318,7 +332,9 @@ class TestValidateRequiredParameters:
     """Test required parameter validation - SECURITY REQUIREMENT."""
 
     @pytest.mark.unit
-    def test_validate_required_parameters_success(self, valid_google_callback):
+    def test_validate_required_parameters_success(
+        self, valid_google_callback: OAuthCallback
+    ) -> None:
         """Test _validate_required_parameters succeeds with all required params."""
         # Act & Assert - Should not raise exception
         try:
@@ -329,7 +345,9 @@ class TestValidateRequiredParameters:
             pytest.fail("_validate_required_parameters raised HTTPException unexpectedly")
 
     @pytest.mark.unit
-    def test_validate_required_parameters_missing_code(self, callback_missing_code):
+    def test_validate_required_parameters_missing_code(
+        self, callback_missing_code: OAuthCallback
+    ) -> None:
         """Test _validate_required_parameters fails when code missing."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -341,7 +359,9 @@ class TestValidateRequiredParameters:
         assert "Missing authorization code" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_required_parameters_missing_state(self, callback_missing_state):
+    def test_validate_required_parameters_missing_state(
+        self, callback_missing_state: OAuthCallback
+    ) -> None:
         """Test _validate_required_parameters fails when state missing."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -353,7 +373,7 @@ class TestValidateRequiredParameters:
         assert "Missing state parameter" in exc_info.value.detail
 
     @pytest.mark.unit
-    def test_validate_required_parameters_empty_code(self):
+    def test_validate_required_parameters_empty_code(self) -> None:
         """Test _validate_required_parameters fails when code is empty string."""
         # Arrange
         callback = OAuthCallback(
@@ -383,7 +403,7 @@ class TestOAuthValidationIntegration:
     """Test complete validation flow - INTEGRATION."""
 
     @pytest.mark.unit
-    def test_full_validation_flow_success(self, valid_google_callback):
+    def test_full_validation_flow_success(self, valid_google_callback: OAuthCallback) -> None:
         """Test complete validation flow with valid callback.
 
         AAA Pattern:
@@ -400,7 +420,7 @@ class TestOAuthValidationIntegration:
             pytest.fail("Full validation failed unexpectedly")
 
     @pytest.mark.unit
-    def test_full_validation_flow_multiple_errors(self):
+    def test_full_validation_flow_multiple_errors(self) -> None:
         """Test validation stops at first error in chain.
 
         Validation order:

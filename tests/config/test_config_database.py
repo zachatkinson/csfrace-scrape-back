@@ -18,7 +18,7 @@ from src.config.database import DatabaseConfig
 class TestDatabaseConfigInitialization:
     """Test DatabaseConfig initialization and defaults."""
 
-    def test_initialization_with_required_fields(self):
+    def test_initialization_with_required_fields(self) -> None:
         """Test initialization with required DATABASE_URL."""
         # Arrange & Act
         config = DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb")
@@ -29,7 +29,7 @@ class TestDatabaseConfigInitialization:
         assert config.max_overflow == 30
         assert config.pool_timeout == 30
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = DatabaseConfig(
@@ -44,7 +44,7 @@ class TestDatabaseConfigInitialization:
         assert config.max_overflow == 20
         assert config.pool_timeout == 60
 
-    def test_initialization_sets_default_values(self):
+    def test_initialization_sets_default_values(self) -> None:
         """Test initialization sets correct default values."""
         # Arrange & Act
         config = DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb")
@@ -79,7 +79,7 @@ class TestDatabaseConfigIsolationLevel:
         "level",
         ["READ_UNCOMMITTED", "READ_COMMITTED", "REPEATABLE_READ", "SERIALIZABLE"],
     )
-    def test_validate_isolation_level_accepts_valid_levels(self, level):
+    def test_validate_isolation_level_accepts_valid_levels(self, level: str) -> None:
         """Test accepts all valid isolation levels."""
         # Arrange & Act
         config = DatabaseConfig(
@@ -92,7 +92,7 @@ class TestDatabaseConfigIsolationLevel:
     @pytest.mark.parametrize(
         "level", ["read_committed", "Read_Committed", "SERIALIZABLE", "repeatable_read"]
     )
-    def test_validate_isolation_level_normalizes_case(self, level):
+    def test_validate_isolation_level_normalizes_case(self, level: str) -> None:
         """Test normalizes isolation level to uppercase."""
         # Arrange & Act
         config = DatabaseConfig(
@@ -102,7 +102,7 @@ class TestDatabaseConfigIsolationLevel:
         # Assert
         assert config.isolation_level == level.upper()
 
-    def test_validate_isolation_level_rejects_invalid_level(self):
+    def test_validate_isolation_level_rejects_invalid_level(self) -> None:
         """Test rejects invalid isolation level."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="isolation_level must be one of"):
@@ -121,7 +121,7 @@ class TestDatabaseConfigIsolationLevel:
 class TestDatabaseConfigPoolSettings:
     """Test DatabaseConfig.validate_pool_settings() validation."""
 
-    def test_validate_pool_settings_accepts_positive_pool_size(self):
+    def test_validate_pool_settings_accepts_positive_pool_size(self) -> None:
         """Test accepts positive pool_size."""
         # Arrange & Act
         config = DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", pool_size=50)
@@ -129,7 +129,7 @@ class TestDatabaseConfigPoolSettings:
         # Assert
         assert config.pool_size == 50
 
-    def test_validate_pool_settings_accepts_positive_max_overflow(self):
+    def test_validate_pool_settings_accepts_positive_max_overflow(self) -> None:
         """Test accepts positive max_overflow."""
         # Arrange & Act
         config = DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", max_overflow=100)
@@ -137,19 +137,19 @@ class TestDatabaseConfigPoolSettings:
         # Assert
         assert config.max_overflow == 100
 
-    def test_validate_pool_settings_rejects_negative_pool_size(self):
+    def test_validate_pool_settings_rejects_negative_pool_size(self) -> None:
         """Test rejects negative pool_size."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="Pool setting cannot be negative"):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", pool_size=-1)
 
-    def test_validate_pool_settings_rejects_negative_max_overflow(self):
+    def test_validate_pool_settings_rejects_negative_max_overflow(self) -> None:
         """Test rejects negative max_overflow."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="Pool setting cannot be negative"):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", max_overflow=-1)
 
-    def test_validate_pool_settings_enforces_pydantic_constraints(self):
+    def test_validate_pool_settings_enforces_pydantic_constraints(self) -> None:
         """Test Pydantic enforces ge/le constraints."""
         # Arrange & Act & Assert - pool_size must be >= 1
         with pytest.raises(ValidationError):
@@ -169,7 +169,7 @@ class TestDatabaseConfigPoolSettings:
 class TestDatabaseConfigGetEngineKwargs:
     """Test DatabaseConfig.get_engine_kwargs() method."""
 
-    def test_get_engine_kwargs_returns_correct_structure(self):
+    def test_get_engine_kwargs_returns_correct_structure(self) -> None:
         """Test returns dictionary with all engine kwargs."""
         # Arrange
         config = DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb")
@@ -188,7 +188,7 @@ class TestDatabaseConfigGetEngineKwargs:
         assert "isolation_level" in kwargs
         assert "connect_args" in kwargs
 
-    def test_get_engine_kwargs_includes_connect_args(self):
+    def test_get_engine_kwargs_includes_connect_args(self) -> None:
         """Test includes connect_args with proper values."""
         # Arrange
         config = DatabaseConfig(
@@ -205,7 +205,7 @@ class TestDatabaseConfigGetEngineKwargs:
         assert kwargs["connect_args"]["connect_timeout"] == 20
         assert kwargs["connect_args"]["application_name"] == "test-app"
 
-    def test_get_engine_kwargs_reflects_config_values(self):
+    def test_get_engine_kwargs_reflects_config_values(self) -> None:
         """Test engine kwargs reflect config values."""
         # Arrange
         config = DatabaseConfig(
@@ -241,7 +241,7 @@ class TestDatabaseConfigGetEngineKwargs:
 class TestDatabaseConfigGetConnectionInfo:
     """Test DatabaseConfig.get_connection_info() method."""
 
-    def test_get_connection_info_parses_url_successfully(self):
+    def test_get_connection_info_parses_url_successfully(self) -> None:
         """Test parses DATABASE_URL and extracts connection info."""
         # Arrange
         config = DatabaseConfig(
@@ -259,7 +259,7 @@ class TestDatabaseConfigGetConnectionInfo:
         assert info["pool_size"] == 30
         assert "password" not in info  # Password should not be logged
 
-    def test_get_connection_info_handles_url_without_port(self):
+    def test_get_connection_info_handles_url_without_port(self) -> None:
         """Test handles DATABASE_URL without explicit port."""
         # Arrange
         config = DatabaseConfig(DATABASE_URL="postgresql://user:pass@hostname/dbname")
@@ -272,14 +272,14 @@ class TestDatabaseConfigGetConnectionInfo:
         assert info["port"] is None
         assert info["database"] == "dbname"
 
-    def test_get_connection_info_handles_parsing_error(self):
+    def test_get_connection_info_handles_parsing_error(self) -> None:
         """Test gracefully handles URL parsing errors."""
         # Arrange - invalid URL fails DatabaseMixin validation during initialization
         # Act & Assert - expect ValidationError from DatabaseMixin
         with pytest.raises(ValidationError, match="DATABASE_URL must be a valid PostgreSQL URL"):
             DatabaseConfig(DATABASE_URL="invalid-url")
 
-    def test_get_connection_info_includes_application_name(self):
+    def test_get_connection_info_includes_application_name(self) -> None:
         """Test includes application_name in connection info."""
         # Arrange
         config = DatabaseConfig(
@@ -302,7 +302,7 @@ class TestDatabaseConfigGetConnectionInfo:
 class TestDatabaseConfigValidateConnectionUrl:
     """Test DatabaseConfig.validate_connection_url() method."""
 
-    def test_validate_connection_url_accepts_valid_postgresql_url(self):
+    def test_validate_connection_url_accepts_valid_postgresql_url(self) -> None:
         """Test accepts valid postgresql:// URL."""
         # Arrange
         config = DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb")
@@ -312,7 +312,7 @@ class TestDatabaseConfigValidateConnectionUrl:
 
         # Assert - Implicit success
 
-    def test_validate_connection_url_accepts_valid_postgres_url(self):
+    def test_validate_connection_url_accepts_valid_postgres_url(self) -> None:
         """Test accepts valid postgres:// URL."""
         # Arrange
         config = DatabaseConfig(DATABASE_URL="postgres://localhost:5432/testdb")
@@ -322,14 +322,14 @@ class TestDatabaseConfigValidateConnectionUrl:
 
         # Assert - Implicit success
 
-    def test_validate_connection_url_rejects_non_postgresql_url(self):
+    def test_validate_connection_url_rejects_non_postgresql_url(self) -> None:
         """Test rejects non-PostgreSQL URLs."""
         # Arrange - DatabaseMixin validator runs during initialization
         # Act & Assert - expect ValidationError during initialization
         with pytest.raises(ValidationError, match="DATABASE_URL must be a valid PostgreSQL URL"):
             DatabaseConfig(DATABASE_URL="mysql://localhost:3306/testdb")
 
-    def test_validate_connection_url_calls_get_connection_info(self):
+    def test_validate_connection_url_calls_get_connection_info(self) -> None:
         """Test calls get_connection_info for logging."""
         # Arrange
         config = DatabaseConfig(DATABASE_URL="postgresql://user@localhost:5432/testdb")
@@ -351,31 +351,31 @@ class TestDatabaseConfigValidateConnectionUrl:
 class TestDatabaseConfigFieldConstraints:
     """Test Pydantic field constraints are enforced."""
 
-    def test_pool_timeout_enforces_minimum(self):
+    def test_pool_timeout_enforces_minimum(self) -> None:
         """Test pool_timeout enforces minimum value of 1."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", pool_timeout=0)
 
-    def test_pool_timeout_enforces_maximum(self):
+    def test_pool_timeout_enforces_maximum(self) -> None:
         """Test pool_timeout enforces maximum value of 300."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", pool_timeout=301)
 
-    def test_pool_recycle_enforces_minimum(self):
+    def test_pool_recycle_enforces_minimum(self) -> None:
         """Test pool_recycle enforces minimum value of 300."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", pool_recycle=299)
 
-    def test_pool_recycle_enforces_maximum(self):
+    def test_pool_recycle_enforces_maximum(self) -> None:
         """Test pool_recycle enforces maximum value of 86400."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", pool_recycle=86401)
 
-    def test_connect_timeout_enforces_range(self):
+    def test_connect_timeout_enforces_range(self) -> None:
         """Test connect_timeout enforces range 1-60."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -385,7 +385,7 @@ class TestDatabaseConfigFieldConstraints:
         with pytest.raises(ValidationError):
             DatabaseConfig(DATABASE_URL="postgresql://localhost:5432/testdb", connect_timeout=61)
 
-    def test_slow_query_threshold_enforces_range(self):
+    def test_slow_query_threshold_enforces_range(self) -> None:
         """Test slow_query_threshold enforces range 0.1-60.0."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):

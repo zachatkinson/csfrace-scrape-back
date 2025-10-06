@@ -10,28 +10,44 @@ This module tests all logging-related database operations:
 - Edge cases with context data
 """
 
+from typing import Any
+
 import pytest
+from sqlalchemy.orm import Session
 
 from src.core.exceptions import ValidationError
 from src.database.models.auth import (
     User,  # noqa: F401 - Import at module level for test_database_engine
 )
-from src.database.services.job_service import JobService
+from src.database.services.job_service import JobCreateRequest, JobService
 from src.database.services.logging_service import JobLogRequest, LoggingService
 from tests.conftest import JobFactory
+
+
+def create_job_request_typed(session: Session) -> JobCreateRequest:
+    """Typed wrapper for JobFactory.create_job_request to satisfy mypy strict mode.
+
+    JobFactory.create_job_request is untyped in conftest.py, so we wrap it here
+    with proper type annotations. This allows mypy --strict to pass for this test file
+    without requiring changes to conftest.py.
+    """
+    # Type ignore needed because create_job_request is untyped in conftest.py
+    # - no-any-return: The untyped function returns Any, which we're declaring as JobCreateRequest
+    return JobFactory.create_job_request(session=session)  # type: ignore[no-any-return]
 
 
 class TestLoggingServiceAddLog:
     """Test adding job log entries."""
 
     @pytest.mark.database
-    def test_add_job_log_basic(self, test_session):
+    def test_add_job_log_basic(self, test_session: Session) -> None:
         """Test adding basic job log entry."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         request = JobLogRequest(job_id=job.id, level="INFO", message="Test log message")
@@ -50,16 +66,21 @@ class TestLoggingServiceAddLog:
         assert log_entry.operation is None
 
     @pytest.mark.database
-    def test_add_job_log_with_all_fields(self, test_session):
+    def test_add_job_log_with_all_fields(self, test_session: Session) -> None:
         """Test adding log entry with all optional fields."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
-        context_data = {"url": "https://example.com", "retry_count": 2, "duration_ms": 1500}
+        context_data: dict[str, Any] = {
+            "url": "https://example.com",
+            "retry_count": 2,
+            "duration_ms": 1500,
+        }
 
         request = JobLogRequest(
             job_id=job.id,
@@ -80,13 +101,14 @@ class TestLoggingServiceAddLog:
         assert log_entry.context_data == context_data
 
     @pytest.mark.database
-    def test_add_job_log_level_normalization(self, test_session):
+    def test_add_job_log_level_normalization(self, test_session: Session) -> None:
         """Test log level is normalized to uppercase."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         request = JobLogRequest(job_id=job.id, level="debug", message="Debug message")
@@ -99,13 +121,14 @@ class TestLoggingServiceAddLog:
         assert log_entry.level == "DEBUG"
 
     @pytest.mark.database
-    def test_add_job_log_all_levels(self, test_session):
+    def test_add_job_log_all_levels(self, test_session: Session) -> None:
         """Test adding logs with all valid levels."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -118,13 +141,14 @@ class TestLoggingServiceAddLog:
             assert log_entry.level == level
 
     @pytest.mark.database
-    def test_add_job_log_message_trimmed(self, test_session):
+    def test_add_job_log_message_trimmed(self, test_session: Session) -> None:
         """Test log message is trimmed of whitespace."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         request = JobLogRequest(job_id=job.id, level="INFO", message="  Test message  ")
@@ -137,13 +161,14 @@ class TestLoggingServiceAddLog:
         assert log_entry.message == "Test message"
 
     @pytest.mark.database
-    def test_add_job_log_multiple_entries(self, test_session):
+    def test_add_job_log_multiple_entries(self, test_session: Session) -> None:
         """Test adding multiple log entries for same job."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Act
@@ -162,7 +187,7 @@ class TestLoggingServiceValidation:
     """Test validation and error handling."""
 
     @pytest.mark.database
-    def test_add_job_log_empty_job_id_raises_error(self, test_session):
+    def test_add_job_log_empty_job_id_raises_error(self, test_session: Session) -> None:
         """Test that empty job_id raises ValidationError."""
         # Arrange
         logging_service = LoggingService(test_session)
@@ -174,11 +199,12 @@ class TestLoggingServiceValidation:
         assert exc_info.value.details.get("field") == "job_id"
 
     @pytest.mark.database
-    def test_add_job_log_empty_message_raises_error(self, test_session):
+    def test_add_job_log_empty_message_raises_error(self, test_session: Session) -> None:
         """Test that empty message raises ValidationError."""
         # Arrange
         job_service = JobService(test_session)
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Act & Assert
@@ -188,11 +214,12 @@ class TestLoggingServiceValidation:
         assert exc_info.value.details.get("field") == "message"
 
     @pytest.mark.database
-    def test_add_job_log_whitespace_message_raises_error(self, test_session):
+    def test_add_job_log_whitespace_message_raises_error(self, test_session: Session) -> None:
         """Test that whitespace-only message raises ValidationError."""
         # Arrange
         job_service = JobService(test_session)
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Act & Assert
@@ -202,11 +229,12 @@ class TestLoggingServiceValidation:
         assert exc_info.value.details.get("field") == "message"
 
     @pytest.mark.database
-    def test_add_job_log_invalid_level_raises_error(self, test_session):
+    def test_add_job_log_invalid_level_raises_error(self, test_session: Session) -> None:
         """Test that invalid log level raises ValidationError."""
         # Arrange
         job_service = JobService(test_session)
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Act & Assert
@@ -220,13 +248,14 @@ class TestLoggingServiceGetLogs:
     """Test retrieving job logs."""
 
     @pytest.mark.database
-    def test_get_job_logs_basic(self, test_session):
+    def test_get_job_logs_basic(self, test_session: Session) -> None:
         """Test retrieving logs for a specific job."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Add logs
@@ -243,13 +272,14 @@ class TestLoggingServiceGetLogs:
         assert len(logs) == 3
 
     @pytest.mark.database
-    def test_get_job_logs_no_logs(self, test_session):
+    def test_get_job_logs_no_logs(self, test_session: Session) -> None:
         """Test retrieving logs for job with no logs."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Act
@@ -259,13 +289,14 @@ class TestLoggingServiceGetLogs:
         assert len(logs) == 0
 
     @pytest.mark.database
-    def test_get_job_logs_with_level_filter(self, test_session):
+    def test_get_job_logs_with_level_filter(self, test_session: Session) -> None:
         """Test retrieving logs filtered by level."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Add logs with different levels
@@ -283,13 +314,14 @@ class TestLoggingServiceGetLogs:
         assert all(log.level == "ERROR" for log in error_logs)
 
     @pytest.mark.database
-    def test_get_job_logs_ordered_newest_first(self, test_session):
+    def test_get_job_logs_ordered_newest_first(self, test_session: Session) -> None:
         """Test logs are ordered by timestamp (newest first)."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Add logs
@@ -307,13 +339,14 @@ class TestLoggingServiceGetLogs:
         assert logs[2].message == "First"
 
     @pytest.mark.database
-    def test_get_job_logs_respects_limit(self, test_session):
+    def test_get_job_logs_respects_limit(self, test_session: Session) -> None:
         """Test limit parameter restricts number of logs returned."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         # Add many logs
@@ -330,13 +363,14 @@ class TestLoggingServiceGetLogs:
         assert len(logs) == 5
 
     @pytest.mark.database
-    def test_get_job_logs_case_insensitive_level(self, test_session):
+    def test_get_job_logs_case_insensitive_level(self, test_session: Session) -> None:
         """Test level filter is case-insensitive."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         logging_service.add_job_log(JobLogRequest(job_id=job.id, level="ERROR", message="Error"))
@@ -353,7 +387,7 @@ class TestLoggingServiceRecentLogs:
     """Test getting recent logs across all jobs."""
 
     @pytest.mark.database
-    def test_get_recent_logs_basic(self, test_session):
+    def test_get_recent_logs_basic(self, test_session: Session) -> None:
         """Test getting recent logs across all jobs."""
         # Arrange
         job_service = JobService(test_session)
@@ -361,7 +395,8 @@ class TestLoggingServiceRecentLogs:
 
         # Create multiple jobs with logs
         for _ in range(3):
-            job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+            job_request = create_job_request_typed(test_session)
+            job = job_service.create_job(job_request)
             logging_service.add_job_log(JobLogRequest(job_id=job.id, level="INFO", message="Log"))
 
         test_session.commit()
@@ -373,13 +408,14 @@ class TestLoggingServiceRecentLogs:
         assert len(logs) == 3
 
     @pytest.mark.database
-    def test_get_recent_logs_respects_limit(self, test_session):
+    def test_get_recent_logs_respects_limit(self, test_session: Session) -> None:
         """Test recent logs respects limit parameter."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
 
         for i in range(10):
             logging_service.add_job_log(
@@ -395,7 +431,7 @@ class TestLoggingServiceRecentLogs:
         assert len(logs) == 5
 
     @pytest.mark.database
-    def test_get_recent_logs_no_logs(self, test_session):
+    def test_get_recent_logs_no_logs(self, test_session: Session) -> None:
         """Test getting recent logs when no logs exist."""
         # Arrange
         logging_service = LoggingService(test_session)
@@ -411,13 +447,14 @@ class TestLoggingServiceErrorLogs:
     """Test getting error-level logs."""
 
     @pytest.mark.database
-    def test_get_error_logs_basic(self, test_session):
+    def test_get_error_logs_basic(self, test_session: Session) -> None:
         """Test getting error-level logs."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
 
         # Add logs with different levels
         logging_service.add_job_log(JobLogRequest(job_id=job.id, level="INFO", message="Info"))
@@ -439,13 +476,14 @@ class TestLoggingServiceErrorLogs:
         assert all(log.level in ["ERROR", "CRITICAL"] for log in error_logs)
 
     @pytest.mark.database
-    def test_get_error_logs_no_errors(self, test_session):
+    def test_get_error_logs_no_errors(self, test_session: Session) -> None:
         """Test getting error logs when no errors exist."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         logging_service.add_job_log(JobLogRequest(job_id=job.id, level="INFO", message="Info"))
         test_session.commit()
 
@@ -456,13 +494,14 @@ class TestLoggingServiceErrorLogs:
         assert len(error_logs) == 0
 
     @pytest.mark.database
-    def test_get_error_logs_respects_limit(self, test_session):
+    def test_get_error_logs_respects_limit(self, test_session: Session) -> None:
         """Test error logs respects limit parameter."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
 
         for i in range(10):
             logging_service.add_job_log(
@@ -482,13 +521,14 @@ class TestLoggingServiceCountLogs:
     """Test counting logs by level."""
 
     @pytest.mark.database
-    def test_count_logs_by_level_basic(self, test_session):
+    def test_count_logs_by_level_basic(self, test_session: Session) -> None:
         """Test counting logs by level for all jobs."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
 
         # Add logs with different levels
         logging_service.add_job_log(JobLogRequest(job_id=job.id, level="INFO", message="Info 1"))
@@ -509,14 +549,16 @@ class TestLoggingServiceCountLogs:
         assert counts["WARNING"] == 1
 
     @pytest.mark.database
-    def test_count_logs_by_level_with_job_filter(self, test_session):
+    def test_count_logs_by_level_with_job_filter(self, test_session: Session) -> None:
         """Test counting logs by level for specific job."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job1 = job_service.create_job(JobFactory.create_job_request(session=test_session))
-        job2 = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job1_request = create_job_request_typed(test_session)
+        job1 = job_service.create_job(job1_request)
+        job2_request = create_job_request_typed(test_session)
+        job2 = job_service.create_job(job2_request)
 
         # Add logs to different jobs
         logging_service.add_job_log(
@@ -540,7 +582,7 @@ class TestLoggingServiceCountLogs:
         assert len(counts) == 2  # Only job1 levels
 
     @pytest.mark.database
-    def test_count_logs_by_level_no_logs(self, test_session):
+    def test_count_logs_by_level_no_logs(self, test_session: Session) -> None:
         """Test counting logs when no logs exist."""
         # Arrange
         logging_service = LoggingService(test_session)
@@ -556,13 +598,14 @@ class TestLoggingServiceEdgeCases:
     """Test edge cases and special scenarios."""
 
     @pytest.mark.database
-    def test_add_job_log_null_context_data(self, test_session):
+    def test_add_job_log_null_context_data(self, test_session: Session) -> None:
         """Test adding log with None context_data."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         request = JobLogRequest(job_id=job.id, level="INFO", message="Test", context_data=None)
@@ -575,13 +618,14 @@ class TestLoggingServiceEdgeCases:
         assert log_entry.context_data is None
 
     @pytest.mark.database
-    def test_add_job_log_empty_context_data(self, test_session):
+    def test_add_job_log_empty_context_data(self, test_session: Session) -> None:
         """Test adding log with empty context_data dict."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         request = JobLogRequest(job_id=job.id, level="INFO", message="Test", context_data={})
@@ -594,16 +638,17 @@ class TestLoggingServiceEdgeCases:
         assert log_entry.context_data == {}
 
     @pytest.mark.database
-    def test_add_job_log_complex_context_data(self, test_session):
+    def test_add_job_log_complex_context_data(self, test_session: Session) -> None:
         """Test adding log with complex nested context_data."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
-        complex_context = {
+        complex_context: dict[str, Any] = {
             "nested": {"key1": "value1", "key2": 123},
             "list": [1, 2, 3],
             "mixed": {"list": [{"a": 1}]},
@@ -621,13 +666,14 @@ class TestLoggingServiceEdgeCases:
         assert log_entry.context_data == complex_context
 
     @pytest.mark.database
-    def test_add_job_log_very_long_message(self, test_session):
+    def test_add_job_log_very_long_message(self, test_session: Session) -> None:
         """Test adding log with very long message."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         long_message = "A" * 10000  # Very long message
@@ -643,13 +689,14 @@ class TestLoggingServiceEdgeCases:
         assert len(log_entry.message) == 10000
 
     @pytest.mark.database
-    def test_add_job_log_unicode_characters(self, test_session):
+    def test_add_job_log_unicode_characters(self, test_session: Session) -> None:
         """Test adding log with unicode characters."""
         # Arrange
         job_service = JobService(test_session)
         logging_service = LoggingService(test_session)
 
-        job = job_service.create_job(JobFactory.create_job_request(session=test_session))
+        job_request = create_job_request_typed(test_session)
+        job = job_service.create_job(job_request)
         test_session.commit()
 
         unicode_message = "Test 测试 🚀 Тест"

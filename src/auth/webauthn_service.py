@@ -3,6 +3,7 @@
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 from webauthn import (
@@ -79,8 +80,8 @@ class RelyingPartyInfo:
 class RegistrationCredentialOptions:
     """Credential options for registration - grouped related options."""
 
-    pub_key_cred_params: list[dict]
-    exclude_credentials: list[dict]
+    pub_key_cred_params: list[dict[str, Any]]
+    exclude_credentials: list[dict[str, Any]]
     authenticator_selection: dict[str, str]
     attestation: str
 
@@ -103,7 +104,7 @@ class WebAuthnAuthenticationOptions:
     challenge: str
     timeout: int
     rp_id: str
-    allow_credentials: list[dict]
+    allow_credentials: list[dict[str, Any]]
     user_verification: str
 
 
@@ -123,7 +124,7 @@ class WebAuthnService:
 
         # Challenge storage for registration/authentication flows
         # In production, this should be stored in Redis or similar
-        self._pending_challenges: dict[str, dict] = {}
+        self._pending_challenges: dict[str, dict[str, Any]] = {}
 
     def generate_registration_options(self, user: User) -> tuple[WebAuthnRegistrationOptions, str]:
         """Generate WebAuthn registration options - Following FIDO2 standards."""
@@ -482,7 +483,9 @@ class PasskeyManager:
         """Initialize with WebAuthn service dependency."""
         self.webauthn_service = webauthn_service
 
-    def start_passkey_registration(self, user: User, device_name: str = "Default Device") -> dict:
+    def start_passkey_registration(
+        self, user: User, device_name: str = "Default Device"
+    ) -> dict[str, Any]:
         """Start passkey registration flow - User-friendly interface."""
         options, challenge_key = self.webauthn_service.generate_registration_options(user)
 
@@ -501,7 +504,7 @@ class PasskeyManager:
             "deviceName": device_name,
         }
 
-    def start_passkey_authentication(self, user: User | None = None) -> dict:
+    def start_passkey_authentication(self, user: User | None = None) -> dict[str, Any]:
         """Start passkey authentication flow - Supports usernameless login."""
         options, challenge_key = self.webauthn_service.generate_authentication_options(user)
 
@@ -516,7 +519,7 @@ class PasskeyManager:
             "challengeKey": challenge_key,
         }
 
-    def get_passkey_summary(self, user: User) -> dict:
+    def get_passkey_summary(self, user: User) -> dict[str, Any]:
         """Get user's passkey summary - Dashboard information."""
         credentials = self.webauthn_service.get_user_credentials(user)
 

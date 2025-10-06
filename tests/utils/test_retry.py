@@ -98,7 +98,7 @@ def resilience_manager(
 class TestRetryConfig:
     """Tests for RetryConfig initialization and validation."""
 
-    def test_retry_config_initialization_with_defaults(self):
+    def test_retry_config_initialization_with_defaults(self) -> None:
         """Test RetryConfig initializes with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -114,7 +114,7 @@ class TestRetryConfig:
         assert config.jitter is True
         assert 0 <= config.jitter_factor <= 1
 
-    def test_retry_config_initialization_with_custom_values(self):
+    def test_retry_config_initialization_with_custom_values(self) -> None:
         """Test RetryConfig with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_attempts = 5
@@ -136,7 +136,7 @@ class TestRetryConfig:
         assert config.max_delay == max_delay
         assert config.backoff_factor == backoff_factor
 
-    def test_retry_config_validates_max_attempts(self):
+    def test_retry_config_validates_max_attempts(self) -> None:
         """Test RetryConfig validates max_attempts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_max_attempts = 0
@@ -145,7 +145,7 @@ class TestRetryConfig:
         with pytest.raises(ValueError, match="max_attempts must be at least 1"):
             RetryConfig(max_attempts=invalid_max_attempts)
 
-    def test_retry_config_validates_base_delay(self):
+    def test_retry_config_validates_base_delay(self) -> None:
         """Test RetryConfig validates base_delay - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_base_delay = -1.0
@@ -154,7 +154,7 @@ class TestRetryConfig:
         with pytest.raises(ValueError, match="base_delay must be positive"):
             RetryConfig(base_delay=invalid_base_delay)
 
-    def test_retry_config_validates_backoff_factor(self):
+    def test_retry_config_validates_backoff_factor(self) -> None:
         """Test RetryConfig validates backoff_factor - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_backoff_factor = 0.5
@@ -163,7 +163,7 @@ class TestRetryConfig:
         with pytest.raises(ValueError, match="backoff_factor must be at least 1"):
             RetryConfig(backoff_factor=invalid_backoff_factor)
 
-    def test_retry_config_validates_jitter_factor(self):
+    def test_retry_config_validates_jitter_factor(self) -> None:
         """Test RetryConfig validates jitter_factor - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_jitter_factor = 1.5
@@ -172,7 +172,7 @@ class TestRetryConfig:
         with pytest.raises(ValueError, match="jitter_factor must be between 0 and 1"):
             RetryConfig(jitter_factor=invalid_jitter_factor)
 
-    def test_calculate_delay_without_jitter(self):
+    def test_calculate_delay_without_jitter(self) -> None:
         """Test delay calculation without jitter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = RetryConfig(base_delay=1.0, backoff_factor=2.0, jitter=False)
@@ -187,7 +187,7 @@ class TestRetryConfig:
         assert delay_1 == 2.0  # 1.0 * 2^1
         assert delay_2 == 4.0  # 1.0 * 2^2
 
-    def test_calculate_delay_with_jitter(self):
+    def test_calculate_delay_with_jitter(self) -> None:
         """Test delay calculation with jitter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = RetryConfig(base_delay=1.0, backoff_factor=2.0, jitter=True)
@@ -201,7 +201,7 @@ class TestRetryConfig:
         # Delays should vary (jitter applied)
         assert len(set(delays)) > 1  # Should have variation
 
-    def test_calculate_delay_respects_max_delay(self):
+    def test_calculate_delay_respects_max_delay(self) -> None:
         """Test delay calculation respects max_delay - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = RetryConfig(base_delay=1.0, backoff_factor=10.0, max_delay=5.0, jitter=False)
@@ -223,12 +223,12 @@ class TestRetryConfig:
 class TestWithRetryDecorator:
     """Tests for with_retry decorator functionality."""
 
-    async def test_with_retry_succeeds_on_first_attempt(self):
+    async def test_with_retry_succeeds_on_first_attempt(self) -> None:
         """Test with_retry succeeds immediately - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
         @with_retry()
-        async def successful_func():
+        async def successful_func() -> str:
             return "success"
 
         # Act - MANDATORY
@@ -237,13 +237,13 @@ class TestWithRetryDecorator:
         # Assert - MANDATORY
         assert result == "success"
 
-    async def test_with_retry_retries_on_client_error(self):
+    async def test_with_retry_retries_on_client_error(self) -> None:
         """Test with_retry retries on ClientError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         attempt_count = 0
 
         @with_retry(retry_config=RetryConfig(max_attempts=3, base_delay=0.01, jitter=False))
-        async def failing_then_success():
+        async def failing_then_success() -> str:
             nonlocal attempt_count
             attempt_count += 1
             if attempt_count < 3:
@@ -257,13 +257,13 @@ class TestWithRetryDecorator:
         assert result == "success"
         assert attempt_count == 3
 
-    async def test_with_retry_retries_on_timeout_error(self):
+    async def test_with_retry_retries_on_timeout_error(self) -> None:
         """Test with_retry retries on TimeoutError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         attempt_count = 0
 
         @with_retry(retry_config=RetryConfig(max_attempts=2, base_delay=0.01, jitter=False))
-        async def timeout_then_success():
+        async def timeout_then_success() -> str:
             nonlocal attempt_count
             attempt_count += 1
             if attempt_count < 2:
@@ -277,25 +277,25 @@ class TestWithRetryDecorator:
         assert result == "recovered"
         assert attempt_count == 2
 
-    async def test_with_retry_immediately_reraises_rate_limit_error(self):
+    async def test_with_retry_immediately_reraises_rate_limit_error(self) -> None:
         """Test with_retry immediately reraises RateLimitError - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
         @with_retry()
-        async def rate_limited_func():
+        async def rate_limited_func() -> str:
             raise RateLimitError("Rate limited")
 
         # Act & Assert - MANDATORY
         with pytest.raises(RateLimitError, match="Rate limited"):
             await rate_limited_func()
 
-    async def test_with_retry_exhausts_all_attempts(self):
+    async def test_with_retry_exhausts_all_attempts(self) -> None:
         """Test with_retry exhausts all attempts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         attempt_count = 0
 
         @with_retry(retry_config=RetryConfig(max_attempts=3, base_delay=0.01, jitter=False))
-        async def always_fails():
+        async def always_fails() -> str:
             nonlocal attempt_count
             attempt_count += 1
             raise ClientError("Persistent error")
@@ -306,7 +306,7 @@ class TestWithRetryDecorator:
 
         assert attempt_count == 3
 
-    async def test_with_retry_custom_retry_on_exceptions(self):
+    async def test_with_retry_custom_retry_on_exceptions(self) -> None:
         """Test with_retry with custom retry_on exceptions - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -317,19 +317,19 @@ class TestWithRetryDecorator:
             retry_on=(CustomError,),
             retry_config=RetryConfig(max_attempts=2, base_delay=0.01, jitter=False),
         )
-        async def custom_error_func():
+        async def custom_error_func() -> str:
             raise CustomError("Custom")
 
         # Act & Assert - MANDATORY
         with pytest.raises(CustomError):
             await custom_error_func()
 
-    async def test_with_retry_propagates_unexpected_exceptions(self):
+    async def test_with_retry_propagates_unexpected_exceptions(self) -> None:
         """Test with_retry propagates unexpected exceptions - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
         @with_retry(retry_config=RetryConfig(max_attempts=3, base_delay=0.01))
-        async def unexpected_error():
+        async def unexpected_error() -> str:
             raise ValueError("Unexpected")
 
         # Act & Assert - MANDATORY
@@ -347,7 +347,7 @@ class TestWithRetryDecorator:
 class TestCircuitBreaker:
     """Tests for CircuitBreaker pattern implementation."""
 
-    async def test_circuit_breaker_initialization(self):
+    async def test_circuit_breaker_initialization(self) -> None:
         """Test CircuitBreaker initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         failure_threshold = 5
@@ -368,7 +368,7 @@ class TestCircuitBreaker:
 
     async def test_circuit_breaker_allows_requests_when_closed(
         self, circuit_breaker: CircuitBreaker
-    ):
+    ) -> None:
         """Test circuit breaker allows requests when closed - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         assert circuit_breaker.state == CircuitBreakerState.CLOSED
@@ -381,7 +381,7 @@ class TestCircuitBreaker:
         assert result == "success"
         assert circuit_breaker.state == CircuitBreakerState.CLOSED
 
-    async def test_circuit_breaker_opens_after_threshold_failures(self):
+    async def test_circuit_breaker_opens_after_threshold_failures(self) -> None:
         """Test circuit breaker opens after threshold - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         breaker = CircuitBreaker(failure_threshold=2, name="test_open")
@@ -405,7 +405,7 @@ class TestCircuitBreaker:
         assert breaker.state == CircuitBreakerState.OPEN
         assert breaker.failure_count == 2
 
-    async def test_circuit_breaker_blocks_requests_when_open(self):
+    async def test_circuit_breaker_blocks_requests_when_open(self) -> None:
         """Test circuit breaker blocks requests when open - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         breaker = CircuitBreaker(failure_threshold=1, name="test_block")
@@ -423,7 +423,7 @@ class TestCircuitBreaker:
             async with breaker:
                 pass
 
-    async def test_circuit_breaker_transitions_to_half_open(self):
+    async def test_circuit_breaker_transitions_to_half_open(self) -> None:
         """Test circuit breaker transitions to half-open - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         breaker = CircuitBreaker(
@@ -452,7 +452,7 @@ class TestCircuitBreaker:
         # depending on half_open_max_calls
         assert breaker.state in (CircuitBreakerState.HALF_OPEN, CircuitBreakerState.CLOSED)
 
-    async def test_circuit_breaker_closes_after_recovery(self):
+    async def test_circuit_breaker_closes_after_recovery(self) -> None:
         """Test circuit breaker closes after successful recovery - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         breaker = CircuitBreaker(
@@ -483,7 +483,7 @@ class TestCircuitBreaker:
         assert breaker.state == CircuitBreakerState.CLOSED
         assert breaker.failure_count == 0
 
-    async def test_circuit_breaker_metrics(self, circuit_breaker: CircuitBreaker):
+    async def test_circuit_breaker_metrics(self, circuit_breaker: CircuitBreaker) -> None:
         """Test circuit breaker provides metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Make some calls
@@ -512,7 +512,7 @@ class TestCircuitBreaker:
 class TestBulkheadPattern:
     """Tests for BulkheadPattern resource isolation."""
 
-    async def test_bulkhead_initialization(self):
+    async def test_bulkhead_initialization(self) -> None:
         """Test BulkheadPattern initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_concurrent = 10
@@ -525,11 +525,11 @@ class TestBulkheadPattern:
         assert bulkhead.active_requests == 0
         assert bulkhead.total_requests == 0
 
-    async def test_bulkhead_executes_within_limit(self, bulkhead: BulkheadPattern):
+    async def test_bulkhead_executes_within_limit(self, bulkhead: BulkheadPattern) -> None:
         """Test bulkhead executes within limit - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def test_func():
+        async def test_func() -> str:
             return "success"
 
         # Act - MANDATORY
@@ -539,12 +539,12 @@ class TestBulkheadPattern:
         assert result == "success"
         assert bulkhead.total_requests == 1
 
-    async def test_bulkhead_enforces_concurrency_limit(self):
+    async def test_bulkhead_enforces_concurrency_limit(self) -> None:
         """Test bulkhead enforces concurrency limit - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         bulkhead = BulkheadPattern(max_concurrent_operations=2, name="test_limit")
 
-        async def slow_func():
+        async def slow_func() -> str:
             await asyncio.sleep(0.1)
             return "done"
 
@@ -564,11 +564,11 @@ class TestBulkheadPattern:
         await task1
         await task2
 
-    async def test_bulkhead_metrics(self, bulkhead: BulkheadPattern):
+    async def test_bulkhead_metrics(self, bulkhead: BulkheadPattern) -> None:
         """Test bulkhead provides metrics - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def test_func():
+        async def test_func() -> str:
             return "test"
 
         await bulkhead.execute(test_func)
@@ -594,7 +594,9 @@ class TestBulkheadPattern:
 class TestResilienceManager:
     """Tests for ResilienceManager pattern orchestration."""
 
-    async def test_resilience_manager_initialization(self, resilience_manager: ResilienceManager):
+    async def test_resilience_manager_initialization(
+        self, resilience_manager: ResilienceManager
+    ) -> None:
         """Test ResilienceManager initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (resilience_manager from fixture)
@@ -608,12 +610,12 @@ class TestResilienceManager:
         assert resilience_manager.bulkhead is not None
         assert resilience_manager.name == "test_manager"
 
-    async def test_resilience_manager_executes_successfully(self):
+    async def test_resilience_manager_executes_successfully(self) -> None:
         """Test ResilienceManager executes successfully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = ResilienceManager(name="test_exec")
 
-        async def test_func():
+        async def test_func() -> str:
             return "success"
 
         # Act - MANDATORY
@@ -622,7 +624,7 @@ class TestResilienceManager:
         # Assert - MANDATORY
         assert result == "success"
 
-    async def test_resilience_manager_applies_retry_pattern(self):
+    async def test_resilience_manager_applies_retry_pattern(self) -> None:
         """Test ResilienceManager applies retry pattern - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = ResilienceManager(
@@ -632,7 +634,7 @@ class TestResilienceManager:
 
         attempt_count = 0
 
-        async def failing_func():
+        async def failing_func() -> str:
             nonlocal attempt_count
             attempt_count += 1
             if attempt_count < 3:
@@ -646,7 +648,7 @@ class TestResilienceManager:
         assert result == "recovered"
         assert attempt_count == 3
 
-    async def test_resilience_manager_metrics(self, resilience_manager: ResilienceManager):
+    async def test_resilience_manager_metrics(self, resilience_manager: ResilienceManager) -> None:
         """Test ResilienceManager provides comprehensive metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (resilience_manager from fixture)
@@ -671,7 +673,7 @@ class TestResilienceManager:
 class TestRetryPerformance:
     """MANDATORY performance tests for retry utilities."""
 
-    def test_retry_config_initialization_performance(self):
+    def test_retry_config_initialization_performance(self) -> None:
         """MANDATORY performance test - RetryConfig initialization speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -690,7 +692,7 @@ class TestRetryPerformance:
         assert avg_time < 0.0001  # <0.1ms per initialization
         assert execution_time < 1.0  # Total <1s for 10000 initializations
 
-    def test_delay_calculation_performance(self, default_retry_config: RetryConfig):
+    def test_delay_calculation_performance(self, default_retry_config: RetryConfig) -> None:
         """MANDATORY performance test - delay calculation speed."""
         # Arrange - MANDATORY
         iterations = 100000
@@ -710,13 +712,13 @@ class TestRetryPerformance:
         assert execution_time < 1.0  # Total <1s for 100000 calculations
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_overhead_performance(self):
+    async def test_circuit_breaker_overhead_performance(self) -> None:
         """MANDATORY performance test - circuit breaker overhead."""
         # Arrange - MANDATORY
         breaker = CircuitBreaker(name="perf_test")
         iterations = 1000
 
-        async def fast_func():
+        async def fast_func() -> str:
             return "done"
 
         # Act - MANDATORY

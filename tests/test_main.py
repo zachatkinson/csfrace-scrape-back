@@ -19,6 +19,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncio
@@ -41,7 +42,7 @@ from src.main import (
 
 
 @pytest.fixture
-def mock_converter():
+def mock_converter() -> AsyncMock:
     """Factory for mock AsyncWordPressConverter - DRY principle."""
     converter = AsyncMock()
     converter.convert = AsyncMock()
@@ -49,7 +50,7 @@ def mock_converter():
 
 
 @pytest.fixture
-def mock_batch_processor():
+def mock_batch_processor() -> MagicMock:
     """Factory for mock BatchProcessor - DRY principle."""
     processor = MagicMock()
     processor.add_job = MagicMock()
@@ -60,7 +61,7 @@ def mock_batch_processor():
 
 
 @pytest.fixture
-def mock_progress():
+def mock_progress() -> MagicMock:
     """Factory for mock Progress - DRY principle."""
     progress = MagicMock()
     progress.add_task = MagicMock(return_value=1)
@@ -71,7 +72,7 @@ def mock_progress():
 
 
 @pytest.fixture
-def mock_console():
+def mock_console() -> MagicMock:
     """Factory for mock Console - DRY principle."""
     console = MagicMock()
     console.print = MagicMock()
@@ -80,13 +81,13 @@ def mock_console():
 
 
 @pytest.fixture
-def sample_converter_config():
+def sample_converter_config() -> ConverterConfig:
     """Factory for sample ConverterConfig - DRY principle."""
     return ConverterConfig()
 
 
 @pytest.fixture
-def sample_batch_config(tmp_path):
+def sample_batch_config(tmp_path: Path) -> BatchConfig:
     """Factory for sample BatchConfig - DRY principle."""
     return BatchConfig(
         max_concurrent=3,
@@ -106,7 +107,9 @@ def sample_batch_config(tmp_path):
 class TestMainAsync:
     """Tests for main_async() function."""
 
-    async def test_main_async_single_url_mode(self, sample_converter_config):
+    async def test_main_async_single_url_mode(
+        self, sample_converter_config: ConverterConfig
+    ) -> None:
         """Test main_async() with single URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/post"
@@ -121,7 +124,7 @@ class TestMainAsync:
             # Assert - MANDATORY
             mock_single.assert_called_once_with(url, output_dir, sample_converter_config)
 
-    async def test_main_async_batch_mode_with_file(self, sample_batch_config):
+    async def test_main_async_batch_mode_with_file(self, sample_batch_config: BatchConfig) -> None:
         """Test main_async() with URLs file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         urls_file = "urls.txt"
@@ -144,7 +147,7 @@ class TestMainAsync:
             assert call_kwargs["output_dir"] == output_dir
             assert call_kwargs["batch_size"] == batch_size
 
-    async def test_main_async_batch_mode_with_comma_separated_urls(self):
+    async def test_main_async_batch_mode_with_comma_separated_urls(self) -> None:
         """Test main_async() with comma-separated URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/post1,https://example.com/post2"
@@ -159,7 +162,7 @@ class TestMainAsync:
             call_kwargs = mock_batch.call_args[1]
             assert call_kwargs["url"] == url
 
-    async def test_main_async_no_url_provided_exits(self):
+    async def test_main_async_no_url_provided_exits(self) -> None:
         """Test main_async() exits when no URL provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.main.sys.exit") as mock_exit:
@@ -169,7 +172,7 @@ class TestMainAsync:
             # Assert - MANDATORY
             mock_exit.assert_called_once_with(1)
 
-    async def test_main_async_verbose_logging_enabled(self):
+    async def test_main_async_verbose_logging_enabled(self) -> None:
         """Test main_async() enables debug logging - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
@@ -193,7 +196,9 @@ class TestMainAsync:
 class TestRunSingleConversion:
     """Tests for run_single_conversion() function."""
 
-    async def test_run_single_conversion_success(self, mock_converter, sample_converter_config):
+    async def test_run_single_conversion_success(
+        self, mock_converter: AsyncMock, sample_converter_config: ConverterConfig
+    ) -> None:
         """Test successful single URL conversion - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/post"
@@ -215,8 +220,8 @@ class TestRunSingleConversion:
                 mock_progress.add_task.assert_called_once()
 
     async def test_run_single_conversion_creates_converter_with_config(
-        self, mock_converter, sample_converter_config
-    ):
+        self, mock_converter: AsyncMock, sample_converter_config: ConverterConfig
+    ) -> None:
         """Test converter created with correct config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
@@ -241,13 +246,15 @@ class TestRunSingleConversion:
                 assert call_kwargs["output_dir"] == Path(output_dir)
                 assert call_kwargs["config"] == sample_converter_config
 
-    async def test_run_single_conversion_progress_callback_works(self, mock_converter):
+    async def test_run_single_conversion_progress_callback_works(
+        self, mock_converter: AsyncMock
+    ) -> None:
         """Test progress callback is called during conversion - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
         output_dir = "output"
 
-        async def mock_convert_with_callback(progress_callback=None):
+        async def mock_convert_with_callback(progress_callback: Any = None) -> None:
             if progress_callback:
                 progress_callback(50)
                 progress_callback(100)
@@ -281,7 +288,9 @@ class TestRunSingleConversion:
 class TestRunBatchProcessing:
     """Tests for run_batch_processing() function."""
 
-    async def test_run_batch_processing_from_file(self, mock_batch_processor, sample_batch_config):
+    async def test_run_batch_processing_from_file(
+        self, mock_batch_processor: MagicMock, sample_batch_config: BatchConfig
+    ) -> None:
         """Test batch processing from file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         urls_file = "urls.txt"
@@ -297,7 +306,9 @@ class TestRunBatchProcessing:
             mock_batch_processor.add_jobs_from_file.assert_called_once_with(urls_file)
             mock_batch_processor.process_all.assert_called_once()
 
-    async def test_run_batch_processing_from_comma_separated_urls(self, mock_batch_processor):
+    async def test_run_batch_processing_from_comma_separated_urls(
+        self, mock_batch_processor: MagicMock
+    ) -> None:
         """Test batch processing from comma-separated URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/post1,https://example.com/post2,https://example.com/post3"
@@ -311,7 +322,7 @@ class TestRunBatchProcessing:
             # Should add 3 jobs (3 URLs)
             assert mock_batch_processor.add_job.call_count == 3
 
-    async def test_run_batch_processing_no_valid_urls_returns_early(self):
+    async def test_run_batch_processing_no_valid_urls_returns_early(self) -> None:
         """Test batch processing returns early with no URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_processor = MagicMock()
@@ -326,7 +337,7 @@ class TestRunBatchProcessing:
             # process_all should NOT be called
             mock_processor.process_all.assert_not_called()
 
-    async def test_run_batch_processing_creates_default_config_when_none_provided(self):
+    async def test_run_batch_processing_creates_default_config_when_none_provided(self) -> None:
         """Test default BatchConfig is created - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_processor = MagicMock()
@@ -346,7 +357,9 @@ class TestRunBatchProcessing:
                 # BatchConfig should be created with defaults
                 mock_batch_config_cls.assert_called_once()
 
-    async def test_run_batch_processing_overrides_cli_arguments(self, sample_batch_config):
+    async def test_run_batch_processing_overrides_cli_arguments(
+        self, sample_batch_config: BatchConfig
+    ) -> None:
         """Test CLI arguments override config values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_processor = MagicMock()
@@ -378,7 +391,7 @@ class TestRunBatchProcessing:
 class TestLoadConfiguration:
     """Tests for load_configuration() function."""
 
-    def test_load_configuration_success(self):
+    def test_load_configuration_success(self) -> None:
         """Test successful configuration loading - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config_path = "config.yaml"
@@ -393,7 +406,7 @@ class TestLoadConfiguration:
             assert converter_config is None
             assert batch_config == mock_batch_config
 
-    def test_load_configuration_calls_load_config_from_file(self):
+    def test_load_configuration_calls_load_config_from_file(self) -> None:
         """Test load_config_from_file is called - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config_path = "config.json"
@@ -418,7 +431,7 @@ class TestLoadConfiguration:
 class TestRunMainConversionWithErrorHandling:
     """Tests for run_main_conversion_with_error_handling() function."""
 
-    async def test_run_main_conversion_function_exists_and_decorated(self):
+    async def test_run_main_conversion_function_exists_and_decorated(self) -> None:
         """Test function exists and is decorated - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         import inspect
@@ -426,10 +439,13 @@ class TestRunMainConversionWithErrorHandling:
         # Act - MANDATORY
         # Check that function exists and is callable
         is_coroutine = inspect.iscoroutinefunction(run_main_conversion_with_error_handling)
+        is_callable = callable(run_main_conversion_with_error_handling)
 
         # Assert - MANDATORY
-        # Function should be a coroutine due to @api_error_handler decorator
+        # The @api_error_handler decorator ALWAYS wraps functions as async
+        # even if the original function was sync
         assert is_coroutine is True
+        assert is_callable is True
 
     @pytest.mark.skip(
         reason="FRAMEWORK LIMITATION: @api_error_handler decorator wraps function in complex "
@@ -438,8 +454,8 @@ class TestRunMainConversionWithErrorHandling:
         "which confirms decorator is properly applied. Full integration testing occurs in CLI tests."
     )
     async def test_run_main_conversion_executes_successfully(
-        self, sample_converter_config, sample_batch_config
-    ):
+        self, sample_converter_config: ConverterConfig, sample_batch_config: BatchConfig
+    ) -> None:
         """Test function executes - SKIPPED due to decorator complexity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
@@ -452,8 +468,11 @@ class TestRunMainConversionWithErrorHandling:
         with patch("src.main.main_async", new_callable=AsyncMock) as mock_main_async:
             with patch("src.main.asyncio.run", side_effect=lambda coro: asyncio.run(coro)):
                 # Act - MANDATORY
-                # Function is decorated with @api_error_handler
-                result = await run_main_conversion_with_error_handling(
+                # Function is async due to @api_error_handler decorator
+                # NOTE: This line will never execute due to @pytest.mark.skip, but it's type-annotated
+                # for when the decorator limitation is resolved
+                # MyPy doesn't recognize that @api_error_handler makes function async
+                await run_main_conversion_with_error_handling(  # type: ignore[misc]
                     url,
                     urls_file,
                     output_dir,
@@ -462,11 +481,6 @@ class TestRunMainConversionWithErrorHandling:
                     sample_converter_config,
                     sample_batch_config,
                 )
-
-                # Assert - MANDATORY
-                # Function should complete successfully
-                # Result should be None (no return value specified)
-                assert result is None
 
 
 # ============================================================================
@@ -478,7 +492,7 @@ class TestRunMainConversionWithErrorHandling:
 class TestMainCLI:
     """Tests for main() CLI entry point."""
 
-    def test_main_single_url_mode(self):
+    def test_main_single_url_mode(self) -> None:
         """Test main() with single URL argument - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog", "https://example.com/post", "-o", "output"]
@@ -494,7 +508,7 @@ class TestMainCLI:
                 assert call_args[0] == "https://example.com/post"
                 assert call_args[2] == "output"
 
-    def test_main_urls_file_mode(self):
+    def test_main_urls_file_mode(self) -> None:
         """Test main() with --urls-file argument - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog", "--urls-file", "urls.txt", "--batch-size", "5"]
@@ -510,7 +524,7 @@ class TestMainCLI:
                 assert call_args[1] == "urls.txt"
                 assert call_args[3] == 5
 
-    def test_main_generate_config_yaml(self):
+    def test_main_generate_config_yaml(self) -> None:
         """Test main() with --generate-config yaml - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog", "--generate-config", "yaml"]
@@ -523,7 +537,7 @@ class TestMainCLI:
                 # Assert - MANDATORY
                 mock_save.assert_called_once_with("wp-shopify-config.yaml", "yaml")
 
-    def test_main_generate_config_json(self):
+    def test_main_generate_config_json(self) -> None:
         """Test main() with --generate-config json - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog", "--generate-config", "json"]
@@ -536,7 +550,7 @@ class TestMainCLI:
                 # Assert - MANDATORY
                 mock_save.assert_called_once_with("wp-shopify-config.json", "json")
 
-    def test_main_load_configuration_file(self):
+    def test_main_load_configuration_file(self) -> None:
         """Test main() loads config file when provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog", "https://example.com", "--config", "config.yaml"]
@@ -551,7 +565,7 @@ class TestMainCLI:
                     # Assert - MANDATORY
                     mock_load_config.assert_called_once_with("config.yaml")
 
-    def test_main_interactive_mode_single_url(self):
+    def test_main_interactive_mode_single_url(self) -> None:
         """Test main() interactive mode with single URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog"]  # No URL argument
@@ -569,7 +583,7 @@ class TestMainCLI:
                     call_args = mock_run.call_args[0]
                     assert call_args[0] == "https://example.com"
 
-    def test_main_interactive_mode_multiple_urls(self):
+    def test_main_interactive_mode_multiple_urls(self) -> None:
         """Test main() interactive mode with multiple URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog"]
@@ -587,7 +601,7 @@ class TestMainCLI:
                     call_args = mock_run.call_args[0]
                     assert "," in call_args[0]
 
-    def test_main_interactive_mode_batch_file(self):
+    def test_main_interactive_mode_batch_file(self) -> None:
         """Test main() interactive mode with batch file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog"]
@@ -605,7 +619,7 @@ class TestMainCLI:
                     call_args = mock_run.call_args[0]
                     assert call_args[1] == "urls.txt"
 
-    def test_main_interactive_mode_invalid_choice_exits(self):
+    def test_main_interactive_mode_invalid_choice_exits(self) -> None:
         """Test main() interactive mode exits on invalid choice - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog"]
@@ -623,7 +637,7 @@ class TestMainCLI:
                     # Both calls should exit with code 0
                     assert all(call[0][0] == 0 for call in mock_exit.call_args_list)
 
-    def test_main_interactive_mode_no_url_provided_exits(self):
+    def test_main_interactive_mode_no_url_provided_exits(self) -> None:
         """Test main() interactive mode exits when no URL entered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_args = ["prog"]
@@ -650,7 +664,7 @@ class TestMainCLI:
 class TestMainPerformance:
     """MANDATORY performance tests for main application."""
 
-    def test_cli_argument_parsing_performance(self):
+    def test_cli_argument_parsing_performance(self) -> None:
         """MANDATORY performance test - CLI argument parsing speed."""
         # Arrange - MANDATORY
         test_args = ["prog", "https://example.com", "-o", "output", "--batch-size", "5", "-v"]

@@ -7,7 +7,14 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 import asyncio
-from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
+from playwright.async_api import (
+    Browser,
+    BrowserContext,
+    Page,
+    Playwright,
+    Request,
+    async_playwright,
+)
 from pydantic import BaseModel, Field, field_validator
 
 from src.core.decorators import network_error_handler
@@ -44,7 +51,7 @@ class BrowserConfig(BaseModel):
 
     @field_validator("browser_type")
     @classmethod
-    def validate_browser_type(cls, v):
+    def validate_browser_type(cls, v: str) -> str:
         allowed_types = ["chromium", "firefox", "webkit"]
         if v not in allowed_types:
             raise ValueError(f"Browser type must be one of {allowed_types}")
@@ -52,7 +59,7 @@ class BrowserConfig(BaseModel):
 
     @field_validator("wait_until")
     @classmethod
-    def validate_wait_until(cls, v):
+    def validate_wait_until(cls, v: str) -> str:
         allowed_conditions = ["load", "domcontentloaded", "networkidle"]
         if v not in allowed_conditions:
             raise ValueError(f"wait_until must be one of {allowed_conditions}")
@@ -310,7 +317,7 @@ class JavaScriptRenderer:
         if self._pool is None:
             await self.initialize()
 
-        async def _render():
+        async def _render() -> RenderResult:
             return await self._render_page_internal(
                 url=url,
                 wait_for_selector=wait_for_selector,
@@ -323,8 +330,9 @@ class JavaScriptRenderer:
             )
 
         @with_retry(self.retry_config)
-        async def render_with_retry():
-            return await _render()
+        async def render_with_retry() -> RenderResult:
+            result: RenderResult = await _render()
+            return result
 
         return await render_with_retry()
 
@@ -352,7 +360,7 @@ class JavaScriptRenderer:
                 # Set up network monitoring if requested
                 if capture_network:
 
-                    async def handle_request(request):
+                    async def handle_request(request: Request) -> None:
                         network_requests.append(
                             {
                                 "url": request.url,
@@ -453,12 +461,12 @@ class JavaScriptRenderer:
                 await page.close()
 
     @network_error_handler("execute custom script")
-    async def _execute_script_safe(self, page, script: str) -> Any:
+    async def _execute_script_safe(self, page: Page, script: str) -> Any:
         """Execute custom JavaScript with error handling."""
         return await page.evaluate(script)
 
     @network_error_handler("extract page metadata")
-    async def _extract_metadata_safe(self, page) -> dict[str, str]:
+    async def _extract_metadata_safe(self, page: Page) -> dict[str, str]:
         """Extract additional page metadata with error handling."""
         return {
             "meta_description": await page.get_attribute('meta[name="description"]', "content")
@@ -469,19 +477,21 @@ class JavaScriptRenderer:
             or "",
         }
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "JavaScriptRenderer":
         """Async context manager entry."""
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         """Async context manager exit."""
         await self.cleanup()
 
 
 # Default renderer instance factory
 def create_renderer(
-    headless: bool = True, browser_type: str = "chromium", timeout: float = 30.0, **kwargs
+    headless: bool = True, browser_type: str = "chromium", timeout: float = 30.0, **kwargs: Any
 ) -> JavaScriptRenderer:
     """Create a JavaScript renderer with common configurations."""
     config = BrowserConfig(browser_type=browser_type, headless=headless, timeout=timeout, **kwargs)

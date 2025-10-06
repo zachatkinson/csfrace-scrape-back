@@ -40,7 +40,7 @@ def default_config() -> OptimizedBrowserConfig:
 class TestBrowserConfigInitialization:
     """Tests for OptimizedBrowserConfig initialization."""
 
-    def test_config_initialization_with_defaults(self):
+    def test_config_initialization_with_defaults(self) -> None:
         """Test config initializes with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -54,7 +54,9 @@ class TestBrowserConfigInitialization:
         assert config.context_options is not None
         assert config.navigation_options is not None
 
-    def test_chromium_args_include_required_flags(self, default_config: OptimizedBrowserConfig):
+    def test_chromium_args_include_required_flags(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test chromium args include required flags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         required_flags = [
@@ -71,7 +73,9 @@ class TestBrowserConfigInitialization:
         for flag in required_flags:
             assert flag in args
 
-    def test_webkit_args_include_required_flags(self, default_config: OptimizedBrowserConfig):
+    def test_webkit_args_include_required_flags(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test webkit args include required flags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         required_flags = [
@@ -87,7 +91,7 @@ class TestBrowserConfigInitialization:
         for flag in required_flags:
             assert flag in args
 
-    def test_context_options_include_viewport(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_include_viewport(self, default_config: OptimizedBrowserConfig) -> None:
         """Test context options include viewport settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -100,7 +104,9 @@ class TestBrowserConfigInitialization:
         assert options["viewport"]["width"] == 1280
         assert options["viewport"]["height"] == 720
 
-    def test_context_options_enable_javascript(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_enable_javascript(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test context options enable JavaScript by default - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -111,7 +117,9 @@ class TestBrowserConfigInitialization:
         # Assert - MANDATORY
         assert options["java_script_enabled"] is True
 
-    def test_navigation_options_use_domcontentloaded(self, default_config: OptimizedBrowserConfig):
+    def test_navigation_options_use_domcontentloaded(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test navigation options use domcontentloaded - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -133,7 +141,7 @@ class TestBrowserConfigInitialization:
 class TestFactoryMethods:
     """Tests for factory methods."""
 
-    def test_for_ci_returns_default_config(self):
+    def test_for_ci_returns_default_config(self) -> None:
         """Test for_ci returns default configuration - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -145,7 +153,7 @@ class TestFactoryMethods:
         assert isinstance(config, OptimizedBrowserConfig)
         assert config.navigation_options["wait_until"] == "domcontentloaded"
 
-    def test_for_performance_tests_uses_networkidle(self):
+    def test_for_performance_tests_uses_networkidle(self) -> None:
         """Test for_performance_tests uses networkidle wait - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -156,7 +164,7 @@ class TestFactoryMethods:
         # Assert - MANDATORY
         assert config.navigation_options["wait_until"] == "networkidle"
 
-    def test_for_performance_tests_uses_larger_viewport(self):
+    def test_for_performance_tests_uses_larger_viewport(self) -> None:
         """Test for_performance_tests uses larger viewport - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -168,7 +176,7 @@ class TestFactoryMethods:
         assert config.context_options["viewport"]["width"] == 1920
         assert config.context_options["viewport"]["height"] == 1080
 
-    def test_for_simple_tests_disables_javascript(self):
+    def test_for_simple_tests_disables_javascript(self) -> None:
         """Test for_simple_tests disables JavaScript - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -179,7 +187,7 @@ class TestFactoryMethods:
         # Assert - MANDATORY
         assert config.context_options["java_script_enabled"] is False
 
-    def test_for_simple_tests_uses_shorter_timeout(self):
+    def test_for_simple_tests_uses_shorter_timeout(self) -> None:
         """Test for_simple_tests uses shorter timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -200,7 +208,9 @@ class TestFactoryMethods:
 class TestConfigurationOptions:
     """Tests for configuration options."""
 
-    def test_context_options_ignore_https_errors(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_ignore_https_errors(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test context options ignore HTTPS errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -211,7 +221,7 @@ class TestConfigurationOptions:
         # Assert - MANDATORY
         assert options["ignore_https_errors"] is True
 
-    def test_context_options_bypass_csp(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_bypass_csp(self, default_config: OptimizedBrowserConfig) -> None:
         """Test context options bypass CSP - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -222,7 +232,9 @@ class TestConfigurationOptions:
         # Assert - MANDATORY
         assert options["bypass_csp"] is True
 
-    def test_context_options_disable_downloads(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_disable_downloads(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test context options disable downloads - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -233,7 +245,7 @@ class TestConfigurationOptions:
         # Assert - MANDATORY
         assert options["accept_downloads"] is False
 
-    def test_context_options_set_locale(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_set_locale(self, default_config: OptimizedBrowserConfig) -> None:
         """Test context options set locale to en-US - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -245,7 +257,9 @@ class TestConfigurationOptions:
         assert options["locale"] == "en-US"
         assert options["timezone_id"] == "UTC"
 
-    def test_context_options_include_http_headers(self, default_config: OptimizedBrowserConfig):
+    def test_context_options_include_http_headers(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """Test context options include HTTP headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (default_config from fixture)
@@ -267,7 +281,7 @@ class TestConfigurationOptions:
 class TestConfigurationModification:
     """Tests for configuration modification."""
 
-    def test_chromium_args_can_be_modified(self):
+    def test_chromium_args_can_be_modified(self) -> None:
         """Test chromium args can be modified after initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = OptimizedBrowserConfig()
@@ -280,7 +294,7 @@ class TestConfigurationModification:
         assert len(config.chromium_args) == original_count + 1
         assert "--custom-flag" in config.chromium_args
 
-    def test_context_options_can_be_modified(self):
+    def test_context_options_can_be_modified(self) -> None:
         """Test context options can be modified after initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = OptimizedBrowserConfig()
@@ -291,7 +305,7 @@ class TestConfigurationModification:
         # Assert - MANDATORY
         assert config.context_options["custom_option"] == "custom_value"
 
-    def test_navigation_options_can_be_modified(self):
+    def test_navigation_options_can_be_modified(self) -> None:
         """Test navigation options can be modified after initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = OptimizedBrowserConfig()
@@ -313,7 +327,7 @@ class TestConfigurationModification:
 class TestBrowserConfigSecurity:
     """MANDATORY security tests for browser configuration."""
 
-    def test_sandbox_disabled_for_performance(self, default_config: OptimizedBrowserConfig):
+    def test_sandbox_disabled_for_performance(self, default_config: OptimizedBrowserConfig) -> None:
         """MANDATORY security test - sandbox disabled for CI performance."""
         # Arrange - MANDATORY
         # Note: Disabling sandbox is intentional for CI/Docker performance
@@ -326,7 +340,9 @@ class TestBrowserConfigSecurity:
         assert "--no-sandbox" in args
         # This is documented as intentional for containers
 
-    def test_web_security_disabled_for_testing(self, default_config: OptimizedBrowserConfig):
+    def test_web_security_disabled_for_testing(
+        self, default_config: OptimizedBrowserConfig
+    ) -> None:
         """MANDATORY security test - web security disabled for testing."""
         # Arrange - MANDATORY
         # Note: Disabling web security is intentional for testing environments
@@ -339,7 +355,7 @@ class TestBrowserConfigSecurity:
         assert "--disable-web-security" in args
         # This is documented as intentional for testing
 
-    def test_csp_bypass_enabled_for_testing(self, default_config: OptimizedBrowserConfig):
+    def test_csp_bypass_enabled_for_testing(self, default_config: OptimizedBrowserConfig) -> None:
         """MANDATORY security test - CSP bypass enabled for testing."""
         # Arrange - MANDATORY
         # Note: Bypassing CSP is intentional for testing environments
@@ -351,7 +367,7 @@ class TestBrowserConfigSecurity:
         assert options["bypass_csp"] is True
         # This is documented as intentional for testing
 
-    def test_https_errors_ignored_for_testing(self, default_config: OptimizedBrowserConfig):
+    def test_https_errors_ignored_for_testing(self, default_config: OptimizedBrowserConfig) -> None:
         """MANDATORY security test - HTTPS errors ignored for testing."""
         # Arrange - MANDATORY
         # Note: Ignoring HTTPS errors is intentional for testing environments
@@ -374,7 +390,7 @@ class TestBrowserConfigSecurity:
 class TestBrowserConfigPerformance:
     """MANDATORY performance tests for browser configuration."""
 
-    def test_config_initialization_performance(self):
+    def test_config_initialization_performance(self) -> None:
         """MANDATORY performance test - config initialization speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -393,7 +409,7 @@ class TestBrowserConfigPerformance:
         assert avg_time < 0.001  # <1ms per initialization
         assert execution_time < 1.0  # Total <1s for 1000 initializations
 
-    def test_factory_method_performance(self):
+    def test_factory_method_performance(self) -> None:
         """MANDATORY performance test - factory method speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -412,7 +428,7 @@ class TestBrowserConfigPerformance:
         assert avg_time < 0.001  # <1ms per factory call
         assert execution_time < 1.0  # Total <1s for 1000 calls
 
-    def test_config_modification_performance(self):
+    def test_config_modification_performance(self) -> None:
         """MANDATORY performance test - config modification speed."""
         # Arrange - MANDATORY
         config = OptimizedBrowserConfig()

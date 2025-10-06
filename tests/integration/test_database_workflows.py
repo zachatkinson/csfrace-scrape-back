@@ -5,6 +5,7 @@ and service interactions with comprehensive coverage following AAA pattern.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -19,18 +20,18 @@ class TestJobLifecycleIntegration:
     """Integration tests for complete job lifecycle workflows."""
 
     @pytest.fixture
-    def job_service(self, test_session):
+    def job_service(self, test_session: Any) -> JobService:
         """Create JobService instance with test database session."""
         return JobService(session=test_session)
 
     @pytest.fixture
-    def cleanup_service(self, test_session):
+    def cleanup_service(self, test_session: Any) -> CleanupService:
         """Create CleanupService instance with test database session."""
         return CleanupService(session=test_session)
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_complete_job_lifecycle(self, job_service, test_session):
+    def test_complete_job_lifecycle(self, job_service: JobService, test_session: Any) -> None:
         """Test complete job lifecycle from creation to completion."""
         # Arrange - MANDATORY: Pass session to ensure user exists (foreign key constraint)
         job_request = JobFactory.create_job_request(
@@ -45,6 +46,7 @@ class TestJobLifecycleIntegration:
 
         # Act & Assert - Job Processing Start
         updated_job = job_service.update_job_status(job_id=job.id, new_status=JobStatus.RUNNING)
+        assert updated_job is not None
         assert updated_job.status == JobStatus.RUNNING.value
         assert updated_job.started_at is not None
 
@@ -52,17 +54,19 @@ class TestJobLifecycleIntegration:
         final_job = job_service.update_job_status(
             job_id=job.id, new_status=JobStatus.COMPLETED, processing_time_ms=5000
         )
+        assert final_job is not None
         assert final_job.status == JobStatus.COMPLETED.value
         assert final_job.completed_at is not None
         assert final_job.processing_time_ms == 5000
 
         # Verify job persisted correctly
         retrieved_job = job_service.get_job(job.id)
+        assert retrieved_job is not None
         assert retrieved_job.status == JobStatus.COMPLETED.value
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_job_retry_workflow(self, job_service, test_session):
+    def test_job_retry_workflow(self, job_service: JobService, test_session: Any) -> None:
         """Test job retry workflow with failure and retry logic."""
         # Arrange
         job_request = JobFactory.create_job_request(session=test_session, max_retries=3)
@@ -75,6 +79,7 @@ class TestJobLifecycleIntegration:
         )
 
         # Assert initial failure
+        assert failed_job is not None
         assert failed_job.status == JobStatus.FAILED.value
         assert failed_job.error_message == "Connection timeout"
 
@@ -92,12 +97,13 @@ class TestJobLifecycleIntegration:
         completed_job = job_service.update_job_status(job_id=job.id, new_status=JobStatus.COMPLETED)
 
         # Assert successful retry
+        assert completed_job is not None
         assert completed_job.status == JobStatus.COMPLETED.value
         # Note: retry_count tracking would require service method implementation
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_batch_job_workflow(self, job_service, test_session):
+    def test_batch_job_workflow(self, job_service: JobService, test_session: Any) -> None:
         """Test complete batch job workflow."""
         # Arrange - MANDATORY: Create user for foreign key constraint
         test_user_id = JobFactory._ensure_user_exists(test_session)
@@ -134,6 +140,7 @@ class TestJobLifecycleIntegration:
         # batch_jobs[2] remains PENDING
 
         # Act - Get batch summary
+        assert batch_id is not None
         summary = job_service.get_batch_summary(batch_id)
 
         # Assert batch summary
@@ -153,7 +160,7 @@ class TestJobLifecycleIntegration:
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_job_priority_ordering(self, job_service, test_session):
+    def test_job_priority_ordering(self, job_service: JobService, test_session: Any) -> None:
         """Test that job priority ordering works correctly."""
         # Arrange - Create jobs with different priorities
         low_job = job_service.create_job(
@@ -191,18 +198,20 @@ class TestDatabaseCleanupIntegration:
     """Integration tests for database cleanup workflows."""
 
     @pytest.fixture
-    def job_service(self, test_session):
+    def job_service(self, test_session: Any) -> JobService:
         """Create JobService instance with test database session."""
         return JobService(session=test_session)
 
     @pytest.fixture
-    def cleanup_service(self, test_session):
+    def cleanup_service(self, test_session: Any) -> CleanupService:
         """Create CleanupService instance with test database session."""
         return CleanupService(session=test_session)
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_comprehensive_cleanup_workflow(self, job_service, cleanup_service, test_session):
+    def test_comprehensive_cleanup_workflow(
+        self, job_service: JobService, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test comprehensive cleanup workflow with jobs, content, and logs."""
         # Arrange - Create test data for cleanup
 
@@ -316,7 +325,9 @@ class TestDatabaseCleanupIntegration:
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_cleanup_with_foreign_key_integrity(self, job_service, cleanup_service, test_session):
+    def test_cleanup_with_foreign_key_integrity(
+        self, job_service: JobService, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test that cleanup operations maintain foreign key integrity."""
         # Arrange - Create job with associated records
         job = job_service.create_job(
@@ -366,7 +377,9 @@ class TestDatabaseCleanupIntegration:
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_incremental_cleanup_workflow(self, job_service, cleanup_service, test_session):
+    def test_incremental_cleanup_workflow(
+        self, job_service: JobService, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test incremental cleanup workflow over time."""
         # Arrange - Create jobs at different times
         very_old_job = job_service.create_job(
@@ -428,20 +441,20 @@ class TestServiceInteractionIntegration:
     """Integration tests for service interactions and cross-cutting concerns."""
 
     @pytest.fixture
-    def job_service(self, test_session):
+    def job_service(self, test_session: Any) -> JobService:
         """Create JobService instance with test database session."""
         return JobService(session=test_session)
 
     @pytest.fixture
-    def cleanup_service(self, test_session):
+    def cleanup_service(self, test_session: Any) -> CleanupService:
         """Create CleanupService instance with test database session."""
         return CleanupService(session=test_session)
 
     @pytest.mark.integration
     @pytest.mark.database
     def test_job_service_and_cleanup_service_interaction(
-        self, job_service, cleanup_service, test_session
-    ):
+        self, job_service: JobService, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test interaction between JobService and CleanupService."""
         # Arrange - MANDATORY: Create user for foreign key constraint
         test_user_id = JobFactory._ensure_user_exists(test_session)
@@ -470,7 +483,7 @@ class TestServiceInteractionIntegration:
     @pytest.mark.integration
     @pytest.mark.database
     @pytest.mark.performance
-    def test_large_scale_job_processing(self, job_service, test_session):
+    def test_large_scale_job_processing(self, job_service: JobService, test_session: Any) -> None:
         """Test performance with larger number of jobs."""
         # Arrange - MANDATORY: Create user for foreign key constraint
         test_user_id = JobFactory._ensure_user_exists(test_session)
@@ -511,7 +524,9 @@ class TestServiceInteractionIntegration:
 
     @pytest.mark.integration
     @pytest.mark.database
-    def test_transaction_rollback_behavior(self, job_service, test_session):
+    def test_transaction_rollback_behavior(
+        self, job_service: JobService, test_session: Any
+    ) -> None:
         """Test transaction rollback behavior in service interactions."""
         # Arrange
         initial_job_count = test_session.query(ScrapingJob).count()

@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from src.core.logging_hierarchy import get_api_logger
 
@@ -281,10 +282,10 @@ def create_global_exception_handler() -> Callable[[Any, Exception], Any]:
 class UnifiedExceptionMiddleware:
     """Middleware to automatically convert application errors to HTTP responses."""
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """ASGI middleware for exception handling."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)

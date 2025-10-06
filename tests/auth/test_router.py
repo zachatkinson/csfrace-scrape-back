@@ -26,7 +26,7 @@ from src.api.main import app
 class TestTokenEndpoint:
     """Unit tests for /token endpoint - MANDATORY AAA pattern."""
 
-    def test_token_endpoint_exists(self):
+    def test_token_endpoint_exists(self) -> None:
         """Test token endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -37,7 +37,7 @@ class TestTokenEndpoint:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]  # OPTIONS or method not allowed
 
-    def test_token_endpoint_requires_credentials(self):
+    def test_token_endpoint_requires_credentials(self) -> None:
         """Test token endpoint requires credentials - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -53,7 +53,7 @@ class TestTokenEndpoint:
 class TestRegisterEndpoint:
     """Unit tests for /register endpoint - MANDATORY AAA pattern."""
 
-    def test_register_endpoint_exists(self):
+    def test_register_endpoint_exists(self) -> None:
         """Test register endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -64,7 +64,7 @@ class TestRegisterEndpoint:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]  # OPTIONS or method not allowed
 
-    def test_register_requires_data(self):
+    def test_register_requires_data(self) -> None:
         """Test register requires user data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -80,7 +80,7 @@ class TestRegisterEndpoint:
 class TestMeEndpoint:
     """Unit tests for /me endpoint - MANDATORY AAA pattern."""
 
-    def test_me_endpoint_exists(self):
+    def test_me_endpoint_exists(self) -> None:
         """Test /me endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -91,7 +91,7 @@ class TestMeEndpoint:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]  # OPTIONS or method not allowed
 
-    def test_me_endpoint_requires_authentication(self):
+    def test_me_endpoint_requires_authentication(self) -> None:
         """Test /me endpoint requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -107,7 +107,7 @@ class TestMeEndpoint:
 class TestPasswordEndpoints:
     """Unit tests for password-related endpoints - MANDATORY AAA pattern."""
 
-    def test_change_password_endpoint_exists(self):
+    def test_change_password_endpoint_exists(self) -> None:
         """Test change password endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -118,7 +118,7 @@ class TestPasswordEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_password_reset_endpoint_exists(self):
+    def test_password_reset_endpoint_exists(self) -> None:
         """Test password reset endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -129,7 +129,7 @@ class TestPasswordEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_password_reset_confirm_endpoint_exists(self):
+    def test_password_reset_confirm_endpoint_exists(self) -> None:
         """Test password reset confirm endpoint exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -150,7 +150,7 @@ class TestPasswordEndpoints:
 class TestOAuthEndpoints:
     """Unit tests for OAuth endpoints - MANDATORY AAA pattern."""
 
-    def test_oauth_login_endpoint_exists(self):
+    def test_oauth_login_endpoint_exists(self) -> None:
         """Test OAuth login endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -161,7 +161,7 @@ class TestOAuthEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_oauth_providers_endpoint_exists(self):
+    def test_oauth_providers_endpoint_exists(self) -> None:
         """Test OAuth providers endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -173,7 +173,7 @@ class TestOAuthEndpoints:
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
-    def test_oauth_providers_returns_valid_list(self):
+    def test_oauth_providers_returns_valid_list(self) -> None:
         """Test OAuth providers returns valid provider list - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -190,7 +190,7 @@ class TestOAuthEndpoints:
         for provider in providers:
             assert provider in valid_providers
 
-    def test_oauth_connections_endpoint_requires_auth(self):
+    def test_oauth_connections_endpoint_requires_auth(self) -> None:
         """Test OAuth connections requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -211,7 +211,7 @@ class TestOAuthEndpoints:
 class TestPasskeyEndpoints:
     """Unit tests for passkey/WebAuthn endpoints - MANDATORY AAA pattern."""
 
-    def test_passkey_register_begin_endpoint_exists(self):
+    def test_passkey_register_begin_endpoint_exists(self) -> None:
         """Test passkey registration begin endpoint exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -222,7 +222,7 @@ class TestPasskeyEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_passkey_register_complete_endpoint_exists(self):
+    def test_passkey_register_complete_endpoint_exists(self) -> None:
         """Test passkey registration complete endpoint exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -233,7 +233,7 @@ class TestPasskeyEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_passkey_authenticate_begin_endpoint_exists(self):
+    def test_passkey_authenticate_begin_endpoint_exists(self) -> None:
         """Test passkey auth begin endpoint exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -244,7 +244,7 @@ class TestPasskeyEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_passkey_authenticate_complete_endpoint_exists(self):
+    def test_passkey_authenticate_complete_endpoint_exists(self) -> None:
         """Test passkey auth complete endpoint exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -255,7 +255,7 @@ class TestPasskeyEndpoints:
         # Assert - MANDATORY
         assert response.status_code in [200, 405]
 
-    def test_passkey_summary_requires_auth(self):
+    def test_passkey_summary_requires_auth(self) -> None:
         """Test passkey summary requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -276,7 +276,7 @@ class TestPasskeyEndpoints:
 class TestTokenRevocationEndpoints:
     """Unit tests for token revocation endpoints - MANDATORY AAA pattern."""
 
-    def test_revoke_token_endpoint_requires_auth(self):
+    def test_revoke_token_endpoint_requires_auth(self) -> None:
         """Test revoke token requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -287,7 +287,7 @@ class TestTokenRevocationEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires authentication
 
-    def test_revoke_all_tokens_endpoint_requires_auth(self):
+    def test_revoke_all_tokens_endpoint_requires_auth(self) -> None:
         """Test revoke all tokens requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -298,7 +298,7 @@ class TestTokenRevocationEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires authentication
 
-    def test_revocation_stats_endpoint_requires_auth(self):
+    def test_revocation_stats_endpoint_requires_auth(self) -> None:
         """Test revocation stats requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -319,7 +319,7 @@ class TestTokenRevocationEndpoints:
 class TestAccountLockoutEndpoints:
     """Unit tests for account lockout endpoints - MANDATORY AAA pattern."""
 
-    def test_lockout_status_endpoint_requires_auth(self):
+    def test_lockout_status_endpoint_requires_auth(self) -> None:
         """Test lockout status requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -330,7 +330,7 @@ class TestAccountLockoutEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires authentication
 
-    def test_lockout_stats_endpoint_requires_auth(self):
+    def test_lockout_stats_endpoint_requires_auth(self) -> None:
         """Test lockout stats requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -351,7 +351,7 @@ class TestAccountLockoutEndpoints:
 class TestAdminEndpoints:
     """Unit tests for admin endpoints - MANDATORY AAA pattern."""
 
-    def test_admin_revocation_stats_requires_auth(self):
+    def test_admin_revocation_stats_requires_auth(self) -> None:
         """Test admin revocation stats requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -362,7 +362,7 @@ class TestAdminEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires admin authentication
 
-    def test_admin_unlock_account_requires_auth(self):
+    def test_admin_unlock_account_requires_auth(self) -> None:
         """Test admin unlock account requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -373,7 +373,7 @@ class TestAdminEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires admin authentication
 
-    def test_admin_lockout_stats_requires_auth(self):
+    def test_admin_lockout_stats_requires_auth(self) -> None:
         """Test admin lockout stats requires authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -394,7 +394,7 @@ class TestAdminEndpoints:
 class TestUserManagementEndpoints:
     """Unit tests for user management endpoints - MANDATORY AAA pattern."""
 
-    def test_users_list_endpoint_requires_superuser(self):
+    def test_users_list_endpoint_requires_superuser(self) -> None:
         """Test users list requires superuser - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -405,7 +405,7 @@ class TestUserManagementEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires superuser authentication
 
-    def test_user_detail_endpoint_requires_superuser(self):
+    def test_user_detail_endpoint_requires_superuser(self) -> None:
         """Test user detail requires superuser - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -416,7 +416,7 @@ class TestUserManagementEndpoints:
         # Assert - MANDATORY
         assert response.status_code == 401  # Requires superuser authentication
 
-    def test_user_delete_endpoint_requires_superuser(self):
+    def test_user_delete_endpoint_requires_superuser(self) -> None:
         """Test user delete requires superuser - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -437,7 +437,7 @@ class TestUserManagementEndpoints:
 class TestAuthStreamEndpoint:
     """Unit tests for auth event stream endpoint - MANDATORY AAA pattern."""
 
-    def test_stream_endpoint_exists(self):
+    def test_stream_endpoint_exists(self) -> None:
         """Test stream endpoint is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -459,7 +459,7 @@ class TestAuthStreamEndpoint:
 class TestAuthRouterSecurity:
     """MANDATORY security tests for auth router endpoints."""
 
-    def test_endpoints_reject_invalid_methods(self):
+    def test_endpoints_reject_invalid_methods(self) -> None:
         """MANDATORY: Test endpoints reject invalid HTTP methods."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -476,7 +476,7 @@ class TestAuthRouterSecurity:
             response = client.patch(endpoint)
             assert response.status_code in [405, 401, 422]  # Method not allowed or unauthorized
 
-    def test_authenticated_endpoints_reject_missing_token(self):
+    def test_authenticated_endpoints_reject_missing_token(self) -> None:
         """MANDATORY: Test authenticated endpoints reject requests without token."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -496,7 +496,7 @@ class TestAuthRouterSecurity:
                 f"Endpoint {endpoint} should reject unauthenticated requests"
             )
 
-    def test_admin_endpoints_require_elevated_privileges(self):
+    def test_admin_endpoints_require_elevated_privileges(self) -> None:
         """MANDATORY: Test admin endpoints require superuser privileges."""
         # Arrange - MANDATORY
         client = TestClient(app)
@@ -526,7 +526,7 @@ class TestAuthRouterSecurity:
 class TestAuthRouterPerformance:
     """MANDATORY performance tests for auth router."""
 
-    def test_oauth_providers_response_time(self):
+    def test_oauth_providers_response_time(self) -> None:
         """MANDATORY: Test OAuth providers endpoint performance."""
         # Arrange - MANDATORY
         import time
@@ -549,7 +549,7 @@ class TestAuthRouterPerformance:
         assert avg_time < 0.1  # <100ms per request
         assert execution_time < 2.0  # Total <2s for 10 requests
 
-    def test_endpoint_registration_performance(self):
+    def test_endpoint_registration_performance(self) -> None:
         """MANDATORY: Test router initialization performance."""
         # Arrange - MANDATORY
         import time

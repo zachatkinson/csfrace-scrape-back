@@ -79,7 +79,7 @@ def alert_manager(alert_config: AlertConfig) -> AlertManager:
 class TestAlertSeverity:
     """Tests for AlertSeverity enum - MANDATORY AAA pattern."""
 
-    def test_severity_levels_exist(self):
+    def test_severity_levels_exist(self) -> None:
         """Test all severity levels exist - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -95,7 +95,7 @@ class TestAlertSeverity:
         assert len(severities) == 4
         assert all(isinstance(s, AlertSeverity) for s in severities)
 
-    def test_severity_values_correct(self):
+    def test_severity_values_correct(self) -> None:
         """Test severity enum values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -123,7 +123,7 @@ class TestAlertSeverity:
 class TestAlertChannel:
     """Tests for AlertChannel enum - MANDATORY AAA pattern."""
 
-    def test_all_channels_exist(self):
+    def test_all_channels_exist(self) -> None:
         """Test all notification channels exist - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -139,7 +139,7 @@ class TestAlertChannel:
         assert len(channels) == 4
         assert all(isinstance(c, AlertChannel) for c in channels)
 
-    def test_channel_values_correct(self):
+    def test_channel_values_correct(self) -> None:
         """Test channel enum values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -167,7 +167,7 @@ class TestAlertChannel:
 class TestAlertRule:
     """Tests for AlertRule configuration - MANDATORY AAA pattern."""
 
-    def test_rule_creation_with_defaults(self, alert_rule: AlertRule):
+    def test_rule_creation_with_defaults(self, alert_rule: AlertRule) -> None:
         """Test alert rule creation with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (fixture provides rule)
 
@@ -185,7 +185,7 @@ class TestAlertRule:
         assert alert_rule.max_alerts_per_hour == 4
         assert alert_rule.enabled is True
 
-    def test_rule_supports_all_operators(self):
+    def test_rule_supports_all_operators(self) -> None:
         """Test alert rule supports all comparison operators - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operators = [">", "<", ">=", "<=", "==", "!="]
@@ -202,7 +202,7 @@ class TestAlertRule:
             )
             assert rule.operator == operator
 
-    def test_rule_supports_multiple_channels(self):
+    def test_rule_supports_multiple_channels(self) -> None:
         """Test alert rule supports multiple notification channels - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         channels = [AlertChannel.LOG, AlertChannel.EMAIL, AlertChannel.WEBHOOK]
@@ -234,7 +234,7 @@ class TestAlertRule:
 class TestAlert:
     """Tests for Alert dataclass - MANDATORY AAA pattern."""
 
-    def test_alert_creation(self):
+    def test_alert_creation(self) -> None:
         """Test alert creation with required fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         now = datetime.now(UTC)
@@ -261,7 +261,7 @@ class TestAlert:
         assert alert.resolved is False
         assert alert.resolved_at is None
 
-    def test_alert_resolution(self):
+    def test_alert_resolution(self) -> None:
         """Test alert resolution tracking - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         alert = Alert(
@@ -293,7 +293,7 @@ class TestAlert:
 class TestAlertConfig:
     """Tests for AlertConfig configuration - MANDATORY AAA pattern."""
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test alert config has sensible defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -307,7 +307,7 @@ class TestAlertConfig:
         assert config.webhook_enabled is False
         assert len(config.default_rules) > 0  # Should have default rules
 
-    def test_config_customization(self):
+    def test_config_customization(self) -> None:
         """Test alert config can be customized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_rules = [
@@ -350,7 +350,7 @@ class TestAlertConfig:
 class TestAlertManagerInitialization:
     """Tests for AlertManager initialization - MANDATORY AAA pattern."""
 
-    def test_manager_initializes_with_config(self, alert_config: AlertConfig):
+    def test_manager_initializes_with_config(self, alert_config: AlertConfig) -> None:
         """Test alert manager initializes with config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -364,7 +364,7 @@ class TestAlertManagerInitialization:
         assert isinstance(manager.alert_history, list)
         assert manager._evaluating is False
 
-    def test_manager_loads_default_rules(self):
+    def test_manager_loads_default_rules(self) -> None:
         """Test alert manager loads default rules from config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = AlertConfig()  # Has default rules
@@ -388,7 +388,7 @@ class TestAlertManagerInitialization:
 class TestRuleManagement:
     """Tests for alert rule management - MANDATORY AAA pattern."""
 
-    def test_add_rule(self, alert_manager: AlertManager, alert_rule: AlertRule):
+    def test_add_rule(self, alert_manager: AlertManager, alert_rule: AlertRule) -> None:
         """Test adding an alert rule - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -399,7 +399,7 @@ class TestRuleManagement:
         assert "test_rule" in alert_manager.rules
         assert alert_manager.rules["test_rule"] == alert_rule
 
-    def test_remove_rule(self, alert_manager: AlertManager, alert_rule: AlertRule):
+    def test_remove_rule(self, alert_manager: AlertManager, alert_rule: AlertRule) -> None:
         """Test removing an alert rule - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         alert_manager.add_rule(alert_rule)
@@ -411,7 +411,7 @@ class TestRuleManagement:
         assert result is True
         assert "test_rule" not in alert_manager.rules
 
-    def test_remove_nonexistent_rule(self, alert_manager: AlertManager):
+    def test_remove_nonexistent_rule(self, alert_manager: AlertManager) -> None:
         """Test removing nonexistent rule returns False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -421,7 +421,7 @@ class TestRuleManagement:
         # Assert - MANDATORY
         assert result is False
 
-    def test_enable_rule(self, alert_manager: AlertManager, alert_rule: AlertRule):
+    def test_enable_rule(self, alert_manager: AlertManager, alert_rule: AlertRule) -> None:
         """Test enabling an alert rule - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         alert_rule.enabled = False
@@ -434,7 +434,7 @@ class TestRuleManagement:
         assert result is True
         assert alert_manager.rules["test_rule"].enabled is True
 
-    def test_disable_rule(self, alert_manager: AlertManager, alert_rule: AlertRule):
+    def test_disable_rule(self, alert_manager: AlertManager, alert_rule: AlertRule) -> None:
         """Test disabling an alert rule - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         alert_manager.add_rule(alert_rule)
@@ -456,7 +456,7 @@ class TestRuleManagement:
 class TestAlertEvaluation:
     """Tests for alert evaluation logic - MANDATORY AAA pattern."""
 
-    def test_evaluate_condition_greater_than(self, alert_manager: AlertManager):
+    def test_evaluate_condition_greater_than(self, alert_manager: AlertManager) -> None:
         """Test evaluate condition with > operator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -465,7 +465,7 @@ class TestAlertEvaluation:
         assert alert_manager._evaluate_condition(70.0, ">", 80.0) is False
         assert alert_manager._evaluate_condition(80.0, ">", 80.0) is False
 
-    def test_evaluate_condition_less_than(self, alert_manager: AlertManager):
+    def test_evaluate_condition_less_than(self, alert_manager: AlertManager) -> None:
         """Test evaluate condition with < operator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -474,7 +474,7 @@ class TestAlertEvaluation:
         assert alert_manager._evaluate_condition(15.0, "<", 10.0) is False
         assert alert_manager._evaluate_condition(10.0, "<", 10.0) is False
 
-    def test_evaluate_condition_all_operators(self, alert_manager: AlertManager):
+    def test_evaluate_condition_all_operators(self, alert_manager: AlertManager) -> None:
         """Test all comparison operators - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_cases = [
@@ -495,7 +495,7 @@ class TestAlertEvaluation:
             result = alert_manager._evaluate_condition(value, operator, threshold)
             assert result == expected, f"Failed: {value} {operator} {threshold}"
 
-    def test_evaluate_condition_unknown_operator(self, alert_manager: AlertManager):
+    def test_evaluate_condition_unknown_operator(self, alert_manager: AlertManager) -> None:
         """Test unknown operator returns False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -515,7 +515,7 @@ class TestAlertEvaluation:
 class TestCooldownAndRateLimiting:
     """Tests for alert cooldown and rate limiting - MANDATORY AAA pattern."""
 
-    def test_cooldown_prevents_immediate_retrigger(self, alert_manager: AlertManager):
+    def test_cooldown_prevents_immediate_retrigger(self, alert_manager: AlertManager) -> None:
         """Test cooldown prevents immediate re-trigger - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         rule = AlertRule(
@@ -536,7 +536,7 @@ class TestCooldownAndRateLimiting:
         # Assert - MANDATORY
         assert result is True
 
-    def test_cooldown_expires_after_duration(self, alert_manager: AlertManager):
+    def test_cooldown_expires_after_duration(self, alert_manager: AlertManager) -> None:
         """Test cooldown expires after configured duration - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         rule = AlertRule(
@@ -557,7 +557,7 @@ class TestCooldownAndRateLimiting:
         # Assert - MANDATORY
         assert result is False
 
-    def test_rate_limiting_prevents_excessive_alerts(self, alert_manager: AlertManager):
+    def test_rate_limiting_prevents_excessive_alerts(self, alert_manager: AlertManager) -> None:
         """Test rate limiting prevents excessive alerts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         rule = AlertRule(
@@ -580,7 +580,7 @@ class TestCooldownAndRateLimiting:
         # Assert - MANDATORY
         assert result is True
 
-    def test_rate_limiting_cleans_old_timestamps(self, alert_manager: AlertManager):
+    def test_rate_limiting_cleans_old_timestamps(self, alert_manager: AlertManager) -> None:
         """Test rate limiting cleans old timestamps - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         rule = AlertRule(
@@ -614,7 +614,7 @@ class TestCooldownAndRateLimiting:
 class TestAlertSummary:
     """Tests for alert summary generation - MANDATORY AAA pattern."""
 
-    def test_get_alert_summary_structure(self, alert_manager: AlertManager):
+    def test_get_alert_summary_structure(self, alert_manager: AlertManager) -> None:
         """Test alert summary has correct structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -629,7 +629,7 @@ class TestAlertSummary:
         assert "alerts_last_24h" in summary
         assert "active_alert_details" in summary
 
-    def test_get_alert_summary_counts_active_alerts(self, alert_manager: AlertManager):
+    def test_get_alert_summary_counts_active_alerts(self, alert_manager: AlertManager) -> None:
         """Test summary counts active alerts correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         alert = Alert(
@@ -661,7 +661,7 @@ class TestAlertSummary:
 class TestAlertManagerAsyncOperations:
     """Tests for async alert manager operations - MANDATORY AAA pattern."""
 
-    async def test_start_evaluation(self, alert_manager: AlertManager):
+    async def test_start_evaluation(self, alert_manager: AlertManager) -> None:
         """Test starting alert evaluation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -675,7 +675,7 @@ class TestAlertManagerAsyncOperations:
         # Cleanup
         await alert_manager.stop_evaluation()
 
-    async def test_stop_evaluation(self, alert_manager: AlertManager):
+    async def test_stop_evaluation(self, alert_manager: AlertManager) -> None:
         """Test stopping alert evaluation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await alert_manager.start_evaluation()
@@ -686,7 +686,7 @@ class TestAlertManagerAsyncOperations:
         # Assert - MANDATORY
         assert alert_manager._evaluating is False
 
-    async def test_shutdown_stops_evaluation(self, alert_manager: AlertManager):
+    async def test_shutdown_stops_evaluation(self, alert_manager: AlertManager) -> None:
         """Test shutdown stops evaluation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await alert_manager.start_evaluation()
@@ -708,7 +708,7 @@ class TestAlertManagerAsyncOperations:
 class TestAlertSecurity:
     """MANDATORY security tests for alert system."""
 
-    def test_alert_rule_name_sanitization(self):
+    def test_alert_rule_name_sanitization(self) -> None:
         """MANDATORY security test - rule names with malicious characters."""
         # Arrange - MANDATORY
         malicious_names = [
@@ -730,7 +730,7 @@ class TestAlertSecurity:
             )
             assert rule.name == name  # Stored as-is, but should be sanitized on use
 
-    def test_alert_message_prevents_injection(self):
+    def test_alert_message_prevents_injection(self) -> None:
         """MANDATORY security test - alert messages prevent injection."""
         # Arrange - MANDATORY
         malicious_message = "Alert <script>alert('xss')</script>"
@@ -760,7 +760,7 @@ class TestAlertSecurity:
 class TestAlertPerformance:
     """MANDATORY performance tests for alert system."""
 
-    def test_rule_evaluation_performance(self, alert_manager: AlertManager):
+    def test_rule_evaluation_performance(self, alert_manager: AlertManager) -> None:
         """MANDATORY performance test - rule evaluation speed."""
         # Arrange - MANDATORY
         metrics = {"cpu_percent": 85.0, "memory_percent": 75.0}
@@ -779,7 +779,7 @@ class TestAlertPerformance:
         assert avg_time < 0.0001  # <0.1ms per evaluation
         assert execution_time < 0.1  # Total <100ms for 1000 evaluations
 
-    def test_cooldown_check_performance(self, alert_manager: AlertManager):
+    def test_cooldown_check_performance(self, alert_manager: AlertManager) -> None:
         """MANDATORY performance test - cooldown check speed."""
         # Arrange - MANDATORY
         rule = AlertRule(

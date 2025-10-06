@@ -7,6 +7,7 @@ Grafana dashboards following CLAUDE.md standards.
 import json
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import typer
 import yaml
@@ -119,7 +120,7 @@ def _load_config_from_file(
 
 
 @database_error_handler("execute CLI command")
-def _execute_cli_command_safe(operation: str, func: Callable, *args) -> None:
+def _execute_cli_command_safe(operation: str, func: Callable[..., Any], *args: Any) -> None:
     """Execute CLI command with error handling."""
     try:
         func(*args)

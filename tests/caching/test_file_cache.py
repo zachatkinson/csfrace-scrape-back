@@ -71,7 +71,7 @@ def sample_cache_entry() -> CacheEntry:
 class TestFileCacheInit:
     """Test FileCache initialization following MANDATORY AAA pattern."""
 
-    def test_init_creates_cache_directories(self, file_cache: FileCache):
+    def test_init_creates_cache_directories(self, file_cache: FileCache) -> None:
         """Test __init__ creates cache directories - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (file_cache fixture)
 
@@ -86,7 +86,7 @@ class TestFileCacheInit:
         assert file_cache.robots_dir.exists()
         assert file_cache.generic_dir.exists()
 
-    def test_init_creates_stats_dictionary(self, file_cache: FileCache):
+    def test_init_creates_stats_dictionary(self, file_cache: FileCache) -> None:
         """Test __init__ creates stats dictionary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (file_cache fixture)
 
@@ -112,7 +112,7 @@ class TestFileCacheInit:
 class TestFileCachePath:
     """Test FileCache path generation following MANDATORY AAA pattern."""
 
-    def test_get_cache_path_returns_html_path(self, file_cache: FileCache):
+    def test_get_cache_path_returns_html_path(self, file_cache: FileCache) -> None:
         """Test _get_cache_path returns HTML path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:html:key"
@@ -126,7 +126,7 @@ class TestFileCachePath:
         assert cache_path.suffix == ".cache"
         assert cache_path.name != key  # Should be hashed
 
-    def test_get_cache_path_returns_image_path(self, file_cache: FileCache):
+    def test_get_cache_path_returns_image_path(self, file_cache: FileCache) -> None:
         """Test _get_cache_path returns image path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:image:key"
@@ -139,7 +139,7 @@ class TestFileCachePath:
         assert cache_path.parent == file_cache.image_dir
         assert cache_path.suffix == ".cache"
 
-    def test_get_cache_path_uses_generic_for_unknown_type(self, file_cache: FileCache):
+    def test_get_cache_path_uses_generic_for_unknown_type(self, file_cache: FileCache) -> None:
         """Test _get_cache_path uses generic for unknown type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:unknown:key"
@@ -162,7 +162,7 @@ class TestFileCachePath:
 class TestFileCacheGet:
     """Test FileCache get operation following MANDATORY AAA pattern."""
 
-    async def test_get_returns_none_for_missing_entry(self, file_cache: FileCache):
+    async def test_get_returns_none_for_missing_entry(self, file_cache: FileCache) -> None:
         """Test get returns None for missing entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "nonexistent:key"
@@ -174,7 +174,7 @@ class TestFileCacheGet:
         assert result is None
         assert file_cache._stats["misses"] == 1
 
-    async def test_get_returns_entry_for_valid_cache(self, file_cache: FileCache):
+    async def test_get_returns_entry_for_valid_cache(self, file_cache: FileCache) -> None:
         """Test get returns entry for valid cache - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:valid:key"
@@ -190,7 +190,7 @@ class TestFileCacheGet:
         assert result.value == value
         assert file_cache._stats["hits"] == 1
 
-    async def test_get_returns_none_for_expired_entry(self, file_cache: FileCache):
+    async def test_get_returns_none_for_expired_entry(self, file_cache: FileCache) -> None:
         """Test get returns None for expired entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:expired:key"
@@ -216,7 +216,7 @@ class TestFileCacheGet:
 class TestFileCacheSet:
     """Test FileCache set operation following MANDATORY AAA pattern."""
 
-    async def test_set_creates_cache_file(self, file_cache: FileCache):
+    async def test_set_creates_cache_file(self, file_cache: FileCache) -> None:
         """Test set creates cache file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:set:key"
@@ -231,7 +231,7 @@ class TestFileCacheSet:
         cache_path = file_cache._get_cache_path(key, "html")
         assert cache_path.exists()
 
-    async def test_set_with_custom_ttl(self, file_cache: FileCache):
+    async def test_set_with_custom_ttl(self, file_cache: FileCache) -> None:
         """Test set with custom TTL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:custom:ttl"
@@ -246,7 +246,7 @@ class TestFileCacheSet:
         assert result is not None
         assert result.ttl == custom_ttl
 
-    async def test_set_overwrites_existing_entry(self, file_cache: FileCache):
+    async def test_set_overwrites_existing_entry(self, file_cache: FileCache) -> None:
         """Test set overwrites existing entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:overwrite:key"
@@ -271,7 +271,7 @@ class TestFileCacheSet:
 class TestFileCacheDelete:
     """Test FileCache delete operation following MANDATORY AAA pattern."""
 
-    async def test_delete_removes_cache_file(self, file_cache: FileCache):
+    async def test_delete_removes_cache_file(self, file_cache: FileCache) -> None:
         """Test delete removes cache file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:delete:key"
@@ -286,7 +286,7 @@ class TestFileCacheDelete:
         cache_path = file_cache._get_cache_path(key, "html")
         assert not cache_path.exists()
 
-    async def test_delete_returns_false_for_nonexistent_key(self, file_cache: FileCache):
+    async def test_delete_returns_false_for_nonexistent_key(self, file_cache: FileCache) -> None:
         """Test delete returns False for nonexistent key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "nonexistent:key"
@@ -308,7 +308,7 @@ class TestFileCacheDelete:
 class TestFileCacheClear:
     """Test FileCache clear operation following MANDATORY AAA pattern."""
 
-    async def test_clear_removes_all_cache_files(self, file_cache: FileCache):
+    async def test_clear_removes_all_cache_files(self, file_cache: FileCache) -> None:
         """Test clear removes all cache files - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await file_cache.set("key1", "value1", ttl=3600, content_type="html")
@@ -343,7 +343,7 @@ class TestFileCacheClear:
 class TestFileCacheStats:
     """Test FileCache stats operation following MANDATORY AAA pattern."""
 
-    async def test_stats_returns_empty_cache_stats(self, file_cache: FileCache):
+    async def test_stats_returns_empty_cache_stats(self, file_cache: FileCache) -> None:
         """Test stats returns empty cache stats - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (empty cache)
 
@@ -357,7 +357,7 @@ class TestFileCacheStats:
         assert stats["hits"] == 0
         assert stats["misses"] == 0
 
-    async def test_stats_returns_populated_cache_stats(self, file_cache: FileCache):
+    async def test_stats_returns_populated_cache_stats(self, file_cache: FileCache) -> None:
         """Test stats returns populated cache stats - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await file_cache.set("key1", "value1", ttl=3600, content_type="html")
@@ -372,7 +372,7 @@ class TestFileCacheStats:
         assert stats["total_size_mb"] >= 0  # May be 0.0 due to rounding for small files
         assert stats["sets"] == 2
 
-    async def test_stats_calculates_hit_rate(self, file_cache: FileCache):
+    async def test_stats_calculates_hit_rate(self, file_cache: FileCache) -> None:
         """Test stats calculates hit rate - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await file_cache.set("key1", "value1", ttl=3600, content_type="html")
@@ -398,7 +398,7 @@ class TestFileCacheStats:
 class TestFileCacheCleanup:
     """Test FileCache cleanup operations following MANDATORY AAA pattern."""
 
-    async def test_cleanup_expired_removes_expired_entries(self, file_cache: FileCache):
+    async def test_cleanup_expired_removes_expired_entries(self, file_cache: FileCache) -> None:
         """Test cleanup_expired removes expired entries - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await file_cache.set("key1", "value1", ttl=1, content_type="html")
@@ -415,7 +415,7 @@ class TestFileCacheCleanup:
         assert result1 is None
         assert result2 is not None
 
-    async def test_cleanup_expired_returns_zero_for_no_expired(self, file_cache: FileCache):
+    async def test_cleanup_expired_returns_zero_for_no_expired(self, file_cache: FileCache) -> None:
         """Test cleanup_expired returns zero for no expired - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await file_cache.set("key1", "value1", ttl=3600, content_type="html")
@@ -438,7 +438,7 @@ class TestFileCacheSecurity:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_set_sanitizes_malicious_keys(self, file_cache: FileCache):
+    async def test_set_sanitizes_malicious_keys(self, file_cache: FileCache) -> None:
         """MANDATORY security test - set sanitizes malicious keys."""
         # Arrange - MANDATORY
         malicious_keys = [
@@ -463,7 +463,7 @@ class TestFileCacheSecurity:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_set_handles_malicious_values_safely(self, file_cache: FileCache):
+    async def test_set_handles_malicious_values_safely(self, file_cache: FileCache) -> None:
         """MANDATORY security test - set handles malicious values safely."""
         # Arrange - MANDATORY
         malicious_values = [
@@ -497,7 +497,7 @@ class TestFileCachePerformance:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_set_performance_benchmark(self, file_cache: FileCache):
+    async def test_set_performance_benchmark(self, file_cache: FileCache) -> None:
         """MANDATORY performance test - set completes quickly."""
         # Arrange - MANDATORY
         iterations = 100
@@ -517,7 +517,7 @@ class TestFileCachePerformance:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_get_performance_benchmark(self, file_cache: FileCache):
+    async def test_get_performance_benchmark(self, file_cache: FileCache) -> None:
         """MANDATORY performance test - get completes quickly."""
         # Arrange - MANDATORY
         iterations = 100
@@ -541,7 +541,7 @@ class TestFileCachePerformance:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_cleanup_performance_benchmark(self, file_cache: FileCache):
+    async def test_cleanup_performance_benchmark(self, file_cache: FileCache) -> None:
         """MANDATORY performance test - cleanup completes quickly."""
         # Arrange - MANDATORY
         entry_count = 500

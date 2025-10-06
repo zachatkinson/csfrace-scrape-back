@@ -26,7 +26,7 @@ class TokenService:
 
     @staticmethod
     def create_tokens_for_user(
-        user: User, is_new_user: bool = False, scopes: list[str] = None
+        user: User, is_new_user: bool = False, scopes: list[str] | None = None
     ) -> Token:
         """Create JWT access and refresh tokens for authenticated user.
 

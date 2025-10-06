@@ -1,5 +1,7 @@
 """Setup and configuration for monitoring system including health checks."""
 
+from typing import Any
+
 from src.core.logging_hierarchy import get_monitoring_logger
 
 from .health_checks import (
@@ -46,7 +48,7 @@ def setup_default_health_checks() -> None:
         raise
 
 
-def get_health_check_summary():
+def get_health_check_summary() -> dict[str, Any]:
     """Get a summary of all registered health checks."""
     return {
         "total_checks": len(health_registry.list_checks()),

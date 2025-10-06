@@ -92,7 +92,8 @@ class CacheManager:
 
         if entry:
             logger.debug("Cache hit for HTML", url=url)
-            return entry.value
+            value: str | None = entry.value if isinstance(entry.value, str) else None
+            return value
 
         return None
 
@@ -132,7 +133,8 @@ class CacheManager:
 
         if entry:
             logger.debug("Cache hit for image", url=image_url)
-            return entry.value
+            value: bytes | None = entry.value if isinstance(entry.value, bytes) else None
+            return value
 
         return None
 
@@ -172,7 +174,8 @@ class CacheManager:
 
         if entry:
             logger.debug("Cache hit for metadata", url=url)
-            return entry.value
+            value: dict[str, Any] | None = entry.value if isinstance(entry.value, dict) else None
+            return value
 
         return None
 
@@ -214,7 +217,8 @@ class CacheManager:
 
         if entry:
             logger.debug("Cache hit for robots.txt", domain=domain)
-            return entry.value
+            value: str | None = entry.value if isinstance(entry.value, str) else None
+            return value
 
         return None
 
@@ -376,7 +380,8 @@ class CacheManager:
     async def _get_backend_type_safe(self) -> str | None:
         """Safely get backend type with centralized error handling."""
         if self.backend and hasattr(self.backend, "get_backend_type"):
-            return await self.backend.get_backend_type()
+            result: str | None = await self.backend.get_backend_type()
+            return result
         return None
 
 

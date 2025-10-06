@@ -30,13 +30,13 @@ from src.utils.session.session_factory import SessionFactory
 
 
 @pytest.fixture
-def default_user_agent():
+def default_user_agent() -> str:
     """Factory for default user agent - DRY principle."""
     return "Enhanced Session Manager/1.0"
 
 
 @pytest.fixture
-def custom_headers():
+def custom_headers() -> dict[str, str]:
     """Factory for custom headers - DRY principle."""
     return {"X-Custom-Header": "test-value", "X-Request-ID": "12345"}
 
@@ -51,7 +51,7 @@ class TestSessionFactory:
     """Tests for SessionFactory class."""
 
     @pytest.mark.asyncio
-    async def test_create_session_default_settings(self):
+    async def test_create_session_default_settings(self) -> None:
         """Test create_session() with default settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -67,7 +67,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_custom_max_connections(self):
+    async def test_create_session_custom_max_connections(self) -> None:
         """Test create_session() with custom max connections - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_connections = 20
@@ -77,12 +77,15 @@ class TestSessionFactory:
 
         # Assert - MANDATORY
         try:
-            assert session.connector.limit == max_connections
+            connector = session.connector
+            assert connector is not None
+            assert isinstance(connector, aiohttp.TCPConnector)
+            assert connector.limit == max_connections
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_custom_timeouts(self):
+    async def test_create_session_custom_timeouts(self) -> None:
         """Test create_session() with custom timeouts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         connection_timeout = 10.0
@@ -105,7 +108,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_custom_keepalive_timeout(self):
+    async def test_create_session_custom_keepalive_timeout(self) -> None:
         """Test create_session() with custom keepalive - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         keepalive_timeout = 60.0
@@ -115,13 +118,16 @@ class TestSessionFactory:
 
         # Assert - MANDATORY
         try:
+            connector = session.connector
+            assert connector is not None
+            assert isinstance(connector, aiohttp.TCPConnector)
             # TCPConnector stores keepalive_timeout as _keepalive_timeout
-            assert session.connector._keepalive_timeout == keepalive_timeout
+            assert connector._keepalive_timeout == keepalive_timeout
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_ssl_verification_disabled(self):
+    async def test_create_session_ssl_verification_disabled(self) -> None:
         """Test create_session() with SSL verification disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         verify_ssl = False
@@ -131,12 +137,15 @@ class TestSessionFactory:
 
         # Assert - MANDATORY
         try:
-            assert session.connector._ssl is False
+            connector = session.connector
+            assert connector is not None
+            assert isinstance(connector, aiohttp.TCPConnector)
+            assert connector._ssl is False
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_custom_user_agent(self):
+    async def test_create_session_custom_user_agent(self) -> None:
         """Test create_session() with custom user agent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_user_agent = "Test Bot/2.0"
@@ -151,7 +160,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_custom_headers(self, custom_headers):
+    async def test_create_session_custom_headers(self, custom_headers: dict[str, str]) -> None:
         """Test create_session() with custom headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (using fixture)
         # Act - MANDATORY
@@ -166,7 +175,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_with_cookie_jar(self):
+    async def test_create_session_with_cookie_jar(self) -> None:
         """Test create_session() with cookie jar - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cookie_jar = aiohttp.CookieJar()
@@ -181,7 +190,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_connector_configuration(self):
+    async def test_create_session_connector_configuration(self) -> None:
         """Test connector configuration in create_session() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_connections = 15
@@ -191,15 +200,18 @@ class TestSessionFactory:
 
         # Assert - MANDATORY
         try:
-            assert session.connector.limit == max_connections
-            assert session.connector.limit_per_host == min(max_connections, 30)
+            connector = session.connector
+            assert connector is not None
+            assert isinstance(connector, aiohttp.TCPConnector)
+            assert connector.limit == max_connections
+            assert connector.limit_per_host == min(max_connections, 30)
             # TCPConnector uses _cached_hosts for DNS cache, not _ttl_dns_cache
-            assert hasattr(session.connector, "_cached_hosts")
+            assert hasattr(connector, "_cached_hosts")
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_timeout_configuration(self):
+    async def test_create_session_timeout_configuration(self) -> None:
         """Test timeout configuration in create_session() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         connection_timeout = 15.0
@@ -222,7 +234,7 @@ class TestSessionFactory:
         finally:
             await session.close()
 
-    def test_build_default_headers(self, default_user_agent):
+    def test_build_default_headers(self, default_user_agent: str) -> None:
         """Test _build_default_headers() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (using fixture)
         # Act - MANDATORY
@@ -238,7 +250,7 @@ class TestSessionFactory:
         assert headers["Connection"] == "keep-alive"
         assert headers["Upgrade-Insecure-Requests"] == "1"
 
-    def test_build_default_headers_custom_user_agent(self):
+    def test_build_default_headers_custom_user_agent(self) -> None:
         """Test _build_default_headers() with custom user agent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_user_agent = "Custom Bot/3.0"
@@ -250,7 +262,7 @@ class TestSessionFactory:
         assert headers["User-Agent"] == custom_user_agent
 
     @pytest.mark.asyncio
-    async def test_create_cookie_jar_unsafe_true(self):
+    async def test_create_cookie_jar_unsafe_true(self) -> None:
         """Test create_cookie_jar() with unsafe=True - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -263,7 +275,7 @@ class TestSessionFactory:
         assert cookie_jar._unsafe is True
 
     @pytest.mark.asyncio
-    async def test_create_cookie_jar_unsafe_false(self):
+    async def test_create_cookie_jar_unsafe_false(self) -> None:
         """Test create_cookie_jar() with unsafe=False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -276,7 +288,7 @@ class TestSessionFactory:
         assert cookie_jar._unsafe is False
 
     @pytest.mark.asyncio
-    async def test_create_session_includes_all_default_headers(self):
+    async def test_create_session_includes_all_default_headers(self) -> None:
         """Test create_session() includes all default headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -295,7 +307,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_custom_headers_override_defaults(self):
+    async def test_create_session_custom_headers_override_defaults(self) -> None:
         """Test custom headers override defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_headers = {"Accept": "application/json"}
@@ -310,7 +322,7 @@ class TestSessionFactory:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_limit_per_host_respects_max_connections(self):
+    async def test_create_session_limit_per_host_respects_max_connections(self) -> None:
         """Test limit_per_host respects max_connections - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_connections = 50  # More than 30
@@ -320,13 +332,16 @@ class TestSessionFactory:
 
         # Assert - MANDATORY
         try:
+            connector = session.connector
+            assert connector is not None
+            assert isinstance(connector, aiohttp.TCPConnector)
             # limit_per_host should be capped at 30
-            assert session.connector.limit_per_host == 30
+            assert connector.limit_per_host == 30
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_create_session_limit_per_host_uses_max_connections_when_lower(self):
+    async def test_create_session_limit_per_host_uses_max_connections_when_lower(self) -> None:
         """Test limit_per_host uses max_connections when lower - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_connections = 5  # Less than 30
@@ -336,7 +351,10 @@ class TestSessionFactory:
 
         # Assert - MANDATORY
         try:
-            assert session.connector.limit_per_host == 5
+            connector = session.connector
+            assert connector is not None
+            assert isinstance(connector, aiohttp.TCPConnector)
+            assert connector.limit_per_host == 5
         finally:
             await session.close()
 
@@ -352,11 +370,11 @@ class TestSessionFactoryPerformance:
     """MANDATORY performance tests for session factory operations."""
 
     @pytest.mark.asyncio
-    async def test_create_session_performance(self):
+    async def test_create_session_performance(self) -> None:
         """MANDATORY performance test - session creation speed."""
         # Arrange - MANDATORY
         iterations = 1000
-        sessions = []
+        sessions: list[aiohttp.ClientSession] = []
 
         # Act - MANDATORY
         start_time = time.perf_counter()
@@ -378,7 +396,7 @@ class TestSessionFactoryPerformance:
         assert execution_time < 10.0  # Total <10s for 1000 creations
 
     @pytest.mark.asyncio
-    async def test_create_cookie_jar_performance(self):
+    async def test_create_cookie_jar_performance(self) -> None:
         """MANDATORY performance test - cookie jar creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -397,7 +415,7 @@ class TestSessionFactoryPerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_build_default_headers_performance(self):
+    def test_build_default_headers_performance(self) -> None:
         """MANDATORY performance test - header building speed."""
         # Arrange - MANDATORY
         iterations = 10000

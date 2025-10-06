@@ -21,6 +21,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
@@ -35,19 +36,19 @@ from src.utils.session_manager import EnhancedSessionManager, SessionConfig, cre
 
 
 @pytest.fixture
-def valid_base_url():
+def valid_base_url() -> str:
     """Factory for valid base URL - DRY principle."""
     return "https://example.com"
 
 
 @pytest.fixture
-def basic_session_config():
+def basic_session_config() -> SessionConfig:
     """Factory for basic session config - DRY principle."""
     return SessionConfig()
 
 
 @pytest.fixture
-def authenticated_session_config(tmp_path):
+def authenticated_session_config(tmp_path: Path) -> SessionConfig:
     """Factory for authenticated session config - DRY principle."""
     return SessionConfig(
         username="test_user",
@@ -58,7 +59,7 @@ def authenticated_session_config(tmp_path):
 
 
 @pytest.fixture
-def mock_session():
+def mock_session() -> AsyncMock:
     """Factory for mock ClientSession - DRY principle."""
     session = AsyncMock(spec=aiohttp.ClientSession)
     session.closed = False
@@ -76,7 +77,7 @@ def mock_session():
 class TestSessionConfig:
     """Tests for SessionConfig dataclass."""
 
-    def test_initialization_defaults(self):
+    def test_initialization_defaults(self) -> None:
         """Test SessionConfig initialization with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -89,7 +90,7 @@ class TestSessionConfig:
         assert config.save_cookies is True
         assert config.auth_type == "basic"
 
-    def test_initialization_custom_values(self):
+    def test_initialization_custom_values(self) -> None:
         """Test SessionConfig with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -106,49 +107,49 @@ class TestSessionConfig:
         assert config.username == "user"
         assert config.password == "pass"
 
-    def test_validation_max_concurrent_connections_negative(self):
+    def test_validation_max_concurrent_connections_negative(self) -> None:
         """Test validation for negative max_concurrent_connections - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="max_concurrent_connections must be at least 1"):
             SessionConfig(max_concurrent_connections=0)
 
-    def test_validation_connection_timeout_negative(self):
+    def test_validation_connection_timeout_negative(self) -> None:
         """Test validation for negative connection_timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="connection_timeout must be positive"):
             SessionConfig(connection_timeout=-1.0)
 
-    def test_validation_total_timeout_negative(self):
+    def test_validation_total_timeout_negative(self) -> None:
         """Test validation for negative total_timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="total_timeout must be positive"):
             SessionConfig(total_timeout=-1.0)
 
-    def test_validation_invalid_auth_type(self):
+    def test_validation_invalid_auth_type(self) -> None:
         """Test validation for invalid auth_type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="auth_type must be"):
             SessionConfig(auth_type="invalid")
 
-    def test_validation_basic_auth_missing_username(self):
+    def test_validation_basic_auth_missing_username(self) -> None:
         """Test validation for basic auth missing username - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="Both username and password required"):
             SessionConfig(auth_type="basic", password="pass")
 
-    def test_validation_basic_auth_missing_password(self):
+    def test_validation_basic_auth_missing_password(self) -> None:
         """Test validation for basic auth missing password - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="Both username and password required"):
             SessionConfig(auth_type="basic", username="user")
 
-    def test_validation_bearer_auth_missing_token(self):
+    def test_validation_bearer_auth_missing_token(self) -> None:
         """Test validation for bearer auth missing token - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act & Assert - MANDATORY
@@ -165,7 +166,9 @@ class TestSessionConfig:
 class TestEnhancedSessionManager:
     """Tests for EnhancedSessionManager class."""
 
-    def test_initialization_basic(self, valid_base_url, basic_session_config):
+    def test_initialization_basic(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test EnhancedSessionManager initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (using fixtures)
         # Act - MANDATORY
@@ -177,7 +180,9 @@ class TestEnhancedSessionManager:
         assert manager._session is None
         assert manager.cookie_persistence is None
 
-    def test_initialization_with_authentication(self, valid_base_url, authenticated_session_config):
+    def test_initialization_with_authentication(
+        self, valid_base_url: str, authenticated_session_config: SessionConfig
+    ) -> None:
         """Test initialization with authentication - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (using fixtures)
         # Act - MANDATORY
@@ -187,7 +192,7 @@ class TestEnhancedSessionManager:
         assert manager.auth_service.has_strategy is True
         assert manager.cookie_persistence is not None
 
-    def test_validate_url_valid_https(self):
+    def test_validate_url_valid_https(self) -> None:
         """Test _validate_url() with valid HTTPS URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
@@ -199,7 +204,7 @@ class TestEnhancedSessionManager:
         # Assert - MANDATORY
         assert validated == url
 
-    def test_validate_url_adds_https_prefix(self):
+    def test_validate_url_adds_https_prefix(self) -> None:
         """Test _validate_url() adds https prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
@@ -211,7 +216,7 @@ class TestEnhancedSessionManager:
         # Assert - MANDATORY
         assert validated == "https://example.com"
 
-    def test_validate_url_invalid_empty(self):
+    def test_validate_url_invalid_empty(self) -> None:
         """Test _validate_url() with empty URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
@@ -220,7 +225,7 @@ class TestEnhancedSessionManager:
         with pytest.raises(ConfigurationError, match="URL must be a non-empty string"):
             manager._validate_url("")
 
-    def test_validate_url_invalid_netloc(self):
+    def test_validate_url_invalid_netloc(self) -> None:
         """Test _validate_url() with invalid netloc - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
@@ -230,7 +235,9 @@ class TestEnhancedSessionManager:
             manager._validate_url("not-a-url")
 
     @pytest.mark.asyncio
-    async def test_get_session_creates_session(self, valid_base_url, basic_session_config):
+    async def test_get_session_creates_session(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test get_session() creates session - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -244,7 +251,9 @@ class TestEnhancedSessionManager:
         assert manager._session is session
 
     @pytest.mark.asyncio
-    async def test_get_session_returns_existing_session(self, valid_base_url, basic_session_config):
+    async def test_get_session_returns_existing_session(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test get_session() returns existing session - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -257,7 +266,9 @@ class TestEnhancedSessionManager:
         assert session1 is session2
 
     @pytest.mark.asyncio
-    async def test_close_session(self, valid_base_url, basic_session_config):
+    async def test_close_session(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test close() closes session - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -270,7 +281,9 @@ class TestEnhancedSessionManager:
         assert session.closed
 
     @pytest.mark.asyncio
-    async def test_async_context_manager(self, valid_base_url, basic_session_config):
+    async def test_async_context_manager(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test async context manager support - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -282,7 +295,9 @@ class TestEnhancedSessionManager:
             assert isinstance(session, aiohttp.ClientSession)
 
     @pytest.mark.asyncio
-    async def test_make_request_absolute_url(self, valid_base_url, basic_session_config):
+    async def test_make_request_absolute_url(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test make_request() with absolute URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -301,7 +316,9 @@ class TestEnhancedSessionManager:
             mock_session.request.assert_called_once_with("GET", url)
 
     @pytest.mark.asyncio
-    async def test_make_request_relative_url(self, valid_base_url, basic_session_config):
+    async def test_make_request_relative_url(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test make_request() with relative URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -321,7 +338,9 @@ class TestEnhancedSessionManager:
             mock_session.request.assert_called_once_with("GET", expected_url)
 
     @pytest.mark.asyncio
-    async def test_validate_authentication(self, valid_base_url, authenticated_session_config):
+    async def test_validate_authentication(
+        self, valid_base_url: str, authenticated_session_config: SessionConfig
+    ) -> None:
         """Test validate_authentication() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, authenticated_session_config)
@@ -335,7 +354,9 @@ class TestEnhancedSessionManager:
             # Assert - MANDATORY
             assert result is True
 
-    def test_is_authenticated_property(self, valid_base_url, authenticated_session_config):
+    def test_is_authenticated_property(
+        self, valid_base_url: str, authenticated_session_config: SessionConfig
+    ) -> None:
         """Test is_authenticated property - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, authenticated_session_config)
@@ -344,7 +365,9 @@ class TestEnhancedSessionManager:
         # Act & Assert - MANDATORY
         assert manager.is_authenticated is True
 
-    def test_metrics_property(self, valid_base_url, basic_session_config):
+    def test_metrics_property(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test metrics property - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config, session_name="test")
@@ -359,7 +382,9 @@ class TestEnhancedSessionManager:
         assert "config" in metrics
 
     @pytest.mark.asyncio
-    async def test_create_session_utility_function(self, valid_base_url, basic_session_config):
+    async def test_create_session_utility_function(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test create_session() utility function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -380,7 +405,9 @@ class TestSessionManagerIntegration:
     """Integration scenario tests for session manager."""
 
     @pytest.mark.asyncio
-    async def test_session_with_cookie_persistence(self, valid_base_url, tmp_path):
+    async def test_session_with_cookie_persistence(
+        self, valid_base_url: str, tmp_path: Path
+    ) -> None:
         """Test session with cookie persistence - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cookie_file = tmp_path / "test_cookies.json"
@@ -411,7 +438,9 @@ class TestSessionManagerIntegration:
             assert "test_cookie" in saved_cookies["example.com"]
 
     @pytest.mark.asyncio
-    async def test_session_lifecycle(self, valid_base_url, basic_session_config):
+    async def test_session_lifecycle(
+        self, valid_base_url: str, basic_session_config: SessionConfig
+    ) -> None:
         """Test complete session lifecycle - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager(valid_base_url, basic_session_config)
@@ -438,7 +467,7 @@ class TestSessionManagerIntegration:
 class TestEnhancedSessionManagerPerformance:
     """MANDATORY performance tests for session manager operations."""
 
-    def test_initialization_performance(self, valid_base_url):
+    def test_initialization_performance(self, valid_base_url: str) -> None:
         """MANDATORY performance test - manager initialization speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -457,7 +486,7 @@ class TestEnhancedSessionManagerPerformance:
         assert avg_time < 0.001  # <1ms per creation
         assert execution_time < 1.0  # Total <1s for 1000 creations
 
-    def test_url_validation_performance(self):
+    def test_url_validation_performance(self) -> None:
         """MANDATORY performance test - URL validation speed."""
         # Arrange - MANDATORY
         manager = EnhancedSessionManager.__new__(EnhancedSessionManager)
@@ -478,7 +507,7 @@ class TestEnhancedSessionManagerPerformance:
         assert avg_time < 0.0001  # <0.1ms per validation
         assert execution_time < 1.0  # Total <1s for 10000 validations
 
-    def test_config_validation_performance(self):
+    def test_config_validation_performance(self) -> None:
         """MANDATORY performance test - config validation speed."""
         # Arrange - MANDATORY
         iterations = 1000

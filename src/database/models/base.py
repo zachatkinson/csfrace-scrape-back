@@ -4,8 +4,12 @@ This module contains the shared base class and common utilities
 used across all domain models.
 """
 
+from typing import Any
+
 from sqlalchemy import event
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.schema import MetaData
 
 from src.core.logging_hierarchy import get_database_logger
 
@@ -18,7 +22,7 @@ class Base(DeclarativeBase):
 
 # PostgreSQL enum metadata event listener (SQLAlchemy best practice)
 @event.listens_for(Base.metadata, "before_create")
-def _create_enums_before_tables(target, connection, **kw):  # noqa: ARG001
+def _create_enums_before_tables(target: MetaData, connection: Connection, **kw: Any) -> None:  # noqa: ARG001
     """Create PostgreSQL enum types before table creation.
 
     This event listener follows SQLAlchemy best practices for PostgreSQL enum handling

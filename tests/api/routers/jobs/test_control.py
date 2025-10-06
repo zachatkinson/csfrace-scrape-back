@@ -16,7 +16,9 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
+from collections.abc import Generator
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -30,7 +32,7 @@ from src.common.status import JobStatus
 
 
 @pytest.fixture
-def sample_job_dict():
+def sample_job_dict() -> dict[str, Any]:
     """Factory for sample job data - DRY principle."""
     return {
         "id": str(uuid4()),
@@ -54,7 +56,7 @@ def sample_job_dict():
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Factory for mock database session - DRY principle."""
     session = AsyncMock()
     session.flush = AsyncMock()
@@ -63,7 +65,7 @@ def mock_db_session():
 
 
 @pytest.fixture
-def mock_job_crud():
+def mock_job_crud() -> Generator[MagicMock]:
     """Factory for mock JobCRUD - DRY principle."""
     with patch("src.api.routers.jobs.control.JobCRUD") as mock:
         yield mock
@@ -79,7 +81,9 @@ def mock_job_crud():
 class TestStartJobEndpoint:
     """Tests for POST /{job_id}/start endpoint - start job."""
 
-    async def test_start_job_success(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_start_job_success(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test start job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -107,7 +111,9 @@ class TestStartJobEndpoint:
             mock_db_session, job_id, JobStatus.RUNNING
         )
 
-    async def test_start_job_not_found(self, mock_job_crud, mock_db_session):
+    async def test_start_job_not_found(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock
+    ) -> None:
         """Test start job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -122,7 +128,9 @@ class TestStartJobEndpoint:
         mock_job_crud.get_job.assert_called_once_with(mock_db_session, job_id)
         mock_job_crud.update_job_status.assert_not_called()
 
-    async def test_start_job_invalid_status(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_start_job_invalid_status(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test start job with invalid status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -140,8 +148,8 @@ class TestStartJobEndpoint:
         mock_job_crud.update_job_status.assert_not_called()
 
     async def test_start_job_completed_status(
-        self, mock_job_crud, mock_db_session, sample_job_dict
-    ):
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test start job with completed status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -170,8 +178,8 @@ class TestCancelJobEndpoint:
     """Tests for POST /{job_id}/cancel endpoint - cancel job."""
 
     async def test_cancel_job_success_pending(
-        self, mock_job_crud, mock_db_session, sample_job_dict
-    ):
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test cancel pending job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -199,8 +207,8 @@ class TestCancelJobEndpoint:
         )
 
     async def test_cancel_job_success_running(
-        self, mock_job_crud, mock_db_session, sample_job_dict
-    ):
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test cancel running job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -227,7 +235,9 @@ class TestCancelJobEndpoint:
             mock_db_session, job_id, JobStatus.CANCELLED
         )
 
-    async def test_cancel_job_not_found(self, mock_job_crud, mock_db_session):
+    async def test_cancel_job_not_found(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock
+    ) -> None:
         """Test cancel job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -243,8 +253,8 @@ class TestCancelJobEndpoint:
         mock_job_crud.update_job_status.assert_not_called()
 
     async def test_cancel_job_already_completed(
-        self, mock_job_crud, mock_db_session, sample_job_dict
-    ):
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test cancel already completed job - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -261,7 +271,9 @@ class TestCancelJobEndpoint:
         mock_job_crud.get_job.assert_called_once_with(mock_db_session, job_id)
         mock_job_crud.update_job_status.assert_not_called()
 
-    async def test_cancel_job_already_failed(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_cancel_job_already_failed(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test cancel already failed job - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -279,8 +291,8 @@ class TestCancelJobEndpoint:
         mock_job_crud.update_job_status.assert_not_called()
 
     async def test_cancel_job_already_cancelled(
-        self, mock_job_crud, mock_db_session, sample_job_dict
-    ):
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test cancel already cancelled job - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -308,7 +320,9 @@ class TestCancelJobEndpoint:
 class TestRetryJobEndpoint:
     """Tests for POST /{job_id}/retry endpoint - retry job."""
 
-    async def test_retry_job_success(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_retry_job_success(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test retry job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -334,7 +348,9 @@ class TestRetryJobEndpoint:
         mock_db_session.flush.assert_called_once()
         mock_db_session.refresh.assert_called_once_with(mock_job)
 
-    async def test_retry_job_not_found(self, mock_job_crud, mock_db_session):
+    async def test_retry_job_not_found(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock
+    ) -> None:
         """Test retry job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -350,8 +366,8 @@ class TestRetryJobEndpoint:
         mock_db_session.flush.assert_not_called()
 
     async def test_retry_job_retry_limit_exceeded(
-        self, mock_job_crud, mock_db_session, sample_job_dict
-    ):
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test retry job with retry limit exceeded - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -371,7 +387,9 @@ class TestRetryJobEndpoint:
         mock_job_crud.get_job.assert_called_once_with(mock_db_session, job_id)
         mock_db_session.flush.assert_not_called()
 
-    async def test_retry_job_wrong_status(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_retry_job_wrong_status(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test retry job with wrong status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -401,7 +419,9 @@ class TestRetryJobEndpoint:
 class TestJobsControlPerformance:
     """MANDATORY performance tests for Jobs control endpoints."""
 
-    async def test_start_job_performance(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_start_job_performance(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """MANDATORY performance test - start job endpoint speed."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -432,7 +452,9 @@ class TestJobsControlPerformance:
         assert avg_time < 0.01  # <10ms per request
         assert execution_time < 1.0  # Total <1s for 100 requests
 
-    async def test_cancel_job_performance(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_cancel_job_performance(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """MANDATORY performance test - cancel job endpoint speed."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -464,7 +486,9 @@ class TestJobsControlPerformance:
         assert avg_time < 0.01  # <10ms per request
         assert execution_time < 1.0  # Total <1s for 100 requests
 
-    async def test_retry_job_performance(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_retry_job_performance(
+        self, mock_job_crud: MagicMock, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """MANDATORY performance test - retry job endpoint speed."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]

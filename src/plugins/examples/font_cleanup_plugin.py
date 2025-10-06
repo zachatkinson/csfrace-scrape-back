@@ -68,6 +68,8 @@ class FontCleanupPlugin(HTMLProcessorPlugin):
         removed_count = 0
 
         for font_tag in font_tags:
+            if not isinstance(font_tag, Tag):
+                continue
             # Move children to parent and remove the font tag
             if font_tag.parent:
                 # Extract and insert children before the font tag
@@ -87,13 +89,18 @@ class FontCleanupPlugin(HTMLProcessorPlugin):
         cleaned_count = 0
 
         for element in elements_with_style:
+            if not isinstance(element, Tag):
+                continue
             style_attr = element.get("style", "")
             if not style_attr:
                 continue
 
+            # Convert style_attr to string if it's not already
+            style_str = style_attr if isinstance(style_attr, str) else str(style_attr)
+
             # Parse CSS properties
             css_props = []
-            for prop in style_attr.split(";"):
+            for prop in style_str.split(";"):
                 prop = prop.strip()
                 if not prop:
                     continue
@@ -139,6 +146,8 @@ class FontCleanupPlugin(HTMLProcessorPlugin):
 
         # Find elements that are now empty (no text content and no meaningful children)
         for element in soup.find_all():
+            if not isinstance(element, Tag):
+                continue
             if element.name in void_elements:
                 continue
 

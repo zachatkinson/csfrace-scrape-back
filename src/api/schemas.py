@@ -72,12 +72,13 @@ class JobResponse(BaseSchema):
 
     @field_validator("priority", mode="before")
     @classmethod
-    def convert_priority_to_string(cls, v):
+    def convert_priority_to_string(cls, v: Any) -> str:
         """Convert database integer priority to string for API response."""
         if isinstance(v, int):
             result = _convert_db_priority_to_string_safe(v)
             return result if result is not None else JobPriority.NORMAL.value
-        return v
+        # v is already a string (from API input or database string field)
+        return str(v)
 
     # Computed fields derived from source_url
     @property

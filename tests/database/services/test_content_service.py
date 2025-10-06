@@ -9,6 +9,7 @@ This module tests all content-related database operations:
 """
 
 import pytest
+from sqlalchemy.orm import Session
 
 from src.core.exceptions import ValidationError
 from src.database.models.auth import (
@@ -23,7 +24,7 @@ class TestContentServiceCreation:
     """Test content creation operations."""
 
     @pytest.mark.database
-    def test_save_content_result_creates_new(self, test_session):
+    def test_save_content_result_creates_new(self, test_session: Session) -> None:
         """Test saving new content result."""
         # Arrange
         job_service = JobService(test_session)
@@ -61,7 +62,7 @@ class TestContentServiceCreation:
         assert result.created_at is not None
 
     @pytest.mark.database
-    def test_save_content_result_original_type(self, test_session):
+    def test_save_content_result_original_type(self, test_session: Session) -> None:
         """Test saving original HTML content."""
         # Arrange
         job_service = JobService(test_session)
@@ -84,7 +85,7 @@ class TestContentServiceCreation:
         assert result.shopify_html is None
 
     @pytest.mark.database
-    def test_save_content_result_shopify_type(self, test_session):
+    def test_save_content_result_shopify_type(self, test_session: Session) -> None:
         """Test saving Shopify-formatted content."""
         # Arrange
         job_service = JobService(test_session)
@@ -105,7 +106,7 @@ class TestContentServiceCreation:
         assert result.original_html is None
 
     @pytest.mark.database
-    def test_save_content_result_default_type(self, test_session):
+    def test_save_content_result_default_type(self, test_session: Session) -> None:
         """Test saving content with default type (converted)."""
         # Arrange
         job_service = JobService(test_session)
@@ -127,7 +128,7 @@ class TestContentServiceCreation:
         assert result.converted_html == content
 
     @pytest.mark.database
-    def test_save_content_result_with_minimal_metadata(self, test_session):
+    def test_save_content_result_with_minimal_metadata(self, test_session: Session) -> None:
         """Test saving content with minimal metadata."""
         # Arrange
         job_service = JobService(test_session)
@@ -150,7 +151,7 @@ class TestContentServiceCreation:
         assert result.author is None
 
     @pytest.mark.database
-    def test_save_content_result_with_null_metadata(self, test_session):
+    def test_save_content_result_with_null_metadata(self, test_session: Session) -> None:
         """Test saving content with None metadata."""
         # Arrange
         job_service = JobService(test_session)
@@ -172,7 +173,7 @@ class TestContentServiceCreation:
         assert result.extra_metadata == {}
 
     @pytest.mark.database
-    def test_save_content_result_empty_content_allowed(self, test_session):
+    def test_save_content_result_empty_content_allowed(self, test_session: Session) -> None:
         """Test saving empty content (allowed for minimal saves)."""
         # Arrange
         job_service = JobService(test_session)
@@ -194,7 +195,7 @@ class TestContentServiceUpdates:
     """Test content update operations."""
 
     @pytest.mark.database
-    def test_save_content_result_updates_existing(self, test_session):
+    def test_save_content_result_updates_existing(self, test_session: Session) -> None:
         """Test updating existing content result."""
         # Arrange
         job_service = JobService(test_session)
@@ -231,7 +232,9 @@ class TestContentServiceUpdates:
         assert result2.updated_at is not None
 
     @pytest.mark.database
-    def test_save_content_result_preserves_other_fields_on_update(self, test_session):
+    def test_save_content_result_preserves_other_fields_on_update(
+        self, test_session: Session
+    ) -> None:
         """Test that updating content preserves other fields."""
         # Arrange
         job_service = JobService(test_session)
@@ -264,7 +267,9 @@ class TestContentServiceUpdates:
         assert result2.word_count == 100  # Preserved
 
     @pytest.mark.database
-    def test_save_content_result_updates_different_content_types(self, test_session):
+    def test_save_content_result_updates_different_content_types(
+        self, test_session: Session
+    ) -> None:
         """Test updating different content type fields."""
         # Arrange
         job_service = JobService(test_session)
@@ -294,7 +299,7 @@ class TestContentServiceRetrieval:
     """Test content retrieval operations."""
 
     @pytest.mark.database
-    def test_get_content_by_job_found(self, test_session):
+    def test_get_content_by_job_found(self, test_session: Session) -> None:
         """Test retrieving existing content."""
         # Arrange
         job_service = JobService(test_session)
@@ -316,7 +321,7 @@ class TestContentServiceRetrieval:
         assert result.converted_html == content
 
     @pytest.mark.database
-    def test_get_content_by_job_not_found(self, test_session):
+    def test_get_content_by_job_not_found(self, test_session: Session) -> None:
         """Test retrieving non-existent content."""
         # Arrange
         service = ContentService(test_session)
@@ -329,7 +334,7 @@ class TestContentServiceRetrieval:
         assert result is None
 
     @pytest.mark.database
-    def test_get_content_metadata_found(self, test_session):
+    def test_get_content_metadata_found(self, test_session: Session) -> None:
         """Test retrieving content metadata."""
         # Arrange
         job_service = JobService(test_session)
@@ -358,6 +363,7 @@ class TestContentServiceRetrieval:
 
         # Assert
         assert metadata is not None
+        assert isinstance(metadata, dict)
         assert metadata["job_id"] == job.id
         assert metadata["content_type"] == "converted"
         assert metadata["title"] == "Test Title"
@@ -369,7 +375,7 @@ class TestContentServiceRetrieval:
         assert metadata["content_size_bytes"] > 0
 
     @pytest.mark.database
-    def test_get_content_metadata_not_found(self, test_session):
+    def test_get_content_metadata_not_found(self, test_session: Session) -> None:
         """Test retrieving metadata for non-existent content."""
         # Arrange
         service = ContentService(test_session)
@@ -382,7 +388,9 @@ class TestContentServiceRetrieval:
         assert metadata is None
 
     @pytest.mark.database
-    def test_get_content_metadata_determines_type_from_original(self, test_session):
+    def test_get_content_metadata_determines_type_from_original(
+        self, test_session: Session
+    ) -> None:
         """Test metadata correctly identifies original content type."""
         # Arrange
         job_service = JobService(test_session)
@@ -400,11 +408,13 @@ class TestContentServiceRetrieval:
         metadata = service.get_content_metadata(job.id)
 
         # Assert
+        assert metadata is not None
+        assert isinstance(metadata, dict)
         assert metadata["content_type"] == "original"
         assert metadata["content_size_bytes"] > 0
 
     @pytest.mark.database
-    def test_get_content_metadata_determines_type_from_shopify(self, test_session):
+    def test_get_content_metadata_determines_type_from_shopify(self, test_session: Session) -> None:
         """Test metadata correctly identifies Shopify content type."""
         # Arrange
         job_service = JobService(test_session)
@@ -422,6 +432,8 @@ class TestContentServiceRetrieval:
         metadata = service.get_content_metadata(job.id)
 
         # Assert
+        assert metadata is not None
+        assert isinstance(metadata, dict)
         assert metadata["content_type"] == "shopify"
 
 
@@ -429,7 +441,7 @@ class TestContentServiceDeletion:
     """Test content deletion operations."""
 
     @pytest.mark.database
-    def test_delete_content_success(self, test_session):
+    def test_delete_content_success(self, test_session: Session) -> None:
         """Test successfully deleting content."""
         # Arrange
         job_service = JobService(test_session)
@@ -454,7 +466,7 @@ class TestContentServiceDeletion:
         assert result is None
 
     @pytest.mark.database
-    def test_delete_content_not_found(self, test_session):
+    def test_delete_content_not_found(self, test_session: Session) -> None:
         """Test deleting non-existent content."""
         # Arrange
         service = ContentService(test_session)
@@ -471,7 +483,7 @@ class TestContentServiceValidation:
     """Test input validation."""
 
     @pytest.mark.database
-    def test_save_content_result_empty_job_id_raises_error(self, test_session):
+    def test_save_content_result_empty_job_id_raises_error(self, test_session: Session) -> None:
         """Test that empty job_id raises ValidationError."""
         # Arrange
         service = ContentService(test_session)
@@ -484,14 +496,14 @@ class TestContentServiceValidation:
         assert exc_info.value.details.get("field") == "job_id"
 
     @pytest.mark.database
-    def test_save_content_result_none_job_id_raises_error(self, test_session):
+    def test_save_content_result_none_job_id_raises_error(self, test_session: Session) -> None:
         """Test that None job_id raises ValidationError."""
         # Arrange
         service = ContentService(test_session)
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            service.save_content_result(job_id=None, content="<html>Test</html>")
+            service.save_content_result(job_id=None, content="<html>Test</html>")  # type: ignore[arg-type]
 
         assert "Job ID is required" in str(exc_info.value)
 
@@ -500,7 +512,7 @@ class TestContentServiceEdgeCases:
     """Test edge cases and special scenarios."""
 
     @pytest.mark.database
-    def test_save_content_with_large_content(self, test_session):
+    def test_save_content_with_large_content(self, test_session: Session) -> None:
         """Test saving very large content."""
         # Arrange
         job_service = JobService(test_session)
@@ -523,7 +535,7 @@ class TestContentServiceEdgeCases:
         assert len(result.converted_html) > 1024 * 1024
 
     @pytest.mark.database
-    def test_save_content_with_unicode_characters(self, test_session):
+    def test_save_content_with_unicode_characters(self, test_session: Session) -> None:
         """Test saving content with Unicode characters."""
         # Arrange
         job_service = JobService(test_session)
@@ -544,7 +556,7 @@ class TestContentServiceEdgeCases:
         assert result.converted_html == unicode_content
 
     @pytest.mark.database
-    def test_save_content_with_special_html_characters(self, test_session):
+    def test_save_content_with_special_html_characters(self, test_session: Session) -> None:
         """Test saving content with HTML special characters."""
         # Arrange
         job_service = JobService(test_session)
@@ -565,7 +577,7 @@ class TestContentServiceEdgeCases:
         assert result.converted_html == special_content
 
     @pytest.mark.database
-    def test_metadata_with_all_fields_populated(self, test_session):
+    def test_metadata_with_all_fields_populated(self, test_session: Session) -> None:
         """Test metadata extraction with all possible fields."""
         # Arrange
         job_service = JobService(test_session)
@@ -600,6 +612,8 @@ class TestContentServiceEdgeCases:
         metadata = service.get_content_metadata(job.id)
 
         # Assert
+        assert metadata is not None
+        assert isinstance(metadata, dict)
         assert metadata["title"] == "Complete Title"
         assert metadata["author"] == "Complete Author"
         assert metadata["word_count"] == 1000
@@ -607,7 +621,7 @@ class TestContentServiceEdgeCases:
         assert metadata["link_count"] == 100
 
     @pytest.mark.database
-    def test_content_with_null_timestamps_handled(self, test_session):
+    def test_content_with_null_timestamps_handled(self, test_session: Session) -> None:
         """Test metadata handles null timestamps gracefully."""
         # Arrange
         job_service = JobService(test_session)
@@ -626,6 +640,8 @@ class TestContentServiceEdgeCases:
         metadata = service.get_content_metadata(job.id)
 
         # Assert
+        assert metadata is not None
+        assert isinstance(metadata, dict)
         # Timestamps should be ISO format strings or None
         assert isinstance(metadata["created_at"], (str, type(None)))
         assert isinstance(metadata["updated_at"], (str, type(None)))
@@ -636,7 +652,7 @@ class TestContentServiceUpdateEdgeCases:
     """Test edge cases for updating existing content (lines 74, 77-80)."""
 
     @pytest.mark.database
-    def test_update_existing_with_original_type(self, test_session):
+    def test_update_existing_with_original_type(self, test_session: Session) -> None:
         """Test updating existing content with original content type (covers line 74)."""
         # Arrange
         job_service = JobService(test_session)
@@ -662,7 +678,7 @@ class TestContentServiceUpdateEdgeCases:
         assert result.converted_html == "<html>Initial</html>"  # Preserved
 
     @pytest.mark.database
-    def test_update_existing_with_shopify_type(self, test_session):
+    def test_update_existing_with_shopify_type(self, test_session: Session) -> None:
         """Test updating existing content with shopify content type (covers lines 77-78)."""
         # Arrange
         job_service = JobService(test_session)
@@ -690,7 +706,9 @@ class TestContentServiceUpdateEdgeCases:
         assert result.converted_html == "<html>Initial</html>"  # Preserved
 
     @pytest.mark.database
-    def test_update_existing_with_unknown_type_defaults_to_converted(self, test_session):
+    def test_update_existing_with_unknown_type_defaults_to_converted(
+        self, test_session: Session
+    ) -> None:
         """Test updating with unknown content type defaults to converted (covers lines 79-80)."""
         # Arrange
         job_service = JobService(test_session)
@@ -719,7 +737,7 @@ class TestContentServiceRetrievalEdgeCases:
     """Test edge cases for retrieving content (lines 165-166, 170-172, 209-213)."""
 
     @pytest.mark.database
-    def test_get_content_by_job_with_original_html(self, test_session):
+    def test_get_content_by_job_with_original_html(self, test_session: Session) -> None:
         """Test retrieving content when only original_html is present (covers lines 165-166)."""
         # Arrange
         job_service = JobService(test_session)
@@ -744,7 +762,7 @@ class TestContentServiceRetrievalEdgeCases:
         assert result.shopify_html is None
 
     @pytest.mark.database
-    def test_get_content_by_job_with_shopify_html(self, test_session):
+    def test_get_content_by_job_with_shopify_html(self, test_session: Session) -> None:
         """Test retrieving content when only shopify_html is present (covers lines 170-172)."""
         # Arrange
         job_service = JobService(test_session)
@@ -771,7 +789,7 @@ class TestContentServiceRetrievalEdgeCases:
         assert result.converted_html is None
 
     @pytest.mark.database
-    def test_get_content_metadata_with_shopify_html(self, test_session):
+    def test_get_content_metadata_with_shopify_html(self, test_session: Session) -> None:
         """Test metadata determination when only shopify_html is present (covers lines 209-213)."""
         # Arrange
         job_service = JobService(test_session)
@@ -790,5 +808,6 @@ class TestContentServiceRetrievalEdgeCases:
 
         # Assert
         assert metadata is not None
+        assert isinstance(metadata, dict)
         assert metadata["content_type"] == "shopify"
         assert metadata["content_size_bytes"] == len(shopify_content.encode("utf-8"))

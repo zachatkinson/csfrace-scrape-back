@@ -17,6 +17,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import time
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -30,7 +31,7 @@ from src.common.status import JobStatus
 
 
 @pytest.fixture
-def sample_job_dict():
+def sample_job_dict() -> dict[str, Any]:
     """Factory for sample job data - DRY principle."""
     return {
         "id": str(uuid4()),
@@ -53,9 +54,9 @@ def sample_job_dict():
 
 
 @pytest.fixture
-def sample_job_list(sample_job_dict):
+def sample_job_list(sample_job_dict: dict[str, Any]) -> list[dict[str, Any]]:
     """Factory for list of sample jobs - DRY principle."""
-    jobs = []
+    jobs: list[dict[str, Any]] = []
     for i in range(5):
         job = sample_job_dict.copy()
         job["id"] = str(uuid4())
@@ -65,13 +66,13 @@ def sample_job_list(sample_job_dict):
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Factory for mock database session - DRY principle."""
     return AsyncMock()
 
 
 @pytest.fixture
-def mock_job_crud():
+def mock_job_crud() -> Any:
     """Factory for mock JobCRUD - DRY principle."""
     with patch("src.api.routers.jobs.crud.JobCRUD") as mock:
         yield mock
@@ -88,8 +89,8 @@ class TestListJobsEndpoint:
     """Tests for GET / endpoint - list jobs with pagination."""
 
     async def test_list_jobs_default_pagination(
-        self, mock_job_crud, mock_db_session, sample_job_list
-    ):
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_list: list[dict[str, Any]]
+    ) -> None:
         """Test list jobs with default pagination - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_job_crud.get_jobs = AsyncMock(return_value=(sample_job_list, len(sample_job_list)))
@@ -116,8 +117,8 @@ class TestListJobsEndpoint:
         )
 
     async def test_list_jobs_custom_pagination(
-        self, mock_job_crud, mock_db_session, sample_job_list
-    ):
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_list: list[dict[str, Any]]
+    ) -> None:
         """Test list jobs with custom pagination - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         page = 2
@@ -145,8 +146,8 @@ class TestListJobsEndpoint:
         )
 
     async def test_list_jobs_with_status_filter(
-        self, mock_job_crud, mock_db_session, sample_job_list
-    ):
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_list: list[dict[str, Any]]
+    ) -> None:
         """Test list jobs with status filter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status_filter = JobStatus.COMPLETED
@@ -170,8 +171,8 @@ class TestListJobsEndpoint:
         )
 
     async def test_list_jobs_with_domain_filter(
-        self, mock_job_crud, mock_db_session, sample_job_list
-    ):
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_list: list[dict[str, Any]]
+    ) -> None:
         """Test list jobs with domain filter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         domain = "example.com"
@@ -193,7 +194,9 @@ class TestListJobsEndpoint:
             mock_db_session, skip=0, limit=50, status=None, domain=domain
         )
 
-    async def test_list_jobs_empty_result(self, mock_job_crud, mock_db_session):
+    async def test_list_jobs_empty_result(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test list jobs with no results - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_job_crud.get_jobs = AsyncMock(return_value=([], 0))
@@ -224,7 +227,9 @@ class TestListJobsEndpoint:
 class TestGetJobEndpoint:
     """Tests for GET /{job_id} endpoint - get single job."""
 
-    async def test_get_job_success(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_get_job_success(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test get job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -241,7 +246,7 @@ class TestGetJobEndpoint:
         assert response.source_url == sample_job_dict["source_url"]
         mock_job_crud.get_job.assert_called_once_with(mock_db_session, job_id)
 
-    async def test_get_job_not_found(self, mock_job_crud, mock_db_session):
+    async def test_get_job_not_found(self, mock_job_crud: Any, mock_db_session: AsyncMock) -> None:
         """Test get job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -266,7 +271,9 @@ class TestGetJobEndpoint:
 class TestUpdateJobEndpoint:
     """Tests for PUT /{job_id} endpoint - update job."""
 
-    async def test_update_job_success(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_update_job_success(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """Test update job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]
@@ -288,7 +295,9 @@ class TestUpdateJobEndpoint:
         assert response.status == JobStatus.RUNNING.value
         mock_job_crud.update_job.assert_called_once_with(mock_db_session, job_id, job_update)
 
-    async def test_update_job_not_found(self, mock_job_crud, mock_db_session):
+    async def test_update_job_not_found(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test update job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -316,7 +325,7 @@ class TestUpdateJobEndpoint:
 class TestDeleteJobEndpoint:
     """Tests for DELETE /{job_id} endpoint - delete job."""
 
-    async def test_delete_job_success(self, mock_job_crud, mock_db_session):
+    async def test_delete_job_success(self, mock_job_crud: Any, mock_db_session: AsyncMock) -> None:
         """Test delete job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -325,13 +334,14 @@ class TestDeleteJobEndpoint:
         from src.api.routers.jobs.crud import delete_job
 
         # Act - MANDATORY
-        result = await delete_job(job_id=job_id, db=mock_db_session)
+        await delete_job(job_id=job_id, db=mock_db_session)
 
         # Assert - MANDATORY
-        assert result is None  # 204 No Content returns None
         mock_job_crud.delete_job.assert_called_once_with(mock_db_session, job_id)
 
-    async def test_delete_job_not_found(self, mock_job_crud, mock_db_session):
+    async def test_delete_job_not_found(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test delete job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -357,7 +367,9 @@ class TestDeleteJobEndpoint:
 class TestJobsCRUDPerformance:
     """MANDATORY performance tests for Jobs CRUD endpoints."""
 
-    async def test_list_jobs_performance(self, mock_job_crud, mock_db_session, sample_job_list):
+    async def test_list_jobs_performance(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_list: list[dict[str, Any]]
+    ) -> None:
         """MANDATORY performance test - list jobs endpoint speed."""
         # Arrange - MANDATORY
         mock_job_crud.get_jobs = AsyncMock(return_value=(sample_job_list, len(sample_job_list)))
@@ -386,7 +398,9 @@ class TestJobsCRUDPerformance:
         assert avg_time < 0.01  # <10ms per request
         assert execution_time < 1.0  # Total <1s for 100 requests
 
-    async def test_get_job_performance(self, mock_job_crud, mock_db_session, sample_job_dict):
+    async def test_get_job_performance(
+        self, mock_job_crud: Any, mock_db_session: AsyncMock, sample_job_dict: dict[str, Any]
+    ) -> None:
         """MANDATORY performance test - get job endpoint speed."""
         # Arrange - MANDATORY
         job_id = sample_job_dict["id"]

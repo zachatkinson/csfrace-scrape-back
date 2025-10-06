@@ -4,16 +4,19 @@ Test coverage: 57 statements, 0% → 85%+
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from collections.abc import Generator
 from datetime import timedelta
+from typing import Any
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from pydantic import ValidationError
 
 from src.config.auth import AuthConfig
 
 
 @pytest.fixture(autouse=True)
-def isolate_from_dotenv(monkeypatch):
+def isolate_from_dotenv(monkeypatch: MonkeyPatch) -> Generator[None]:
     """Isolate tests from .env file by clearing environment variables.
 
     This ensures tests verify code defaults, not environment-specific overrides.
@@ -39,13 +42,14 @@ def isolate_from_dotenv(monkeypatch):
 
     original_exists = os.path.exists
 
-    def mock_exists(path):
+    def mock_exists(path: Any) -> bool:
         # Prevent .env file from being found
         if str(path).endswith(".env"):
             return False
         return original_exists(path)
 
     monkeypatch.setattr("os.path.exists", mock_exists)
+    yield
 
 
 # =============================================================================
@@ -57,7 +61,7 @@ def isolate_from_dotenv(monkeypatch):
 class TestAuthConfigInitialization:
     """Test AuthConfig initialization and defaults."""
 
-    def test_initialization_with_required_fields(self):
+    def test_initialization_with_required_fields(self) -> None:
         """Test initialization with required SECRET_KEY."""
         # Arrange & Act
         config = AuthConfig(SECRET_KEY="a" * 32)
@@ -68,7 +72,7 @@ class TestAuthConfigInitialization:
         assert config.ACCESS_TOKEN_EXPIRE_MINUTES == 720
         assert config.REFRESH_TOKEN_EXPIRE_DAYS == 7
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = AuthConfig(
@@ -83,7 +87,7 @@ class TestAuthConfigInitialization:
         assert config.ACCESS_TOKEN_EXPIRE_MINUTES == 60
         assert config.REFRESH_TOKEN_EXPIRE_DAYS == 30
 
-    def test_initialization_sets_default_values(self):
+    def test_initialization_sets_default_values(self) -> None:
         """Test initialization sets correct default values.
 
         Note: Some values may be overridden by .env file in development.
@@ -119,7 +123,7 @@ class TestAuthConfigInitialization:
 class TestAuthConfigSecretKey:
     """Test AuthConfig SECRET_KEY validation via SecurityMixin."""
 
-    def test_secret_key_validation_accepts_valid_key(self):
+    def test_secret_key_validation_accepts_valid_key(self) -> None:
         """Test accepts valid SECRET_KEY."""
         # Arrange & Act
         config = AuthConfig(SECRET_KEY="a" * 32)
@@ -127,13 +131,13 @@ class TestAuthConfigSecretKey:
         # Assert
         assert len(config.SECRET_KEY) == 32
 
-    def test_secret_key_validation_rejects_short_key(self):
+    def test_secret_key_validation_rejects_short_key(self) -> None:
         """Test rejects SECRET_KEY shorter than 32 characters."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"):
             AuthConfig(SECRET_KEY="short")
 
-    def test_secret_key_validation_rejects_empty_key(self):
+    def test_secret_key_validation_rejects_empty_key(self) -> None:
         """Test rejects empty SECRET_KEY."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="SECRET_KEY must be set"):
@@ -150,7 +154,7 @@ class TestAuthConfigSameSiteCookies:
     """Test AuthConfig.validate_same_site() validation."""
 
     @pytest.mark.parametrize("value", ["strict", "lax", "none"])
-    def test_validate_same_site_accepts_valid_values(self, value):
+    def test_validate_same_site_accepts_valid_values(self, value: str) -> None:
         """Test accepts valid SameSite values."""
         # Arrange & Act
         config = AuthConfig(SECRET_KEY="a" * 32, SAME_SITE_COOKIES=value)
@@ -159,7 +163,7 @@ class TestAuthConfigSameSiteCookies:
         assert value == config.SAME_SITE_COOKIES
 
     @pytest.mark.parametrize("value", ["Strict", "LAX", "NONE", "None"])
-    def test_validate_same_site_normalizes_case(self, value):
+    def test_validate_same_site_normalizes_case(self, value: str) -> None:
         """Test normalizes SameSite values to lowercase."""
         # Arrange & Act
         config = AuthConfig(SECRET_KEY="a" * 32, SAME_SITE_COOKIES=value)
@@ -167,7 +171,7 @@ class TestAuthConfigSameSiteCookies:
         # Assert
         assert value.lower() == config.SAME_SITE_COOKIES
 
-    def test_validate_same_site_rejects_invalid_value(self):
+    def test_validate_same_site_rejects_invalid_value(self) -> None:
         """Test rejects invalid SameSite values."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="SAME_SITE_COOKIES must be"):
@@ -183,7 +187,7 @@ class TestAuthConfigSameSiteCookies:
 class TestAuthConfigTokenExpiration:
     """Test AuthConfig token expiration timedelta properties."""
 
-    def test_access_token_expire_delta_returns_timedelta(self):
+    def test_access_token_expire_delta_returns_timedelta(self) -> None:
         """Test access_token_expire_delta returns correct timedelta."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32, ACCESS_TOKEN_EXPIRE_MINUTES=60)
@@ -195,7 +199,7 @@ class TestAuthConfigTokenExpiration:
         assert isinstance(delta, timedelta)
         assert delta == timedelta(minutes=60)
 
-    def test_refresh_token_expire_delta_returns_timedelta(self):
+    def test_refresh_token_expire_delta_returns_timedelta(self) -> None:
         """Test refresh_token_expire_delta returns correct timedelta."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32, REFRESH_TOKEN_EXPIRE_DAYS=30)
@@ -207,7 +211,7 @@ class TestAuthConfigTokenExpiration:
         assert isinstance(delta, timedelta)
         assert delta == timedelta(days=30)
 
-    def test_lockout_duration_delta_returns_timedelta(self):
+    def test_lockout_duration_delta_returns_timedelta(self) -> None:
         """Test lockout_duration_delta returns correct timedelta."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32, LOCKOUT_DURATION_MINUTES=30)
@@ -229,7 +233,7 @@ class TestAuthConfigTokenExpiration:
 class TestAuthConfigOAuthProviders:
     """Test AuthConfig OAuth provider detection methods."""
 
-    def test_has_oauth_provider_returns_true_when_configured(self):
+    def test_has_oauth_provider_returns_true_when_configured(self) -> None:
         """Test has_oauth_provider returns True when both credentials set."""
         # Arrange
         config = AuthConfig(
@@ -242,7 +246,7 @@ class TestAuthConfigOAuthProviders:
         # Assert
         assert result is True
 
-    def test_has_oauth_provider_returns_false_when_missing_id(self):
+    def test_has_oauth_provider_returns_false_when_missing_id(self) -> None:
         """Test has_oauth_provider returns False when CLIENT_ID missing."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32, GOOGLE_CLIENT_SECRET="client-secret")
@@ -253,7 +257,7 @@ class TestAuthConfigOAuthProviders:
         # Assert
         assert result is False
 
-    def test_has_oauth_provider_returns_false_when_missing_secret(self):
+    def test_has_oauth_provider_returns_false_when_missing_secret(self) -> None:
         """Test has_oauth_provider returns False when CLIENT_SECRET missing."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32, GOOGLE_CLIENT_ID="client-id")
@@ -264,7 +268,7 @@ class TestAuthConfigOAuthProviders:
         # Assert
         assert result is False
 
-    def test_has_oauth_provider_returns_false_for_unknown_provider(self):
+    def test_has_oauth_provider_returns_false_for_unknown_provider(self) -> None:
         """Test has_oauth_provider returns False for unknown provider."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32)
@@ -276,7 +280,7 @@ class TestAuthConfigOAuthProviders:
         assert result is False
 
     @pytest.mark.parametrize("provider", ["google", "github", "microsoft"])
-    def test_has_oauth_provider_supports_all_providers(self, provider):
+    def test_has_oauth_provider_supports_all_providers(self, provider: str) -> None:
         """Test has_oauth_provider supports all OAuth providers."""
         # Arrange
         config = AuthConfig(
@@ -295,7 +299,7 @@ class TestAuthConfigOAuthProviders:
         # Assert
         assert result is True
 
-    def test_get_enabled_oauth_providers_returns_empty_when_none_configured(self):
+    def test_get_enabled_oauth_providers_returns_empty_when_none_configured(self) -> None:
         """Test get_enabled_oauth_providers returns empty list when none configured."""
         # Arrange
         config = AuthConfig(SECRET_KEY="a" * 32)
@@ -306,7 +310,7 @@ class TestAuthConfigOAuthProviders:
         # Assert
         assert providers == []
 
-    def test_get_enabled_oauth_providers_returns_single_provider(self):
+    def test_get_enabled_oauth_providers_returns_single_provider(self) -> None:
         """Test get_enabled_oauth_providers returns single configured provider."""
         # Arrange
         config = AuthConfig(
@@ -319,7 +323,7 @@ class TestAuthConfigOAuthProviders:
         # Assert
         assert providers == ["google"]
 
-    def test_get_enabled_oauth_providers_returns_multiple_providers(self):
+    def test_get_enabled_oauth_providers_returns_multiple_providers(self) -> None:
         """Test get_enabled_oauth_providers returns all configured providers."""
         # Arrange
         config = AuthConfig(
@@ -347,31 +351,31 @@ class TestAuthConfigOAuthProviders:
 class TestAuthConfigFieldConstraints:
     """Test Pydantic field constraints are enforced."""
 
-    def test_access_token_expire_minutes_enforces_minimum(self):
+    def test_access_token_expire_minutes_enforces_minimum(self) -> None:
         """Test ACCESS_TOKEN_EXPIRE_MINUTES enforces minimum of 1."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             AuthConfig(SECRET_KEY="a" * 32, ACCESS_TOKEN_EXPIRE_MINUTES=0)
 
-    def test_access_token_expire_minutes_enforces_maximum(self):
+    def test_access_token_expire_minutes_enforces_maximum(self) -> None:
         """Test ACCESS_TOKEN_EXPIRE_MINUTES enforces maximum of 1440."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             AuthConfig(SECRET_KEY="a" * 32, ACCESS_TOKEN_EXPIRE_MINUTES=1441)
 
-    def test_refresh_token_expire_days_enforces_minimum(self):
+    def test_refresh_token_expire_days_enforces_minimum(self) -> None:
         """Test REFRESH_TOKEN_EXPIRE_DAYS enforces minimum of 1."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             AuthConfig(SECRET_KEY="a" * 32, REFRESH_TOKEN_EXPIRE_DAYS=0)
 
-    def test_refresh_token_expire_days_enforces_maximum(self):
+    def test_refresh_token_expire_days_enforces_maximum(self) -> None:
         """Test REFRESH_TOKEN_EXPIRE_DAYS enforces maximum of 365."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             AuthConfig(SECRET_KEY="a" * 32, REFRESH_TOKEN_EXPIRE_DAYS=366)
 
-    def test_max_login_attempts_enforces_range(self):
+    def test_max_login_attempts_enforces_range(self) -> None:
         """Test MAX_LOGIN_ATTEMPTS enforces range 1-20."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -381,7 +385,7 @@ class TestAuthConfigFieldConstraints:
         with pytest.raises(ValidationError):
             AuthConfig(SECRET_KEY="a" * 32, MAX_LOGIN_ATTEMPTS=21)
 
-    def test_lockout_duration_minutes_enforces_range(self):
+    def test_lockout_duration_minutes_enforces_range(self) -> None:
         """Test LOCKOUT_DURATION_MINUTES enforces range 1-1440."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -401,7 +405,7 @@ class TestAuthConfigFieldConstraints:
 class TestAuthConfigOptionalFields:
     """Test AuthConfig optional field handling."""
 
-    def test_oauth_credentials_default_to_none(self):
+    def test_oauth_credentials_default_to_none(self) -> None:
         """Test OAuth credentials default to None when not provided."""
         # Arrange & Act
         config = AuthConfig(SECRET_KEY="a" * 32)
@@ -414,7 +418,7 @@ class TestAuthConfigOptionalFields:
         assert config.MICROSOFT_CLIENT_ID is None
         assert config.MICROSOFT_CLIENT_SECRET is None
 
-    def test_webauthn_fields_handle_optional_values(self):
+    def test_webauthn_fields_handle_optional_values(self) -> None:
         """Test WebAuthn fields handle None correctly.
 
         Note: .env file may override these. Test explicitly sets None to verify optional handling.
@@ -432,7 +436,7 @@ class TestAuthConfigOptionalFields:
         assert config.WEBAUTHN_ORIGIN is None
         assert config.WEBAUTHN_RP_NAME == "CSFrace Scraper"  # Has default
 
-    def test_webauthn_fields_accept_custom_values(self):
+    def test_webauthn_fields_accept_custom_values(self) -> None:
         """Test WebAuthn fields accept custom values."""
         # Arrange & Act
         config = AuthConfig(

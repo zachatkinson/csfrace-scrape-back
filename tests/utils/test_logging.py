@@ -19,8 +19,9 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import os
 import time
+from collections.abc import Generator
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -38,7 +39,7 @@ from src.utils.logging import (
 
 
 @pytest.fixture(autouse=True)
-def reset_logger_factory():
+def reset_logger_factory() -> Generator[None]:
     """Reset LoggerFactory state before AND after each test - DRY principle."""
     # Arrange - MANDATORY
     # Reset state BEFORE test to ensure clean slate
@@ -55,7 +56,7 @@ def reset_logger_factory():
 
 
 @pytest.fixture
-def mock_stderr():
+def mock_stderr() -> StringIO:
     """Factory for mock stderr - DRY principle."""
     return StringIO()
 
@@ -75,7 +76,7 @@ def sample_log_context() -> dict[str, str]:
 class TestLoggerFactory:
     """Tests for LoggerFactory class."""
 
-    def test_logger_factory_configure_sets_configured_flag(self):
+    def test_logger_factory_configure_sets_configured_flag(self) -> None:
         """Test configure sets the configured flag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -86,7 +87,7 @@ class TestLoggerFactory:
         # Assert - MANDATORY
         assert LoggerFactory._configured is True
 
-    def test_logger_factory_configure_sets_log_level(self):
+    def test_logger_factory_configure_sets_log_level(self) -> None:
         """Test configure sets log level - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         log_level = "DEBUG"
@@ -97,7 +98,7 @@ class TestLoggerFactory:
         # Assert - MANDATORY
         assert LoggerFactory._log_level == "DEBUG"
 
-    def test_logger_factory_configure_only_once(self):
+    def test_logger_factory_configure_only_once(self) -> None:
         """Test configure is idempotent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory.configure(log_level="DEBUG")
@@ -109,7 +110,7 @@ class TestLoggerFactory:
         # Assert - MANDATORY
         assert LoggerFactory._log_level == first_level  # Unchanged
 
-    def test_logger_factory_configure_with_json_enabled(self):
+    def test_logger_factory_configure_with_json_enabled(self) -> None:
         """Test configure with JSON output enabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -120,7 +121,7 @@ class TestLoggerFactory:
         # Assert - MANDATORY
         assert LoggerFactory._configured is True
 
-    def test_logger_factory_configure_with_colors_disabled(self):
+    def test_logger_factory_configure_with_colors_disabled(self) -> None:
         """Test configure with colors disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -132,7 +133,7 @@ class TestLoggerFactory:
         assert LoggerFactory._configured is True
 
     @patch("sys.stderr.isatty", return_value=True)
-    def test_logger_factory_configure_auto_detect_tty(self, mock_isatty):
+    def test_logger_factory_configure_auto_detect_tty(self, mock_isatty: MagicMock) -> None:
         """Test configure auto-detects TTY for colors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -145,7 +146,7 @@ class TestLoggerFactory:
         mock_isatty.assert_called()
 
     @patch("sys.stderr.isatty", return_value=False)
-    def test_logger_factory_configure_auto_detect_non_tty(self, mock_isatty):
+    def test_logger_factory_configure_auto_detect_non_tty(self, mock_isatty: MagicMock) -> None:
         """Test configure auto-detects non-TTY for JSON - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -158,7 +159,7 @@ class TestLoggerFactory:
         mock_isatty.assert_called()
 
     @patch.dict(os.environ, {"LOG_FORMAT": "json"})
-    def test_logger_factory_configure_respects_log_format_env(self):
+    def test_logger_factory_configure_respects_log_format_env(self) -> None:
         """Test configure respects LOG_FORMAT env var - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -170,7 +171,7 @@ class TestLoggerFactory:
         assert LoggerFactory._configured is True
 
     @patch.dict(os.environ, {"NO_COLOR": "1"})
-    def test_logger_factory_configure_respects_no_color_env(self):
+    def test_logger_factory_configure_respects_no_color_env(self) -> None:
         """Test configure respects NO_COLOR env var - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -181,7 +182,7 @@ class TestLoggerFactory:
         # Assert - MANDATORY
         assert LoggerFactory._configured is True
 
-    def test_logger_factory_get_logger_returns_bound_logger(self):
+    def test_logger_factory_get_logger_returns_bound_logger(self) -> None:
         """Test get_logger returns BoundLogger - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -195,7 +196,7 @@ class TestLoggerFactory:
         assert hasattr(logger, "debug")
         assert hasattr(logger, "error")
 
-    def test_logger_factory_get_logger_auto_configures(self):
+    def test_logger_factory_get_logger_auto_configures(self) -> None:
         """Test get_logger auto-configures if needed - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -207,7 +208,7 @@ class TestLoggerFactory:
         assert LoggerFactory._configured is True
         assert logger is not None
 
-    def test_logger_factory_get_logger_with_name(self):
+    def test_logger_factory_get_logger_with_name(self) -> None:
         """Test get_logger with explicit name - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         logger_name = "my.custom.logger"
@@ -218,7 +219,7 @@ class TestLoggerFactory:
         # Assert - MANDATORY
         assert logger is not None
 
-    def test_logger_factory_get_logger_without_name_auto_detects(self):
+    def test_logger_factory_get_logger_without_name_auto_detects(self) -> None:
         """Test get_logger auto-detects caller module - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # No explicit name provided
@@ -239,7 +240,7 @@ class TestLoggerFactory:
 class TestGetLogger:
     """Tests for get_logger convenience function."""
 
-    def test_get_logger_returns_bound_logger(self):
+    def test_get_logger_returns_bound_logger(self) -> None:
         """Test get_logger returns BoundLogger - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Reset factory state
@@ -254,7 +255,7 @@ class TestGetLogger:
         assert hasattr(logger, "debug")
         assert hasattr(logger, "error")
 
-    def test_get_logger_with_explicit_name(self):
+    def test_get_logger_with_explicit_name(self) -> None:
         """Test get_logger with explicit name - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         logger_name = "explicit.logger.name"
@@ -265,7 +266,7 @@ class TestGetLogger:
         # Assert - MANDATORY
         assert logger is not None
 
-    def test_get_logger_without_name_auto_detects(self):
+    def test_get_logger_without_name_auto_detects(self) -> None:
         """Test get_logger auto-detects caller - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # No name provided
@@ -276,7 +277,7 @@ class TestGetLogger:
         # Assert - MANDATORY
         assert logger is not None
 
-    def test_get_logger_caches_loggers(self):
+    def test_get_logger_caches_loggers(self) -> None:
         """Test get_logger returns cached instances - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         logger_name = "cached.logger"
@@ -301,7 +302,7 @@ class TestGetLogger:
 class TestConfigureLogging:
     """Tests for configure_logging function."""
 
-    def test_configure_logging_with_explicit_log_level(self):
+    def test_configure_logging_with_explicit_log_level(self) -> None:
         """Test configure_logging with explicit level - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         log_level = "WARNING"
@@ -313,7 +314,7 @@ class TestConfigureLogging:
         assert LoggerFactory._log_level == "WARNING"
 
     @patch.dict(os.environ, {"LOG_LEVEL": "ERROR"})
-    def test_configure_logging_from_environment(self):
+    def test_configure_logging_from_environment(self) -> None:
         """Test configure_logging reads LOG_LEVEL env - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -325,7 +326,7 @@ class TestConfigureLogging:
         assert LoggerFactory._log_level == "ERROR"
 
     @patch.dict(os.environ, {}, clear=True)
-    def test_configure_logging_defaults_to_info(self):
+    def test_configure_logging_defaults_to_info(self) -> None:
         """Test configure_logging defaults to INFO - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -336,7 +337,7 @@ class TestConfigureLogging:
         # Assert - MANDATORY
         assert LoggerFactory._log_level == "INFO"
 
-    def test_configure_logging_with_json_enabled(self):
+    def test_configure_logging_with_json_enabled(self) -> None:
         """Test configure_logging with JSON format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -347,7 +348,7 @@ class TestConfigureLogging:
         # Assert - MANDATORY
         assert LoggerFactory._configured is True
 
-    def test_configure_logging_with_colors_disabled(self):
+    def test_configure_logging_with_colors_disabled(self) -> None:
         """Test configure_logging with colors off - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -358,7 +359,7 @@ class TestConfigureLogging:
         # Assert - MANDATORY
         assert LoggerFactory._configured is True
 
-    def test_configure_logging_explicit_level_overrides_env(self):
+    def test_configure_logging_explicit_level_overrides_env(self) -> None:
         """Test explicit level overrides environment - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         LoggerFactory._configured = False
@@ -379,7 +380,7 @@ class TestConfigureLogging:
 class TestWithContext:
     """Tests for with_context function."""
 
-    def test_with_context_returns_bound_logger(self):
+    def test_with_context_returns_bound_logger(self) -> None:
         """Test with_context returns BoundLogger - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         context = {"key": "value"}
@@ -393,7 +394,7 @@ class TestWithContext:
         assert hasattr(logger, "debug")
         assert hasattr(logger, "error")
 
-    def test_with_context_binds_single_value(self, sample_log_context: dict[str, str]):
+    def test_with_context_binds_single_value(self, sample_log_context: dict[str, str]) -> None:
         """Test with_context binds single value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = sample_log_context["user_id"]
@@ -404,7 +405,7 @@ class TestWithContext:
         # Assert - MANDATORY
         assert logger is not None
 
-    def test_with_context_binds_multiple_values(self, sample_log_context: dict[str, str]):
+    def test_with_context_binds_multiple_values(self, sample_log_context: dict[str, str]) -> None:
         """Test with_context binds multiple values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Use fixture context
@@ -415,7 +416,7 @@ class TestWithContext:
         # Assert - MANDATORY
         assert logger is not None
 
-    def test_with_context_creates_independent_loggers(self):
+    def test_with_context_creates_independent_loggers(self) -> None:
         """Test with_context creates independent loggers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         context1 = {"request_id": "req-1"}
@@ -439,7 +440,7 @@ class TestWithContext:
 class TestLoggingMixin:
     """Tests for LoggingMixin class."""
 
-    def test_logging_mixin_provides_logger_property(self):
+    def test_logging_mixin_provides_logger_property(self) -> None:
         """Test LoggingMixin provides logger property - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -457,7 +458,7 @@ class TestLoggingMixin:
         assert hasattr(logger, "debug")
         assert hasattr(logger, "error")
 
-    def test_logging_mixin_logger_includes_class_name(self):
+    def test_logging_mixin_logger_includes_class_name(self) -> None:
         """Test logger includes class name - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -473,7 +474,7 @@ class TestLoggingMixin:
         assert logger is not None
         # Logger should be bound to class module + name
 
-    def test_logging_mixin_logger_is_cached(self):
+    def test_logging_mixin_logger_is_cached(self) -> None:
         """Test logger property is consistent - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -501,7 +502,7 @@ class TestLoggingMixin:
 class TestLoggingIntegration:
     """Integration tests for logging functionality."""
 
-    def test_logger_can_log_info_message(self):
+    def test_logger_can_log_info_message(self) -> None:
         """Test logger can log info messages - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         logger = get_logger("test_integration")
@@ -517,7 +518,7 @@ class TestLoggingIntegration:
         # Assert - MANDATORY
         assert success is True
 
-    def test_logger_can_log_with_context(self):
+    def test_logger_can_log_with_context(self) -> None:
         """Test logger logs with context - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         logger = with_context(user_id="123", action="test")
@@ -533,12 +534,12 @@ class TestLoggingIntegration:
         # Assert - MANDATORY
         assert success is True
 
-    def test_logging_mixin_integration(self):
+    def test_logging_mixin_integration(self) -> None:
         """Test LoggingMixin integration - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
         class IntegrationTestClass(LoggingMixin):
-            def perform_action(self):
+            def perform_action(self) -> bool:
                 self.logger.info("Action performed")
                 return True
 
@@ -561,7 +562,7 @@ class TestLoggingIntegration:
 class TestLoggingPerformance:
     """MANDATORY performance tests for logging utilities."""
 
-    def test_get_logger_performance(self):
+    def test_get_logger_performance(self) -> None:
         """MANDATORY performance test - logger creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -580,7 +581,7 @@ class TestLoggingPerformance:
         assert avg_time < 0.0001  # <0.1ms per logger creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_logger_bind_context_performance(self):
+    def test_logger_bind_context_performance(self) -> None:
         """MANDATORY performance test - context binding speed."""
         # Arrange - MANDATORY
         logger = get_logger("performance_test")
@@ -600,7 +601,7 @@ class TestLoggingPerformance:
         assert avg_time < 0.0001  # <0.1ms per bind operation
         assert execution_time < 1.0  # Total <1s for 10000 binds
 
-    def test_with_context_performance(self):
+    def test_with_context_performance(self) -> None:
         """MANDATORY performance test - with_context function speed."""
         # Arrange - MANDATORY
         iterations = 1000

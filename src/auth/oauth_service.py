@@ -10,10 +10,14 @@ import httpx
 from sqlalchemy.orm import Session
 
 from src.core.decorators import oauth_error_handler
+from src.core.exceptions import AccountMergeRequiredError
 from src.core.logging_hierarchy import get_auth_logger
-from src.database.models.auth import LinkedAccount as LinkedAccountDB
+from src.database.models.auth import LinkedAccount as LinkedAccountDB, User as UserTable
 
 from ..constants import (
+    APPLE_AUTHORIZATION_URL,
+    APPLE_SCOPES,
+    APPLE_TOKEN_URL,
     GITHUB_AUTHORIZATION_URL,
     GITHUB_SCOPES,
     GITHUB_TOKEN_URL,
@@ -39,6 +43,7 @@ from ..constants import (
     OAUTH_MICROSOFT_CLIENT_SECRET,
     OAUTH_REDIRECT_URI_BASE,
 )
+from .account_merge_service import AccountMergeService
 from .enum_utils import ensure_oauth_provider, get_oauth_provider_value
 from .models import (
     LinkedAccount,
@@ -189,7 +194,8 @@ class BaseOAuthProvider(OAuthProviderInterface):
 
     def _extract_access_token(self, token_response: dict[str, Any]) -> str:
         """Extract access token from provider response."""
-        return token_response["access_token"]
+        access_token: str = token_response["access_token"]
+        return access_token
 
     async def _fetch_user_data(
         self, client: httpx.AsyncClient, headers: dict[str, str]
@@ -197,7 +203,8 @@ class BaseOAuthProvider(OAuthProviderInterface):
         """Default user data fetching - single request."""
         response = await client.get(self._get_user_info_url(), headers=headers)
         response.raise_for_status()
-        return response.json()
+        user_data: dict[str, Any] = response.json()
+        return user_data
 
 
 class GoogleOAuthProvider(BaseOAuthProvider):
@@ -290,12 +297,12 @@ class GitHubOAuthProvider(BaseOAuthProvider):
         # Get user profile
         user_response = await client.get(self._get_user_info_url(), headers=headers)
         user_response.raise_for_status()
-        user_data = user_response.json()
+        user_data: dict[str, Any] = user_response.json()
 
         # Get primary email (GitHub doesn't always include email in user endpoint)
         emails_response = await client.get(self.user_emails_url, headers=headers)
         emails_response.raise_for_status()
-        emails = emails_response.json()
+        emails: list[dict[str, Any]] = emails_response.json()
 
         primary_email = next(
             (email["email"] for email in emails if email["primary"]), user_data.get("email")
@@ -303,7 +310,8 @@ class GitHubOAuthProvider(BaseOAuthProvider):
 
         # Add email to user data for mapping
         user_data["primary_email"] = primary_email
-        return user_data
+        result: dict[str, Any] = user_data
+        return result
 
     def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
         """Map GitHub user data to standardized format."""
@@ -402,7 +410,8 @@ class FacebookOAuthProvider(BaseOAuthProvider):
         }
         response = await client.get(self._get_user_info_url(), params=params)
         response.raise_for_status()
-        return response.json()
+        user_data: dict[str, Any] = response.json()
+        return user_data
 
     def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
         """Map Facebook user data to standardized format."""
@@ -436,16 +445,16 @@ class AppleOAuthProvider(BaseOAuthProvider):
     @property
     def scope(self) -> str:
         """Apple-specific OAuth scopes."""
-        return "name email"
+        return " ".join(APPLE_SCOPES)
 
     # Required abstract method implementations
     def _get_auth_base_url(self) -> str:
         """Return Apple's authorization URL."""
-        return "https://appleid.apple.com/auth/authorize"
+        return APPLE_AUTHORIZATION_URL
 
     def _get_token_url(self) -> str:
         """Return Apple's token exchange URL."""
-        return "https://appleid.apple.com/auth/token"
+        return APPLE_TOKEN_URL
 
     def _get_user_info_url(self) -> str:
         """Apple uses ID token for user info, not a separate endpoint."""
@@ -561,7 +570,8 @@ class OAuthProviderRegistry:
         )
 
         logger.info("OAuth provider instance created successfully", provider=provider.value)
-        return instance
+        provider_instance: OAuthProviderInterface = instance
+        return provider_instance
         # Enhanced decorator handles exceptions
 
     @classmethod
@@ -632,12 +642,20 @@ _register_default_providers()
 class OAuthService:
     """OAuth2 service with dependency injection - Dependency Inversion Principle."""
 
-    def __init__(self, db_session: Session, auth_service: AuthService | None = None):
+    def __init__(
+        self,
+        db_session: Session,
+        auth_service: AuthService | None = None,
+        merge_service: AccountMergeService | None = None,
+    ):
         """Dependency injection for database and auth services."""
         self.db_session = db_session
         self.auth_service = auth_service or AuthService(db_session)
+        self.merge_service = merge_service or AccountMergeService(db_session, self.auth_service)
         self.provider_registry = OAuthProviderRegistry
-        self._oauth_state_cache: dict[str, dict] = {}  # In-memory state cache (temporary)
+        self._oauth_state_cache: dict[
+            str, dict[str, str | float | OAuthProvider]
+        ] = {}  # In-memory state cache (temporary)
         self._cached_oauth_user_info: OAuthUserInfo | None = None  # Temporary cache
 
     def initiate_oauth_login(
@@ -666,11 +684,26 @@ class OAuthService:
 
     @oauth_error_handler("callback processing")
     async def handle_oauth_callback(
-        self, provider: OAuthProvider, code: str, state: str, redirect_uri: str
+        self,
+        provider: OAuthProvider,
+        code: str,
+        state: str,
+        redirect_uri: str,
+        existing_user_id: str | None = None,
     ) -> tuple[User, bool]:
         """Handle OAuth callback and return user and whether user is new.
 
         Implements OAuth2 Authorization Code Flow with proper validation and security checks.
+
+        Args:
+            provider: OAuth provider
+            code: Authorization code from OAuth provider
+            state: State parameter for CSRF protection
+            redirect_uri: Redirect URI (not used, extracted from state JWT)
+            existing_user_id: If provided, link OAuth account to this user (connection scenario)
+
+        Returns:
+            Tuple of (User, is_new_user)
         """
         # Step 1: Validate JWT state parameter (CSRF protection)
         original_redirect_uri = await self._validate_oauth_state_jwt(state, provider)
@@ -684,8 +717,46 @@ class OAuthService:
         # Step 3: Get user information from OAuth provider
         oauth_user_info = await oauth_provider.get_user_info(access_token)
 
-        # Step 4: Find or create user account
-        user, is_new_user = self._find_or_create_user(oauth_user_info)
+        # Step 3.5: Check for account merge requirement (when linking accounts)
+        if existing_user_id:
+            # Check if this OAuth account is already linked to a different user
+            merge_detection = self.merge_service.check_merge_required(
+                existing_user_id, oauth_user_info
+            )
+
+            if merge_detection:
+                # Account merge is required - raise exception with merge detection data
+                logger.warning(
+                    "Account merge required for OAuth linking",
+                    current_user_id=existing_user_id,
+                    duplicate_user_id=merge_detection.duplicate_account.user_id,
+                    provider=get_oauth_provider_value(provider),
+                )
+                raise AccountMergeRequiredError(
+                    merge_detection=merge_detection,
+                    message=merge_detection.message,
+                    details={
+                        "current_user_id": existing_user_id,
+                        "duplicate_user_id": merge_detection.duplicate_account.user_id,
+                        "provider": get_oauth_provider_value(provider),
+                    },
+                )
+
+        # Step 4: Find or create user account (or use existing logged-in user)
+        if existing_user_id:
+            # User is already logged in, link to their account
+            user = self.auth_service.get_user_by_id(existing_user_id)
+            if not user:
+                raise ValueError("Existing user not found")
+            is_new_user = False
+            logger.info(
+                "Linking OAuth account to existing logged-in user",
+                user_id=existing_user_id,
+                provider=get_oauth_provider_value(provider),
+            )
+        else:
+            # Normal OAuth sign-in/sign-up flow
+            user, is_new_user = self._find_or_create_user(oauth_user_info)
 
         # Step 5: Link OAuth account to user account
         linked_account = self._link_oauth_account(user.id, oauth_user_info)
@@ -847,7 +918,10 @@ class OAuthService:
             raise ValueError("State parameter provider mismatch")
 
         # Check expiration (states should expire after 10 minutes)
-        state_created = cached_state.get("created_at", 0)
+        state_created_raw = cached_state.get("created_at", 0)
+        state_created: float = (
+            state_created_raw if isinstance(state_created_raw, (int, float)) else 0
+        )
         if time.time() - state_created > 600:  # 10 minutes
             logger.warning(
                 "Expired OAuth state parameter",
@@ -884,11 +958,13 @@ class OAuthService:
 
         # Clean up old states (simple cleanup - in production, use Redis with TTL)
         current_time = time.time()
-        expired_states = [
-            s
-            for s, data in self._oauth_state_cache.items()
-            if current_time - data.get("created_at", 0) > 600  # 10 minutes
-        ]
+        expired_states = []
+        for s, data in self._oauth_state_cache.items():
+            created_at_raw = data.get("created_at", 0)
+            if isinstance(created_at_raw, (int, float)):
+                created_at: float = float(created_at_raw)
+                if current_time - created_at > 600:  # 10 minutes
+                    expired_states.append(s)
         for expired_state in expired_states:
             self._oauth_state_cache.pop(expired_state, None)
 
@@ -920,7 +996,7 @@ class OAuthService:
         """Create JWT-based OAuth state token - Stateless and CSRF-secure."""
         from ..auth.security import security_manager
 
-        state_data = {
+        state_data: dict[str, str | bool | datetime | list[str]] = {
             "provider": get_oauth_provider_value(provider),
             "redirect_uri": redirect_uri,
             "purpose": "oauth_state",
@@ -956,11 +1032,12 @@ class OAuthService:
             raise ValueError("Provider mismatch in state token")
 
         # Extract and return original redirect URI
-        redirect_uri = state_data.get("redirect_uri")
-        if not redirect_uri:
-            logger.warning("Missing redirect_uri in OAuth state token")
-            raise ValueError("Missing redirect_uri in state token")
+        redirect_uri_raw = state_data.get("redirect_uri")
+        if not redirect_uri_raw or not isinstance(redirect_uri_raw, str):
+            logger.warning("Missing or invalid redirect_uri in OAuth state token")
+            raise ValueError("Missing or invalid redirect_uri in state token")
 
+        redirect_uri: str = redirect_uri_raw
         logger.debug("JWT OAuth state validated successfully", provider=expected_provider)
         return redirect_uri
 
@@ -1043,3 +1120,90 @@ class OAuthService:
         )
 
         return connections
+
+    @oauth_error_handler("OAuth account disconnection")
+    def disconnect_oauth_account(self, user_id: str, provider: OAuthProvider) -> bool:
+        """Disconnect OAuth account from user - SOLID Single Responsibility with safety checks.
+
+        This method removes the linked OAuth account for a provider, but includes
+        critical safety checks to prevent users from locking themselves out.
+
+        Safety Rules:
+        1. Cannot disconnect if it's the only authentication method (no password set)
+        2. Cannot disconnect the primary OAuth account if it's the only one
+        3. Validates the account is actually linked before attempting removal
+
+        Args:
+            user_id: User ID to disconnect account from
+            provider: OAuth provider to disconnect
+
+        Returns:
+            bool: True if successfully disconnected, False if not linked
+
+        Raises:
+            ValueError: If disconnecting would lock user out of account
+        """
+        logger.info(
+            "Attempting to disconnect OAuth account",
+            user_id=user_id,
+            provider=get_oauth_provider_value(provider),
+        )
+
+        # Safety Check 1: Get user from database to check if they have a password
+        user_db = self.db_session.query(UserTable).filter(UserTable.id == user_id).first()
+        if not user_db:
+            logger.warning("User not found for OAuth disconnect", user_id=user_id)
+            raise ValueError("User not found")
+
+        # Safety Check 2: Count linked OAuth accounts
+        linked_accounts = (
+            self.db_session.query(LinkedAccountDB).filter(LinkedAccountDB.user_id == user_id).all()
+        )
+
+        # Safety Check 3: Prevent lockout - user must have password OR multiple OAuth accounts
+        has_password = user_db.hashed_password is not None and len(user_db.hashed_password) > 0
+        has_multiple_oauth = len(linked_accounts) > 1
+
+        if not has_password and not has_multiple_oauth:
+            logger.warning(
+                "Cannot disconnect OAuth - would lock user out",
+                user_id=user_id,
+                provider=get_oauth_provider_value(provider),
+                has_password=has_password,
+                oauth_count=len(linked_accounts),
+            )
+            raise ValueError(
+                "Cannot disconnect this account. You must either set a password or "
+                "connect another OAuth provider first to avoid being locked out."
+            )
+
+        # Find the linked account to disconnect
+        linked_account = (
+            self.db_session.query(LinkedAccountDB)
+            .filter(
+                LinkedAccountDB.user_id == user_id,
+                LinkedAccountDB.provider == provider.value,
+            )
+            .first()
+        )
+
+        if not linked_account:
+            logger.info(
+                "OAuth account not linked, nothing to disconnect",
+                user_id=user_id,
+                provider=get_oauth_provider_value(provider),
+            )
+            return False
+
+        # Delete the linked account
+        self.db_session.delete(linked_account)
+        self.db_session.commit()
+
+        logger.info(
+            "OAuth account disconnected successfully",
+            user_id=user_id,
+            provider=get_oauth_provider_value(provider),
+            linked_account_id=linked_account.id,
+        )
+
+        return True

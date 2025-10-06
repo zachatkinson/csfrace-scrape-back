@@ -289,7 +289,7 @@ class BaseCacheBackend(abc.ABC):
         # Parse JSON with custom object hook
         return json.loads(json_str, object_hook=self._json_deserializer)
 
-    def _json_deserializer(self, obj: dict) -> Any:
+    def _json_deserializer(self, obj: dict[str, Any]) -> Any:
         """Custom JSON deserializer for non-standard types.
 
         Args:

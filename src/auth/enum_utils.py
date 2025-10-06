@@ -54,7 +54,8 @@ class EnumHandler:
             String representation of the enum value
         """
         if hasattr(enum_or_string, "value"):
-            return enum_or_string.value
+            value_str: str = str(enum_or_string.value)
+            return value_str
         return str(enum_or_string)
 
     @staticmethod

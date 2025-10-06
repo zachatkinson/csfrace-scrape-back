@@ -17,7 +17,9 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -26,6 +28,7 @@ from fastapi import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.routers.user_settings import router
+from src.api.schemas import UserSettingsUpdate
 from src.database.models.auth import User, UserSettings
 
 # ============================================================================
@@ -34,7 +37,7 @@ from src.database.models.auth import User, UserSettings
 
 
 @pytest.fixture
-def sample_user():
+def sample_user() -> User:
     """Factory for sample user - DRY principle."""
     user = User(
         id=str(uuid4()),
@@ -49,7 +52,7 @@ def sample_user():
 
 
 @pytest.fixture
-def sample_user_settings(sample_user):
+def sample_user_settings(sample_user: User) -> UserSettings:
     """Factory for sample user settings - DRY principle."""
     settings = UserSettings(
         id=str(uuid4()),
@@ -82,7 +85,7 @@ def sample_user_settings(sample_user):
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Factory for mock database session - DRY principle."""
     session = AsyncMock(spec=AsyncSession)
     session.add = MagicMock()
@@ -93,10 +96,8 @@ def mock_db_session():
 
 
 @pytest.fixture
-def sample_settings_update():
+def sample_settings_update() -> UserSettingsUpdate:
     """Factory for sample settings update data - DRY principle."""
-    from src.api.schemas import UserSettingsUpdate
-
     return UserSettingsUpdate(
         dark_mode=False,
         jobs_per_page=50,
@@ -105,10 +106,10 @@ def sample_settings_update():
 
 
 @pytest.fixture
-def mock_refresh_with_defaults():
+def mock_refresh_with_defaults() -> Callable[[Any], Any]:
     """Factory for mock refresh that populates all default values - DRY principle."""
 
-    async def _mock_refresh(obj):
+    async def _mock_refresh(obj: Any) -> None:
         obj.id = str(uuid4())
         obj.created_at = datetime.now(UTC)
         obj.updated_at = datetime.now(UTC)
@@ -158,7 +159,7 @@ def mock_refresh_with_defaults():
 class TestUserSettingsRouter:
     """Tests for user settings router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that user settings router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -166,45 +167,53 @@ class TestUserSettingsRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_correct_prefix(self):
+    def test_router_has_correct_prefix(self) -> None:
         """Test router has /user/settings prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert router.prefix == "/user/settings"
 
-    def test_router_has_correct_tags(self):
+    def test_router_has_correct_tags(self) -> None:
         """Test router has user-settings tag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert "user-settings" in router.tags
 
-    def test_router_has_get_endpoint(self):
+    def test_router_has_get_endpoint(self) -> None:
         """Test router has GET / endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if hasattr(route, "path")]
 
         # Assert - MANDATORY
         # Router includes prefix, so paths will be /user/settings/
         assert any("/" in route or "/user/settings/" in route for route in routes)
 
-    def test_router_has_put_endpoint(self):
+    def test_router_has_put_endpoint(self) -> None:
         """Test router has PUT / endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [(route.path, route.methods) for route in router.routes]
+        routes = [
+            (route.path, route.methods)
+            for route in router.routes
+            if hasattr(route, "path") and hasattr(route, "methods")
+        ]
 
         # Assert - MANDATORY
         # Router includes prefix /user/settings/
         assert any("PUT" in methods for path, methods in routes)
 
-    def test_router_has_delete_endpoint(self):
+    def test_router_has_delete_endpoint(self) -> None:
         """Test router has DELETE / endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [(route.path, route.methods) for route in router.routes]
+        routes = [
+            (route.path, route.methods)
+            for route in router.routes
+            if hasattr(route, "path") and hasattr(route, "methods")
+        ]
 
         # Assert - MANDATORY
         # Router includes prefix /user/settings/
@@ -222,8 +231,8 @@ class TestGetUserSettings:
     """Tests for GET /user/settings endpoint."""
 
     async def test_get_user_settings_returns_existing_settings(
-        self, mock_db_session, sample_user, sample_user_settings
-    ):
+        self, mock_db_session: AsyncMock, sample_user: User, sample_user_settings: UserSettings
+    ) -> None:
         """Test get_user_settings returns existing settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import get_user_settings
@@ -243,8 +252,11 @@ class TestGetUserSettings:
         mock_db_session.add.assert_not_called()  # Should not create new settings
 
     async def test_get_user_settings_creates_defaults_when_none_exist(
-        self, mock_db_session, sample_user, mock_refresh_with_defaults
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        mock_refresh_with_defaults: Callable[[Any], Any],
+    ) -> None:
         """Test get_user_settings creates defaults when none exist - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import get_user_settings
@@ -267,8 +279,11 @@ class TestGetUserSettings:
         mock_db_session.refresh.assert_called_once()
 
     async def test_get_user_settings_uses_correct_user_id(
-        self, mock_db_session, sample_user, mock_refresh_with_defaults
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        mock_refresh_with_defaults: Callable[[Any], Any],
+    ) -> None:
         """Test get_user_settings queries with correct user ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import get_user_settings
@@ -302,8 +317,12 @@ class TestUpdateUserSettings:
     """Tests for PUT /user/settings endpoint."""
 
     async def test_update_user_settings_updates_existing_settings(
-        self, mock_db_session, sample_user, sample_user_settings, sample_settings_update
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        sample_user_settings: UserSettings,
+        sample_settings_update: UserSettingsUpdate,
+    ) -> None:
         """Test update_user_settings updates existing settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import update_user_settings
@@ -327,8 +346,12 @@ class TestUpdateUserSettings:
         mock_db_session.refresh.assert_called_once()
 
     async def test_update_user_settings_creates_when_none_exist(
-        self, mock_db_session, sample_user, sample_settings_update, mock_refresh_with_defaults
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        sample_settings_update: UserSettingsUpdate,
+        mock_refresh_with_defaults: Callable[[Any], Any],
+    ) -> None:
         """Test update_user_settings creates settings when none exist - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import update_user_settings
@@ -355,8 +378,8 @@ class TestUpdateUserSettings:
         mock_db_session.refresh.assert_called_once()
 
     async def test_update_user_settings_handles_partial_updates(
-        self, mock_db_session, sample_user, sample_user_settings
-    ):
+        self, mock_db_session: AsyncMock, sample_user: User, sample_user_settings: UserSettings
+    ) -> None:
         """Test update_user_settings handles partial updates - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import update_user_settings
@@ -382,8 +405,8 @@ class TestUpdateUserSettings:
         mock_db_session.commit.assert_called_once()
 
     async def test_update_user_settings_preserves_unset_fields(
-        self, mock_db_session, sample_user, sample_user_settings
-    ):
+        self, mock_db_session: AsyncMock, sample_user: User, sample_user_settings: UserSettings
+    ) -> None:
         """Test update_user_settings preserves unset fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import update_user_settings
@@ -421,8 +444,8 @@ class TestResetUserSettings:
     """Tests for DELETE /user/settings endpoint."""
 
     async def test_reset_user_settings_deletes_existing_settings(
-        self, mock_db_session, sample_user, sample_user_settings
-    ):
+        self, mock_db_session: AsyncMock, sample_user: User, sample_user_settings: UserSettings
+    ) -> None:
         """Test reset_user_settings deletes existing settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import reset_user_settings
@@ -442,8 +465,8 @@ class TestResetUserSettings:
         mock_db_session.commit.assert_called_once()
 
     async def test_reset_user_settings_handles_no_existing_settings(
-        self, mock_db_session, sample_user
-    ):
+        self, mock_db_session: AsyncMock, sample_user: User
+    ) -> None:
         """Test reset_user_settings handles no existing settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import reset_user_settings
@@ -462,7 +485,9 @@ class TestResetUserSettings:
         mock_db_session.delete.assert_not_called()  # Should not try to delete
         mock_db_session.commit.assert_not_called()  # Should not commit
 
-    async def test_reset_user_settings_returns_correct_message(self, mock_db_session, sample_user):
+    async def test_reset_user_settings_returns_correct_message(
+        self, mock_db_session: AsyncMock, sample_user: User
+    ) -> None:
         """Test reset_user_settings returns correct message - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import reset_user_settings
@@ -491,8 +516,12 @@ class TestUserSettingsIntegration:
     """Integration tests for user settings endpoints."""
 
     async def test_full_settings_lifecycle(
-        self, mock_db_session, sample_user, sample_user_settings, mock_refresh_with_defaults
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        sample_user_settings: UserSettings,
+        mock_refresh_with_defaults: Callable[[Any], Any],
+    ) -> None:
         """Test complete settings lifecycle - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import (
@@ -543,8 +572,11 @@ class TestUserSettingsPerformance:
     """MANDATORY performance tests for user settings endpoints."""
 
     async def test_get_user_settings_performance(
-        self, mock_db_session, sample_user, mock_refresh_with_defaults
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        mock_refresh_with_defaults: Callable[[Any], Any],
+    ) -> None:
         """MANDATORY performance test - get user settings speed."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import get_user_settings
@@ -573,8 +605,12 @@ class TestUserSettingsPerformance:
         assert execution_time < 0.5  # Total <500ms for 10 calls
 
     async def test_update_user_settings_performance(
-        self, mock_db_session, sample_user, sample_settings_update, mock_refresh_with_defaults
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_user: User,
+        sample_settings_update: UserSettingsUpdate,
+        mock_refresh_with_defaults: Callable[[Any], Any],
+    ) -> None:
         """MANDATORY performance test - update user settings speed."""
         # Arrange - MANDATORY
         from src.api.routers.user_settings import update_user_settings

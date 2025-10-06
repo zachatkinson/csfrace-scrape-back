@@ -41,7 +41,7 @@ class RenderingStrategy(BaseModel):
     )
     max_concurrent_renders: int = Field(default=3, description="Maximum concurrent renders")
 
-    def model_post_init(self, __context):
+    def model_post_init(self, __context: dict[str, Any]) -> None:
         """Post-initialization validation."""
         if self.force_javascript and self.force_static:
             raise ValueError("Cannot force both JavaScript and static rendering")
@@ -126,14 +126,14 @@ class AdaptiveRenderer:
         return should_use_js, analysis
 
     async def render_page(
-        self, url: str, static_html: str | None = None, **render_options
+        self, url: str, static_html: str | None = None, **render_options: Any
     ) -> tuple[RenderResult, ContentAnalysis]:
         """Render a page using adaptive strategy selection."""
         async with self._render_semaphore:
             return await self._render_page_internal(url, static_html, **render_options)
 
     async def _render_page_internal(
-        self, url: str, static_html: str | None = None, **render_options
+        self, url: str, static_html: str | None = None, **render_options: Any
     ) -> tuple[RenderResult, ContentAnalysis]:
         """Internal page rendering implementation."""
         start_time = asyncio.get_event_loop().time()
@@ -216,7 +216,7 @@ class AdaptiveRenderer:
         return result, final_analysis
 
     async def render_multiple(
-        self, urls: list[str], **render_options
+        self, urls: list[str], **render_options: Any
     ) -> dict[str, tuple[RenderResult, ContentAnalysis]]:
         """Render multiple pages concurrently."""
         logger.info("Starting concurrent rendering", url_count=len(urls))
@@ -227,7 +227,7 @@ class AdaptiveRenderer:
         # Create semaphore for concurrency control
         semaphore = asyncio.Semaphore(max_concurrent)
 
-        async def render_with_semaphore(url: str):
+        async def render_with_semaphore(url: str) -> tuple[RenderResult, ContentAnalysis]:
             async with semaphore:
                 return await self.render_page(url, **render_options)
 
@@ -283,11 +283,13 @@ class AdaptiveRenderer:
 
         logger.info("Adaptive renderer cleaned up")
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AdaptiveRenderer":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         """Async context manager exit."""
         await self.cleanup()
 
@@ -309,7 +311,7 @@ class RenderingService:
         return await self.adaptive_renderer.analyze_content(html, url)
 
     async def enhance_static_content(
-        self, url: str, static_html: str, **render_options
+        self, url: str, static_html: str, **render_options: Any
     ) -> str | tuple[RenderResult, ContentAnalysis]:
         """Enhance static content with JavaScript rendering if needed."""
         should_use_js, analysis = await self.should_render_with_javascript(static_html, url)
@@ -332,7 +334,7 @@ class RenderingService:
         return result, final_analysis
 
     async def render_page_with_fallback(
-        self, url: str, static_html: str | None = None, **render_options
+        self, url: str, static_html: str | None = None, **render_options: Any
     ) -> tuple[str, dict[str, Any]]:
         """Render page with automatic fallback strategy."""
         try:
@@ -376,11 +378,13 @@ class RenderingService:
         """Clean up service resources."""
         await self.adaptive_renderer.cleanup()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "RenderingService":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         """Async context manager exit."""
         await self.cleanup()
 
@@ -391,7 +395,7 @@ def create_adaptive_renderer(
     headless: bool = True,
     timeout: float = 30.0,
     confidence_threshold: float = 0.5,
-    **kwargs,
+    **kwargs: Any,
 ) -> AdaptiveRenderer:
     """Create an adaptive renderer with common configurations."""
     browser_config = BrowserConfig(
@@ -414,7 +418,7 @@ def create_rendering_service(
     browser_type: str = "chromium",
     headless: bool = True,
     confidence_threshold: float = 0.5,
-    **kwargs,
+    **kwargs: Any,
 ) -> RenderingService:
     """Create a rendering service with common configurations."""
     adaptive_renderer = create_adaptive_renderer(

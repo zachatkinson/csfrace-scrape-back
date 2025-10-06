@@ -39,7 +39,7 @@ router = APIRouter()
 
 
 @job_error_handler("execute conversion job")
-async def execute_conversion_job(job_id: str, url: str, output_dir: str):
+async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None:
     """Background task to execute the actual WordPress to Shopify conversion.
 
     Args:
@@ -63,7 +63,7 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str):
         converter = AsyncWordPressConverter(base_url=url, output_dir=output_path)
 
         # Execute conversion with progress callback
-        def progress_callback(progress: int):
+        def progress_callback(progress: int) -> None:
             """Progress callback for conversion updates."""
             logger.debug("Conversion progress", job_id=job_id, progress=progress)
             # In a real implementation, you could update job progress in database

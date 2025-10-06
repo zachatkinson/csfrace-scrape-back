@@ -47,7 +47,7 @@ class SafeJSONEncoder(json.JSONEncoder):
             return super().default(obj)
 
 
-def safe_json_dumps(obj: Any, **kwargs) -> str:
+def safe_json_dumps(obj: Any, **kwargs: Any) -> str:
     """Safely serialize objects to JSON using the SafeJSONEncoder.
 
     This is the DRY way to handle JSON serialization throughout the application.
@@ -375,7 +375,9 @@ async def _run_event_subscription_safe(subscriber: HealthEventSubscriber) -> Non
 
 
 @monitoring_error_handler("notify event callback")
-async def _notify_event_callback_safe(callback, event: HealthEvent, _logger) -> None:
+async def _notify_event_callback_safe(
+    callback: Callable[[HealthEvent], Coroutine[Any, Any, Any]], event: HealthEvent, _logger: Any
+) -> None:
     """Safely notify an event callback."""
     await callback(event)
 

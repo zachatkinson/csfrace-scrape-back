@@ -60,7 +60,7 @@ def invalid_urls() -> list[str]:
 class TestExtractDomain:
     """Tests for extract_domain function."""
 
-    def test_extract_domain_basic_url(self):
+    def test_extract_domain_basic_url(self) -> None:
         """Test extract_domain with basic URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
@@ -71,7 +71,7 @@ class TestExtractDomain:
         # Assert - MANDATORY
         assert result == "example.com"
 
-    def test_extract_domain_with_www(self):
+    def test_extract_domain_with_www(self) -> None:
         """Test extract_domain removes www prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://www.example.com/path"
@@ -83,7 +83,7 @@ class TestExtractDomain:
         assert result == "example.com"
         assert not result.startswith("www.")
 
-    def test_extract_domain_with_subdomain(self):
+    def test_extract_domain_with_subdomain(self) -> None:
         """Test extract_domain preserves non-www subdomain - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://api.example.com/v1/users"
@@ -94,7 +94,7 @@ class TestExtractDomain:
         # Assert - MANDATORY
         assert result == "api.example.com"
 
-    def test_extract_domain_with_port(self):
+    def test_extract_domain_with_port(self) -> None:
         """Test extract_domain removes port number - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com:8080/api"
@@ -106,7 +106,7 @@ class TestExtractDomain:
         assert result == "example.com"
         assert ":8080" not in result
 
-    def test_extract_domain_with_userinfo(self):
+    def test_extract_domain_with_userinfo(self) -> None:
         """Test extract_domain removes userinfo - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://user:password@example.com/resource"
@@ -119,7 +119,7 @@ class TestExtractDomain:
         assert "user" not in result
         assert "password" not in result
 
-    def test_extract_domain_with_path_and_query(self):
+    def test_extract_domain_with_path_and_query(self) -> None:
         """Test extract_domain ignores path and query - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/path/to/resource?param=value&foo=bar"
@@ -130,7 +130,7 @@ class TestExtractDomain:
         # Assert - MANDATORY
         assert result == "example.com"
 
-    def test_extract_domain_ftp_scheme(self):
+    def test_extract_domain_ftp_scheme(self) -> None:
         """Test extract_domain works with ftp scheme - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "ftp://files.example.org/downloads"
@@ -141,7 +141,7 @@ class TestExtractDomain:
         # Assert - MANDATORY
         assert result == "files.example.org"
 
-    def test_extract_domain_complex_url(self):
+    def test_extract_domain_complex_url(self) -> None:
         """Test extract_domain with complex URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://www.subdomain.example.co.uk:443/path?query=1#fragment"
@@ -152,7 +152,7 @@ class TestExtractDomain:
         # Assert - MANDATORY
         assert result == "subdomain.example.co.uk"
 
-    def test_extract_domain_case_normalization(self):
+    def test_extract_domain_case_normalization(self) -> None:
         """Test extract_domain normalizes to lowercase - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://WWW.EXAMPLE.COM/PATH"
@@ -164,7 +164,7 @@ class TestExtractDomain:
         assert result == "example.com"
         assert result.islower()
 
-    def test_extract_domain_with_whitespace(self):
+    def test_extract_domain_with_whitespace(self) -> None:
         """Test extract_domain strips whitespace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "  https://example.com  "
@@ -175,7 +175,7 @@ class TestExtractDomain:
         # Assert - MANDATORY
         assert result == "example.com"
 
-    def test_extract_domain_empty_string_raises_error(self):
+    def test_extract_domain_empty_string_raises_error(self) -> None:
         """Test extract_domain raises error for empty string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = ""
@@ -184,7 +184,7 @@ class TestExtractDomain:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             extract_domain(url)
 
-    def test_extract_domain_whitespace_only_raises_error(self):
+    def test_extract_domain_whitespace_only_raises_error(self) -> None:
         """Test extract_domain raises error for whitespace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "   "
@@ -193,7 +193,7 @@ class TestExtractDomain:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             extract_domain(url)
 
-    def test_extract_domain_no_domain_raises_error(self):
+    def test_extract_domain_no_domain_raises_error(self) -> None:
         """Test extract_domain raises error for URL without domain - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://"
@@ -202,7 +202,7 @@ class TestExtractDomain:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             extract_domain(url)
 
-    def test_extract_domain_invalid_scheme_only(self):
+    def test_extract_domain_invalid_scheme_only(self) -> None:
         """Test extract_domain with scheme only - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "http://"
@@ -211,25 +211,25 @@ class TestExtractDomain:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             extract_domain(url)
 
-    def test_extract_domain_non_string_raises_typeerror(self):
+    def test_extract_domain_non_string_raises_typeerror(self) -> None:
         """Test extract_domain raises error for non-string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = 12345
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="Content processing"):
-            extract_domain(url)
+            extract_domain(url)  # type: ignore[arg-type]
 
-    def test_extract_domain_none_raises_typeerror(self):
+    def test_extract_domain_none_raises_typeerror(self) -> None:
         """Test extract_domain raises error for None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = None
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="Content processing"):
-            extract_domain(url)
+            extract_domain(url)  # type: ignore[arg-type]
 
-    def test_extract_domain_no_tld_logs_warning(self):
+    def test_extract_domain_no_tld_logs_warning(self) -> None:
         """Test extract_domain with no TLD logs warning - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://localhost/api"
@@ -250,7 +250,7 @@ class TestExtractDomain:
 class TestValidateUrl:
     """Tests for validate_url function."""
 
-    def test_validate_url_valid_https(self):
+    def test_validate_url_valid_https(self) -> None:
         """Test validate_url with valid HTTPS URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
@@ -261,7 +261,7 @@ class TestValidateUrl:
         # Assert - MANDATORY
         assert result is True
 
-    def test_validate_url_valid_http(self):
+    def test_validate_url_valid_http(self) -> None:
         """Test validate_url with valid HTTP URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "http://example.com"
@@ -272,7 +272,7 @@ class TestValidateUrl:
         # Assert - MANDATORY
         assert result is True
 
-    def test_validate_url_with_path(self):
+    def test_validate_url_with_path(self) -> None:
         """Test validate_url with path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/path/to/resource"
@@ -283,7 +283,7 @@ class TestValidateUrl:
         # Assert - MANDATORY
         assert result is True
 
-    def test_validate_url_with_query_params(self):
+    def test_validate_url_with_query_params(self) -> None:
         """Test validate_url with query parameters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com?param1=value1&param2=value2"
@@ -294,7 +294,7 @@ class TestValidateUrl:
         # Assert - MANDATORY
         assert result is True
 
-    def test_validate_url_invalid_empty(self):
+    def test_validate_url_invalid_empty(self) -> None:
         """Test validate_url with empty string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = ""
@@ -303,7 +303,7 @@ class TestValidateUrl:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             validate_url(url)
 
-    def test_validate_url_invalid_no_domain(self):
+    def test_validate_url_invalid_no_domain(self) -> None:
         """Test validate_url with URL missing domain - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://"
@@ -312,7 +312,7 @@ class TestValidateUrl:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             validate_url(url)
 
-    def test_validate_url_invalid_format(self):
+    def test_validate_url_invalid_format(self) -> None:
         """Test validate_url with invalid format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "not-a-valid-url"
@@ -321,7 +321,7 @@ class TestValidateUrl:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             validate_url(url)
 
-    def test_validate_url_multiple_valid(self, valid_urls: list[str]):
+    def test_validate_url_multiple_valid(self, valid_urls: list[str]) -> None:
         """Test validate_url with multiple valid URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -340,7 +340,7 @@ class TestValidateUrl:
 class TestNormalizeUrl:
     """Tests for normalize_url function."""
 
-    def test_normalize_url_adds_https_scheme(self):
+    def test_normalize_url_adds_https_scheme(self) -> None:
         """Test normalize_url adds https:// scheme - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "example.com"
@@ -352,7 +352,7 @@ class TestNormalizeUrl:
         assert result == "https://example.com"
         assert result.startswith("https://")
 
-    def test_normalize_url_preserves_http_scheme(self):
+    def test_normalize_url_preserves_http_scheme(self) -> None:
         """Test normalize_url preserves http:// scheme - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "http://example.com"
@@ -363,7 +363,7 @@ class TestNormalizeUrl:
         # Assert - MANDATORY
         assert result == "http://example.com"
 
-    def test_normalize_url_preserves_https_scheme(self):
+    def test_normalize_url_preserves_https_scheme(self) -> None:
         """Test normalize_url preserves https:// scheme - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com"
@@ -374,7 +374,7 @@ class TestNormalizeUrl:
         # Assert - MANDATORY
         assert result == "https://example.com"
 
-    def test_normalize_url_preserves_ftp_scheme(self):
+    def test_normalize_url_preserves_ftp_scheme(self) -> None:
         """Test normalize_url preserves ftp:// scheme - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "ftp://files.example.com"
@@ -385,7 +385,7 @@ class TestNormalizeUrl:
         # Assert - MANDATORY
         assert result == "ftp://files.example.com"
 
-    def test_normalize_url_with_path(self):
+    def test_normalize_url_with_path(self) -> None:
         """Test normalize_url preserves path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "example.com/path/to/resource"
@@ -396,7 +396,7 @@ class TestNormalizeUrl:
         # Assert - MANDATORY
         assert result == "https://example.com/path/to/resource"
 
-    def test_normalize_url_strips_whitespace(self):
+    def test_normalize_url_strips_whitespace(self) -> None:
         """Test normalize_url strips whitespace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "  example.com  "
@@ -407,7 +407,7 @@ class TestNormalizeUrl:
         # Assert - MANDATORY
         assert result == "https://example.com"
 
-    def test_normalize_url_empty_raises_error(self):
+    def test_normalize_url_empty_raises_error(self) -> None:
         """Test normalize_url raises error for empty - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = ""
@@ -416,7 +416,7 @@ class TestNormalizeUrl:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             normalize_url(url)
 
-    def test_normalize_url_whitespace_only_raises_error(self):
+    def test_normalize_url_whitespace_only_raises_error(self) -> None:
         """Test normalize_url raises error for whitespace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "   "
@@ -425,16 +425,16 @@ class TestNormalizeUrl:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             normalize_url(url)
 
-    def test_normalize_url_non_string_raises_typeerror(self):
+    def test_normalize_url_non_string_raises_typeerror(self) -> None:
         """Test normalize_url raises error for non-string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = 12345
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="Content processing"):
-            normalize_url(url)
+            normalize_url(url)  # type: ignore[arg-type]
 
-    def test_normalize_url_invalid_format_raises_error(self):
+    def test_normalize_url_invalid_format_raises_error(self) -> None:
         """Test normalize_url with invalid format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "://invalid"
@@ -447,7 +447,7 @@ class TestNormalizeUrl:
         # The function adds scheme, so this becomes valid structurally
         assert result.startswith("https://")
 
-    def test_normalize_url_with_port(self):
+    def test_normalize_url_with_port(self) -> None:
         """Test normalize_url preserves port - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "example.com:8080"
@@ -458,7 +458,7 @@ class TestNormalizeUrl:
         # Assert - MANDATORY
         assert result == "https://example.com:8080"
 
-    def test_normalize_url_with_subdomain(self):
+    def test_normalize_url_with_subdomain(self) -> None:
         """Test normalize_url preserves subdomain - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "api.example.com"
@@ -479,7 +479,7 @@ class TestNormalizeUrl:
 class TestURLError:
     """Tests for URLError exception."""
 
-    def test_urlerror_is_valueerror(self):
+    def test_urlerror_is_valueerror(self) -> None:
         """Test URLError is subclass of ValueError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         error = URLError("test error")
@@ -489,7 +489,7 @@ class TestURLError:
         # Assert - MANDATORY
         assert isinstance(error, ValueError)
 
-    def test_urlerror_message(self):
+    def test_urlerror_message(self) -> None:
         """Test URLError preserves message - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Custom error message"
@@ -511,7 +511,7 @@ class TestURLError:
 class TestURLUtilsPerformance:
     """MANDATORY performance tests for URL utilities."""
 
-    def test_extract_domain_performance(self):
+    def test_extract_domain_performance(self) -> None:
         """MANDATORY performance test - domain extraction speed."""
         # Arrange - MANDATORY
         test_urls = [
@@ -537,7 +537,7 @@ class TestURLUtilsPerformance:
         assert avg_time < 0.00001  # <0.01ms per extraction
         assert execution_time < 0.5  # Total <0.5s for 30000 extractions
 
-    def test_normalize_url_performance(self):
+    def test_normalize_url_performance(self) -> None:
         """MANDATORY performance test - URL normalization speed."""
         # Arrange - MANDATORY
         test_urls = [
@@ -563,7 +563,7 @@ class TestURLUtilsPerformance:
         assert avg_time < 0.00001  # <0.01ms per normalization
         assert execution_time < 0.5  # Total <0.5s for 30000 normalizations
 
-    def test_validate_url_performance(self):
+    def test_validate_url_performance(self) -> None:
         """MANDATORY performance test - URL validation speed."""
         # Arrange - MANDATORY
         test_url = "https://example.com/path/to/resource"

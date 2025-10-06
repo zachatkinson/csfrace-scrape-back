@@ -12,6 +12,7 @@ Tests ScrapingJob, ContentResult, and JobLog models.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -25,7 +26,7 @@ from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
 
 
 @pytest.fixture
-def sample_job_data():
+def sample_job_data() -> dict[str, Any]:
     """Factory for ScrapingJob test data - DRY principle."""
     return {
         "id": str(uuid4()),
@@ -43,7 +44,7 @@ def sample_job_data():
 
 
 @pytest.fixture
-def scraping_job(sample_job_data):
+def scraping_job(sample_job_data: dict[str, Any]) -> ScrapingJob:
     """Factory for ScrapingJob instance - MANDATORY DI."""
     return ScrapingJob(**sample_job_data)
 
@@ -57,7 +58,7 @@ class TestScrapingJobProperties:
     """Test ScrapingJob property methods - Lines 123, 128-130, 135, 140-143, 148."""
 
     @pytest.mark.unit
-    def test_status_enum_property(self, scraping_job):
+    def test_status_enum_property(self, scraping_job: ScrapingJob) -> None:
         """Test status_enum property returns JobStatus enum - Line 123.
 
         AAA Pattern:
@@ -76,7 +77,7 @@ class TestScrapingJobProperties:
         assert status_enum == JobStatus.PENDING
 
     @pytest.mark.unit
-    def test_status_enum_completed(self, scraping_job):
+    def test_status_enum_completed(self, scraping_job: ScrapingJob) -> None:
         """Test status_enum with completed status."""
         # Arrange
         scraping_job.status = "completed"
@@ -88,7 +89,7 @@ class TestScrapingJobProperties:
         assert status_enum == JobStatus.COMPLETED
 
     @pytest.mark.unit
-    def test_priority_enum_property(self, scraping_job):
+    def test_priority_enum_property(self, scraping_job: ScrapingJob) -> None:
         """Test priority_enum property returns JobPriority enum - Lines 128-130.
 
         Tests the priority_enum property which imports db_to_priority.
@@ -104,7 +105,7 @@ class TestScrapingJobProperties:
         assert priority_enum == JobPriority.HIGH
 
     @pytest.mark.unit
-    def test_priority_enum_normal(self, scraping_job):
+    def test_priority_enum_normal(self, scraping_job: ScrapingJob) -> None:
         """Test priority_enum with normal priority."""
         # Arrange
         scraping_job.priority = 5  # NORMAL priority (db value 5)
@@ -116,7 +117,7 @@ class TestScrapingJobProperties:
         assert priority_enum == JobPriority.NORMAL
 
     @pytest.mark.unit
-    def test_priority_enum_urgent(self, scraping_job):
+    def test_priority_enum_urgent(self, scraping_job: ScrapingJob) -> None:
         """Test priority_enum with urgent priority."""
         # Arrange
         scraping_job.priority = 10  # URGENT priority (db value 10)
@@ -128,7 +129,7 @@ class TestScrapingJobProperties:
         assert priority_enum == JobPriority.URGENT
 
     @pytest.mark.unit
-    def test_is_finished_completed(self, scraping_job):
+    def test_is_finished_completed(self, scraping_job: ScrapingJob) -> None:
         """Test is_finished property for completed job - Line 135."""
         # Arrange
         scraping_job.status = "completed"
@@ -140,7 +141,7 @@ class TestScrapingJobProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_is_finished_failed(self, scraping_job):
+    def test_is_finished_failed(self, scraping_job: ScrapingJob) -> None:
         """Test is_finished property for failed job."""
         # Arrange
         scraping_job.status = "failed"
@@ -152,7 +153,7 @@ class TestScrapingJobProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_is_finished_cancelled(self, scraping_job):
+    def test_is_finished_cancelled(self, scraping_job: ScrapingJob) -> None:
         """Test is_finished property for cancelled job."""
         # Arrange
         scraping_job.status = "cancelled"
@@ -164,7 +165,7 @@ class TestScrapingJobProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_is_finished_pending(self, scraping_job):
+    def test_is_finished_pending(self, scraping_job: ScrapingJob) -> None:
         """Test is_finished property returns False for pending job."""
         # Arrange
         scraping_job.status = "pending"
@@ -176,7 +177,7 @@ class TestScrapingJobProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_is_finished_running(self, scraping_job):
+    def test_is_finished_running(self, scraping_job: ScrapingJob) -> None:
         """Test is_finished property returns False for running job."""
         # Arrange
         scraping_job.status = "running"
@@ -188,7 +189,7 @@ class TestScrapingJobProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_duration_property_with_times(self, scraping_job):
+    def test_duration_property_with_times(self, scraping_job: ScrapingJob) -> None:
         """Test duration property calculates time difference - Lines 140-143."""
         # Arrange
         start_time = datetime.now(UTC)
@@ -204,7 +205,7 @@ class TestScrapingJobProperties:
         assert abs(duration - 45.0) < 0.01  # Within 10ms tolerance
 
     @pytest.mark.unit
-    def test_duration_property_no_start_time(self, scraping_job):
+    def test_duration_property_no_start_time(self, scraping_job: ScrapingJob) -> None:
         """Test duration property returns None when no start time."""
         # Arrange
         scraping_job.started_at = None
@@ -217,7 +218,7 @@ class TestScrapingJobProperties:
         assert duration is None
 
     @pytest.mark.unit
-    def test_duration_property_no_end_time(self, scraping_job):
+    def test_duration_property_no_end_time(self, scraping_job: ScrapingJob) -> None:
         """Test duration property returns None when no completion time."""
         # Arrange
         scraping_job.started_at = datetime.now(UTC)
@@ -230,7 +231,7 @@ class TestScrapingJobProperties:
         assert duration is None
 
     @pytest.mark.unit
-    def test_can_retry_failed_under_limit(self, scraping_job):
+    def test_can_retry_failed_under_limit(self, scraping_job: ScrapingJob) -> None:
         """Test can_retry property returns True for failed job under limit - Line 148."""
         # Arrange
         scraping_job.status = "failed"
@@ -244,7 +245,7 @@ class TestScrapingJobProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_can_retry_failed_at_limit(self, scraping_job):
+    def test_can_retry_failed_at_limit(self, scraping_job: ScrapingJob) -> None:
         """Test can_retry property returns False when retry limit reached."""
         # Arrange
         scraping_job.status = "failed"
@@ -258,7 +259,7 @@ class TestScrapingJobProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_can_retry_completed(self, scraping_job):
+    def test_can_retry_completed(self, scraping_job: ScrapingJob) -> None:
         """Test can_retry property returns False for completed job."""
         # Arrange
         scraping_job.status = "completed"
@@ -281,7 +282,7 @@ class TestModelRepresentations:
     """Test __repr__ methods for all models."""
 
     @pytest.mark.unit
-    def test_scraping_job_repr(self, scraping_job):
+    def test_scraping_job_repr(self, scraping_job: ScrapingJob) -> None:
         """Test ScrapingJob string representation."""
         # Act
         repr_str = repr(scraping_job)
@@ -293,7 +294,7 @@ class TestModelRepresentations:
         assert scraping_job.status in repr_str
 
     @pytest.mark.unit
-    def test_content_result_repr(self):
+    def test_content_result_repr(self) -> None:
         """Test ContentResult string representation."""
         # Arrange
         content_result = ContentResult(id=1, job_id=str(uuid4()), title="Test Content")
@@ -307,7 +308,7 @@ class TestModelRepresentations:
         assert "Test Content" in repr_str
 
     @pytest.mark.unit
-    def test_job_log_repr(self):
+    def test_job_log_repr(self) -> None:
         """Test JobLog string representation."""
         # Arrange
         timestamp = datetime.now(UTC)
@@ -333,7 +334,7 @@ class TestModelRelationships:
     """Test model relationship configurations."""
 
     @pytest.mark.unit
-    def test_scraping_job_has_relationships(self, scraping_job):
+    def test_scraping_job_has_relationships(self, scraping_job: ScrapingJob) -> None:
         """Test ScrapingJob has proper relationship attributes."""
         # Assert - Relationship attributes exist
         assert hasattr(scraping_job, "user")
@@ -341,7 +342,7 @@ class TestModelRelationships:
         assert hasattr(scraping_job, "job_logs")
 
     @pytest.mark.unit
-    def test_content_result_has_job_relationship(self):
+    def test_content_result_has_job_relationship(self) -> None:
         """Test ContentResult has job relationship."""
         # Arrange
         content_result = ContentResult(job_id=str(uuid4()), title="Test")
@@ -350,7 +351,7 @@ class TestModelRelationships:
         assert hasattr(content_result, "job")
 
     @pytest.mark.unit
-    def test_job_log_has_job_relationship(self):
+    def test_job_log_has_job_relationship(self) -> None:
         """Test JobLog has job relationship."""
         # Arrange
         job_log = JobLog(job_id=str(uuid4()), level="INFO", message="Test")

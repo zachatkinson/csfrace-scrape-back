@@ -52,7 +52,7 @@ class RetryConfig:
     jitter: bool = True
     jitter_factor: float = 0.1  # Add up to 10% random variation
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration parameters."""
         if self.max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
@@ -94,8 +94,8 @@ class RetryConfig:
 
 def with_retry(
     retry_config: RetryConfig | None = None,
-    retry_on: tuple = (ClientError, ServerTimeoutError, asyncio.TimeoutError),
-    reraise_on: tuple = (RateLimitError,),
+    retry_on: tuple[type[Exception], ...] = (ClientError, ServerTimeoutError, asyncio.TimeoutError),
+    reraise_on: tuple[type[Exception], ...] = (RateLimitError,),
 ) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """Enhanced decorator for adding retry logic with exponential backoff and jitter.
 
@@ -263,7 +263,7 @@ class CircuitBreaker:
 
         return False
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "CircuitBreaker":
         """Context manager entry - check if request should be allowed."""
         if not self._should_allow_request():
             self.total_calls += 1
@@ -275,7 +275,9 @@ class CircuitBreaker:
 
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> bool:
         """Context manager exit - update state based on result."""
         if exc_type is None:
             # Success case
@@ -295,7 +297,7 @@ class CircuitBreaker:
 
         return False
 
-    def _handle_success(self):
+    def _handle_success(self) -> None:
         """Handle successful operation."""
         if self.state == CircuitBreakerState.HALF_OPEN:
             self.success_count += 1
@@ -312,7 +314,7 @@ class CircuitBreaker:
             # Reset failure count on success in closed state
             self.failure_count = max(0, self.failure_count - 1)
 
-    def _handle_failure(self):
+    def _handle_failure(self) -> None:
         """Handle failed operation."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -382,7 +384,7 @@ class BulkheadPattern:
             max_concurrent=max_concurrent_operations,
         )
 
-    async def execute(self, func: Callable[..., Awaitable[T]], *args, **kwargs) -> T:
+    async def execute(self, func: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any) -> T:
         """Execute function with resource isolation.
 
         Args:
@@ -475,10 +477,14 @@ class ResilienceManager:
     async def execute(
         self,
         func: Callable[..., Awaitable[T]],
-        *args,
-        retry_on: tuple = (ClientError, ServerTimeoutError, asyncio.TimeoutError),
-        reraise_on: tuple = (RateLimitError,),
-        **kwargs,
+        *args: Any,
+        retry_on: tuple[type[Exception], ...] = (
+            ClientError,
+            ServerTimeoutError,
+            asyncio.TimeoutError,
+        ),
+        reraise_on: tuple[type[Exception], ...] = (RateLimitError,),
+        **kwargs: Any,
     ) -> T:
         """Execute function with all resilience patterns applied.
 
@@ -493,7 +499,7 @@ class ResilienceManager:
             Function result with all resilience patterns applied
         """
 
-        async def _execute_with_patterns():
+        async def _execute_with_patterns() -> T:  # type: ignore[return]
             """Execute with circuit breaker and bulkhead patterns."""
             if self.circuit_breaker and self.bulkhead:
                 # Apply both circuit breaker and bulkhead
@@ -517,7 +523,8 @@ class ResilienceManager:
             reraise_on=reraise_on,
         )
 
-        return await retry_decorator(_execute_with_patterns)()
+        decorated_func = retry_decorator(_execute_with_patterns)
+        return await decorated_func()
 
     @property
     def metrics(self) -> dict[str, Any]:

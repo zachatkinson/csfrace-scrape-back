@@ -19,7 +19,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -45,7 +45,7 @@ def execution_context(output_dir: Path) -> PluginExecutionContext:
 
 
 @pytest.fixture
-def mock_registry() -> PluginRegistry:
+def mock_registry() -> Mock:
     """Factory for mock PluginRegistry - DRY principle."""
     registry = MagicMock(spec=PluginRegistry)
     registry.list_plugins.return_value = []
@@ -54,7 +54,7 @@ def mock_registry() -> PluginRegistry:
 
 
 @pytest.fixture
-def plugin_manager(mock_registry: PluginRegistry) -> PluginManager:
+def plugin_manager(mock_registry: Mock) -> PluginManager:
     """Factory for PluginManager - DRY principle."""
     return PluginManager(registry=mock_registry)
 
@@ -100,7 +100,7 @@ class _MockPlugin(BasePlugin):
 class _MockPluginExecutionContext:
     """Tests for PluginExecutionContext class."""
 
-    def test_context_initialization(self, output_dir: Path):
+    def test_context_initialization(self, output_dir: Path) -> None:
         """Test context initialization with URL and output directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "http://example.com"
@@ -116,7 +116,7 @@ class _MockPluginExecutionContext:
         assert context.start_time is None
         assert context.end_time is None
 
-    def test_get_shared_data_returns_value(self, execution_context: PluginExecutionContext):
+    def test_get_shared_data_returns_value(self, execution_context: PluginExecutionContext) -> None:
         """Test get_shared_data returns stored value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         execution_context.shared_state["key"] = "value"
@@ -127,7 +127,9 @@ class _MockPluginExecutionContext:
         # Assert - MANDATORY
         assert result == "value"
 
-    def test_get_shared_data_returns_default(self, execution_context: PluginExecutionContext):
+    def test_get_shared_data_returns_default(
+        self, execution_context: PluginExecutionContext
+    ) -> None:
         """Test get_shared_data returns default for missing key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         default_value = "default"
@@ -138,7 +140,7 @@ class _MockPluginExecutionContext:
         # Assert - MANDATORY
         assert result == default_value
 
-    def test_set_shared_data_stores_value(self, execution_context: PluginExecutionContext):
+    def test_set_shared_data_stores_value(self, execution_context: PluginExecutionContext) -> None:
         """Test set_shared_data stores value in shared state - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test_key"
@@ -150,7 +152,9 @@ class _MockPluginExecutionContext:
         # Assert - MANDATORY
         assert execution_context.shared_state[key] == value
 
-    def test_record_plugin_stats_stores_stats(self, execution_context: PluginExecutionContext):
+    def test_record_plugin_stats_stores_stats(
+        self, execution_context: PluginExecutionContext
+    ) -> None:
         """Test record_plugin_stats stores execution statistics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_name = "test_plugin"
@@ -172,7 +176,7 @@ class _MockPluginExecutionContext:
 class _MockPluginManagerInitialization:
     """Tests for PluginManager initialization."""
 
-    def test_manager_initialization(self, mock_registry: PluginRegistry):
+    def test_manager_initialization(self, mock_registry: Mock) -> None:
         """Test manager initialization with registry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (mock_registry from fixture)
@@ -186,7 +190,7 @@ class _MockPluginManagerInitialization:
         assert manager._initialized is False
         assert len(manager._pipeline) == 0
 
-    def test_manager_uses_default_registry(self):
+    def test_manager_uses_default_registry(self) -> None:
         """Test manager uses global registry by default - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no custom registry)
@@ -199,33 +203,35 @@ class _MockPluginManagerInitialization:
         assert isinstance(manager.registry, PluginRegistry)
 
     @pytest.mark.asyncio
-    async def test_initialize_discovers_plugins(self, plugin_manager: PluginManager):
+    async def test_initialize_discovers_plugins(self, plugin_manager: PluginManager) -> None:
         """Test initialize discovers plugins from registry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        plugin_manager.registry.list_plugins.return_value = []
+        plugin_manager.registry.list_plugins.return_value = []  # type: ignore[attr-defined]
 
         # Act - MANDATORY
         await plugin_manager.initialize()
 
         # Assert - MANDATORY
-        plugin_manager.registry.discover_plugins.assert_called_once()
+        plugin_manager.registry.discover_plugins.assert_called_once()  # type: ignore[attr-defined]
         assert plugin_manager._initialized is True
 
     @pytest.mark.asyncio
-    async def test_initialize_skips_if_already_initialized(self, plugin_manager: PluginManager):
+    async def test_initialize_skips_if_already_initialized(
+        self, plugin_manager: PluginManager
+    ) -> None:
         """Test initialize skips if already initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await plugin_manager.initialize()
-        plugin_manager.registry.discover_plugins.reset_mock()
+        plugin_manager.registry.discover_plugins.reset_mock()  # type: ignore[attr-defined]
 
         # Act - MANDATORY
         await plugin_manager.initialize()
 
         # Assert - MANDATORY
-        plugin_manager.registry.discover_plugins.assert_not_called()
+        plugin_manager.registry.discover_plugins.assert_not_called()  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
-    async def test_shutdown_cleans_up_plugins(self, plugin_manager: PluginManager):
+    async def test_shutdown_cleans_up_plugins(self, plugin_manager: PluginManager) -> None:
         """Test shutdown cleans up all plugins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
@@ -243,7 +249,7 @@ class _MockPluginManagerInitialization:
         assert plugin_manager._initialized is False
 
     @pytest.mark.asyncio
-    async def test_shutdown_skips_if_not_initialized(self, plugin_manager: PluginManager):
+    async def test_shutdown_skips_if_not_initialized(self, plugin_manager: PluginManager) -> None:
         """Test shutdown skips if not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._initialized = False
@@ -265,7 +271,7 @@ class _MockPluginManagerInitialization:
 class _MockPluginPipeline:
     """Tests for plugin pipeline building and execution."""
 
-    def test_build_pipeline_groups_by_type(self, plugin_manager: PluginManager):
+    def test_build_pipeline_groups_by_type(self, plugin_manager: PluginManager) -> None:
         """Test build_pipeline groups plugins by type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config1 = PluginConfig(
@@ -291,7 +297,7 @@ class _MockPluginPipeline:
         assert len(plugin_manager._pipeline[PluginType.HTML_PROCESSOR]) == 2
         assert len(plugin_manager._pipeline[PluginType.CONTENT_FILTER]) == 1
 
-    def test_build_pipeline_sorts_by_priority(self, plugin_manager: PluginManager):
+    def test_build_pipeline_sorts_by_priority(self, plugin_manager: PluginManager) -> None:
         """Test build_pipeline sorts plugins by priority - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config1 = PluginConfig(
@@ -318,7 +324,7 @@ class _MockPluginPipeline:
     @pytest.mark.asyncio
     async def test_execute_pipeline_processes_data(
         self, plugin_manager: PluginManager, execution_context: PluginExecutionContext
-    ):
+    ) -> None:
         """Test execute_pipeline processes data through plugins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
@@ -343,7 +349,7 @@ class _MockPluginPipeline:
     @pytest.mark.asyncio
     async def test_execute_pipeline_returns_data_if_no_plugins(
         self, plugin_manager: PluginManager, execution_context: PluginExecutionContext
-    ):
+    ) -> None:
         """Test execute_pipeline returns data unchanged if no plugins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._initialized = True
@@ -360,7 +366,7 @@ class _MockPluginPipeline:
     @pytest.mark.asyncio
     async def test_execute_pipeline_skips_disabled_plugins(
         self, plugin_manager: PluginManager, execution_context: PluginExecutionContext
-    ):
+    ) -> None:
         """Test execute_pipeline skips disabled plugins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -397,7 +403,7 @@ class TestContentProcessing:
     @pytest.mark.asyncio
     async def test_process_content_returns_results(
         self, plugin_manager: PluginManager, output_dir: Path
-    ):
+    ) -> None:
         """Test process_content returns complete results - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._initialized = True
@@ -419,7 +425,7 @@ class TestContentProcessing:
     @pytest.mark.asyncio
     async def test_process_content_includes_metadata(
         self, plugin_manager: PluginManager, output_dir: Path
-    ):
+    ) -> None:
         """Test process_content includes initial metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._initialized = True
@@ -436,7 +442,7 @@ class TestContentProcessing:
     @pytest.mark.asyncio
     async def test_process_content_tracks_duration(
         self, plugin_manager: PluginManager, output_dir: Path
-    ):
+    ) -> None:
         """Test process_content tracks execution duration - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._initialized = True
@@ -461,11 +467,13 @@ class TestHookSystem:
     """Tests for plugin hook system."""
 
     @patch("src.plugins.manager.logger")
-    def test_add_hook_registers_callback(self, mock_logger, plugin_manager: PluginManager):
+    def test_add_hook_registers_callback(
+        self, mock_logger: Mock, plugin_manager: PluginManager
+    ) -> None:
         """Test add_hook registers callback for event - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        def callback():
+        def callback() -> None:
             pass
 
         event = "test_event"
@@ -478,14 +486,16 @@ class TestHookSystem:
         assert callback in plugin_manager._hooks[event]
 
     @patch("src.plugins.manager.logger")
-    def test_add_hook_allows_multiple_callbacks(self, mock_logger, plugin_manager: PluginManager):
+    def test_add_hook_allows_multiple_callbacks(
+        self, mock_logger: Mock, plugin_manager: PluginManager
+    ) -> None:
         """Test add_hook allows multiple callbacks for same event - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        def callback1():
+        def callback1() -> None:
             pass
 
-        def callback2():
+        def callback2() -> None:
             pass
 
         event = "test_event"
@@ -500,13 +510,13 @@ class TestHookSystem:
     @patch("src.plugins.manager.logger")
     @pytest.mark.asyncio
     async def test_call_hooks_executes_sync_callbacks(
-        self, mock_logger, plugin_manager: PluginManager
-    ):
+        self, mock_logger: Mock, plugin_manager: PluginManager
+    ) -> None:
         """Test _call_hooks executes synchronous callbacks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        called = []
+        called: list[str] = []
 
-        def callback(value):
+        def callback(value: str) -> None:
             called.append(value)
 
         plugin_manager.add_hook("test_event", callback)
@@ -520,13 +530,13 @@ class TestHookSystem:
     @patch("src.plugins.manager.logger")
     @pytest.mark.asyncio
     async def test_call_hooks_executes_async_callbacks(
-        self, mock_logger, plugin_manager: PluginManager
-    ):
+        self, mock_logger: Mock, plugin_manager: PluginManager
+    ) -> None:
         """Test _call_hooks executes async callbacks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        called = []
+        called: list[str] = []
 
-        async def callback(value):
+        async def callback(value: str) -> None:
             called.append(value)
 
         plugin_manager.add_hook("test_event", callback)
@@ -547,13 +557,15 @@ class TestHookSystem:
 class _MockPluginControl:
     """Tests for plugin enable/disable functionality."""
 
-    def test_enable_plugin_enables_and_rebuilds_pipeline(self, plugin_manager: PluginManager):
+    def test_enable_plugin_enables_and_rebuilds_pipeline(
+        self, plugin_manager: PluginManager
+    ) -> None:
         """Test enable_plugin enables plugin and rebuilds pipeline - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
             name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR, enabled=False
         )
-        plugin_manager.registry.get_plugin_config.return_value = config
+        plugin_manager.registry.get_plugin_config.return_value = config  # type: ignore[attr-defined]
 
         # Act - MANDATORY
         result = plugin_manager.enable_plugin("test")
@@ -562,10 +574,10 @@ class _MockPluginControl:
         assert result is True
         assert config.enabled is True
 
-    def test_enable_plugin_returns_false_if_not_found(self, plugin_manager: PluginManager):
+    def test_enable_plugin_returns_false_if_not_found(self, plugin_manager: PluginManager) -> None:
         """Test enable_plugin returns False if plugin not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        plugin_manager.registry.get_plugin_config.return_value = None
+        plugin_manager.registry.get_plugin_config.return_value = None  # type: ignore[attr-defined]
 
         # Act - MANDATORY
         result = plugin_manager.enable_plugin("missing")
@@ -573,13 +585,15 @@ class _MockPluginControl:
         # Assert - MANDATORY
         assert result is False
 
-    def test_disable_plugin_disables_and_rebuilds_pipeline(self, plugin_manager: PluginManager):
+    def test_disable_plugin_disables_and_rebuilds_pipeline(
+        self, plugin_manager: PluginManager
+    ) -> None:
         """Test disable_plugin disables plugin and rebuilds pipeline - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
             name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR, enabled=True
         )
-        plugin_manager.registry.get_plugin_config.return_value = config
+        plugin_manager.registry.get_plugin_config.return_value = config  # type: ignore[attr-defined]
 
         # Act - MANDATORY
         result = plugin_manager.disable_plugin("test")
@@ -588,10 +602,10 @@ class _MockPluginControl:
         assert result is True
         assert config.enabled is False
 
-    def test_disable_plugin_returns_false_if_not_found(self, plugin_manager: PluginManager):
+    def test_disable_plugin_returns_false_if_not_found(self, plugin_manager: PluginManager) -> None:
         """Test disable_plugin returns False if plugin not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        plugin_manager.registry.get_plugin_config.return_value = None
+        plugin_manager.registry.get_plugin_config.return_value = None  # type: ignore[attr-defined]
 
         # Act - MANDATORY
         result = plugin_manager.disable_plugin("missing")
@@ -609,7 +623,7 @@ class _MockPluginControl:
 class _MockPluginInformation:
     """Tests for plugin information retrieval."""
 
-    def test_get_plugin_info_returns_summary(self, plugin_manager: PluginManager):
+    def test_get_plugin_info_returns_summary(self, plugin_manager: PluginManager) -> None:
         """Test get_plugin_info returns complete summary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
@@ -625,7 +639,7 @@ class _MockPluginInformation:
         assert "html_processor" in info["plugin_types"]
         assert "test" in info["plugins"]
 
-    def test_is_initialized_returns_status(self, plugin_manager: PluginManager):
+    def test_is_initialized_returns_status(self, plugin_manager: PluginManager) -> None:
         """Test is_initialized returns correct status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._initialized = False
@@ -636,7 +650,9 @@ class _MockPluginInformation:
         # Assert - MANDATORY
         assert result is False
 
-    def test_get_loaded_plugins_returns_plugin_names_and_types(self, plugin_manager: PluginManager):
+    def test_get_loaded_plugins_returns_plugin_names_and_types(
+        self, plugin_manager: PluginManager
+    ) -> None:
         """Test get_loaded_plugins returns plugin names and types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
@@ -649,7 +665,7 @@ class _MockPluginInformation:
         # Assert - MANDATORY
         assert loaded["test"] == "html_processor"
 
-    def test_get_pipeline_info_returns_ordered_plugins(self, plugin_manager: PluginManager):
+    def test_get_pipeline_info_returns_ordered_plugins(self, plugin_manager: PluginManager) -> None:
         """Test get_pipeline_info returns ordered plugin names - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin_manager._pipeline[PluginType.HTML_PROCESSOR] = ["plugin1", "plugin2"]
@@ -663,15 +679,15 @@ class _MockPluginInformation:
 
     @patch("src.plugins.manager.logger")
     def test_get_registered_hooks_returns_hook_counts(
-        self, mock_logger, plugin_manager: PluginManager
-    ):
+        self, mock_logger: Mock, plugin_manager: PluginManager
+    ) -> None:
         """Test get_registered_hooks returns callback counts - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        def callback1():
+        def callback1() -> None:
             pass
 
-        def callback2():
+        def callback2() -> None:
             pass
 
         plugin_manager.add_hook("event1", callback1)
@@ -697,7 +713,7 @@ class _MockPluginManagerSecurity:
     """MANDATORY security tests for plugin manager."""
 
     @pytest.mark.asyncio
-    async def test_context_sanitizes_malicious_urls(self, output_dir: Path):
+    async def test_context_sanitizes_malicious_urls(self, output_dir: Path) -> None:
         """MANDATORY security test - malicious URLs in context."""
         # Arrange - MANDATORY
         malicious_urls = [
@@ -714,7 +730,9 @@ class _MockPluginManagerSecurity:
             assert context.url == url
 
     @pytest.mark.asyncio
-    async def test_shared_state_prevents_injection(self, execution_context: PluginExecutionContext):
+    async def test_shared_state_prevents_injection(
+        self, execution_context: PluginExecutionContext
+    ) -> None:
         """MANDATORY security test - shared state injection attempts."""
         # Arrange - MANDATORY
         malicious_values = [
@@ -746,7 +764,7 @@ class _MockPluginManagerPerformance:
     @pytest.mark.asyncio
     async def test_pipeline_execution_performance(
         self, plugin_manager: PluginManager, execution_context: PluginExecutionContext
-    ):
+    ) -> None:
         """MANDATORY performance test - pipeline execution speed."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
@@ -776,7 +794,9 @@ class _MockPluginManagerPerformance:
         assert avg_time < 0.01  # <10ms per pipeline execution
         assert execution_time < 1.0  # Total <1s for 100 executions
 
-    def test_context_data_access_performance(self, execution_context: PluginExecutionContext):
+    def test_context_data_access_performance(
+        self, execution_context: PluginExecutionContext
+    ) -> None:
         """MANDATORY performance test - context data access speed."""
         # Arrange - MANDATORY
         execution_context.set_shared_data("key", "value")
@@ -797,11 +817,13 @@ class _MockPluginManagerPerformance:
         assert execution_time < 0.1  # Total <100ms for 10000 accesses
 
     @patch("src.plugins.manager.logger")
-    def test_hook_callback_performance(self, mock_logger, plugin_manager: PluginManager):
+    def test_hook_callback_performance(
+        self, mock_logger: Mock, plugin_manager: PluginManager
+    ) -> None:
         """MANDATORY performance test - hook callback registration speed."""
 
         # Arrange - MANDATORY
-        def callback():
+        def callback() -> None:
             pass
 
         iterations = 1000

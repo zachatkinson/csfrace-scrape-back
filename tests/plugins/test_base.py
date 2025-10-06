@@ -21,6 +21,11 @@ from src.plugins.base import (
     PostProcessorPlugin,
 )
 
+# Type aliases for better readability
+ContextDict = dict[str, Any]
+MetadataDict = dict[str, Any]
+DataDict = dict[str, Any]
+
 # ============================================================================
 # FACTORY FIXTURES - DRY PRINCIPLE (MANDATORY)
 # ============================================================================
@@ -48,7 +53,7 @@ def plugin_config() -> PluginConfig:
 class TestPluginType:
     """Tests for PluginType enum."""
 
-    def test_all_plugin_types_exist(self):
+    def test_all_plugin_types_exist(self) -> None:
         """Test all expected plugin types exist - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_types = [
@@ -67,7 +72,7 @@ class TestPluginType:
         for expected in expected_types:
             assert expected in actual_types
 
-    def test_plugin_type_values(self):
+    def test_plugin_type_values(self) -> None:
         """Test plugin type values are correct - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -95,7 +100,7 @@ class TestPluginType:
 class TestPluginConfig:
     """Tests for PluginConfig dataclass."""
 
-    def test_config_creation_with_defaults(self):
+    def test_config_creation_with_defaults(self) -> None:
         """Test PluginConfig creation with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         name = "test_plugin"
@@ -113,7 +118,7 @@ class TestPluginConfig:
         assert config.priority == 100
         assert config.settings == {}
 
-    def test_config_customization(self):
+    def test_config_customization(self) -> None:
         """Test PluginConfig allows customization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         settings = {"custom": "setting", "value": 123}
@@ -136,7 +141,7 @@ class TestPluginConfig:
         assert config.priority == 50
         assert config.settings == settings
 
-    def test_config_settings_default_initialization(self):
+    def test_config_settings_default_initialization(self) -> None:
         """Test PluginConfig initializes empty settings dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -179,7 +184,7 @@ class _MockPluginImpl(BasePlugin):
 class TestBasePlugin:
     """Tests for BasePlugin base class."""
 
-    def test_plugin_initialization(self, plugin_config: PluginConfig):
+    def test_plugin_initialization(self, plugin_config: PluginConfig) -> None:
         """Test plugin initializes with config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -192,7 +197,7 @@ class TestBasePlugin:
         assert plugin._initialized is False
 
     @pytest.mark.asyncio
-    async def test_plugin_initialize_sets_flag(self, plugin_config: PluginConfig):
+    async def test_plugin_initialize_sets_flag(self, plugin_config: PluginConfig) -> None:
         """Test initialize sets initialized flag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -204,7 +209,7 @@ class TestBasePlugin:
         assert plugin._initialized is True
 
     @pytest.mark.asyncio
-    async def test_plugin_cleanup_default_behavior(self, plugin_config: PluginConfig):
+    async def test_plugin_cleanup_default_behavior(self, plugin_config: PluginConfig) -> None:
         """Test cleanup default behavior does nothing - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -217,7 +222,7 @@ class TestBasePlugin:
         assert True
 
     @pytest.mark.asyncio
-    async def test_plugin_validate_config_default(self, plugin_config: PluginConfig):
+    async def test_plugin_validate_config_default(self, plugin_config: PluginConfig) -> None:
         """Test validate_config default returns True - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -228,7 +233,7 @@ class TestBasePlugin:
         # Assert - MANDATORY
         assert result is True
 
-    def test_get_setting_returns_value(self, plugin_config: PluginConfig):
+    def test_get_setting_returns_value(self, plugin_config: PluginConfig) -> None:
         """Test get_setting returns correct value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -239,7 +244,7 @@ class TestBasePlugin:
         # Assert - MANDATORY
         assert result == "value"
 
-    def test_get_setting_returns_default(self, plugin_config: PluginConfig):
+    def test_get_setting_returns_default(self, plugin_config: PluginConfig) -> None:
         """Test get_setting returns default for missing key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -250,7 +255,7 @@ class TestBasePlugin:
         # Assert - MANDATORY
         assert result == "default_value"
 
-    def test_set_setting_updates_value(self, plugin_config: PluginConfig):
+    def test_set_setting_updates_value(self, plugin_config: PluginConfig) -> None:
         """Test set_setting updates setting value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -261,7 +266,7 @@ class TestBasePlugin:
         # Assert - MANDATORY
         assert plugin.get_setting("new_key") == "new_value"
 
-    def test_set_setting_creates_settings_dict(self):
+    def test_set_setting_creates_settings_dict(self) -> None:
         """Test set_setting creates settings dict if None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -275,7 +280,7 @@ class TestBasePlugin:
         # Assert - MANDATORY
         assert plugin.config.settings == {"key": "value"}
 
-    def test_is_enabled_returns_config_value(self, plugin_config: PluginConfig):
+    def test_is_enabled_returns_config_value(self, plugin_config: PluginConfig) -> None:
         """Test is_enabled returns config enabled value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -286,7 +291,7 @@ class TestBasePlugin:
         # Assert - MANDATORY
         assert result is True
 
-    def test_get_priority_returns_config_value(self, plugin_config: PluginConfig):
+    def test_get_priority_returns_config_value(self, plugin_config: PluginConfig) -> None:
         """Test get_priority returns config priority - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -330,13 +335,13 @@ class TestHTMLProcessorPlugin:
     """Tests for HTMLProcessorPlugin base class."""
 
     @pytest.mark.asyncio
-    async def test_process_transforms_html(self):
+    async def test_process_transforms_html(self) -> None:
         """Test process method transforms HTML - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
         plugin = _MockHTMLProcessorImpl(config=config)
         data = {"html": "<p>test</p>", "metadata": {"key": "value"}}
-        context = {}
+        context: ContextDict = {}
 
         # Act - MANDATORY
         result = await plugin.process(data, context)
@@ -346,13 +351,13 @@ class TestHTMLProcessorPlugin:
         assert result["metadata"] == {"key": "value"}
 
     @pytest.mark.asyncio
-    async def test_process_raises_error_for_invalid_data(self):
+    async def test_process_raises_error_for_invalid_data(self) -> None:
         """Test process raises error for invalid data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR)
         plugin = _MockHTMLProcessorImpl(config=config)
         data = {"no_html": "value"}
-        context = {}
+        context: ContextDict = {}
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="expects dict with 'html' key"):
@@ -389,13 +394,13 @@ class TestContentFilterPlugin:
     """Tests for ContentFilterPlugin base class."""
 
     @pytest.mark.asyncio
-    async def test_process_filters_content(self):
+    async def test_process_filters_content(self) -> None:
         """Test process method filters content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.CONTENT_FILTER)
         plugin = _MockContentFilterImpl(config=config)
         data = {"content": "bad word", "content_type": "html"}
-        context = {}
+        context: ContextDict = {}
 
         # Act - MANDATORY
         result = await plugin.process(data, context)
@@ -404,13 +409,13 @@ class TestContentFilterPlugin:
         assert result["content"] == "good word"
 
     @pytest.mark.asyncio
-    async def test_process_raises_error_for_invalid_data(self):
+    async def test_process_raises_error_for_invalid_data(self) -> None:
         """Test process raises error for invalid data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.CONTENT_FILTER)
         plugin = _MockContentFilterImpl(config=config)
         data = {"no_content": "value"}
-        context = {}
+        context: ContextDict = {}
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="expects dict with 'content' key"):
@@ -454,13 +459,13 @@ class TestImageProcessorPlugin:
     """Tests for ImageProcessorPlugin base class."""
 
     @pytest.mark.asyncio
-    async def test_process_processes_image(self):
+    async def test_process_processes_image(self) -> None:
         """Test process method processes image - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.IMAGE_PROCESSOR)
         plugin = _MockImageProcessorImpl(config=config)
         data = {"url": "http://example.com/image.png", "image_data": b"fake_image", "metadata": {}}
-        context = {}
+        context: ContextDict = {}
 
         # Act - MANDATORY
         result = await plugin.process(data, context)
@@ -472,13 +477,13 @@ class TestImageProcessorPlugin:
         assert result["size"] == (100, 100)
 
     @pytest.mark.asyncio
-    async def test_process_raises_error_for_invalid_data(self):
+    async def test_process_raises_error_for_invalid_data(self) -> None:
         """Test process raises error for invalid data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.IMAGE_PROCESSOR)
         plugin = _MockImageProcessorImpl(config=config)
         data = {"no_image": "value"}
-        context = {}
+        context: ContextDict = {}
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="expects dict with 'image_data' key"):
@@ -517,7 +522,7 @@ class TestMetadataExtractorPlugin:
     """Tests for MetadataExtractorPlugin base class."""
 
     @pytest.mark.asyncio
-    async def test_process_extracts_metadata(self):
+    async def test_process_extracts_metadata(self) -> None:
         """Test process method extracts metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -529,7 +534,7 @@ class TestMetadataExtractorPlugin:
             "url": "http://example.com",
             "metadata": {"existing": "data"},
         }
-        context = {}
+        context: ContextDict = {}
 
         # Act - MANDATORY
         result = await plugin.process(data, context)
@@ -540,7 +545,7 @@ class TestMetadataExtractorPlugin:
         assert result["metadata"]["existing"] == "data"  # Preserves existing
 
     @pytest.mark.asyncio
-    async def test_process_raises_error_for_invalid_data(self):
+    async def test_process_raises_error_for_invalid_data(self) -> None:
         """Test process raises error for invalid data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -548,7 +553,7 @@ class TestMetadataExtractorPlugin:
         )
         plugin = _MockMetadataExtractorImpl(config=config)
         data = {"no_html": "value"}
-        context = {}
+        context: ContextDict = {}
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="expects dict with 'html' key"):
@@ -587,13 +592,13 @@ class TestOutputFormatterPlugin:
     """Tests for OutputFormatterPlugin base class."""
 
     @pytest.mark.asyncio
-    async def test_process_formats_output(self):
+    async def test_process_formats_output(self) -> None:
         """Test process method formats output - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.OUTPUT_FORMATTER)
         plugin = _MockOutputFormatterImpl(config=config)
         data = {"content": "test content", "metadata": {}, "output_format": "markdown"}
-        context = {}
+        context: ContextDict = {}
 
         # Act - MANDATORY
         result = await plugin.process(data, context)
@@ -602,13 +607,13 @@ class TestOutputFormatterPlugin:
         assert result["content"] == "[markdown]test content[/markdown]"
 
     @pytest.mark.asyncio
-    async def test_process_raises_error_for_invalid_data(self):
+    async def test_process_raises_error_for_invalid_data(self) -> None:
         """Test process raises error for invalid data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.OUTPUT_FORMATTER)
         plugin = _MockOutputFormatterImpl(config=config)
         data = {"no_content": "value"}
-        context = {}
+        context: ContextDict = {}
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="expects dict with 'content' key"):
@@ -647,17 +652,17 @@ class TestPostProcessorPlugin:
     """Tests for PostProcessorPlugin base class."""
 
     @pytest.mark.asyncio
-    async def test_process_post_processes_files(self):
+    async def test_process_post_processes_files(self) -> None:
         """Test process method post-processes files - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.POST_PROCESSOR)
         plugin = _MockPostProcessorImpl(config=config)
-        data = {
+        data: DataDict = {
             "output_dir": "/tmp/output",
             "files": [Path("/tmp/file1.txt"), Path("/tmp/file2.txt")],
             "metadata": {},
         }
-        context = {}
+        context: ContextDict = {}
 
         # Act - MANDATORY
         result = await plugin.process(data, context)
@@ -667,13 +672,13 @@ class TestPostProcessorPlugin:
         assert result["post_process_result"]["output_dir"] == "/tmp/output"
 
     @pytest.mark.asyncio
-    async def test_process_raises_error_for_missing_output_dir(self):
+    async def test_process_raises_error_for_missing_output_dir(self) -> None:
         """Test process raises error for missing output_dir - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(name="test", version="1.0.0", plugin_type=PluginType.POST_PROCESSOR)
         plugin = _MockPostProcessorImpl(config=config)
-        data = {"files": []}
-        context = {}
+        data: DataDict = {"files": []}
+        context: ContextDict = {}
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="requires 'output_dir' in data"):
@@ -690,7 +695,7 @@ class TestPostProcessorPlugin:
 class TestPluginSecurity:
     """MANDATORY security tests for plugin system."""
 
-    def test_plugin_name_sanitization(self):
+    def test_plugin_name_sanitization(self) -> None:
         """MANDATORY security test - plugin names with malicious characters."""
         # Arrange - MANDATORY
         malicious_names = [
@@ -706,7 +711,7 @@ class TestPluginSecurity:
             # Name should be stored as-is (app must sanitize on display)
             assert config.name == name
 
-    def test_plugin_settings_injection(self):
+    def test_plugin_settings_injection(self) -> None:
         """MANDATORY security test - plugin settings with malicious content."""
         # Arrange - MANDATORY
         malicious_settings = {
@@ -740,7 +745,7 @@ class TestPluginSecurity:
 class TestPluginPerformance:
     """MANDATORY performance tests for plugin system."""
 
-    def test_get_setting_performance(self, plugin_config: PluginConfig):
+    def test_get_setting_performance(self, plugin_config: PluginConfig) -> None:
         """MANDATORY performance test - setting retrieval speed."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)
@@ -760,7 +765,7 @@ class TestPluginPerformance:
         assert avg_time < 0.00001  # <10μs per retrieval
         assert execution_time < 0.1  # Total <100ms for 10000 retrievals
 
-    def test_set_setting_performance(self, plugin_config: PluginConfig):
+    def test_set_setting_performance(self, plugin_config: PluginConfig) -> None:
         """MANDATORY performance test - setting update speed."""
         # Arrange - MANDATORY
         plugin = _MockPluginImpl(config=plugin_config)

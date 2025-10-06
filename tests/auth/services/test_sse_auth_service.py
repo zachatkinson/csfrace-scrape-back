@@ -12,6 +12,7 @@ Tests SSEAuthService Server-Sent Events authentication methods.
 
 import json
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -27,13 +28,13 @@ from src.auth.services.sse_auth_service import SSEAuthService, auth_config
 
 
 @pytest.fixture
-def sse_service():
+def sse_service() -> SSEAuthService:
     """Factory for SSEAuthService instance - DRY principle."""
     return SSEAuthService()
 
 
 @pytest.fixture
-def mock_request_authenticated():
+def mock_request_authenticated() -> MagicMock:
     """Factory for authenticated FastAPI request mock."""
     request = MagicMock()
 
@@ -78,7 +79,7 @@ def mock_request_authenticated():
 
 
 @pytest.fixture
-def mock_request_unauthenticated():
+def mock_request_unauthenticated() -> MagicMock:
     """Factory for unauthenticated FastAPI request mock."""
     request = MagicMock()
 
@@ -102,7 +103,7 @@ def mock_request_unauthenticated():
 
 
 @pytest.fixture
-def mock_request_invalid_token():
+def mock_request_invalid_token() -> MagicMock:
     """Factory for request with invalid JWT token."""
     request = MagicMock()
 
@@ -129,7 +130,7 @@ def mock_request_invalid_token():
 
 
 @pytest.fixture
-def mock_request_invalid_json():
+def mock_request_invalid_json() -> MagicMock:
     """Factory for request with invalid JSON in auth_user cookie."""
     request = MagicMock()
 
@@ -170,7 +171,7 @@ class TestSSEAuthServiceInitialization:
     """Test SSEAuthService initialization."""
 
     @pytest.mark.unit
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test SSEAuthService initializes with correct defaults."""
         # Act
         service = SSEAuthService()
@@ -190,8 +191,8 @@ class TestGetAuthStatusFromCookies:
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_get_auth_status_authenticated_success(
-        self, sse_service, mock_request_authenticated
-    ):
+        self, sse_service: SSEAuthService, mock_request_authenticated: MagicMock
+    ) -> None:
         """Test get_auth_status_from_cookies with valid authentication.
 
         AAA Pattern:
@@ -205,16 +206,19 @@ class TestGetAuthStatusFromCookies:
         # Assert
         assert status["authenticated"] is True
         assert "user" in status
-        assert status["user"]["username"] == "testuser"
-        assert status["user"]["email"] == "test@example.com"
-        assert status["user"]["is_verified"] is True
-        assert status["user"]["provider"] == "google"
+        user: dict[str, Any] = status["user"]  # type: ignore[assignment]
+        assert user["username"] == "testuser"
+        assert user["email"] == "test@example.com"
+        assert user["is_verified"] is True
+        assert user["provider"] == "google"
         assert "expires_at" in status
         assert status["token_type"] == "bearer"
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_auth_status_no_cookies(self, sse_service, mock_request_unauthenticated):
+    async def test_get_auth_status_no_cookies(
+        self, sse_service: SSEAuthService, mock_request_unauthenticated: MagicMock
+    ) -> None:
         """Test get_auth_status_from_cookies with no cookies present."""
         # Act
         status = await sse_service.get_auth_status_from_cookies(mock_request_unauthenticated)
@@ -225,7 +229,9 @@ class TestGetAuthStatusFromCookies:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_auth_status_invalid_token(self, sse_service, mock_request_invalid_token):
+    async def test_get_auth_status_invalid_token(
+        self, sse_service: SSEAuthService, mock_request_invalid_token: MagicMock
+    ) -> None:
         """Test get_auth_status_from_cookies with invalid JWT token."""
         # Act
         status = await sse_service.get_auth_status_from_cookies(mock_request_invalid_token)
@@ -236,7 +242,9 @@ class TestGetAuthStatusFromCookies:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_auth_status_invalid_json(self, sse_service, mock_request_invalid_json):
+    async def test_get_auth_status_invalid_json(
+        self, sse_service: SSEAuthService, mock_request_invalid_json: MagicMock
+    ) -> None:
         """Test get_auth_status_from_cookies with invalid JSON in auth_user."""
         # Act
         status = await sse_service.get_auth_status_from_cookies(mock_request_invalid_json)
@@ -247,7 +255,7 @@ class TestGetAuthStatusFromCookies:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_auth_status_missing_auth_token(self, sse_service):
+    async def test_get_auth_status_missing_auth_token(self, sse_service: SSEAuthService) -> None:
         """Test get_auth_status_from_cookies with only auth_user cookie."""
         # Arrange
         request = MagicMock()
@@ -271,7 +279,7 @@ class TestGetAuthStatusFromCookies:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_auth_status_missing_auth_user(self, sse_service):
+    async def test_get_auth_status_missing_auth_user(self, sse_service: SSEAuthService) -> None:
         """Test get_auth_status_from_cookies with only auth_token cookie."""
         # Arrange
         payload = {
@@ -311,8 +319,8 @@ class TestGenerateAuthEvents:
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_generate_auth_events_initial_unauthenticated(
-        self, sse_service, mock_request_unauthenticated
-    ):
+        self, sse_service: SSEAuthService, mock_request_unauthenticated: MagicMock
+    ) -> None:
         """Test generate_auth_events sends initial unauthenticated status.
 
         AAA Pattern:
@@ -353,8 +361,8 @@ class TestGenerateAuthEvents:
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_generate_auth_events_authenticated(
-        self, sse_service, mock_request_authenticated
-    ):
+        self, sse_service: SSEAuthService, mock_request_authenticated: MagicMock
+    ) -> None:
         """Test generate_auth_events with authenticated request."""
         # Arrange - Patch asyncio.sleep
         with patch("asyncio.sleep", new=AsyncMock()) as mock_sleep:
@@ -386,7 +394,9 @@ class TestGenerateAuthEvents:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_generate_auth_events_heartbeat(self, sse_service, mock_request_unauthenticated):
+    async def test_generate_auth_events_heartbeat(
+        self, sse_service: SSEAuthService, mock_request_unauthenticated: MagicMock
+    ) -> None:
         """Test generate_auth_events sends heartbeat after interval."""
         # Arrange - Patch asyncio.sleep and set low heartbeat interval
         sse_service.heartbeat_interval = 2  # Send heartbeat every 2 iterations
@@ -427,8 +437,8 @@ class TestGenerateAuthEvents:
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_generate_auth_events_handles_cancellation(
-        self, sse_service, mock_request_unauthenticated
-    ):
+        self, sse_service: SSEAuthService, mock_request_unauthenticated: MagicMock
+    ) -> None:
         """Test generate_auth_events handles asyncio.CancelledError gracefully."""
         # Arrange
         with patch("asyncio.sleep", new=AsyncMock()) as mock_sleep:
@@ -450,8 +460,8 @@ class TestGenerateAuthEvents:
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_generate_auth_events_handles_exception(
-        self, sse_service, mock_request_unauthenticated
-    ):
+        self, sse_service: SSEAuthService, mock_request_unauthenticated: MagicMock
+    ) -> None:
         """Test generate_auth_events sends error event on exception."""
         # Arrange - Mock get_auth_status_from_cookies to raise exception
         with patch.object(
@@ -494,7 +504,7 @@ class TestGetSSEHeaders:
     """Test SSE response headers generation."""
 
     @pytest.mark.unit
-    def test_get_sse_headers_development(self):
+    def test_get_sse_headers_development(self) -> None:
         """Test get_sse_headers in development environment."""
         # Arrange
         with patch.dict("os.environ", {"ENVIRONMENT": "development"}):
@@ -510,7 +520,7 @@ class TestGetSSEHeaders:
             assert headers["Access-Control-Allow-Headers"] == "Cache-Control"
 
     @pytest.mark.unit
-    def test_get_sse_headers_production(self):
+    def test_get_sse_headers_production(self) -> None:
         """Test get_sse_headers in production environment."""
         # Arrange
         with patch.dict(
@@ -524,7 +534,7 @@ class TestGetSSEHeaders:
             assert headers["Access-Control-Allow-Origin"] == "https://app.example.com"
 
     @pytest.mark.unit
-    def test_get_sse_headers_default_environment(self):
+    def test_get_sse_headers_default_environment(self) -> None:
         """Test get_sse_headers with no ENVIRONMENT variable."""
         # Arrange
         with patch.dict("os.environ", {}, clear=True):

@@ -50,13 +50,13 @@ def sample_health_result() -> HealthCheckResult:
 
 
 @pytest.fixture
-def mock_check_function():
+def mock_check_function() -> MagicMock:
     """Factory for mock check function - DRY principle."""
     return MagicMock(return_value=True)
 
 
 @pytest.fixture
-def mock_async_check_function():
+def mock_async_check_function() -> AsyncMock:
     """Factory for mock async check function - DRY principle."""
     return AsyncMock(return_value=True)
 
@@ -70,7 +70,7 @@ def mock_async_check_function():
 class TestHealthStatus:
     """Tests for HealthStatus enum."""
 
-    def test_health_status_healthy_value(self):
+    def test_health_status_healthy_value(self) -> None:
         """Test HealthStatus.HEALTHY has correct value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_value = "healthy"
@@ -81,7 +81,7 @@ class TestHealthStatus:
         # Assert - MANDATORY
         assert actual_value == expected_value
 
-    def test_health_status_degraded_value(self):
+    def test_health_status_degraded_value(self) -> None:
         """Test HealthStatus.DEGRADED has correct value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_value = "degraded"
@@ -92,7 +92,7 @@ class TestHealthStatus:
         # Assert - MANDATORY
         assert actual_value == expected_value
 
-    def test_health_status_unhealthy_value(self):
+    def test_health_status_unhealthy_value(self) -> None:
         """Test HealthStatus.UNHEALTHY has correct value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_value = "unhealthy"
@@ -103,7 +103,7 @@ class TestHealthStatus:
         # Assert - MANDATORY
         assert actual_value == expected_value
 
-    def test_health_status_unknown_value(self):
+    def test_health_status_unknown_value(self) -> None:
         """Test HealthStatus.UNKNOWN has correct value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_value = "unknown"
@@ -124,7 +124,7 @@ class TestHealthStatus:
 class TestHealthCheckResult:
     """Tests for HealthCheckResult dataclass."""
 
-    def test_health_check_result_creation(self):
+    def test_health_check_result_creation(self) -> None:
         """Test HealthCheckResult creation with required fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         name = "test_check"
@@ -146,7 +146,7 @@ class TestHealthCheckResult:
         assert result.details == {}
         assert result.tags == []
 
-    def test_health_check_result_with_optional_fields(self):
+    def test_health_check_result_with_optional_fields(self) -> None:
         """Test HealthCheckResult with all optional fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         name = "test_check"
@@ -177,7 +177,7 @@ class TestHealthCheckResult:
         assert result.tags == tags
         assert result.timestamp == timestamp
 
-    def test_is_healthy_returns_true_for_healthy_status(self):
+    def test_is_healthy_returns_true_for_healthy_status(self) -> None:
         """Test is_healthy() returns True for HEALTHY status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         result = HealthCheckResult(
@@ -190,7 +190,7 @@ class TestHealthCheckResult:
         # Assert - MANDATORY
         assert is_healthy is True
 
-    def test_is_healthy_returns_false_for_unhealthy_status(self):
+    def test_is_healthy_returns_false_for_unhealthy_status(self) -> None:
         """Test is_healthy() returns False for UNHEALTHY status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         result = HealthCheckResult(
@@ -203,7 +203,7 @@ class TestHealthCheckResult:
         # Assert - MANDATORY
         assert is_healthy is False
 
-    def test_is_healthy_returns_false_for_degraded_status(self):
+    def test_is_healthy_returns_false_for_degraded_status(self) -> None:
         """Test is_healthy() returns False for DEGRADED status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         result = HealthCheckResult(
@@ -216,7 +216,7 @@ class TestHealthCheckResult:
         # Assert - MANDATORY
         assert is_healthy is False
 
-    def test_to_dict_conversion(self, sample_health_result):
+    def test_to_dict_conversion(self, sample_health_result: HealthCheckResult) -> None:
         """Test to_dict() converts result to dictionary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (using fixture)
 
@@ -244,7 +244,7 @@ class TestHealthCheckResult:
 class TestHealthCheckBase:
     """Tests for HealthCheck abstract base class."""
 
-    def test_health_check_initialization_with_defaults(self):
+    def test_health_check_initialization_with_defaults(self) -> None:
         """Test HealthCheck initialization with default values - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -266,7 +266,7 @@ class TestHealthCheckBase:
         assert health_check.tags == []
         assert health_check.enabled is True
 
-    def test_health_check_initialization_with_custom_values(self):
+    def test_health_check_initialization_with_custom_values(self) -> None:
         """Test HealthCheck initialization with custom values - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -294,7 +294,7 @@ class TestHealthCheckBase:
         assert health_check.enabled is False
 
     @pytest.mark.asyncio
-    async def test_execute_when_disabled_returns_unknown(self):
+    async def test_execute_when_disabled_returns_unknown(self) -> None:
         """Test execute() returns UNKNOWN when check is disabled - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -319,7 +319,7 @@ class TestHealthCheckBase:
         assert result.duration_ms == 0.0
 
     @pytest.mark.asyncio
-    async def test_execute_successful_check(self):
+    async def test_execute_successful_check(self) -> None:
         """Test execute() with successful check - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -345,7 +345,7 @@ class TestHealthCheckBase:
         assert result.duration_ms > 0
 
     @pytest.mark.asyncio
-    async def test_execute_timeout_handling(self):
+    async def test_execute_timeout_handling(self) -> None:
         """Test execute() handles timeout correctly - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -381,7 +381,9 @@ class TestFunctionHealthCheck:
     """Tests for FunctionHealthCheck wrapper."""
 
     @pytest.mark.asyncio
-    async def test_function_health_check_with_bool_return(self, mock_check_function):
+    async def test_function_health_check_with_bool_return(
+        self, mock_check_function: MagicMock
+    ) -> None:
         """Test FunctionHealthCheck with bool return value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_check_function.return_value = True
@@ -397,7 +399,9 @@ class TestFunctionHealthCheck:
         mock_check_function.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_function_health_check_with_false_bool_return(self, mock_check_function):
+    async def test_function_health_check_with_false_bool_return(
+        self, mock_check_function: MagicMock
+    ) -> None:
         """Test FunctionHealthCheck with False bool return - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_check_function.return_value = False
@@ -412,7 +416,9 @@ class TestFunctionHealthCheck:
         assert result.message == "Check failed"
 
     @pytest.mark.asyncio
-    async def test_function_health_check_with_string_return(self, mock_check_function):
+    async def test_function_health_check_with_string_return(
+        self, mock_check_function: MagicMock
+    ) -> None:
         """Test FunctionHealthCheck with string return value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_check_function.return_value = "Everything is working"
@@ -427,7 +433,9 @@ class TestFunctionHealthCheck:
         assert result.message == "Everything is working"
 
     @pytest.mark.asyncio
-    async def test_function_health_check_with_health_check_result_return(self, mock_check_function):
+    async def test_function_health_check_with_health_check_result_return(
+        self, mock_check_function: MagicMock
+    ) -> None:
         """Test FunctionHealthCheck with HealthCheckResult return - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_result = HealthCheckResult(
@@ -447,7 +455,9 @@ class TestFunctionHealthCheck:
         assert result == expected_result
 
     @pytest.mark.asyncio
-    async def test_function_health_check_with_async_function(self, mock_async_check_function):
+    async def test_function_health_check_with_async_function(
+        self, mock_async_check_function: AsyncMock
+    ) -> None:
         """Test FunctionHealthCheck with async function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_async_check_function.return_value = True
@@ -461,7 +471,9 @@ class TestFunctionHealthCheck:
         mock_async_check_function.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_function_health_check_with_custom_timeout(self, mock_check_function):
+    async def test_function_health_check_with_custom_timeout(
+        self, mock_check_function: MagicMock
+    ) -> None:
         """Test FunctionHealthCheck with custom timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_check_function.return_value = True
@@ -488,7 +500,7 @@ class TestHealthCheckPerformance:
     """MANDATORY performance tests for health check operations."""
 
     @pytest.mark.asyncio
-    async def test_health_check_result_creation_performance(self):
+    async def test_health_check_result_creation_performance(self) -> None:
         """MANDATORY performance test - HealthCheckResult creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -515,7 +527,7 @@ class TestHealthCheckPerformance:
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
     @pytest.mark.asyncio
-    async def test_health_check_execute_performance(self):
+    async def test_health_check_execute_performance(self) -> None:
         """MANDATORY performance test - health check execution speed."""
 
         # Arrange - MANDATORY

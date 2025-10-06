@@ -20,6 +20,7 @@ import json
 import time
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,7 +39,7 @@ from src.api.routers.performance_stream import (
 
 
 @pytest.fixture
-def sample_metrics_snapshot():
+def sample_metrics_snapshot() -> dict[str, Any]:
     """Factory for sample metrics snapshot - DRY principle."""
     return {
         "timestamp": "2025-09-18T12:00:00Z",
@@ -61,7 +62,7 @@ def sample_metrics_snapshot():
 
 
 @pytest.fixture
-def mock_request():
+def mock_request() -> MagicMock:
     """Factory for mock request - DRY principle."""
     request = MagicMock()
     request.is_disconnected = AsyncMock(return_value=False)
@@ -69,7 +70,7 @@ def mock_request():
 
 
 @pytest.fixture
-def mock_metrics_collector():
+def mock_metrics_collector() -> MagicMock:
     """Factory for mock metrics collector - DRY principle."""
     collector = MagicMock()
     collector.get_metrics_snapshot = MagicMock()
@@ -85,7 +86,7 @@ def mock_metrics_collector():
 class TestPerformanceStreamRouter:
     """Tests for performance stream router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that performance stream router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -93,35 +94,38 @@ class TestPerformanceStreamRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_correct_prefix(self):
+    def test_router_has_correct_prefix(self) -> None:
         """Test router has /performance prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert router.prefix == "/performance"
 
-    def test_router_has_correct_tags(self):
+    def test_router_has_correct_tags(self) -> None:
         """Test router has correct tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert "Performance Monitoring" in router.tags
 
-    def test_router_has_stream_endpoint(self):
+    def test_router_has_stream_endpoint(self) -> None:
         """Test router has /stream endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        route_paths = [route.path for route in router.routes]
+        route_paths = [getattr(route, "path", "") for route in router.routes]
 
         # Assert - MANDATORY
         # Routes include prefix in FastAPI routers
         assert "/performance/stream" in route_paths
 
-    def test_stream_endpoint_uses_get_method(self):
+    def test_stream_endpoint_uses_get_method(self) -> None:
         """Test stream endpoint uses GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [(route.path, route.methods) for route in router.routes]
+        routes: list[tuple[str, set[str]]] = [
+            (getattr(route, "path", ""), getattr(route, "methods", set()))
+            for route in router.routes
+        ]
 
         # Assert - MANDATORY
         # Find /performance/stream route and check it has GET method
@@ -138,7 +142,7 @@ class TestPerformanceStreamRouter:
 class TestSafeJsonDumps:
     """Tests for safe JSON serialization."""
 
-    def test_safe_json_dumps_handles_decimals(self):
+    def test_safe_json_dumps_handles_decimals(self) -> None:
         """Test safe_json_dumps converts Decimal to float - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = {"value": Decimal("42.5"), "count": Decimal("100")}
@@ -152,7 +156,7 @@ class TestSafeJsonDumps:
         assert parsed["count"] == 100.0
         assert isinstance(parsed["value"], float)
 
-    def test_safe_json_dumps_handles_datetime(self):
+    def test_safe_json_dumps_handles_datetime(self) -> None:
         """Test safe_json_dumps converts datetime to ISO format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from datetime import UTC
@@ -168,7 +172,7 @@ class TestSafeJsonDumps:
         assert "2025-09-18" in parsed["timestamp"]
         assert isinstance(parsed["timestamp"], str)
 
-    def test_safe_json_dumps_handles_regular_types(self):
+    def test_safe_json_dumps_handles_regular_types(self) -> None:
         """Test safe_json_dumps handles standard types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = {"string": "test", "number": 42, "boolean": True, "null": None}
@@ -180,7 +184,7 @@ class TestSafeJsonDumps:
         parsed = json.loads(result)
         assert parsed == data
 
-    def test_safe_json_dumps_raises_for_unsupported_types(self):
+    def test_safe_json_dumps_raises_for_unsupported_types(self) -> None:
         """Test safe_json_dumps raises TypeError for unsupported types - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -204,7 +208,9 @@ class TestSafeJsonDumps:
 class TestPerformanceStreamEndpoint:
     """Tests for GET /stream endpoint."""
 
-    async def test_performance_stream_returns_streaming_response(self, mock_request):
+    async def test_performance_stream_returns_streaming_response(
+        self, mock_request: MagicMock
+    ) -> None:
         """Test performance_stream returns StreamingResponse - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_request.is_disconnected = AsyncMock(return_value=True)  # Immediate disconnect
@@ -219,7 +225,9 @@ class TestPerformanceStreamEndpoint:
             # Assert - MANDATORY
             assert isinstance(result, StreamingResponse)
 
-    async def test_performance_stream_sets_correct_media_type(self, mock_request):
+    async def test_performance_stream_sets_correct_media_type(
+        self, mock_request: MagicMock
+    ) -> None:
         """Test performance_stream sets text/event-stream media type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_request.is_disconnected = AsyncMock(return_value=True)
@@ -234,7 +242,7 @@ class TestPerformanceStreamEndpoint:
             # Assert - MANDATORY
             assert result.media_type == "text/event-stream"
 
-    async def test_performance_stream_sets_sse_headers(self, mock_request):
+    async def test_performance_stream_sets_sse_headers(self, mock_request: MagicMock) -> None:
         """Test performance_stream sets SSE headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_request.is_disconnected = AsyncMock(return_value=True)
@@ -263,8 +271,11 @@ class TestPerformanceStreamIntegration:
     """Integration tests for performance stream endpoints."""
 
     async def test_performance_stream_full_flow(
-        self, mock_request, mock_metrics_collector, sample_metrics_snapshot
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_metrics_collector: MagicMock,
+        sample_metrics_snapshot: dict[str, Any],
+    ) -> None:
         """Test complete performance stream flow - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_request.is_disconnected = AsyncMock(return_value=True)
@@ -292,7 +303,9 @@ class TestPerformanceEventGenerators:
     @pytest.mark.skip(
         reason="Internal decorated helper not directly testable - covered by integration tests per module docstring"
     )
-    async def test_performance_event_stream_safe_yields_connection(self, mock_request):
+    async def test_performance_event_stream_safe_yields_connection(
+        self, mock_request: MagicMock
+    ) -> None:
         """Test _performance_event_stream_safe yields connection event - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.performance_stream import _performance_event_stream_safe
@@ -328,7 +341,7 @@ class TestPerformanceEventGenerators:
     @pytest.mark.skip(
         reason="Internal decorated helper not directly testable - covered by integration tests per module docstring"
     )
-    async def test_send_initial_performance_metrics_safe_returns_sse(self):
+    async def test_send_initial_performance_metrics_safe_returns_sse(self) -> None:
         """Test _send_initial_performance_metrics_safe returns SSE format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.performance_stream import _send_initial_performance_metrics_safe
@@ -354,7 +367,7 @@ class TestPerformanceEventGenerators:
     @pytest.mark.skip(
         reason="Internal decorated helper not directly testable - covered by integration tests per module docstring"
     )
-    async def test_send_performance_metrics_update_safe_returns_sse(self):
+    async def test_send_performance_metrics_update_safe_returns_sse(self) -> None:
         """Test _send_performance_metrics_update_safe returns SSE format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.performance_stream import _send_performance_metrics_update_safe
@@ -388,7 +401,7 @@ class TestPerformanceEventGenerators:
 class TestPerformanceStreamPerformance:
     """MANDATORY performance tests for performance stream endpoints."""
 
-    def test_safe_json_dumps_performance(self, sample_metrics_snapshot):
+    def test_safe_json_dumps_performance(self, sample_metrics_snapshot: dict[str, Any]) -> None:
         """MANDATORY performance test - JSON serialization speed."""
         # Arrange - MANDATORY
         iterations = 1000

@@ -99,7 +99,7 @@ def mock_fastapi_app() -> MagicMock:
 class TestSecurityMiddleware:
     """Tests for SecurityMiddleware security headers."""
 
-    def test_is_https_request_with_https_scheme(self):
+    def test_is_https_request_with_https_scheme(self) -> None:
         """Test _is_https_request with HTTPS scheme - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         request = MagicMock(spec=Request)
@@ -112,7 +112,7 @@ class TestSecurityMiddleware:
         # Assert - MANDATORY
         assert result is True
 
-    def test_is_https_request_with_x_forwarded_proto(self):
+    def test_is_https_request_with_x_forwarded_proto(self) -> None:
         """Test _is_https_request with X-Forwarded-Proto - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         request = MagicMock(spec=Request)
@@ -125,7 +125,7 @@ class TestSecurityMiddleware:
         # Assert - MANDATORY
         assert result is True
 
-    def test_is_https_request_with_x_forwarded_ssl(self):
+    def test_is_https_request_with_x_forwarded_ssl(self) -> None:
         """Test _is_https_request with X-Forwarded-SSL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         request = MagicMock(spec=Request)
@@ -138,7 +138,7 @@ class TestSecurityMiddleware:
         # Assert - MANDATORY
         assert result is True
 
-    def test_is_https_request_with_http_only(self):
+    def test_is_https_request_with_http_only(self) -> None:
         """Test _is_https_request with HTTP only - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         request = MagicMock(spec=Request)
@@ -152,7 +152,9 @@ class TestSecurityMiddleware:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_add_security_headers_basic(self, mock_request, mock_call_next):
+    async def test_add_security_headers_basic(
+        self, mock_request: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test add_security_headers adds all headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         response_mock = MagicMock(spec=Response)
@@ -172,7 +174,9 @@ class TestSecurityMiddleware:
         assert result.headers["X-Robots-Tag"] == "noindex, nofollow"
 
     @pytest.mark.asyncio
-    async def test_add_security_headers_includes_hsts_for_https(self, mock_request, mock_call_next):
+    async def test_add_security_headers_includes_hsts_for_https(
+        self, mock_request: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test add_security_headers includes HSTS for HTTPS - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_request.url.scheme = "https"
@@ -190,7 +194,7 @@ class TestSecurityMiddleware:
         assert "preload" in result.headers["Strict-Transport-Security"]
 
     @pytest.mark.asyncio
-    async def test_add_security_headers_no_hsts_for_http(self, mock_call_next):
+    async def test_add_security_headers_no_hsts_for_http(self, mock_call_next: AsyncMock) -> None:
         """Test add_security_headers excludes HSTS for HTTP - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         http_request = MagicMock(spec=Request)
@@ -207,7 +211,9 @@ class TestSecurityMiddleware:
         assert "Strict-Transport-Security" not in result.headers
 
     @pytest.mark.asyncio
-    async def test_add_security_headers_includes_csp(self, mock_request, mock_call_next):
+    async def test_add_security_headers_includes_csp(
+        self, mock_request: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test add_security_headers includes CSP directives - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         response_mock = MagicMock(spec=Response)
@@ -226,8 +232,8 @@ class TestSecurityMiddleware:
 
     @pytest.mark.asyncio
     async def test_add_security_headers_includes_permissions_policy(
-        self, mock_request, mock_call_next
-    ):
+        self, mock_request: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test add_security_headers includes Permissions-Policy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         response_mock = MagicMock(spec=Response)
@@ -256,8 +262,8 @@ class TestMetricsMiddleware:
     @pytest.mark.asyncio
     @patch("src.monitoring.metrics.metrics_collector")
     async def test_collect_metrics_middleware_skips_static_assets(
-        self, mock_collector, mock_call_next
-    ):
+        self, mock_collector: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test collect_metrics_middleware skips static assets - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         static_request = MagicMock(spec=Request)
@@ -276,8 +282,8 @@ class TestMetricsMiddleware:
     @pytest.mark.asyncio
     @patch("src.monitoring.metrics.metrics_collector")
     async def test_collect_metrics_middleware_skips_health_check(
-        self, mock_collector, mock_call_next
-    ):
+        self, mock_collector: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test collect_metrics_middleware skips health checks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_request = MagicMock(spec=Request)
@@ -299,13 +305,13 @@ class TestMetricsMiddleware:
     @patch("src.api.middleware_setup._handle_request_with_metrics_safe")
     async def test_collect_metrics_middleware_tracks_api_request(
         self,
-        mock_handle,
-        mock_decrement,
-        mock_increment,
-        mock_collector,
-        mock_request,
-        mock_call_next,
-    ):
+        mock_handle: AsyncMock,
+        mock_decrement: AsyncMock,
+        mock_increment: AsyncMock,
+        mock_collector: MagicMock,
+        mock_request: MagicMock,
+        mock_call_next: AsyncMock,
+    ) -> None:
         """Test collect_metrics_middleware tracks API requests - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector.config.application_metrics_enabled = True
@@ -333,7 +339,7 @@ class TestMetricsMiddleware:
 class TestCORSConfiguration:
     """Tests for CORSConfiguration cross-origin settings."""
 
-    def test_configure_cors_adds_middleware(self, mock_fastapi_app):
+    def test_configure_cors_adds_middleware(self, mock_fastapi_app: MagicMock) -> None:
         """Test configure_cors adds CORS middleware - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000", "https://example.com"]
@@ -353,7 +359,7 @@ class TestCORSConfiguration:
         # Verify allowed_origins
         assert call_args[1]["allow_origins"] == allowed_origins
 
-    def test_configure_cors_allows_credentials(self, mock_fastapi_app):
+    def test_configure_cors_allows_credentials(self, mock_fastapi_app: MagicMock) -> None:
         """Test configure_cors allows credentials - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000"]
@@ -365,7 +371,7 @@ class TestCORSConfiguration:
         call_args = mock_fastapi_app.add_middleware.call_args
         assert call_args[1]["allow_credentials"] is True
 
-    def test_configure_cors_allows_specific_methods(self, mock_fastapi_app):
+    def test_configure_cors_allows_specific_methods(self, mock_fastapi_app: MagicMock) -> None:
         """Test configure_cors allows specific HTTP methods - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000"]
@@ -383,7 +389,7 @@ class TestCORSConfiguration:
             "OPTIONS",
         ]
 
-    def test_configure_cors_allows_specific_headers(self, mock_fastapi_app):
+    def test_configure_cors_allows_specific_headers(self, mock_fastapi_app: MagicMock) -> None:
         """Test configure_cors allows specific headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000"]
@@ -401,7 +407,9 @@ class TestCORSConfiguration:
             "X-Requested-With",
         ]
 
-    def test_configure_cors_strips_whitespace_from_origins(self, mock_fastapi_app):
+    def test_configure_cors_strips_whitespace_from_origins(
+        self, mock_fastapi_app: MagicMock
+    ) -> None:
         """Test configure_cors strips whitespace from origins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = [" http://localhost:3000 ", "https://example.com  "]
@@ -426,7 +434,9 @@ class TestCORSConfiguration:
 class TestHelperFunctions:
     """Tests for middleware helper functions."""
 
-    def test_increment_active_requests_safe_calls_inc(self, mock_metrics_collector):
+    def test_increment_active_requests_safe_calls_inc(
+        self, mock_metrics_collector: MagicMock
+    ) -> None:
         """Test _increment_active_requests_safe calls inc method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # NOTE: These helpers are decorated with @api_error_handler which makes them async
@@ -437,7 +447,9 @@ class TestHelperFunctions:
         assert callable(_increment_active_requests_safe)
         assert hasattr(mock_metrics_collector.metrics["active_requests"], "inc")
 
-    def test_decrement_active_requests_safe_calls_dec(self, mock_metrics_collector):
+    def test_decrement_active_requests_safe_calls_dec(
+        self, mock_metrics_collector: MagicMock
+    ) -> None:
         """Test _decrement_active_requests_safe calls dec method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # NOTE: These helpers are decorated with @api_error_handler which makes them async
@@ -450,8 +462,8 @@ class TestHelperFunctions:
 
     @pytest.mark.asyncio
     async def test_handle_request_with_metrics_safe_success(
-        self, mock_metrics_collector, mock_call_next
-    ):
+        self, mock_metrics_collector: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """Test _handle_request_with_metrics_safe with success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         request = MagicMock(spec=Request)
@@ -479,7 +491,9 @@ class TestHelperFunctions:
         assert call_args[2] == 200
 
     @pytest.mark.asyncio
-    async def test_handle_request_with_metrics_safe_exception(self, mock_metrics_collector):
+    async def test_handle_request_with_metrics_safe_exception(
+        self, mock_metrics_collector: MagicMock
+    ) -> None:
         """Test _handle_request_with_metrics_safe with exception - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         request = MagicMock(spec=Request)
@@ -515,7 +529,9 @@ class TestSetupMiddleware:
     """Tests for setup_middleware function."""
 
     @patch.object(CORSConfiguration, "configure_cors")
-    def test_setup_middleware_configures_cors(self, mock_configure_cors, mock_fastapi_app):
+    def test_setup_middleware_configures_cors(
+        self, mock_configure_cors: MagicMock, mock_fastapi_app: MagicMock
+    ) -> None:
         """Test setup_middleware configures CORS - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000"]
@@ -526,7 +542,7 @@ class TestSetupMiddleware:
         # Assert - MANDATORY
         mock_configure_cors.assert_called_once_with(mock_fastapi_app, allowed_origins)
 
-    def test_setup_middleware_adds_metrics_middleware(self, mock_fastapi_app):
+    def test_setup_middleware_adds_metrics_middleware(self, mock_fastapi_app: MagicMock) -> None:
         """Test setup_middleware adds metrics middleware - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000"]
@@ -538,7 +554,7 @@ class TestSetupMiddleware:
         # Verify middleware was registered
         assert mock_fastapi_app.middleware.call_count >= 2
 
-    def test_setup_middleware_adds_security_middleware(self, mock_fastapi_app):
+    def test_setup_middleware_adds_security_middleware(self, mock_fastapi_app: MagicMock) -> None:
         """Test setup_middleware adds security middleware - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000"]
@@ -562,7 +578,9 @@ class TestMiddlewarePerformance:
     """MANDATORY performance tests for middleware operations."""
 
     @pytest.mark.asyncio
-    async def test_security_headers_performance(self, mock_request, mock_call_next):
+    async def test_security_headers_performance(
+        self, mock_request: MagicMock, mock_call_next: AsyncMock
+    ) -> None:
         """MANDATORY performance test - security headers speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -584,7 +602,7 @@ class TestMiddlewarePerformance:
         assert avg_time < 0.001  # <1ms per header addition
         assert execution_time < 1.0  # Total <1s for 1000 operations
 
-    def test_cors_configuration_performance(self, mock_fastapi_app):
+    def test_cors_configuration_performance(self, mock_fastapi_app: MagicMock) -> None:
         """MANDATORY performance test - CORS configuration speed."""
         # Arrange - MANDATORY
         allowed_origins = ["http://localhost:3000", "https://example.com"]

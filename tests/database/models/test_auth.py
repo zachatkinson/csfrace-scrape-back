@@ -30,7 +30,7 @@ from src.database.models.auth import (
 
 
 @pytest.fixture
-def sample_user():
+def sample_user() -> User:
     """Factory for User test data - DRY principle."""
     return User(
         id=str(uuid4()),
@@ -42,7 +42,7 @@ def sample_user():
 
 
 @pytest.fixture
-def sample_webauthn_credential():
+def sample_webauthn_credential() -> WebAuthnCredential:
     """Factory for WebAuthnCredential test data."""
     return WebAuthnCredential(
         id=1,
@@ -56,7 +56,7 @@ def sample_webauthn_credential():
 
 
 @pytest.fixture
-def sample_webauthn_challenge():
+def sample_webauthn_challenge() -> WebAuthnChallenge:
     """Factory for WebAuthnChallenge test data."""
     return WebAuthnChallenge(
         challenge_key="test_challenge_key",
@@ -68,7 +68,7 @@ def sample_webauthn_challenge():
 
 
 @pytest.fixture
-def sample_account_lockout():
+def sample_account_lockout() -> AccountLockout:
     """Factory for AccountLockout test data."""
     return AccountLockout(
         user_id=str(uuid4()),
@@ -87,7 +87,9 @@ class TestWebAuthnCredentialProperties:
     """Test WebAuthnCredential property methods and revocation."""
 
     @pytest.mark.unit
-    def test_is_revoked_property_false(self, sample_webauthn_credential):
+    def test_is_revoked_property_false(
+        self, sample_webauthn_credential: WebAuthnCredential
+    ) -> None:
         """Test is_revoked returns False when revoked_at is None - Line 317."""
         # Arrange
         sample_webauthn_credential.revoked_at = None
@@ -99,7 +101,7 @@ class TestWebAuthnCredentialProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_is_revoked_property_true(self, sample_webauthn_credential):
+    def test_is_revoked_property_true(self, sample_webauthn_credential: WebAuthnCredential) -> None:
         """Test is_revoked returns True when revoked_at is set."""
         # Arrange
         sample_webauthn_credential.revoked_at = datetime.now(UTC)
@@ -111,7 +113,7 @@ class TestWebAuthnCredentialProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_revoke_method(self, sample_webauthn_credential):
+    def test_revoke_method(self, sample_webauthn_credential: WebAuthnCredential) -> None:
         """Test revoke() method marks credential inactive - Lines 321-322."""
         # Arrange
         sample_webauthn_credential.is_active = True
@@ -135,7 +137,7 @@ class TestWebAuthnChallengeProperties:
     """Test WebAuthnChallenge property methods and lifecycle."""
 
     @pytest.mark.unit
-    def test_is_expired_property_false(self, sample_webauthn_challenge):
+    def test_is_expired_property_false(self, sample_webauthn_challenge: WebAuthnChallenge) -> None:
         """Test is_expired returns False for valid challenge - Line 386."""
         # Arrange - Challenge expires in 5 minutes (set in fixture)
 
@@ -146,7 +148,7 @@ class TestWebAuthnChallengeProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_is_expired_property_true(self, sample_webauthn_challenge):
+    def test_is_expired_property_true(self, sample_webauthn_challenge: WebAuthnChallenge) -> None:
         """Test is_expired returns True for expired challenge."""
         # Arrange - Set expiration to past
         sample_webauthn_challenge.expires_at = datetime.now(UTC) - timedelta(minutes=1)
@@ -158,7 +160,7 @@ class TestWebAuthnChallengeProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_is_used_property_false(self, sample_webauthn_challenge):
+    def test_is_used_property_false(self, sample_webauthn_challenge: WebAuthnChallenge) -> None:
         """Test is_used returns False when not used - Line 391."""
         # Arrange
         sample_webauthn_challenge.used_at = None
@@ -170,7 +172,7 @@ class TestWebAuthnChallengeProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_is_used_property_true(self, sample_webauthn_challenge):
+    def test_is_used_property_true(self, sample_webauthn_challenge: WebAuthnChallenge) -> None:
         """Test is_used returns True when used."""
         # Arrange
         sample_webauthn_challenge.used_at = datetime.now(UTC)
@@ -182,7 +184,7 @@ class TestWebAuthnChallengeProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_mark_used_method(self, sample_webauthn_challenge):
+    def test_mark_used_method(self, sample_webauthn_challenge: WebAuthnChallenge) -> None:
         """Test mark_used() method sets used_at timestamp - Line 395."""
         # Arrange
         sample_webauthn_challenge.used_at = None
@@ -204,7 +206,7 @@ class TestAccountLockoutFactoryMethods:
     """Test AccountLockout factory methods for creating lockout records."""
 
     @pytest.mark.unit
-    def test_create_lockout_record_with_duration(self):
+    def test_create_lockout_record_with_duration(self) -> None:
         """Test create_lockout_record factory with duration - Lines 513-518."""
         # Arrange
         user_id = str(uuid4())
@@ -231,12 +233,13 @@ class TestAccountLockoutFactoryMethods:
         assert lockout.is_locked is True
         assert lockout.lockout_reason == reason
         assert lockout.locked_until is not None
+        assert lockout.locked_at is not None
         # Check duration is approximately 30 minutes
         duration_seconds = (lockout.locked_until - lockout.locked_at).total_seconds()
         assert abs(duration_seconds - 1800) < 1  # Within 1 second of 30 minutes
 
     @pytest.mark.unit
-    def test_create_lockout_record_permanent(self):
+    def test_create_lockout_record_permanent(self) -> None:
         """Test create_lockout_record factory with permanent lockout."""
         # Arrange
         user_id = str(uuid4())
@@ -256,7 +259,7 @@ class TestAccountLockoutFactoryMethods:
         assert lockout.locked_until is None  # Permanent lockout
 
     @pytest.mark.unit
-    def test_create_failed_attempt_record(self):
+    def test_create_failed_attempt_record(self) -> None:
         """Test create_failed_attempt_record factory - Lines 551-553."""
         # Arrange
         user_id = str(uuid4())
@@ -282,7 +285,7 @@ class TestAccountLockoutFactoryMethods:
         assert lockout.first_failed_attempt_at is not None
 
     @pytest.mark.unit
-    def test_create_failed_attempt_record_minimal(self):
+    def test_create_failed_attempt_record_minimal(self) -> None:
         """Test create_failed_attempt_record with minimal parameters."""
         # Arrange
         user_id = str(uuid4())
@@ -312,7 +315,7 @@ class TestAccountLockoutProperties:
     """Test AccountLockout property methods and lifecycle."""
 
     @pytest.mark.unit
-    def test_is_lockout_expired_property_true(self):
+    def test_is_lockout_expired_property_true(self) -> None:
         """Test is_lockout_expired returns True for expired lockout - Lines 605-607."""
         # Arrange
         lockout = AccountLockout(
@@ -329,7 +332,7 @@ class TestAccountLockoutProperties:
         assert result is True
 
     @pytest.mark.unit
-    def test_is_lockout_expired_property_false(self):
+    def test_is_lockout_expired_property_false(self) -> None:
         """Test is_lockout_expired returns False when not expired."""
         # Arrange
         lockout = AccountLockout(
@@ -346,7 +349,7 @@ class TestAccountLockoutProperties:
         assert result is False
 
     @pytest.mark.unit
-    def test_lockout_remaining_minutes_property(self):
+    def test_lockout_remaining_minutes_property(self) -> None:
         """Test lockout_remaining_minutes property - Lines 612-619."""
         # Arrange
         lockout = AccountLockout(
@@ -364,7 +367,7 @@ class TestAccountLockoutProperties:
         assert 29 <= result <= 31  # Allow 1 minute tolerance for execution time
 
     @pytest.mark.unit
-    def test_unlock_account_method(self):
+    def test_unlock_account_method(self) -> None:
         """Test unlock_account() method clears lockout - Lines 571-574."""
         # Arrange
         lockout = AccountLockout(
@@ -383,7 +386,7 @@ class TestAccountLockoutProperties:
         assert lockout.unlocked_by == "admin_user"
 
     @pytest.mark.unit
-    def test_increment_failed_attempts(self):
+    def test_increment_failed_attempts(self) -> None:
         """Test increment_failed_attempts() method - Lines 585-593."""
         # Arrange
         lockout = AccountLockout(
@@ -402,7 +405,7 @@ class TestAccountLockoutProperties:
         assert lockout.user_agent == "TestAgent"
 
     @pytest.mark.unit
-    def test_reset_failed_attempts(self):
+    def test_reset_failed_attempts(self) -> None:
         """Test reset_failed_attempts() method - Lines 597-600."""
         # Arrange
         lockout = AccountLockout(
@@ -431,7 +434,7 @@ class TestModelRepresentations:
     """Test __repr__ methods for all auth models."""
 
     @pytest.mark.unit
-    def test_user_repr(self, sample_user):
+    def test_user_repr(self, sample_user: User) -> None:
         """Test User string representation."""
         # Act
         repr_str = repr(sample_user)
@@ -442,29 +445,35 @@ class TestModelRepresentations:
         assert sample_user.email in repr_str
 
     @pytest.mark.unit
-    def test_webauthn_credential_repr(self, sample_webauthn_credential):
+    def test_webauthn_credential_repr(self, sample_webauthn_credential: WebAuthnCredential) -> None:
         """Test WebAuthnCredential string representation."""
         # Act
         repr_str = repr(sample_webauthn_credential)
 
         # Assert
+        assert repr_str is not None
         assert "WebAuthnCredential" in repr_str
         assert str(sample_webauthn_credential.id) in repr_str
+        assert sample_webauthn_credential.device_name is not None
         assert sample_webauthn_credential.device_name in repr_str
 
     @pytest.mark.unit
-    def test_webauthn_challenge_repr(self, sample_webauthn_challenge):
+    def test_webauthn_challenge_repr(self, sample_webauthn_challenge: WebAuthnChallenge) -> None:
         """Test WebAuthnChallenge string representation."""
         # Act
         repr_str = repr(sample_webauthn_challenge)
 
         # Assert
+        assert repr_str is not None
         assert "WebAuthnChallenge" in repr_str
         assert "registration" in repr_str  # challenge_type
-        assert sample_webauthn_challenge.user_id in repr_str
+        # user_id is a string, repr_str is also a string
+        user_id = sample_webauthn_challenge.user_id
+        assert user_id is not None
+        assert user_id in repr_str
 
     @pytest.mark.unit
-    def test_linked_account_repr(self):
+    def test_linked_account_repr(self) -> None:
         """Test LinkedAccount string representation."""
         # Arrange
         user_id = str(uuid4())

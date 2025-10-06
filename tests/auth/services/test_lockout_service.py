@@ -21,6 +21,7 @@ from uuid import uuid4
 
 import asyncio
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.lockout_service import AccountLockoutConfig, AccountLockoutService
 from src.database.models.auth import AccountLockout
@@ -31,7 +32,7 @@ from src.database.models.auth import AccountLockout
 
 
 @pytest.fixture
-def lockout_config():
+def lockout_config() -> AccountLockoutConfig:
     """Factory for AccountLockoutConfig - DRY principle."""
     config = AccountLockoutConfig()
     config.max_failed_attempts = 5
@@ -43,7 +44,7 @@ def lockout_config():
 
 
 @pytest.fixture
-def lockout_service():
+def lockout_service() -> AccountLockoutService:
     """Factory for AccountLockoutService instance - MANDATORY DI.
 
     Creates service without db_session so it can be tested independently.
@@ -52,7 +53,7 @@ def lockout_service():
 
 
 @pytest.fixture
-def sample_lockouts():
+def sample_lockouts() -> list[AccountLockout]:
     """Factory for sample lockout records - DRY principle."""
     now = datetime.now(UTC)
     return [
@@ -79,7 +80,7 @@ class TestAccountLockoutConfig:
     """Test AccountLockoutConfig initialization and environment loading."""
 
     @pytest.mark.unit
-    def test_config_default_values(self):
+    def test_config_default_values(self) -> None:
         """Test default configuration values are properly set.
 
         AAA Pattern:
@@ -97,7 +98,7 @@ class TestAccountLockoutConfig:
         assert len(config.progressive_durations) == 4
 
     @pytest.mark.unit
-    def test_config_progressive_lockout_enabled(self):
+    def test_config_progressive_lockout_enabled(self) -> None:
         """Test progressive lockout configuration."""
         # Arrange & Act
         config = AccountLockoutConfig()
@@ -107,7 +108,7 @@ class TestAccountLockoutConfig:
         assert config.progressive_durations == [5, 15, 30, 60]
 
     @pytest.mark.unit
-    def test_config_security_features(self):
+    def test_config_security_features(self) -> None:
         """Test security feature configuration."""
         # Arrange & Act
         config = AccountLockoutConfig()
@@ -128,7 +129,9 @@ class TestServiceInitialization:
     """Test AccountLockoutService initialization and dependency injection."""
 
     @pytest.mark.unit
-    def test_service_initialization_with_dependencies(self, lockout_config):
+    def test_service_initialization_with_dependencies(
+        self, lockout_config: AccountLockoutConfig
+    ) -> None:
         """Test service initializes with injected dependencies - SOLID DI principle.
 
         AAA Pattern:
@@ -148,7 +151,7 @@ class TestServiceInitialization:
         assert service.config.max_failed_attempts == 5
 
     @pytest.mark.unit
-    def test_service_initialization_with_defaults(self):
+    def test_service_initialization_with_defaults(self) -> None:
         """Test service initializes with default config when none provided."""
         # Arrange & Act
         service = AccountLockoutService(db_session=None, config=None)
@@ -168,7 +171,9 @@ class TestCalculateLockoutDuration:
     """Test _calculate_lockout_duration helper method - Lines 433-444."""
 
     @pytest.mark.unit
-    def test_calculate_lockout_duration_first_lockout(self, lockout_service):
+    def test_calculate_lockout_duration_first_lockout(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test lockout duration for first lockout - progressive policy.
 
         AAA Pattern:
@@ -184,7 +189,7 @@ class TestCalculateLockoutDuration:
             is_locked=False,
         )
         # Mock lockout count by setting times_locked to 0 (first lockout)
-        lockout_record.times_locked = 0
+        # lockout_record.times_locked = 0  # Attribute not yet implemented
 
         # Act
         duration = lockout_service._calculate_lockout_duration(lockout_record)
@@ -193,7 +198,9 @@ class TestCalculateLockoutDuration:
         assert duration == 5  # First lockout: 5 minutes
 
     @pytest.mark.unit
-    def test_calculate_lockout_duration_second_lockout(self, lockout_service):
+    def test_calculate_lockout_duration_second_lockout(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test lockout duration behavior.
 
         NOTE: Implementation has lockout_count hardcoded to 0, so always returns first duration.
@@ -215,7 +222,9 @@ class TestCalculateLockoutDuration:
         assert duration == 5  # First duration in progressive_durations
 
     @pytest.mark.unit
-    def test_calculate_lockout_duration_max_lockout(self, lockout_service):
+    def test_calculate_lockout_duration_max_lockout(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test lockout duration returns from progressive_durations list.
 
         NOTE: Implementation has lockout_count hardcoded to 0, so always returns first duration.
@@ -236,7 +245,7 @@ class TestCalculateLockoutDuration:
         assert duration == 5
 
     @pytest.mark.unit
-    def test_calculate_lockout_duration_progressive_disabled(self):
+    def test_calculate_lockout_duration_progressive_disabled(self) -> None:
         """Test lockout duration when progressive lockout is disabled."""
         # Arrange
         config = AccountLockoutConfig()
@@ -267,7 +276,9 @@ class TestCountCurrentlyLocked:
     """Test _count_currently_locked helper method - Lines 446-450."""
 
     @pytest.mark.unit
-    def test_count_currently_locked_all_locked(self, lockout_service):
+    def test_count_currently_locked_all_locked(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test counting when all accounts are locked.
 
         AAA Pattern:
@@ -293,7 +304,9 @@ class TestCountCurrentlyLocked:
         assert count == 5
 
     @pytest.mark.unit
-    def test_count_currently_locked_mixed(self, lockout_service, sample_lockouts):
+    def test_count_currently_locked_mixed(
+        self, lockout_service: AccountLockoutService, sample_lockouts: list[AccountLockout]
+    ) -> None:
         """Test counting with mixed locked/unlocked accounts."""
         # Act - sample_lockouts has 5 locked (even indices)
         count = lockout_service._count_currently_locked(sample_lockouts)
@@ -302,10 +315,10 @@ class TestCountCurrentlyLocked:
         assert count == 5
 
     @pytest.mark.unit
-    def test_count_currently_locked_empty(self, lockout_service):
+    def test_count_currently_locked_empty(self, lockout_service: AccountLockoutService) -> None:
         """Test counting with empty list."""
         # Arrange
-        empty_list = []
+        empty_list: list[AccountLockout] = []
 
         # Act
         count = lockout_service._count_currently_locked(empty_list)
@@ -323,7 +336,7 @@ class TestCountByField:
     """Test _count_by_field helper method - Lines 452-459."""
 
     @pytest.mark.unit
-    def test_count_by_field_user_id(self, lockout_service):
+    def test_count_by_field_user_id(self, lockout_service: AccountLockoutService) -> None:
         """Test counting lockouts by user_id.
 
         AAA Pattern:
@@ -350,7 +363,9 @@ class TestCountByField:
         assert counts[user_2] == 3
 
     @pytest.mark.unit
-    def test_count_by_field_username(self, lockout_service, sample_lockouts):
+    def test_count_by_field_username(
+        self, lockout_service: AccountLockoutService, sample_lockouts: list[AccountLockout]
+    ) -> None:
         """Test counting by username field."""
         # Act
         counts = lockout_service._count_by_field(sample_lockouts, "username")
@@ -362,10 +377,10 @@ class TestCountByField:
             assert count == 1
 
     @pytest.mark.unit
-    def test_count_by_field_empty_list(self, lockout_service):
+    def test_count_by_field_empty_list(self, lockout_service: AccountLockoutService) -> None:
         """Test count by field with empty list."""
         # Arrange
-        empty_list = []
+        empty_list: list[AccountLockout] = []
 
         # Act
         counts = lockout_service._count_by_field(empty_list, "user_id")
@@ -374,7 +389,9 @@ class TestCountByField:
         assert counts == {}
 
     @pytest.mark.unit
-    def test_count_by_field_with_truthy_values(self, lockout_service):
+    def test_count_by_field_with_truthy_values(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test count by field with truthy values only.
 
         NOTE: Implementation uses `if field_value:` which skips falsy values including False, None, 0.
@@ -395,7 +412,9 @@ class TestCountByField:
         assert counts["user_2"] == 1
 
     @pytest.mark.unit
-    def test_count_by_field_skips_falsy_values(self, lockout_service):
+    def test_count_by_field_skips_falsy_values(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test that count by field skips falsy values (False, None, 0).
 
         NOTE: Implementation uses `if field_value:` which skips all falsy values.
@@ -409,7 +428,7 @@ class TestCountByField:
         ]
 
         # Act
-        counts = lockout_service._count_by_field(lockouts, "is_locked")
+        counts: dict[bool, int] = lockout_service._count_by_field(lockouts, "is_locked")  # type: ignore[assignment]
 
         # Assert
         # Only True values are counted (False is skipped as falsy)
@@ -426,7 +445,9 @@ class TestCountRecentLockouts:
     """Test _count_recent_lockouts helper method - Lines 461-472."""
 
     @pytest.mark.unit
-    def test_count_recent_lockouts_within_hours(self, lockout_service):
+    def test_count_recent_lockouts_within_hours(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test counting lockouts within specified hours.
 
         AAA Pattern:
@@ -453,7 +474,9 @@ class TestCountRecentLockouts:
         assert count == 5
 
     @pytest.mark.unit
-    def test_count_recent_lockouts_within_days(self, lockout_service):
+    def test_count_recent_lockouts_within_days(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test counting lockouts within specified days.
 
         NOTE: Implementation uses locked_at field, not first_failed_attempt_at.
@@ -478,7 +501,9 @@ class TestCountRecentLockouts:
         assert count == 7
 
     @pytest.mark.unit
-    def test_count_recent_lockouts_no_time_period(self, lockout_service, sample_lockouts):
+    def test_count_recent_lockouts_no_time_period(
+        self, lockout_service: AccountLockoutService, sample_lockouts: list[AccountLockout]
+    ) -> None:
         """Test count recent lockouts without time period specified."""
         # Act
         count = lockout_service._count_recent_lockouts(sample_lockouts)
@@ -488,10 +513,10 @@ class TestCountRecentLockouts:
         assert count == 0
 
     @pytest.mark.unit
-    def test_count_recent_lockouts_empty_list(self, lockout_service):
+    def test_count_recent_lockouts_empty_list(self, lockout_service: AccountLockoutService) -> None:
         """Test count recent lockouts with empty list."""
         # Arrange
-        empty_list = []
+        empty_list: list[AccountLockout] = []
 
         # Act
         count = lockout_service._count_recent_lockouts(empty_list, hours=24)
@@ -509,7 +534,9 @@ class TestCalculateAverageFailedAttempts:
     """Test _calculate_average_failed_attempts helper method - Lines 474-477."""
 
     @pytest.mark.unit
-    def test_calculate_average_failed_attempts(self, lockout_service, sample_lockouts):
+    def test_calculate_average_failed_attempts(
+        self, lockout_service: AccountLockoutService, sample_lockouts: list[AccountLockout]
+    ) -> None:
         """Test calculating average failed attempts.
 
         AAA Pattern:
@@ -525,10 +552,12 @@ class TestCalculateAverageFailedAttempts:
         assert average == 5.5
 
     @pytest.mark.unit
-    def test_calculate_average_failed_attempts_empty_list(self, lockout_service):
+    def test_calculate_average_failed_attempts_empty_list(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test calculating average with empty list."""
         # Arrange
-        empty_list = []
+        empty_list: list[AccountLockout] = []
 
         # Act
         average = lockout_service._calculate_average_failed_attempts(empty_list)
@@ -537,7 +566,9 @@ class TestCalculateAverageFailedAttempts:
         assert average == 0.0
 
     @pytest.mark.unit
-    def test_calculate_average_failed_attempts_single_lockout(self, lockout_service):
+    def test_calculate_average_failed_attempts_single_lockout(
+        self, lockout_service: AccountLockoutService
+    ) -> None:
         """Test calculating average with single lockout."""
         # Arrange
         lockouts = [
@@ -564,7 +595,7 @@ class TestAccountLockoutFactory:
     """Test AccountLockout.create_lockout_record factory method."""
 
     @pytest.mark.unit
-    def test_create_lockout_record_with_duration(self):
+    def test_create_lockout_record_with_duration(self) -> None:
         """Test creating lockout record with duration - Lines 513-518.
 
         AAA Pattern:
@@ -598,7 +629,11 @@ class TestAccountLockoutFactory:
         assert lockout.lockout_reason == reason
         assert lockout.locked_until is not None
         # Check duration is approximately 30 minutes
-        duration_seconds = (lockout.locked_until - lockout.locked_at).total_seconds()
+        duration_seconds = (
+            (lockout.locked_until - lockout.locked_at).total_seconds()
+            if lockout.locked_until and lockout.locked_at
+            else 0
+        )
         assert abs(duration_seconds - 1800) < 1  # Within 1 second of 30 minutes
 
 
@@ -612,7 +647,7 @@ class TestAccountLockoutFactory:
 class TestRecordFailedLoginAttempt:
     """Test record_failed_login_attempt async method - Lines 81-152."""
 
-    async def test_record_failed_login_first_attempt(self, async_db_session):
+    async def test_record_failed_login_first_attempt(self, async_db_session: AsyncSession) -> None:
         """Test recording first failed login attempt - MANDATORY AAA pattern.
 
         AAA Pattern:
@@ -653,7 +688,9 @@ class TestRecordFailedLoginAttempt:
         assert lockout_record.client_ip == "192.168.1.1"
         assert lockout_record.user_agent == "TestAgent/1.0"
 
-    async def test_record_failed_login_increments_attempts(self, async_db_session):
+    async def test_record_failed_login_increments_attempts(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test multiple failed attempts increment counter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -683,7 +720,9 @@ class TestRecordFailedLoginAttempt:
         assert lockout_record.failed_attempts == 2
         assert lockout_record.user_id == user_id
 
-    async def test_record_failed_login_locks_after_threshold(self, async_db_session):
+    async def test_record_failed_login_locks_after_threshold(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test account locks after max failed attempts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -717,7 +756,9 @@ class TestRecordFailedLoginAttempt:
         assert lockout_record.locked_until is not None
         assert lockout_record.lockout_reason is not None
 
-    async def test_record_failed_login_sets_lockout_duration(self, async_db_session):
+    async def test_record_failed_login_sets_lockout_duration(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test lockout duration is set correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -746,11 +787,14 @@ class TestRecordFailedLoginAttempt:
         assert was_locked is True
         assert lockout_record is not None
         assert lockout_record.locked_until is not None
+        assert lockout_record.locked_at is not None
         lockout_duration = (lockout_record.locked_until - lockout_record.locked_at).total_seconds()
         # Default progressive lockout: 5 minutes = 300 seconds
         assert abs(lockout_duration - 300) < 1
 
-    async def test_record_failed_login_updates_existing_record(self, async_db_session):
+    async def test_record_failed_login_updates_existing_record(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test existing lockout record is updated, not duplicated - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -769,6 +813,7 @@ class TestRecordFailedLoginAttempt:
             select(AccountLockout).where(AccountLockout.user_id == user_id)
         )
         first_record = result1.scalar_one_or_none()
+        assert first_record is not None
         first_record_id = first_record.id
 
         await service.record_failed_login_attempt(user_id=user_id, username=username)
@@ -784,7 +829,9 @@ class TestRecordFailedLoginAttempt:
         assert all_records[0].id == first_record_id  # Same record updated
         assert all_records[0].failed_attempts == 2
 
-    async def test_record_failed_login_commits_transaction(self, async_db_session):
+    async def test_record_failed_login_commits_transaction(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test transaction is committed to database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -809,7 +856,9 @@ class TestRecordFailedLoginAttempt:
         assert persisted_record.user_id == user_id
         assert persisted_record.failed_attempts == 1
 
-    async def test_record_failed_login_stores_client_info(self, async_db_session):
+    async def test_record_failed_login_stores_client_info(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test client IP and user agent are stored - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -840,7 +889,9 @@ class TestRecordFailedLoginAttempt:
         assert lockout_record.client_ip == client_ip
         assert lockout_record.user_agent == user_agent
 
-    async def test_record_failed_login_handles_none_client_info(self, async_db_session):
+    async def test_record_failed_login_handles_none_client_info(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test None values for client info are handled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -869,7 +920,9 @@ class TestRecordFailedLoginAttempt:
         assert lockout_record.client_ip is None
         assert lockout_record.user_agent is None
 
-    async def test_record_failed_login_progressive_lockout(self, async_db_session):
+    async def test_record_failed_login_progressive_lockout(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test progressive lockout durations - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -899,13 +952,16 @@ class TestRecordFailedLoginAttempt:
         assert was_locked is True
         assert lockout_record is not None
         assert lockout_record.locked_until is not None
+        assert lockout_record.locked_at is not None
         # First lockout uses first duration (5 minutes)
         lockout_minutes = (
             lockout_record.locked_until - lockout_record.locked_at
         ).total_seconds() / 60
         assert abs(lockout_minutes - 5) < 0.1
 
-    async def test_record_failed_login_fixed_duration_when_disabled(self, async_db_session):
+    async def test_record_failed_login_fixed_duration_when_disabled(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test fixed duration when progressive lockout disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -935,12 +991,15 @@ class TestRecordFailedLoginAttempt:
         assert was_locked is True
         assert lockout_record is not None
         assert lockout_record.locked_until is not None
+        assert lockout_record.locked_at is not None
         lockout_minutes = (
             lockout_record.locked_until - lockout_record.locked_at
         ).total_seconds() / 60
         assert abs(lockout_minutes - 30) < 0.1
 
-    async def test_record_failed_login_respects_attempt_window(self, async_db_session):
+    async def test_record_failed_login_respects_attempt_window(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test failed attempt window is respected - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -964,12 +1023,15 @@ class TestRecordFailedLoginAttempt:
         # Assert - MANDATORY
         assert lockout_record is not None
         assert lockout_record.first_failed_attempt_at is not None
+        assert lockout_record.last_failed_attempt_at is not None
         window_duration = (
             lockout_record.last_failed_attempt_at - lockout_record.first_failed_attempt_at
         ).total_seconds()
         assert window_duration < 15 * 60  # Within 15 minute window
 
-    async def test_record_failed_login_updates_timestamps(self, async_db_session):
+    async def test_record_failed_login_updates_timestamps(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test timestamps are updated correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -987,6 +1049,7 @@ class TestRecordFailedLoginAttempt:
             select(AccountLockout).where(AccountLockout.user_id == user_id)
         )
         first_record = result1.scalar_one_or_none()
+        assert first_record is not None
         first_attempt_time = first_record.first_failed_attempt_at
         first_last_attempt_time = first_record.last_failed_attempt_at
 
@@ -1001,10 +1064,15 @@ class TestRecordFailedLoginAttempt:
         second_record = result2.scalar_one_or_none()
 
         # Assert - MANDATORY
+        assert second_record is not None
         assert second_record.first_failed_attempt_at == first_attempt_time  # Unchanged
+        assert second_record.last_failed_attempt_at is not None
+        assert first_last_attempt_time is not None
         assert second_record.last_failed_attempt_at > first_last_attempt_time
 
-    async def test_record_failed_login_sets_lockout_reason(self, async_db_session):
+    async def test_record_failed_login_sets_lockout_reason(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test lockout reason is set when account locks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1033,7 +1101,9 @@ class TestRecordFailedLoginAttempt:
         assert lockout_record.lockout_reason is not None
         assert "failed" in lockout_record.lockout_reason.lower()
 
-    async def test_record_failed_login_multiple_users_isolated(self, async_db_session):
+    async def test_record_failed_login_multiple_users_isolated(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test failed attempts are isolated per user - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1077,7 +1147,9 @@ class TestRecordFailedLoginAttempt:
 class TestIsAccountLocked:
     """Test is_account_locked async method - Lines 155-196."""
 
-    async def test_is_account_locked_returns_false_when_not_locked(self, async_db_session):
+    async def test_is_account_locked_returns_false_when_not_locked(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns False for unlocked account - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1090,7 +1162,9 @@ class TestIsAccountLocked:
         assert is_locked is False
         assert remaining_minutes is None
 
-    async def test_is_account_locked_returns_true_when_locked(self, async_db_session):
+    async def test_is_account_locked_returns_true_when_locked(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns True for locked account - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1120,7 +1194,9 @@ class TestIsAccountLocked:
         assert lockout_record is not None
         assert lockout_record.is_locked is True
 
-    async def test_is_account_locked_returns_false_after_expiry(self, async_db_session):
+    async def test_is_account_locked_returns_false_after_expiry(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns False after lockout expires - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1158,7 +1234,9 @@ class TestIsAccountLocked:
         assert lockout_record is not None
         assert lockout_record.is_locked is False  # Auto-unlocked by service
 
-    async def test_is_account_locked_handles_no_lockout_record(self, async_db_session):
+    async def test_is_account_locked_handles_no_lockout_record(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test handles user with no lockout records - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1171,7 +1249,9 @@ class TestIsAccountLocked:
         assert is_locked is False
         assert remaining_minutes is None
 
-    async def test_is_account_locked_checks_most_recent_record(self, async_db_session):
+    async def test_is_account_locked_checks_most_recent_record(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test checks most recent lockout record - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1223,7 +1303,9 @@ class TestIsAccountLocked:
         assert len(all_records) == 2  # Both records exist
         assert all_records[0].is_locked is True  # Most recent is locked
 
-    async def test_is_account_locked_different_users_isolated(self, async_db_session):
+    async def test_is_account_locked_different_users_isolated(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test lockout status is isolated per user - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1257,7 +1339,9 @@ class TestIsAccountLocked:
         assert user1_record is not None
         assert user1_record.is_locked is True
 
-    async def test_is_account_locked_with_unlocked_record(self, async_db_session):
+    async def test_is_account_locked_with_unlocked_record(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns False for user with unlocked lockout record - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.database.models.auth import AccountLockout
@@ -1282,7 +1366,7 @@ class TestIsAccountLocked:
         assert is_locked is False
         assert remaining_minutes is None
 
-    async def test_is_account_locked_performance(self, async_db_session):
+    async def test_is_account_locked_performance(self, async_db_session: AsyncSession) -> None:
         """Test is_account_locked completes quickly - MANDATORY performance test."""
         # Arrange - MANDATORY
         import time
@@ -1311,7 +1395,9 @@ class TestIsAccountLocked:
 class TestRecordSuccessfulLogin:
     """Test record_successful_login async method - Lines 199-235."""
 
-    async def test_record_successful_login_unlocks_account(self, async_db_session):
+    async def test_record_successful_login_unlocks_account(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test successful login unlocks locked account - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1326,7 +1412,7 @@ class TestRecordSuccessfulLogin:
             await service.record_failed_login_attempt(user_id=user_id, username="testuser")
 
         # Act - MANDATORY
-        result = await service.record_successful_login(user_id=user_id, username="testuser")
+        await service.record_successful_login(user_id=user_id, username="testuser")
 
         # Query database to verify unlock
         db_result = await async_db_session.execute(
@@ -1335,12 +1421,13 @@ class TestRecordSuccessfulLogin:
         lockout_record = db_result.scalar_one_or_none()
 
         # Assert - MANDATORY
-        assert result is None  # Method returns None
         assert lockout_record is not None
         assert lockout_record.is_locked is False
         assert lockout_record.failed_attempts == 0
 
-    async def test_record_successful_login_resets_failed_attempts(self, async_db_session):
+    async def test_record_successful_login_resets_failed_attempts(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test successful login resets failed attempt counter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1355,7 +1442,7 @@ class TestRecordSuccessfulLogin:
             await service.record_failed_login_attempt(user_id=user_id, username="testuser")
 
         # Act - MANDATORY
-        result = await service.record_successful_login(user_id=user_id, username="testuser")
+        await service.record_successful_login(user_id=user_id, username="testuser")
 
         # Query database to verify reset
         db_result = await async_db_session.execute(
@@ -1367,12 +1454,13 @@ class TestRecordSuccessfulLogin:
         record = db_result.scalar_one_or_none()
 
         # Assert - MANDATORY
-        assert result is None  # Method returns None
         assert record is not None
         assert record.failed_attempts == 0
         assert record.is_locked is False
 
-    async def test_record_successful_login_updates_timestamps(self, async_db_session):
+    async def test_record_successful_login_updates_timestamps(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test successful login updates unlock timestamp - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1388,7 +1476,7 @@ class TestRecordSuccessfulLogin:
 
         # Act - MANDATORY
         before_unlock = datetime.now(UTC)
-        result = await service.record_successful_login(user_id=user_id, username="testuser")
+        await service.record_successful_login(user_id=user_id, username="testuser")
         after_unlock = datetime.now(UTC)
 
         # Query database to verify timestamp
@@ -1401,12 +1489,13 @@ class TestRecordSuccessfulLogin:
         record = db_result.scalar_one_or_none()
 
         # Assert - MANDATORY
-        assert result is None  # Method returns None
         assert record is not None
         assert record.unlocked_at is not None
         assert before_unlock <= record.unlocked_at <= after_unlock
 
-    async def test_record_successful_login_handles_no_prior_lockout(self, async_db_session):
+    async def test_record_successful_login_handles_no_prior_lockout(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test handles successful login with no prior lockout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1418,7 +1507,7 @@ class TestRecordSuccessfulLogin:
 
         # Act - MANDATORY
         # Should not raise error
-        result = await service.record_successful_login(user_id=user_id, username="newuser")
+        await service.record_successful_login(user_id=user_id, username="newuser")
 
         # Query database to verify no record created
         db_result = await async_db_session.execute(
@@ -1427,10 +1516,11 @@ class TestRecordSuccessfulLogin:
         lockout_record = db_result.scalar_one_or_none()
 
         # Assert - MANDATORY
-        assert result is None  # Method returns None
         assert lockout_record is None  # No lockout record for new user
 
-    async def test_record_successful_login_commits_transaction(self, async_db_session):
+    async def test_record_successful_login_commits_transaction(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test transaction is committed to database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1445,7 +1535,7 @@ class TestRecordSuccessfulLogin:
             await service.record_failed_login_attempt(user_id=user_id, username="testuser")
 
         # Act - MANDATORY
-        result = await service.record_successful_login(user_id=user_id, username="testuser")
+        await service.record_successful_login(user_id=user_id, username="testuser")
 
         # Query database to verify changes persisted
         db_result = await async_db_session.execute(
@@ -1457,12 +1547,13 @@ class TestRecordSuccessfulLogin:
         record = db_result.scalar_one_or_none()
 
         # Assert - MANDATORY
-        assert result is None  # Method returns None
         assert record is not None
         assert record.is_locked is False
         assert record.failed_attempts == 0
 
-    async def test_record_successful_login_multiple_calls_idempotent(self, async_db_session):
+    async def test_record_successful_login_multiple_calls_idempotent(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test multiple successful login calls are idempotent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1477,8 +1568,8 @@ class TestRecordSuccessfulLogin:
             await service.record_failed_login_attempt(user_id=user_id, username="testuser")
 
         # Act - MANDATORY
-        result1 = await service.record_successful_login(user_id=user_id, username="testuser")
-        result2 = await service.record_successful_login(user_id=user_id, username="testuser")
+        await service.record_successful_login(user_id=user_id, username="testuser")
+        await service.record_successful_login(user_id=user_id, username="testuser")
 
         # Query database to verify idempotency
         db_result = await async_db_session.execute(
@@ -1487,8 +1578,6 @@ class TestRecordSuccessfulLogin:
         lockout_record = db_result.scalar_one_or_none()
 
         # Assert - MANDATORY
-        assert result1 is None  # First call returns None
-        assert result2 is None  # Second call returns None
         assert lockout_record is not None
         assert lockout_record.is_locked is False
         assert lockout_record.failed_attempts == 0
@@ -1504,7 +1593,9 @@ class TestRecordSuccessfulLogin:
 class TestUnlockAccount:
     """Test unlock_account async method - Lines 238-290."""
 
-    async def test_unlock_account_unlocks_locked_account(self, async_db_session):
+    async def test_unlock_account_unlocks_locked_account(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test unlock_account unlocks a locked account - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1535,7 +1626,9 @@ class TestUnlockAccount:
         assert lockout_record.is_locked is False
         assert lockout_record.unlocked_at is not None
 
-    async def test_unlock_account_resets_failed_attempts_counter(self, async_db_session):
+    async def test_unlock_account_resets_failed_attempts_counter(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test unlock_account resets failed attempts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1568,7 +1661,9 @@ class TestUnlockAccount:
         assert record is not None
         assert record.failed_attempts == 0
 
-    async def test_unlock_account_sets_unlock_timestamp(self, async_db_session):
+    async def test_unlock_account_sets_unlock_timestamp(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test unlock_account sets unlocked_at timestamp - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1604,7 +1699,9 @@ class TestUnlockAccount:
         assert record.unlocked_at is not None
         assert before_unlock <= record.unlocked_at <= after_unlock
 
-    async def test_unlock_account_handles_no_lockout_record(self, async_db_session):
+    async def test_unlock_account_handles_no_lockout_record(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test unlock_account handles user with no lockout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1630,7 +1727,7 @@ class TestUnlockAccount:
         assert was_unlocked is False  # No record to unlock
         assert lockout_record is None
 
-    async def test_unlock_account_commits_transaction(self, async_db_session):
+    async def test_unlock_account_commits_transaction(self, async_db_session: AsyncSession) -> None:
         """Test unlock_account commits changes to database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1675,7 +1772,9 @@ class TestUnlockAccount:
 class TestGetLockoutStats:
     """Test get_lockout_stats async method - Lines 293-337."""
 
-    async def test_get_lockout_stats_returns_total_records(self, async_db_session):
+    async def test_get_lockout_stats_returns_total_records(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test get_lockout_stats returns total lockout records - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1704,7 +1803,9 @@ class TestGetLockoutStats:
         assert stats["total_lockout_records"] >= 1
         assert stats["total_lockout_records"] == db_count
 
-    async def test_get_lockout_stats_returns_currently_locked_count(self, async_db_session):
+    async def test_get_lockout_stats_returns_currently_locked_count(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test get_lockout_stats counts currently locked accounts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1720,7 +1821,9 @@ class TestGetLockoutStats:
         # Assert - MANDATORY
         assert stats["currently_locked_accounts"] >= 1
 
-    async def test_get_lockout_stats_counts_recent_lockouts(self, async_db_session):
+    async def test_get_lockout_stats_counts_recent_lockouts(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test get_lockout_stats counts recent lockouts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1739,7 +1842,9 @@ class TestGetLockoutStats:
         assert stats["recent_lockouts_24h"] >= 0
         assert stats["recent_lockouts_7d"] >= 0
 
-    async def test_get_lockout_stats_calculates_average_failed_attempts(self, async_db_session):
+    async def test_get_lockout_stats_calculates_average_failed_attempts(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test get_lockout_stats calculates average failed attempts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1756,7 +1861,9 @@ class TestGetLockoutStats:
         assert "average_failed_attempts" in stats
         assert stats["average_failed_attempts"] >= 0
 
-    async def test_get_lockout_stats_includes_user_specific_stats(self, async_db_session):
+    async def test_get_lockout_stats_includes_user_specific_stats(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test get_lockout_stats includes user-specific stats when user_id provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1775,7 +1882,9 @@ class TestGetLockoutStats:
         assert "current_failed_attempts" in stats
         assert "is_currently_locked" in stats
 
-    async def test_get_lockout_stats_handles_no_lockouts(self, async_db_session):
+    async def test_get_lockout_stats_handles_no_lockouts(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test get_lockout_stats handles user with no lockouts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -1788,7 +1897,7 @@ class TestGetLockoutStats:
         assert stats["total_lockout_records"] == 0
         assert stats["currently_locked_accounts"] == 0
 
-    async def test_get_lockout_stats_performance(self, async_db_session):
+    async def test_get_lockout_stats_performance(self, async_db_session: AsyncSession) -> None:
         """Test get_lockout_stats completes quickly - MANDATORY performance test."""
         # Arrange - MANDATORY
         import time
@@ -1815,7 +1924,9 @@ class TestGetLockoutStats:
 class TestCleanupExpiredLockouts:
     """Test cleanup_expired_lockouts async method - Lines 340-383."""
 
-    async def test_cleanup_expired_lockouts_removes_old_unlocked_records(self, async_db_session):
+    async def test_cleanup_expired_lockouts_removes_old_unlocked_records(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test cleanup removes old unlocked records - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1851,7 +1962,9 @@ class TestCleanupExpiredLockouts:
         assert deleted_count >= 1
         assert remaining_record is None  # Record deleted
 
-    async def test_cleanup_expired_lockouts_preserves_locked_records(self, async_db_session):
+    async def test_cleanup_expired_lockouts_preserves_locked_records(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test cleanup preserves locked records for audit - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1890,7 +2003,9 @@ class TestCleanupExpiredLockouts:
         assert preserved_record is not None
         assert preserved_record.is_locked is True
 
-    async def test_cleanup_expired_lockouts_preserves_recent_records(self, async_db_session):
+    async def test_cleanup_expired_lockouts_preserves_recent_records(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test cleanup preserves recent records - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1926,7 +2041,9 @@ class TestCleanupExpiredLockouts:
         assert deleted_count == 0  # Nothing deleted (recent record preserved)
         assert preserved_record is not None
 
-    async def test_cleanup_expired_lockouts_returns_count(self, async_db_session):
+    async def test_cleanup_expired_lockouts_returns_count(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test cleanup returns count of deleted records - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1965,7 +2082,9 @@ class TestCleanupExpiredLockouts:
         assert deleted_count >= 3
         assert len(remaining_records) == 0  # All records deleted
 
-    async def test_cleanup_expired_lockouts_handles_no_old_records(self, async_db_session):
+    async def test_cleanup_expired_lockouts_handles_no_old_records(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test cleanup handles no old records gracefully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -1997,7 +2116,9 @@ class TestCleanupExpiredLockouts:
 class TestGetOrCreateLockoutRecord:
     """Test _get_or_create_lockout_record helper method - Lines 387-427."""
 
-    async def test_get_or_create_creates_new_record_when_none_exists(self, async_db_session):
+    async def test_get_or_create_creates_new_record_when_none_exists(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test creates new lockout record when none exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -2020,7 +2141,9 @@ class TestGetOrCreateLockoutRecord:
         assert record.failed_attempts == 0
         assert record.client_ip == "192.168.1.1"
 
-    async def test_get_or_create_returns_existing_record_within_window(self, async_db_session):
+    async def test_get_or_create_returns_existing_record_within_window(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns existing record within attempt window - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -2051,7 +2174,9 @@ class TestGetOrCreateLockoutRecord:
         # Assert - MANDATORY
         assert record2.id == first_record_id  # Same record returned
 
-    async def test_get_or_create_respects_attempt_window(self, async_db_session):
+    async def test_get_or_create_respects_attempt_window(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test respects failed_attempt_window_minutes config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from sqlalchemy import select
@@ -2087,7 +2212,9 @@ class TestGetOrCreateLockoutRecord:
         time_since_creation = (datetime.now(UTC) - db_record.created_at).total_seconds()
         assert time_since_creation < 15 * 60
 
-    async def test_get_or_create_stores_client_information(self, async_db_session):
+    async def test_get_or_create_stores_client_information(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test stores client IP and user agent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -2108,7 +2235,7 @@ class TestGetOrCreateLockoutRecord:
         assert record.client_ip == client_ip
         assert record.user_agent == user_agent
 
-    async def test_get_or_create_handles_none_values(self, async_db_session):
+    async def test_get_or_create_handles_none_values(self, async_db_session: AsyncSession) -> None:
         """Test handles None values for optional fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AccountLockoutService(db_session=async_db_session)
@@ -2138,7 +2265,9 @@ class TestGetOrCreateLockoutRecord:
 class TestShouldLockAccount:
     """Test _should_lock_account helper method - Lines 429-431."""
 
-    async def test_should_lock_account_returns_true_when_threshold_reached(self, async_db_session):
+    async def test_should_lock_account_returns_true_when_threshold_reached(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns True when failed attempts reach threshold - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.database.models.auth import AccountLockout
@@ -2159,7 +2288,9 @@ class TestShouldLockAccount:
         # Assert - MANDATORY
         assert should_lock is True
 
-    async def test_should_lock_account_returns_true_when_threshold_exceeded(self, async_db_session):
+    async def test_should_lock_account_returns_true_when_threshold_exceeded(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns True when failed attempts exceed threshold - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.database.models.auth import AccountLockout
@@ -2180,7 +2311,9 @@ class TestShouldLockAccount:
         # Assert - MANDATORY
         assert should_lock is True
 
-    async def test_should_lock_account_returns_false_below_threshold(self, async_db_session):
+    async def test_should_lock_account_returns_false_below_threshold(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """Test returns False when failed attempts below threshold - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.database.models.auth import AccountLockout
@@ -2213,7 +2346,7 @@ class TestShouldLockAccount:
 class TestLockoutServicePerformance:
     """MANDATORY performance tests for lockout service."""
 
-    async def test_record_failed_login_performance(self, async_db_session):
+    async def test_record_failed_login_performance(self, async_db_session: AsyncSession) -> None:
         """MANDATORY performance test - record failed login speed."""
         # Arrange - MANDATORY
         import time
@@ -2236,7 +2369,9 @@ class TestLockoutServicePerformance:
         assert avg_time < 0.1  # <100ms per operation
         assert execution_time < 2.0  # Total <2s for 10 operations
 
-    async def test_is_account_locked_performance_at_scale(self, async_db_session):
+    async def test_is_account_locked_performance_at_scale(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """MANDATORY performance test - check lockout status at scale."""
         # Arrange - MANDATORY
         import time
@@ -2265,7 +2400,9 @@ class TestLockoutServicePerformance:
         assert avg_time < 0.05  # <50ms per check
         assert execution_time < 1.0  # Total <1s for 20 checks
 
-    async def test_get_lockout_stats_performance_with_data(self, async_db_session):
+    async def test_get_lockout_stats_performance_with_data(
+        self, async_db_session: AsyncSession
+    ) -> None:
         """MANDATORY performance test - stats aggregation with data."""
         # Arrange - MANDATORY
         import time

@@ -20,14 +20,14 @@ class TestCookieService:
     """Test suite for CookieService following AAA pattern."""
 
     @pytest.fixture
-    def mock_response(self):
+    def mock_response(self) -> Mock:
         """Create mock FastAPI response object."""
         response = Mock(spec=Response)
         response.set_cookie = Mock()
         return response
 
     @pytest.fixture
-    def sample_token(self):
+    def sample_token(self) -> Token:
         """Create sample token for testing."""
         return Token(
             access_token="test_access_token",
@@ -38,7 +38,7 @@ class TestCookieService:
         )
 
     @pytest.fixture
-    def sample_token_new_user(self):
+    def sample_token_new_user(self) -> Token:
         """Create sample token for new user testing."""
         return Token(
             access_token="test_access_token",
@@ -49,7 +49,7 @@ class TestCookieService:
         )
 
     @pytest.fixture
-    def sample_token_no_refresh(self):
+    def sample_token_no_refresh(self) -> Token:
         """Create sample token without refresh token."""
         return Token(
             access_token="test_access_token",
@@ -60,7 +60,7 @@ class TestCookieService:
         )
 
     @pytest.mark.unit
-    def test_init_development_environment(self):
+    def test_init_development_environment(self) -> None:
         """Test initialization in development environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -72,7 +72,7 @@ class TestCookieService:
             assert service.is_production is False
 
     @pytest.mark.unit
-    def test_init_production_environment(self):
+    def test_init_production_environment(self) -> None:
         """Test initialization in production environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -84,7 +84,7 @@ class TestCookieService:
             assert service.is_production is True
 
     @pytest.mark.unit
-    def test_init_default_environment(self):
+    def test_init_default_environment(self) -> None:
         """Test initialization with default environment when not set."""
         # Arrange
         with patch.dict(os.environ, {}, clear=True):
@@ -99,7 +99,7 @@ class TestCookieService:
     @pytest.mark.parametrize(
         "env_value", ["PRODUCTION", "Production", "DEVELOPMENT", "Development"]
     )
-    def test_init_case_insensitive_environment(self, env_value):
+    def test_init_case_insensitive_environment(self, env_value: str) -> None:
         """Test environment detection is case insensitive."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": env_value}):
@@ -110,7 +110,7 @@ class TestCookieService:
             assert service.environment == env_value.lower()
 
     @pytest.mark.unit
-    def test_set_auth_cookies_development(self, mock_response, sample_token):
+    def test_set_auth_cookies_development(self, mock_response: Mock, sample_token: Token) -> None:
         """Test setting auth cookies in development environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -151,7 +151,7 @@ class TestCookieService:
             assert auth_user_call[1]["secure"] is False
 
     @pytest.mark.unit
-    def test_set_auth_cookies_production(self, mock_response, sample_token):
+    def test_set_auth_cookies_production(self, mock_response: Mock, sample_token: Token) -> None:
         """Test setting auth cookies in production environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -170,7 +170,9 @@ class TestCookieService:
             assert auth_token_call[1]["domain"] is None  # No explicit domain in production
 
     @pytest.mark.unit
-    def test_set_auth_cookies_new_user(self, mock_response, sample_token_new_user):
+    def test_set_auth_cookies_new_user(
+        self, mock_response: Mock, sample_token_new_user: Token
+    ) -> None:
         """Test setting cookies for new user."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -185,7 +187,9 @@ class TestCookieService:
             assert auth_user_call[1]["value"] == expected_user_data
 
     @pytest.mark.unit
-    def test_set_auth_cookies_no_refresh_token(self, mock_response, sample_token_no_refresh):
+    def test_set_auth_cookies_no_refresh_token(
+        self, mock_response: Mock, sample_token_no_refresh: Token
+    ) -> None:
         """Test setting cookies when refresh token is None."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -204,7 +208,7 @@ class TestCookieService:
             assert "refresh_token" not in call_keys
 
     @pytest.mark.unit
-    def test_clear_auth_cookies_development(self, mock_response):
+    def test_clear_auth_cookies_development(self, mock_response: Mock) -> None:
         """Test clearing auth cookies in development environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -232,7 +236,7 @@ class TestCookieService:
             assert "auth_user" in cookie_names
 
     @pytest.mark.unit
-    def test_clear_auth_cookies_production(self, mock_response):
+    def test_clear_auth_cookies_production(self, mock_response: Mock) -> None:
         """Test clearing auth cookies in production environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -249,7 +253,7 @@ class TestCookieService:
                 assert call[1]["domain"] is None  # Production
 
     @pytest.mark.unit
-    def test_get_cookie_domain_development(self):
+    def test_get_cookie_domain_development(self) -> None:
         """Test cookie domain in development environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -262,7 +266,7 @@ class TestCookieService:
             assert domain == "localhost"
 
     @pytest.mark.unit
-    def test_get_cookie_domain_production(self):
+    def test_get_cookie_domain_production(self) -> None:
         """Test cookie domain in production environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -275,7 +279,7 @@ class TestCookieService:
             assert domain is None
 
     @pytest.mark.unit
-    def test_get_samesite_policy_development(self):
+    def test_get_samesite_policy_development(self) -> None:
         """Test SameSite policy in development environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -288,7 +292,7 @@ class TestCookieService:
             assert policy == "lax"
 
     @pytest.mark.unit
-    def test_get_samesite_policy_production(self):
+    def test_get_samesite_policy_production(self) -> None:
         """Test SameSite policy in production environment."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -301,7 +305,7 @@ class TestCookieService:
             assert policy == "strict"
 
     @pytest.mark.unit
-    def test_cookie_expiration_consistency(self, mock_response, sample_token):
+    def test_cookie_expiration_consistency(self, mock_response: Mock, sample_token: Token) -> None:
         """Test that cookie expiration is consistent with token expiration."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -323,7 +327,7 @@ class TestCookieService:
             assert refresh_token_call[1]["max_age"] == 60 * 60 * 24 * 30
 
     @pytest.mark.unit
-    def test_auth_user_cookie_json_format(self, mock_response, sample_token):
+    def test_auth_user_cookie_json_format(self, mock_response: Mock, sample_token: Token) -> None:
         """Test that auth_user cookie contains valid JSON."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -342,7 +346,7 @@ class TestCookieService:
             assert user_data["isNewUser"] is False
 
     @pytest.mark.unit
-    def test_security_headers_consistency(self, mock_response, sample_token):
+    def test_security_headers_consistency(self, mock_response: Mock, sample_token: Token) -> None:
         """Test that security headers are consistent across all cookies."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -360,7 +364,7 @@ class TestCookieService:
                 assert call[1]["domain"] is None
 
     @pytest.mark.unit
-    def test_httponly_flag_behavior(self, mock_response, sample_token):
+    def test_httponly_flag_behavior(self, mock_response: Mock, sample_token: Token) -> None:
         """Test HTTPOnly flag is set correctly for different cookie types."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
@@ -393,13 +397,13 @@ class TestCookieService:
     )
     def test_environment_specific_settings(
         self,
-        mock_response,
-        sample_token,
-        environment,
-        expected_secure,
-        expected_samesite,
-        expected_domain,
-    ):
+        mock_response: Mock,
+        sample_token: Token,
+        environment: str,
+        expected_secure: bool,
+        expected_samesite: str,
+        expected_domain: str | None,
+    ) -> None:
         """Test environment-specific cookie settings using parameterized tests."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": environment}):
@@ -419,14 +423,14 @@ class TestCookieServiceEdgeCases:
     """Edge cases and error scenarios for CookieService."""
 
     @pytest.fixture
-    def mock_response(self):
+    def mock_response(self) -> Mock:
         """Create mock FastAPI response object."""
         response = Mock(spec=Response)
         response.set_cookie = Mock()
         return response
 
     @pytest.fixture
-    def sample_token(self):
+    def sample_token(self) -> Token:
         """Create sample token for testing."""
         return Token(
             access_token="test_access_token",
@@ -437,7 +441,7 @@ class TestCookieServiceEdgeCases:
         )
 
     @pytest.mark.unit
-    def test_token_with_zero_expiration(self, mock_response):
+    def test_token_with_zero_expiration(self, mock_response: Mock) -> None:
         """Test handling token with zero expiration time."""
         # Arrange
         token = Token(
@@ -458,7 +462,7 @@ class TestCookieServiceEdgeCases:
             assert auth_token_call[1]["max_age"] == 0
 
     @pytest.mark.unit
-    def test_token_with_large_expiration(self, mock_response):
+    def test_token_with_large_expiration(self, mock_response: Mock) -> None:
         """Test handling token with very large expiration time."""
         # Arrange
         token = Token(
@@ -479,7 +483,7 @@ class TestCookieServiceEdgeCases:
             assert auth_token_call[1]["max_age"] == 999999999
 
     @pytest.mark.unit
-    def test_clear_cookies_maintains_security_settings(self, mock_response):
+    def test_clear_cookies_maintains_security_settings(self, mock_response: Mock) -> None:
         """Test that clearing cookies maintains the same security settings."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
@@ -497,7 +501,7 @@ class TestCookieServiceEdgeCases:
                 assert call[1]["domain"] is None
 
     @pytest.mark.unit
-    def test_logging_integration(self, mock_response, sample_token):
+    def test_logging_integration(self, mock_response: Mock, sample_token: Token) -> None:
         """Test that appropriate logging occurs during cookie operations."""
         # Arrange
         with patch.dict(os.environ, {"ENVIRONMENT": "development"}):

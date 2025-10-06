@@ -29,7 +29,7 @@ class TestHealthServiceInit:
     """Unit tests for HealthService initialization following MANDATORY AAA pattern."""
 
     @pytest.mark.unit
-    def test_init_creates_service_with_default_version(self):
+    def test_init_creates_service_with_default_version(self) -> None:
         """Test __init__ creates service with default version - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -41,7 +41,7 @@ class TestHealthServiceInit:
         assert service.logger is not None
 
     @pytest.mark.unit
-    def test_init_creates_service_with_custom_version(self):
+    def test_init_creates_service_with_custom_version(self) -> None:
         """Test __init__ creates service with custom version - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_version = "2.5.3"
@@ -54,7 +54,7 @@ class TestHealthServiceInit:
         assert service.logger is not None
 
     @pytest.mark.unit
-    def test_singleton_instance_is_accessible(self):
+    def test_singleton_instance_is_accessible(self) -> None:
         """Test singleton instance is properly configured - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (singleton already exists)
 
@@ -72,7 +72,7 @@ class TestHealthServiceDatabaseCheck:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_check_database_health_returns_healthy_status(self):
+    async def test_check_database_health_returns_healthy_status(self) -> None:
         """Test _check_database_health returns healthy status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -101,7 +101,7 @@ class TestHealthServiceDatabaseCheck:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_check_database_health_handles_unexpected_result(self):
+    async def test_check_database_health_handles_unexpected_result(self) -> None:
         """Test _check_database_health handles unexpected query result - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -121,7 +121,7 @@ class TestHealthServiceDatabaseCheck:
     @pytest.mark.unit
     @pytest.mark.asyncio
     @pytest.mark.performance
-    async def test_check_database_health_performance_benchmark(self):
+    async def test_check_database_health_performance_benchmark(self) -> None:
         """MANDATORY performance test - database health check completes quickly."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -155,7 +155,7 @@ class TestHealthServiceCacheCheck:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_check_cache_health_handles_error_gracefully(self):
+    async def test_check_cache_health_handles_error_gracefully(self) -> None:
         """Test _check_cache_health handles errors gracefully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -172,7 +172,7 @@ class TestHealthServiceCacheCheck:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_check_cache_health_returns_healthy_with_backend(self):
+    async def test_check_cache_health_returns_healthy_with_backend(self) -> None:
         """Test _check_cache_health returns healthy status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -202,7 +202,7 @@ class TestHealthServiceMonitoringStatus:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_get_monitoring_status_integration_via_comprehensive_check(self):
+    async def test_get_monitoring_status_integration_via_comprehensive_check(self) -> None:
         """Test monitoring status through comprehensive check - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -242,7 +242,7 @@ class TestHealthServiceOverallStatus:
     """Unit tests for overall status calculation following MANDATORY AAA pattern."""
 
     @pytest.mark.unit
-    def test_calculate_overall_status_returns_healthy_when_all_healthy(self):
+    def test_calculate_overall_status_returns_healthy_when_all_healthy(self) -> None:
         """Test _calculate_overall_status returns healthy with all components - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -257,7 +257,7 @@ class TestHealthServiceOverallStatus:
         assert result == "healthy"
 
     @pytest.mark.unit
-    def test_calculate_overall_status_returns_unhealthy_when_database_fails(self):
+    def test_calculate_overall_status_returns_unhealthy_when_database_fails(self) -> None:
         """Test _calculate_overall_status returns unhealthy when database fails - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -272,7 +272,7 @@ class TestHealthServiceOverallStatus:
         assert result == "unhealthy"
 
     @pytest.mark.unit
-    def test_calculate_overall_status_returns_degraded_when_cache_errors(self):
+    def test_calculate_overall_status_returns_degraded_when_cache_errors(self) -> None:
         """Test _calculate_overall_status returns degraded when cache errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -287,7 +287,7 @@ class TestHealthServiceOverallStatus:
         assert result == "degraded"
 
     @pytest.mark.unit
-    def test_calculate_overall_status_returns_degraded_when_monitoring_unknown(self):
+    def test_calculate_overall_status_returns_degraded_when_monitoring_unknown(self) -> None:
         """Test _calculate_overall_status returns degraded when monitoring unknown - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -307,7 +307,7 @@ class TestHealthServiceComprehensiveCheck:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_get_comprehensive_health_status_returns_complete_response(self):
+    async def test_get_comprehensive_health_status_returns_complete_response(self) -> None:
         """Test get_comprehensive_health_status returns complete response - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="2.0.0")
@@ -341,7 +341,7 @@ class TestHealthServiceComprehensiveCheck:
     @pytest.mark.unit
     @pytest.mark.asyncio
     @pytest.mark.performance
-    async def test_get_comprehensive_health_status_performance_benchmark(self):
+    async def test_get_comprehensive_health_status_performance_benchmark(self) -> None:
         """MANDATORY performance test - comprehensive health check completes quickly."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -381,7 +381,7 @@ class TestHealthServiceSafetyMethods:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_publish_health_events_safe_handles_success(self):
+    async def test_publish_health_events_safe_handles_success(self) -> None:
         """Test _publish_health_events_safe handles success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -398,7 +398,7 @@ class TestHealthServiceSafetyMethods:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_get_backend_type_safe_returns_backend_type(self):
+    async def test_get_backend_type_safe_returns_backend_type(self) -> None:
         """Test _get_backend_type_safe returns backend type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -413,7 +413,7 @@ class TestHealthServiceSafetyMethods:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_get_cache_info_safe_returns_server_info_and_stats(self):
+    async def test_get_cache_info_safe_returns_server_info_and_stats(self) -> None:
         """Test _get_cache_info_safe returns server info and stats - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -439,7 +439,7 @@ class TestHealthServiceSecurity:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_health_service_does_not_expose_sensitive_database_info(self):
+    async def test_health_service_does_not_expose_sensitive_database_info(self) -> None:
         """MANDATORY security test - health service doesn't expose sensitive database info."""
         # Arrange - MANDATORY
         service = HealthService(version="1.0.0")
@@ -466,7 +466,7 @@ class TestHealthServiceSecurity:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_health_service_handles_malicious_version_input(self):
+    async def test_health_service_handles_malicious_version_input(self) -> None:
         """MANDATORY security test - health service handles malicious version input."""
         # Arrange - MANDATORY
         malicious_versions = [

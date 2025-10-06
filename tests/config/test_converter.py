@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
+from pytest import MonkeyPatch
 
 from src.config.converter import (
     ConverterConfig,
@@ -20,7 +21,7 @@ from src.config.converter import (
 
 
 @pytest.fixture(autouse=True)
-def clear_converter_env_vars(monkeypatch):
+def clear_converter_env_vars(monkeypatch: MonkeyPatch) -> None:
     """Clear converter-related environment variables for consistent tests."""
     env_vars = [
         "USER_AGENT",
@@ -41,7 +42,7 @@ def clear_converter_env_vars(monkeypatch):
 class TestHttpConfigInitialization:
     """Test HttpConfig initialization and defaults."""
 
-    def test_initialization_with_default_values(self):
+    def test_initialization_with_default_values(self) -> None:
         """Test initialization with default values."""
         # Arrange & Act
         config = HttpConfig()
@@ -55,7 +56,7 @@ class TestHttpConfigInitialization:
         assert config.pool_size == 20
         assert config.pool_timeout == 30
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = HttpConfig(
@@ -77,7 +78,7 @@ class TestHttpConfigInitialization:
         assert config.pool_size == 50
         assert config.pool_timeout == 60
 
-    def test_user_agent_default_value(self):
+    def test_user_agent_default_value(self) -> None:
         """Test User-Agent has valid default."""
         # Arrange & Act
         config = HttpConfig()
@@ -96,7 +97,7 @@ class TestHttpConfigInitialization:
 class TestHttpConfigUserAgent:
     """Test HttpConfig.validate_user_agent() validation."""
 
-    def test_validate_user_agent_accepts_valid_agent(self):
+    def test_validate_user_agent_accepts_valid_agent(self) -> None:
         """Test accepts valid User-Agent string."""
         # Arrange & Act
         config = HttpConfig(user_agent="Mozilla/5.0 Custom Agent")
@@ -104,19 +105,19 @@ class TestHttpConfigUserAgent:
         # Assert
         assert config.user_agent == "Mozilla/5.0 Custom Agent"
 
-    def test_validate_user_agent_rejects_short_agent(self):
+    def test_validate_user_agent_rejects_short_agent(self) -> None:
         """Test rejects User-Agent shorter than 10 characters."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="User-Agent must be at least 10 characters"):
             HttpConfig(user_agent="short")
 
-    def test_validate_user_agent_rejects_empty_agent(self):
+    def test_validate_user_agent_rejects_empty_agent(self) -> None:
         """Test rejects empty User-Agent."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="User-Agent must be at least 10 characters"):
             HttpConfig(user_agent="")
 
-    def test_validate_user_agent_strips_whitespace(self):
+    def test_validate_user_agent_strips_whitespace(self) -> None:
         """Test strips whitespace from User-Agent."""
         # Arrange & Act
         config = HttpConfig(user_agent="  Mozilla/5.0 Agent  ")
@@ -136,19 +137,19 @@ class TestHttpConfigUserAgent:
 class TestHttpConfigFieldConstraints:
     """Test Pydantic field constraints are enforced."""
 
-    def test_timeout_enforces_minimum(self):
+    def test_timeout_enforces_minimum(self) -> None:
         """Test timeout enforces minimum value of 1."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             HttpConfig(timeout=0)
 
-    def test_timeout_enforces_maximum(self):
+    def test_timeout_enforces_maximum(self) -> None:
         """Test timeout enforces maximum value of 300."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             HttpConfig(timeout=301)
 
-    def test_max_retries_enforces_range(self):
+    def test_max_retries_enforces_range(self) -> None:
         """Test max_retries enforces range 0-10."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -158,7 +159,7 @@ class TestHttpConfigFieldConstraints:
         with pytest.raises(ValidationError):
             HttpConfig(max_retries=11)
 
-    def test_backoff_factor_enforces_range(self):
+    def test_backoff_factor_enforces_range(self) -> None:
         """Test backoff_factor enforces range 1.0-10.0."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -178,7 +179,7 @@ class TestHttpConfigFieldConstraints:
 class TestOutputConfigInitialization:
     """Test OutputConfig initialization and defaults."""
 
-    def test_initialization_with_default_values(self):
+    def test_initialization_with_default_values(self) -> None:
         """Test initialization with default values."""
         # Arrange & Act
         config = OutputConfig()
@@ -193,7 +194,7 @@ class TestOutputConfigInitialization:
         assert config.overwrite_existing is False
         assert config.max_file_size_mb == 100
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = OutputConfig(
@@ -227,7 +228,7 @@ class TestOutputConfigInitialization:
 class TestOutputConfigDirectoryValidation:
     """Test OutputConfig.validate_directory_names() validation."""
 
-    def test_validate_directory_names_accepts_valid_names(self):
+    def test_validate_directory_names_accepts_valid_names(self) -> None:
         """Test accepts valid directory names."""
         # Arrange & Act
         config = OutputConfig(default_dir="output", images_subdir="images")
@@ -236,25 +237,25 @@ class TestOutputConfigDirectoryValidation:
         assert config.default_dir == "output"
         assert config.images_subdir == "images"
 
-    def test_validate_directory_names_rejects_empty_name(self):
+    def test_validate_directory_names_rejects_empty_name(self) -> None:
         """Test rejects empty directory name."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="Directory name cannot be empty"):
             OutputConfig(default_dir="")
 
-    def test_validate_directory_names_rejects_parent_traversal(self):
+    def test_validate_directory_names_rejects_parent_traversal(self) -> None:
         """Test rejects directory names with '..' (path traversal)."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="Directory cannot contain"):
             OutputConfig(default_dir="../output")
 
-    def test_validate_directory_names_rejects_absolute_path(self):
+    def test_validate_directory_names_rejects_absolute_path(self) -> None:
         """Test rejects directory names starting with '/'."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="Directory cannot contain"):
             OutputConfig(default_dir="/absolute/path")
 
-    def test_validate_directory_names_strips_whitespace(self):
+    def test_validate_directory_names_strips_whitespace(self) -> None:
         """Test strips whitespace from directory names."""
         # Arrange & Act
         config = OutputConfig(default_dir="  output  ", images_subdir="  images  ")
@@ -273,7 +274,7 @@ class TestOutputConfigDirectoryValidation:
 class TestOutputConfigPathProperties:
     """Test OutputConfig path property methods."""
 
-    def test_output_path_returns_path_object(self):
+    def test_output_path_returns_path_object(self) -> None:
         """Test output_path returns Path object."""
         # Arrange
         config = OutputConfig(default_dir="custom_output")
@@ -285,7 +286,7 @@ class TestOutputConfigPathProperties:
         assert isinstance(path, Path)
         assert str(path) == "custom_output"
 
-    def test_images_path_combines_output_and_images(self):
+    def test_images_path_combines_output_and_images(self) -> None:
         """Test images_path combines output_path and images_subdir."""
         # Arrange
         config = OutputConfig(default_dir="output", images_subdir="imgs")
@@ -307,7 +308,7 @@ class TestOutputConfigPathProperties:
 class TestRobotsConfigInitialization:
     """Test RobotsConfig initialization and defaults."""
 
-    def test_initialization_with_default_values(self):
+    def test_initialization_with_default_values(self) -> None:
         """Test initialization with default values."""
         # Arrange & Act
         config = RobotsConfig()
@@ -318,7 +319,7 @@ class TestRobotsConfigInitialization:
         assert config.crawl_delay == 1.0
         assert config.user_agent_for_robots == "*"
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = RobotsConfig(
@@ -334,7 +335,7 @@ class TestRobotsConfigInitialization:
         assert config.crawl_delay == 2.0
         assert config.user_agent_for_robots == "CustomBot"
 
-    def test_cache_duration_enforces_range(self):
+    def test_cache_duration_enforces_range(self) -> None:
         """Test cache_duration enforces range 300-86400."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -354,7 +355,7 @@ class TestRobotsConfigInitialization:
 class TestShopifyConfigInitialization:
     """Test ShopifyConfig initialization and defaults."""
 
-    def test_initialization_with_default_values(self):
+    def test_initialization_with_default_values(self) -> None:
         """Test initialization with default values."""
         # Arrange & Act
         config = ShopifyConfig()
@@ -366,7 +367,7 @@ class TestShopifyConfigInitialization:
         assert config.preserve_comments is False
         assert config.convert_relative_urls is True
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = ShopifyConfig(
@@ -394,7 +395,7 @@ class TestShopifyConfigInitialization:
 class TestShopifyConfigPreserveClasses:
     """Test ShopifyConfig.validate_preserve_classes() validation."""
 
-    def test_validate_preserve_classes_accepts_set(self):
+    def test_validate_preserve_classes_accepts_set(self) -> None:
         """Test accepts set of class names."""
         # Arrange & Act
         config = ShopifyConfig(preserve_classes={"class1", "class2"})
@@ -402,7 +403,7 @@ class TestShopifyConfigPreserveClasses:
         # Assert
         assert config.preserve_classes == {"class1", "class2"}
 
-    def test_validate_preserve_classes_converts_string(self):
+    def test_validate_preserve_classes_converts_string(self) -> None:
         """Test converts comma-separated string to set."""
         # Arrange & Act
         config = ShopifyConfig(preserve_classes="class1,class2,class3")
@@ -411,7 +412,7 @@ class TestShopifyConfigPreserveClasses:
         assert isinstance(config.preserve_classes, set)
         assert config.preserve_classes == {"class1", "class2", "class3"}
 
-    def test_validate_preserve_classes_converts_list(self):
+    def test_validate_preserve_classes_converts_list(self) -> None:
         """Test converts list to set."""
         # Arrange & Act
         config = ShopifyConfig(preserve_classes=["class1", "class2"])
@@ -420,7 +421,7 @@ class TestShopifyConfigPreserveClasses:
         assert isinstance(config.preserve_classes, set)
         assert config.preserve_classes == {"class1", "class2"}
 
-    def test_validate_preserve_classes_strips_whitespace_from_string(self):
+    def test_validate_preserve_classes_strips_whitespace_from_string(self) -> None:
         """Test strips whitespace when converting from string."""
         # Arrange & Act
         config = ShopifyConfig(preserve_classes="  class1  ,  class2  ,  class3  ")
@@ -428,11 +429,11 @@ class TestShopifyConfigPreserveClasses:
         # Assert
         assert config.preserve_classes == {"class1", "class2", "class3"}
 
-    def test_validate_preserve_classes_rejects_invalid_type(self):
+    def test_validate_preserve_classes_rejects_invalid_type(self) -> None:
         """Test rejects invalid types."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="preserve_classes must be"):
-            ShopifyConfig(preserve_classes=123)  # type: ignore[arg-type]
+            ShopifyConfig(preserve_classes=123)
 
 
 # =============================================================================
@@ -444,7 +445,7 @@ class TestShopifyConfigPreserveClasses:
 class TestConverterConfigInitialization:
     """Test ConverterConfig initialization and nested configs."""
 
-    def test_initialization_with_default_values(self):
+    def test_initialization_with_default_values(self) -> None:
         """Test initialization with default values."""
         # Arrange & Act
         config = ConverterConfig()
@@ -458,7 +459,7 @@ class TestConverterConfigInitialization:
         assert config.log_level == "INFO"
         assert config.enable_metrics is True
 
-    def test_initialization_creates_nested_configs(self):
+    def test_initialization_creates_nested_configs(self) -> None:
         """Test nested config objects are properly initialized."""
         # Arrange & Act
         config = ConverterConfig()
@@ -469,7 +470,7 @@ class TestConverterConfigInitialization:
         assert config.robots.respect_robots_txt is True
         assert isinstance(config.shopify.preserve_classes, set)
 
-    def test_initialization_with_custom_nested_values(self):
+    def test_initialization_with_custom_nested_values(self) -> None:
         """Test initialization with custom nested config values."""
         # Arrange & Act
         config = ConverterConfig(
@@ -497,7 +498,7 @@ class TestConverterConfigLogLevel:
     """Test ConverterConfig.validate_log_level() validation."""
 
     @pytest.mark.parametrize("level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-    def test_validate_log_level_accepts_valid_levels(self, level):
+    def test_validate_log_level_accepts_valid_levels(self, level: str) -> None:
         """Test accepts all valid log levels."""
         # Arrange & Act
         config = ConverterConfig(log_level=level)
@@ -506,7 +507,7 @@ class TestConverterConfigLogLevel:
         assert config.log_level == level
 
     @pytest.mark.parametrize("level", ["debug", "info", "warning", "error", "critical"])
-    def test_validate_log_level_normalizes_case(self, level):
+    def test_validate_log_level_normalizes_case(self, level: str) -> None:
         """Test normalizes log level to uppercase."""
         # Arrange & Act
         config = ConverterConfig(log_level=level)
@@ -514,7 +515,7 @@ class TestConverterConfigLogLevel:
         # Assert
         assert config.log_level == level.upper()
 
-    def test_validate_log_level_rejects_invalid_level(self):
+    def test_validate_log_level_rejects_invalid_level(self) -> None:
         """Test rejects invalid log level."""
         # Arrange & Act & Assert
         with pytest.raises(ValueError, match="log_level must be one of"):
@@ -530,7 +531,7 @@ class TestConverterConfigLogLevel:
 class TestConverterConfigGetHttpHeaders:
     """Test ConverterConfig.get_http_headers() method."""
 
-    def test_get_http_headers_returns_correct_structure(self):
+    def test_get_http_headers_returns_correct_structure(self) -> None:
         """Test returns dictionary with all required headers."""
         # Arrange
         config = ConverterConfig()
@@ -546,7 +547,7 @@ class TestConverterConfigGetHttpHeaders:
         assert "Accept-Encoding" in headers
         assert "Connection" in headers
 
-    def test_get_http_headers_includes_custom_user_agent(self):
+    def test_get_http_headers_includes_custom_user_agent(self) -> None:
         """Test includes custom User-Agent from http config."""
         # Arrange
         custom_agent = "CustomBot/1.0"
@@ -558,7 +559,7 @@ class TestConverterConfigGetHttpHeaders:
         # Assert
         assert headers["User-Agent"] == custom_agent
 
-    def test_get_http_headers_has_correct_values(self):
+    def test_get_http_headers_has_correct_values(self) -> None:
         """Test headers have correct standard values."""
         # Arrange
         config = ConverterConfig()
@@ -583,8 +584,8 @@ class TestConverterConfigValidateOutputDirectory:
     """Test ConverterConfig.validate_output_directory() method."""
 
     def test_validate_output_directory_creates_directories_when_enabled(
-        self, tmp_path, monkeypatch
-    ):
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test creates output directories when create_directories is True."""
         # Arrange - use relative path and chdir to tmp_path to avoid absolute path validation
         monkeypatch.chdir(tmp_path)
@@ -600,7 +601,9 @@ class TestConverterConfigValidateOutputDirectory:
         assert Path(output_dir).exists()
         assert (Path(output_dir) / "images").exists()
 
-    def test_validate_output_directory_does_not_create_when_disabled(self, tmp_path, monkeypatch):
+    def test_validate_output_directory_does_not_create_when_disabled(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test does not create directories when create_directories is False."""
         # Arrange - use relative path
         monkeypatch.chdir(tmp_path)
@@ -617,8 +620,8 @@ class TestConverterConfigValidateOutputDirectory:
         assert Path(output_dir).exists()
 
     def test_validate_output_directory_raises_when_disabled_and_missing(
-        self, tmp_path, monkeypatch
-    ):
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test raises error when create_directories is False and directory missing."""
         # Arrange - use relative path
         monkeypatch.chdir(tmp_path)
@@ -631,7 +634,9 @@ class TestConverterConfigValidateOutputDirectory:
         with pytest.raises(ValueError, match="Output directory .* does not exist"):
             config.validate_output_directory()
 
-    def test_validate_output_directory_handles_creation_error(self, tmp_path, monkeypatch):
+    def test_validate_output_directory_handles_creation_error(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test handles OSError when directory creation fails."""
         # Arrange - use relative path
         monkeypatch.chdir(tmp_path)

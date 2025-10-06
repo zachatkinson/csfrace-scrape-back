@@ -12,6 +12,7 @@ Tests SecurityManager for password hashing, JWT token creation/verification, and
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -27,19 +28,19 @@ from src.auth.security import SecurityManager, auth_config
 
 
 @pytest.fixture
-def security_manager():
+def security_manager() -> SecurityManager:
     """Factory for SecurityManager instance - MANDATORY DI."""
     return SecurityManager()
 
 
 @pytest.fixture
-def sample_user_data():
+def sample_user_data() -> dict[str, Any]:
     """Factory for sample user data - DRY principle."""
     return {"sub": "testuser", "user_id": str(uuid4()), "scopes": ["read", "write"]}
 
 
 @pytest.fixture
-def sample_token_payload():
+def sample_token_payload() -> dict[str, Any]:
     """Factory for sample token payload."""
     return {
         "sub": "testuser",
@@ -59,7 +60,7 @@ class TestSecurityManagerInitialization:
     """Test SecurityManager initialization - SOLID Dependency Injection."""
 
     @pytest.mark.unit
-    def test_security_manager_initialization(self, security_manager):
+    def test_security_manager_initialization(self, security_manager: SecurityManager) -> None:
         """Test SecurityManager initializes with password context.
 
         AAA Pattern:
@@ -84,7 +85,7 @@ class TestPasswordHashing:
     """Test password hashing and verification - CRITICAL SECURITY."""
 
     @pytest.mark.unit
-    def test_get_password_hash_generates_hash(self, security_manager):
+    def test_get_password_hash_generates_hash(self, security_manager: SecurityManager) -> None:
         """Test password hashing generates valid bcrypt hash.
 
         AAA Pattern:
@@ -104,7 +105,7 @@ class TestPasswordHashing:
         assert password_hash.startswith("$2b$")  # bcrypt prefix
 
     @pytest.mark.unit
-    def test_verify_password_correct_password(self, security_manager):
+    def test_verify_password_correct_password(self, security_manager: SecurityManager) -> None:
         """Test verify_password succeeds with correct password."""
         # Arrange
         plain_password = "SecurePassword123!"
@@ -117,7 +118,7 @@ class TestPasswordHashing:
         assert is_valid is True
 
     @pytest.mark.unit
-    def test_verify_password_incorrect_password(self, security_manager):
+    def test_verify_password_incorrect_password(self, security_manager: SecurityManager) -> None:
         """Test verify_password fails with incorrect password."""
         # Arrange
         correct_password = "SecurePassword123!"
@@ -131,7 +132,7 @@ class TestPasswordHashing:
         assert is_valid is False
 
     @pytest.mark.unit
-    def test_password_hash_uniqueness(self, security_manager):
+    def test_password_hash_uniqueness(self, security_manager: SecurityManager) -> None:
         """Test same password generates different hashes (bcrypt salt)."""
         # Arrange
         plain_password = "SecurePassword123!"
@@ -156,7 +157,9 @@ class TestAccessTokenCreation:
     """Test JWT access token creation - CRITICAL SECURITY."""
 
     @pytest.mark.unit
-    def test_create_access_token_basic(self, security_manager, sample_user_data):
+    def test_create_access_token_basic(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test access token creation with default expiration.
 
         AAA Pattern:
@@ -180,7 +183,9 @@ class TestAccessTokenCreation:
         assert decoded["type"] == "access"
 
     @pytest.mark.unit
-    def test_create_access_token_custom_expiration(self, security_manager, sample_user_data):
+    def test_create_access_token_custom_expiration(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test access token with custom expiration delta."""
         # Arrange
         custom_delta = timedelta(minutes=15)
@@ -201,7 +206,9 @@ class TestAccessTokenCreation:
         assert time_diff < 2  # Within 2 seconds tolerance
 
     @pytest.mark.unit
-    def test_create_access_token_custom_jti(self, security_manager, sample_user_data):
+    def test_create_access_token_custom_jti(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test access token with custom JTI provided."""
         # Arrange
         custom_jti = str(uuid4())
@@ -215,7 +222,9 @@ class TestAccessTokenCreation:
         assert decoded["jti"] == custom_jti
 
     @pytest.mark.unit
-    def test_access_token_contains_required_claims(self, security_manager, sample_user_data):
+    def test_access_token_contains_required_claims(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test access token contains all required JWT claims."""
         # Act
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -231,7 +240,9 @@ class TestAccessTokenCreation:
         assert decoded["type"] == "access"
 
     @pytest.mark.unit
-    def test_access_token_preserves_scopes(self, security_manager, sample_user_data):
+    def test_access_token_preserves_scopes(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test access token preserves user scopes."""
         # Act
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -241,7 +252,9 @@ class TestAccessTokenCreation:
         assert decoded["scopes"] == sample_user_data["scopes"]
 
     @pytest.mark.unit
-    def test_access_token_issued_at_timestamp(self, security_manager, sample_user_data):
+    def test_access_token_issued_at_timestamp(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test access token iat (issued at) claim is recent."""
         # Act
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -265,7 +278,9 @@ class TestRefreshTokenCreation:
     """Test JWT refresh token creation - CRITICAL SECURITY."""
 
     @pytest.mark.unit
-    def test_create_refresh_token_basic(self, security_manager, sample_user_data):
+    def test_create_refresh_token_basic(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test refresh token creation with default expiration."""
         # Act
         token, jti = security_manager.create_refresh_token(sample_user_data)
@@ -280,7 +295,9 @@ class TestRefreshTokenCreation:
         assert decoded["jti"] == jti
 
     @pytest.mark.unit
-    def test_create_refresh_token_longer_expiration(self, security_manager, sample_user_data):
+    def test_create_refresh_token_longer_expiration(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test refresh token has longer expiration than access token."""
         # Act
         refresh_token, refresh_jti = security_manager.create_refresh_token(sample_user_data)
@@ -298,7 +315,9 @@ class TestRefreshTokenCreation:
         assert time_diff < 2  # Within 2 seconds
 
     @pytest.mark.unit
-    def test_create_refresh_token_custom_expiration(self, security_manager, sample_user_data):
+    def test_create_refresh_token_custom_expiration(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test refresh token with custom expiration."""
         # Arrange
         custom_delta = timedelta(days=30)
@@ -318,7 +337,9 @@ class TestRefreshTokenCreation:
         assert time_diff < 2
 
     @pytest.mark.unit
-    def test_create_refresh_token_custom_jti(self, security_manager, sample_user_data):
+    def test_create_refresh_token_custom_jti(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test refresh token with custom JTI."""
         # Arrange
         custom_jti = str(uuid4())
@@ -334,7 +355,9 @@ class TestRefreshTokenCreation:
         assert decoded["jti"] == custom_jti
 
     @pytest.mark.unit
-    def test_refresh_token_unique_jti(self, security_manager, sample_user_data):
+    def test_refresh_token_unique_jti(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test multiple refresh tokens have unique JTIs."""
         # Act
         token1, jti1 = security_manager.create_refresh_token(sample_user_data)
@@ -354,7 +377,9 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_valid_not_revoked(self, security_manager, sample_user_data):
+    async def test_verify_token_valid_not_revoked(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test verify_token succeeds for valid, non-revoked token.
 
         AAA Pattern:
@@ -379,7 +404,9 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_revoked_token(self, security_manager, sample_user_data):
+    async def test_verify_token_revoked_token(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test verify_token fails for revoked token - SECURITY REQUIREMENT."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -394,7 +421,7 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_missing_jti(self, security_manager):
+    async def test_verify_token_missing_jti(self, security_manager: SecurityManager) -> None:
         """Test verify_token fails when token missing JTI claim."""
         # Arrange - Create token without JTI
         payload = {"sub": "testuser", "exp": datetime.now(UTC) + timedelta(minutes=30)}
@@ -408,7 +435,7 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_missing_username(self, security_manager):
+    async def test_verify_token_missing_username(self, security_manager: SecurityManager) -> None:
         """Test verify_token fails when token missing sub (username) claim."""
         # Arrange - Create token without sub
         payload = {
@@ -427,8 +454,8 @@ class TestTokenVerification:
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_verify_token_revocation_check_exception(
-        self, security_manager, sample_user_data
-    ):
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test verify_token fails securely when revocation check raises exception."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -445,7 +472,9 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_expired_token(self, security_manager, sample_user_data):
+    async def test_verify_token_expired_token(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test verify_token raises RuntimeError for expired token - error handler behavior."""
         # Arrange - Create token with negative expiration
         token, jti = security_manager.create_access_token(
@@ -459,7 +488,9 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_invalid_signature(self, security_manager, sample_user_data):
+    async def test_verify_token_invalid_signature(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test verify_token raises RuntimeError for tampered token - error handler behavior."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -473,7 +504,9 @@ class TestTokenVerification:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_verify_token_preserves_scopes(self, security_manager, sample_user_data):
+    async def test_verify_token_preserves_scopes(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test verify_token preserves user scopes."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -483,6 +516,7 @@ class TestTokenVerification:
             token_data = await security_manager.verify_token(token)
 
             # Assert
+            assert token_data is not None
             assert token_data.scopes == sample_user_data["scopes"]
 
 
@@ -496,7 +530,9 @@ class TestTokenRevocationCheck:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_is_token_revoked_delegates_to_service(self, security_manager):
+    async def test_is_token_revoked_delegates_to_service(
+        self, security_manager: SecurityManager
+    ) -> None:
         """Test is_token_revoked delegates to token_revocation_service.
 
         AAA Pattern:
@@ -519,7 +555,9 @@ class TestTokenRevocationCheck:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_is_token_revoked_returns_false_for_valid_token(self, security_manager):
+    async def test_is_token_revoked_returns_false_for_valid_token(
+        self, security_manager: SecurityManager
+    ) -> None:
         """Test is_token_revoked returns False for non-revoked token."""
         # Arrange
         test_jti = str(uuid4())
@@ -543,7 +581,9 @@ class TestTokenDecoding:
     """Test decode_access_token for OAuth state tokens - NO revocation check."""
 
     @pytest.mark.unit
-    def test_decode_access_token_success(self, security_manager, sample_user_data):
+    def test_decode_access_token_success(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test decode_access_token returns payload dictionary."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -557,7 +597,9 @@ class TestTokenDecoding:
         assert decoded["jti"] == jti
 
     @pytest.mark.unit
-    def test_decode_access_token_invalid_signature(self, security_manager, sample_user_data):
+    def test_decode_access_token_invalid_signature(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test decode_access_token raises RuntimeError with tampered token - error handler."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -568,7 +610,9 @@ class TestTokenDecoding:
             security_manager.decode_access_token(tampered_token)
 
     @pytest.mark.unit
-    def test_decode_access_token_expired_fails(self, security_manager, sample_user_data):
+    def test_decode_access_token_expired_fails(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test decode_access_token raises RuntimeError for expired token - error handler."""
         # Arrange - Create expired token
         token, jti = security_manager.create_access_token(
@@ -589,7 +633,9 @@ class TestTokenExpirationCheck:
     """Test is_token_expired method - expiration validation."""
 
     @pytest.mark.unit
-    def test_is_token_expired_valid_token(self, security_manager, sample_user_data):
+    def test_is_token_expired_valid_token(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test is_token_expired returns False for valid token."""
         # Arrange
         token, jti = security_manager.create_access_token(sample_user_data)
@@ -601,7 +647,9 @@ class TestTokenExpirationCheck:
         assert is_expired is False
 
     @pytest.mark.unit
-    def test_is_token_expired_expired_token(self, security_manager, sample_user_data):
+    def test_is_token_expired_expired_token(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test is_token_expired returns True for expired token."""
         # Arrange - Create token that's already expired
         token, jti = security_manager.create_access_token(
@@ -615,7 +663,7 @@ class TestTokenExpirationCheck:
         assert is_expired is True
 
     @pytest.mark.unit
-    def test_is_token_expired_missing_exp_claim(self, security_manager):
+    def test_is_token_expired_missing_exp_claim(self, security_manager: SecurityManager) -> None:
         """Test is_token_expired returns True when exp claim missing."""
         # Arrange - Create token without exp claim
         payload = {"sub": "testuser", "jti": str(uuid4())}
@@ -628,7 +676,9 @@ class TestTokenExpirationCheck:
         assert is_expired is True
 
     @pytest.mark.unit
-    def test_is_token_expired_just_expired(self, security_manager, sample_user_data):
+    def test_is_token_expired_just_expired(
+        self, security_manager: SecurityManager, sample_user_data: dict[str, Any]
+    ) -> None:
         """Test is_token_expired returns True for token that just expired."""
         # Arrange - Create token expiring in 1 second
         token, jti = security_manager.create_access_token(

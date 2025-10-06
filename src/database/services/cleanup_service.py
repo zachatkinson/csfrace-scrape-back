@@ -5,13 +5,10 @@ following Single Responsibility Principle.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
-
-if TYPE_CHECKING:
-    from sqlalchemy.engine import Engine
 
 from src.core.decorators import database_error_handler
 from src.core.logging_hierarchy import get_database_logger
@@ -55,7 +52,7 @@ class CleanupService:
             Job, Job.created_at < cutoff_date, {"status": JobStatus.CANCELLED.value}
         )
         result = self.session.execute(stmt)
-        deleted_count = result.rowcount
+        deleted_count: int = result.rowcount or 0
         self.session.commit()
 
         logger.info("Cleaned up old jobs", deleted_count=deleted_count, cutoff_days=days)
@@ -84,7 +81,7 @@ class CleanupService:
         stmt = QueryBuilder.bulk_delete(Job, where_clause)
 
         result = self.session.execute(stmt)
-        deleted_count = result.rowcount
+        deleted_count: int = result.rowcount or 0
         self.session.commit()
 
         logger.info("Cleaned up failed jobs", deleted_count=deleted_count, cutoff_days=days)
@@ -177,7 +174,7 @@ class CleanupService:
         from sqlalchemy.engine import Connection as SQLConnection
 
         # Get engine from connection or use bind directly if it's already an engine
-        engine = bind.engine if isinstance(bind, SQLConnection) else cast("Engine", bind)
+        engine = bind.engine if isinstance(bind, SQLConnection) else bind
 
         # When using nested transactions (SAVEPOINT fixture), we need to get a raw psycopg connection
         # directly from the pool and set autocommit mode before any SQLAlchemy session interaction

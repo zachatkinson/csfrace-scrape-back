@@ -17,7 +17,7 @@ from src.core.plugin_integration import PluginIntegration, plugin_integration
 
 
 @pytest.fixture
-def mock_plugin_manager():
+def mock_plugin_manager() -> Mock:
     """Factory for mock plugin manager - DRY principle."""
     manager = Mock()
     manager.initialize = AsyncMock()
@@ -34,19 +34,19 @@ def mock_plugin_manager():
 
 
 @pytest.fixture
-def plugin_integration_instance(mock_plugin_manager):
+def plugin_integration_instance(mock_plugin_manager: Mock) -> PluginIntegration:
     """Factory for PluginIntegration instance - DRY principle."""
     return PluginIntegration(manager=mock_plugin_manager)
 
 
 @pytest.fixture
-def sample_html():
+def sample_html() -> str:
     """Factory for sample HTML content - DRY principle."""
     return "<html><body>Test content</body></html>"
 
 
 @pytest.fixture
-def sample_metadata():
+def sample_metadata() -> dict[str, str]:
     """Factory for sample metadata - DRY principle."""
     return {"title": "Test Page", "author": "Test Author"}
 
@@ -60,7 +60,7 @@ def sample_metadata():
 class TestPluginIntegrationInit:
     """Test PluginIntegration initialization."""
 
-    def test_plugin_integration_init_with_manager(self, mock_plugin_manager):
+    def test_plugin_integration_init_with_manager(self, mock_plugin_manager: Mock) -> None:
         """Test PluginIntegration initialization with provided manager."""
         # Act
         integration = PluginIntegration(manager=mock_plugin_manager)
@@ -69,7 +69,7 @@ class TestPluginIntegrationInit:
         assert integration.manager is mock_plugin_manager
         assert integration.enabled is False
 
-    def test_plugin_integration_init_default_manager(self):
+    def test_plugin_integration_init_default_manager(self) -> None:
         """Test PluginIntegration initialization with default manager."""
         # Act
         integration = PluginIntegration()
@@ -90,8 +90,8 @@ class TestPluginIntegrationInitialize:
     """Test PluginIntegration initialize method."""
 
     async def test_initialize_calls_manager_initialize(
-        self, plugin_integration_instance, mock_plugin_manager
-    ):
+        self, plugin_integration_instance: PluginIntegration, mock_plugin_manager: Mock
+    ) -> None:
         """Test initialize calls plugin manager initialize."""
         # Act
         await plugin_integration_instance.initialize()
@@ -99,7 +99,9 @@ class TestPluginIntegrationInitialize:
         # Assert
         mock_plugin_manager.initialize.assert_called_once()
 
-    async def test_initialize_sets_enabled_flag(self, plugin_integration_instance):
+    async def test_initialize_sets_enabled_flag(
+        self, plugin_integration_instance: PluginIntegration
+    ) -> None:
         """Test initialize sets enabled flag to True."""
         # Arrange
         assert plugin_integration_instance.enabled is False
@@ -122,8 +124,11 @@ class TestPluginIntegrationProcessContentDisabled:
     """Test PluginIntegration content processing when disabled."""
 
     async def test_process_content_disabled_returns_minimal_result(
-        self, plugin_integration_instance, sample_html, sample_metadata
-    ):
+        self,
+        plugin_integration_instance: PluginIntegration,
+        sample_html: str,
+        sample_metadata: dict[str, str],
+    ) -> None:
         """Test process_content returns minimal result when disabled."""
         # Arrange
         url = "https://example.com"
@@ -142,8 +147,8 @@ class TestPluginIntegrationProcessContentDisabled:
         assert result["plugin_processed"] is False
 
     async def test_process_content_disabled_no_metadata(
-        self, plugin_integration_instance, sample_html
-    ):
+        self, plugin_integration_instance: PluginIntegration, sample_html: str
+    ) -> None:
         """Test process_content returns empty metadata when not provided."""
         # Arrange
         url = "https://example.com"
@@ -170,8 +175,12 @@ class TestPluginIntegrationProcessContentEnabled:
     """Test PluginIntegration content processing when enabled."""
 
     async def test_process_content_enabled_calls_manager(
-        self, plugin_integration_instance, mock_plugin_manager, sample_html, sample_metadata
-    ):
+        self,
+        plugin_integration_instance: PluginIntegration,
+        mock_plugin_manager: Mock,
+        sample_html: str,
+        sample_metadata: dict[str, str],
+    ) -> None:
         """Test process_content calls plugin manager when enabled."""
         # Arrange
         await plugin_integration_instance.initialize()
@@ -189,8 +198,11 @@ class TestPluginIntegrationProcessContentEnabled:
         )
 
     async def test_process_content_enabled_returns_manager_result(
-        self, plugin_integration_instance, mock_plugin_manager, sample_html
-    ):
+        self,
+        plugin_integration_instance: PluginIntegration,
+        mock_plugin_manager: Mock,
+        sample_html: str,
+    ) -> None:
         """Test process_content returns result from plugin manager."""
         # Arrange
         await plugin_integration_instance.initialize()
@@ -210,8 +222,8 @@ class TestPluginIntegrationProcessContentEnabled:
         assert result["plugin_processed"] is True
 
     async def test_process_content_enabled_adds_processed_flag(
-        self, plugin_integration_instance, sample_html
-    ):
+        self, plugin_integration_instance: PluginIntegration, sample_html: str
+    ) -> None:
         """Test process_content adds plugin_processed flag."""
         # Arrange
         await plugin_integration_instance.initialize()
@@ -238,8 +250,8 @@ class TestPluginIntegrationShutdown:
     """Test PluginIntegration shutdown method."""
 
     async def test_shutdown_calls_manager_when_enabled(
-        self, plugin_integration_instance, mock_plugin_manager
-    ):
+        self, plugin_integration_instance: PluginIntegration, mock_plugin_manager: Mock
+    ) -> None:
         """Test shutdown calls plugin manager shutdown when enabled."""
         # Arrange
         await plugin_integration_instance.initialize()
@@ -250,7 +262,9 @@ class TestPluginIntegrationShutdown:
         # Assert
         mock_plugin_manager.shutdown.assert_called_once()
 
-    async def test_shutdown_sets_enabled_false(self, plugin_integration_instance):
+    async def test_shutdown_sets_enabled_false(
+        self, plugin_integration_instance: PluginIntegration
+    ) -> None:
         """Test shutdown sets enabled flag to False."""
         # Arrange
         await plugin_integration_instance.initialize()
@@ -263,8 +277,8 @@ class TestPluginIntegrationShutdown:
         assert plugin_integration_instance.enabled is False
 
     async def test_shutdown_does_not_call_manager_when_disabled(
-        self, plugin_integration_instance, mock_plugin_manager
-    ):
+        self, plugin_integration_instance: PluginIntegration, mock_plugin_manager: Mock
+    ) -> None:
         """Test shutdown doesn't call manager when already disabled."""
         # Arrange - not initialized, so disabled
         assert plugin_integration_instance.enabled is False
@@ -285,13 +299,13 @@ class TestPluginIntegrationShutdown:
 class TestGlobalPluginIntegration:
     """Test global plugin_integration instance."""
 
-    def test_global_plugin_integration_exists(self):
+    def test_global_plugin_integration_exists(self) -> None:
         """Test global plugin_integration instance exists."""
         # Assert
         assert plugin_integration is not None
         assert isinstance(plugin_integration, PluginIntegration)
 
-    def test_global_plugin_integration_has_manager(self):
+    def test_global_plugin_integration_has_manager(self) -> None:
         """Test global plugin_integration has manager."""
         # Assert
         assert plugin_integration.manager is not None

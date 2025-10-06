@@ -6,6 +6,7 @@ and conversion, eliminating SOLID principle violations.
 
 import re
 from abc import ABC, abstractmethod
+from typing import Any
 
 from bs4 import Tag
 
@@ -24,7 +25,7 @@ class ContentExtractorBase(ABC):
     ONE specific type of content extraction or conversion.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         """Initialize extractor with a descriptive name for logging."""
         self.name = name
 
@@ -43,7 +44,7 @@ class ContentExtractorBase(ABC):
         """
         pass
 
-    def _log_processing(self, message: str, **kwargs):
+    def _log_processing(self, message: str, **kwargs: Any) -> None:
         """Consistent logging across all extractors."""
         logger.debug(f"{self.name}: {message}", extractor=self.name, **kwargs)
 
@@ -54,7 +55,7 @@ class MainContentExtractor(ContentExtractorBase):
     Single Responsibility: Find and extract the primary content area.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("MainContentExtractor")
 
     @content_processing_error_handler("extract main content")
@@ -80,7 +81,7 @@ class MainContentExtractor(ContentExtractorBase):
 
         # Fallback to body if no main content found
         body = content.find("body") if hasattr(content, "find") else None
-        if body:
+        if body and isinstance(body, Tag):
             self._log_processing("Using body as fallback content")
             return body
 
@@ -93,7 +94,7 @@ class FontProcessor(ContentExtractorBase):
     Single Responsibility: Handle all font-related conversions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("FontProcessor")
 
     @content_processing_error_handler("process font formatting")
@@ -101,30 +102,75 @@ class FontProcessor(ContentExtractorBase):
         """Convert font formatting to Shopify-compatible styles."""
         # Convert font-weight styles
         for element in content.find_all(style=True):
-            style = element.get("style", "")
-            if "font-weight:" in style:
+            if not isinstance(element, Tag):
+                continue
+            style_attr = element.get("style", "")
+            if not isinstance(style_attr, str):
+                continue
+            if "font-weight:" in style_attr:
                 # Convert numerical font weights to semantic names
-                style = re.sub(r"font-weight:\s*([1-3]00)", r"font-weight: light", style)
-                style = re.sub(r"font-weight:\s*([4-6]00)", r"font-weight: normal", style)
-                style = re.sub(r"font-weight:\s*([7-9]00)", r"font-weight: bold", style)
-                element["style"] = style
+                style_attr = re.sub(r"font-weight:\s*([1-3]00)", r"font-weight: light", style_attr)
+                style_attr = re.sub(r"font-weight:\s*([4-6]00)", r"font-weight: normal", style_attr)
+                style_attr = re.sub(r"font-weight:\s*([7-9]00)", r"font-weight: bold", style_attr)
+                element["style"] = style_attr
 
         # Convert font elements to spans with appropriate styles
         for font_tag in content.find_all("font"):
-            span = content.new_tag("span")
+            if not isinstance(font_tag, Tag):
+                continue
+            # Create new span tag (BeautifulSoup returns Any type, but it's actually a Tag)
+            span_tag = content.new_tag("span")  # type: ignore[misc]
+            if not isinstance(span_tag, Tag):
+                continue
+
             # Copy all attributes except face and size (which are handled separately)
             for attr, value in font_tag.attrs.items():
                 if attr not in ["face", "size"]:
-                    span[attr] = value
+                    span_tag.attrs[attr] = value
 
             # Convert font attributes to CSS
-            if font_tag.get("face"):
-                span["style"] = span.get("style", "") + f"font-family: {font_tag['face']};"
-            if font_tag.get("size"):
-                span["style"] = span.get("style", "") + f"font-size: {font_tag['size']}em;"
+            face_attr = font_tag.get("face")
+            if face_attr:
+                # Handle both str and list[str] from BeautifulSoup attrs
+                face_str = (
+                    face_attr
+                    if isinstance(face_attr, str)
+                    else " ".join(face_attr)
+                    if isinstance(face_attr, list)
+                    else str(face_attr)
+                )
+                current_style = span_tag.get("style")
+                current_style_str = (
+                    current_style
+                    if isinstance(current_style, str)
+                    else " ".join(current_style)
+                    if isinstance(current_style, list)
+                    else ""
+                )
+                span_tag.attrs["style"] = current_style_str + f"font-family: {face_str};"
 
-            span.string = font_tag.get_text()
-            font_tag.replace_with(span)
+            size_attr = font_tag.get("size")
+            if size_attr:
+                # Handle both str and list[str] from BeautifulSoup attrs
+                size_str = (
+                    size_attr
+                    if isinstance(size_attr, str)
+                    else " ".join(size_attr)
+                    if isinstance(size_attr, list)
+                    else str(size_attr)
+                )
+                current_style = span_tag.get("style")
+                current_style_str = (
+                    current_style
+                    if isinstance(current_style, str)
+                    else " ".join(current_style)
+                    if isinstance(current_style, list)
+                    else ""
+                )
+                span_tag.attrs["style"] = current_style_str + f"font-size: {size_str}em;"
+
+            span_tag.string = font_tag.get_text()
+            font_tag.replace_with(span_tag)
 
         self._log_processing("Font formatting processed")
         return content
@@ -136,7 +182,7 @@ class LayoutProcessor(ContentExtractorBase):
     Single Responsibility: Handle layout-related conversions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("LayoutProcessor")
 
     @content_processing_error_handler("process layout elements")
@@ -144,21 +190,50 @@ class LayoutProcessor(ContentExtractorBase):
         """Convert layout elements to Shopify-compatible format."""
         # Convert text alignment
         for element in content.find_all(style=True):
-            style = element.get("style", "")
+            if not isinstance(element, Tag):
+                continue
+            style = element.get("style")
+            if not isinstance(style, str):
+                continue
             if "text-align:" in style:
                 # Ensure text alignment is preserved
                 align_match = re.search(r"text-align:\s*(left|center|right|justify)", style)
                 if align_match:
                     alignment = align_match.group(1)
-                    element["class"] = element.get("class", []) + [f"text-{alignment}"]
+                    current_class = element.get("class")
+                    class_list = (
+                        current_class
+                        if isinstance(current_class, list)
+                        else [current_class]
+                        if current_class
+                        else []
+                    )
+                    element.attrs["class"] = class_list + [f"text-{alignment}"]  # type: ignore[assignment]
 
         # Convert deprecated align attributes to CSS
         for element in content.find_all(align=True):
+            if not isinstance(element, Tag):
+                continue
             alignment = element.get("align")
-            if alignment in ["left", "center", "right", "justify"]:
-                current_style = element.get("style", "")
-                element["style"] = current_style + f"text-align: {alignment};"
-                del element["align"]
+            # Handle both str and list[str] from BeautifulSoup attrs
+            align_str = (
+                alignment
+                if isinstance(alignment, str)
+                else alignment[0]
+                if isinstance(alignment, list) and alignment
+                else None
+            )
+            if align_str in ["left", "center", "right", "justify"]:
+                current_style = element.get("style")
+                current_style_str = (
+                    current_style
+                    if isinstance(current_style, str)
+                    else " ".join(current_style)
+                    if isinstance(current_style, list)
+                    else ""
+                )
+                element.attrs["style"] = current_style_str + f"text-align: {align_str};"
+                del element.attrs["align"]
 
         self._log_processing("Layout processing completed")
         return content
@@ -170,7 +245,7 @@ class MediaProcessor(ContentExtractorBase):
     Single Responsibility: Handle all media-related conversions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("MediaProcessor")
 
     @content_processing_error_handler("process media elements")
@@ -191,14 +266,23 @@ class MediaProcessor(ContentExtractorBase):
     async def _process_images(self, content: Tag) -> Tag:
         """Process individual images."""
         for img in content.find_all("img"):
+            if not isinstance(img, Tag):
+                continue
             # Add responsive classes
-            current_classes = img.get("class", [])
-            if "responsive" not in current_classes:
-                img["class"] = current_classes + ["responsive"]
+            current_classes = img.get("class")
+            class_list = (
+                current_classes
+                if isinstance(current_classes, list)
+                else [current_classes]
+                if current_classes
+                else []
+            )
+            if "responsive" not in class_list:
+                img.attrs["class"] = class_list + ["responsive"]  # type: ignore[assignment]
 
             # Ensure alt text exists
             if not img.get("alt"):
-                img["alt"] = "Image"
+                img.attrs["alt"] = "Image"
 
         return content
 
@@ -206,20 +290,41 @@ class MediaProcessor(ContentExtractorBase):
         """Process YouTube and other video embeds."""
         # Convert YouTube embeds to responsive format
         for iframe in content.find_all("iframe"):
-            src = iframe.get("src", "")
-            if "youtube.com" in src or "youtu.be" in src:
-                # Wrap in responsive container
-                wrapper = content.new_tag("div", class_="video-responsive")
-                iframe.wrap(wrapper)
+            if not isinstance(iframe, Tag):
+                continue
+            src = iframe.get("src")
+            src_str = (
+                src if isinstance(src, str) else " ".join(src) if isinstance(src, list) else ""
+            )
+            # Secure URL validation: parse and check actual domain
+            from urllib.parse import urlparse
+
+            parsed = urlparse(src_str)
+            allowed_domains = {"youtube.com", "www.youtube.com", "youtu.be", "www.youtu.be"}
+            if parsed.netloc in allowed_domains:
+                # Wrap in responsive container (BeautifulSoup returns Any type, but it's actually a Tag)
+                wrapper_tag = content.new_tag("div")  # type: ignore[misc]
+                if isinstance(wrapper_tag, Tag):
+                    wrapper_tag.attrs["class"] = ["video-responsive"]  # type: ignore[assignment]
+                    iframe.wrap(wrapper_tag)
 
         return content
 
     async def _process_galleries(self, content: Tag) -> Tag:
         """Process image galleries."""
         for gallery in content.find_all(class_=re.compile(r"gallery")):
+            if not isinstance(gallery, Tag):
+                continue
             # Add gallery styling
-            current_classes = gallery.get("class", [])
-            gallery["class"] = current_classes + ["shopify-gallery"]
+            current_classes = gallery.get("class")
+            class_list = (
+                current_classes
+                if isinstance(current_classes, list)
+                else [current_classes]
+                if current_classes
+                else []
+            )
+            gallery.attrs["class"] = class_list + ["shopify-gallery"]  # type: ignore[assignment]
 
         return content
 
@@ -230,7 +335,7 @@ class ComponentProcessor(ContentExtractorBase):
     Single Responsibility: Handle interactive component conversions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("ComponentProcessor")
 
     @content_processing_error_handler("process interactive components")
@@ -238,17 +343,44 @@ class ComponentProcessor(ContentExtractorBase):
         """Process interactive components."""
         # Process buttons
         for button in content.find_all(["button", "input"]):
-            if button.get("type") == "submit" or button.name == "button":
-                current_classes = button.get("class", [])
-                if "btn" not in " ".join(current_classes):
-                    button["class"] = current_classes + ["btn", "btn-primary"]
+            if not isinstance(button, Tag):
+                continue
+            button_type = button.get("type")
+            button_type_str = (
+                button_type
+                if isinstance(button_type, str)
+                else button_type[0]
+                if isinstance(button_type, list) and button_type
+                else None
+            )
+            if button_type_str == "submit" or button.name == "button":
+                current_classes = button.get("class")
+                class_list = (
+                    current_classes
+                    if isinstance(current_classes, list)
+                    else [current_classes]
+                    if current_classes
+                    else []
+                )
+                class_str = " ".join(class_list)
+                if "btn" not in class_str:
+                    button.attrs["class"] = class_list + ["btn", "btn-primary"]  # type: ignore[assignment]
 
         # Process links that look like buttons
         for link in content.find_all("a"):
-            classes = " ".join(link.get("class", []))
+            if not isinstance(link, Tag):
+                continue
+            current_classes = link.get("class")
+            class_list = (
+                current_classes
+                if isinstance(current_classes, list)
+                else [current_classes]
+                if current_classes
+                else []
+            )
+            classes = " ".join(class_list)
             if any(btn_class in classes for btn_class in ["button", "btn", "cta"]):
-                current_classes = link.get("class", [])
-                link["class"] = current_classes + ["shopify-button"]
+                link.attrs["class"] = class_list + ["shopify-button"]  # type: ignore[assignment]
 
         self._log_processing("Component processing completed")
         return content
@@ -260,7 +392,7 @@ class CleanupProcessor(ContentExtractorBase):
     Single Responsibility: Remove unwanted elements and clean up HTML.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("CleanupProcessor")
 
     @content_processing_error_handler("cleanup content")
@@ -268,7 +400,8 @@ class CleanupProcessor(ContentExtractorBase):
         """Clean up WordPress artifacts and unwanted elements."""
         # Remove script tags
         for script in content.find_all("script"):
-            script.decompose()
+            if isinstance(script, Tag):
+                script.decompose()
 
         # Remove WordPress-specific classes
         wordpress_patterns = [
@@ -279,21 +412,27 @@ class CleanupProcessor(ContentExtractorBase):
         ]
 
         for element in content.find_all(class_=True):
-            classes = element.get("class", [])
-            cleaned_classes = []
+            if not isinstance(element, Tag):
+                continue
+            classes = element.get("class")
+            class_list = classes if isinstance(classes, list) else [classes] if classes else []
+            cleaned_classes: list[str] = []
 
-            for cls in classes:
-                if not any(re.match(pattern, cls) for pattern in wordpress_patterns):
-                    cleaned_classes.append(cls)
+            for cls in class_list:
+                cls_str = cls if isinstance(cls, str) else str(cls)
+                if not any(re.match(pattern, cls_str) for pattern in wordpress_patterns):
+                    cleaned_classes.append(cls_str)
 
             if cleaned_classes:
-                element["class"] = cleaned_classes
+                element.attrs["class"] = cleaned_classes  # type: ignore[assignment]
             else:
                 if "class" in element.attrs:
                     del element.attrs["class"]
 
         # Remove empty paragraphs
         for p in content.find_all("p"):
+            if not isinstance(p, Tag):
+                continue
             if not p.get_text().strip() and not p.find("img"):
                 p.decompose()
 

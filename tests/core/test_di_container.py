@@ -15,48 +15,65 @@ from src.core.di_container import (
 )
 
 # =============================================================================
+# Test Service Classes (Module Level for Proper Typing)
+# =============================================================================
+
+
+class SampleService:
+    """Sample service for testing."""
+
+    def __init__(self) -> None:
+        self.initialized = False
+
+    async def initialize(self) -> None:
+        self.initialized = True
+
+    async def shutdown(self) -> None:
+        self.initialized = False
+
+
+class DependencyA:
+    """First dependency for testing."""
+
+    pass
+
+
+class DependencyB:
+    """Second dependency for testing."""
+
+    pass
+
+
+class ServiceWithDeps:
+    """Service with dependencies for testing."""
+
+    def __init__(self, dep_a: DependencyA, dep_b: DependencyB) -> None:
+        self.dep_a = dep_a
+        self.dep_b = dep_b
+
+
+# =============================================================================
 # FIXTURES - Factory Pattern for DRY Principle
 # =============================================================================
 
 
 @pytest.fixture
-def di_container():
+def di_container() -> DIContainer:
     """Factory for fresh DI container - DRY principle."""
     return DIContainer()
 
 
 @pytest.fixture
-def sample_service():
+def sample_service() -> type[SampleService]:
     """Factory for sample service class - DRY principle."""
-
-    class SampleService:
-        def __init__(self):
-            self.initialized = False
-
-        async def initialize(self):
-            self.initialized = True
-
-        async def shutdown(self):
-            self.initialized = False
-
     return SampleService
 
 
 @pytest.fixture
-def service_with_dependencies():
+def service_with_dependencies() -> tuple[
+    type[ServiceWithDeps], type[DependencyA], type[DependencyB]
+]:
     """Factory for service with dependencies - DRY principle."""
-
-    class DependencyA:
-        pass
-
-    class DependencyB:
-        pass
-
-    class ServiceWithDeps:
-        def __init__(self, dep_a: DependencyA, dep_b: DependencyB):
-            self.dep_a = dep_a
-            self.dep_b = dep_b
-
     return ServiceWithDeps, DependencyA, DependencyB
 
 
@@ -69,7 +86,7 @@ def service_with_dependencies():
 class TestServiceLifetime:
     """Test ServiceLifetime enum."""
 
-    def test_service_lifetime_values(self):
+    def test_service_lifetime_values(self) -> None:
         """Test ServiceLifetime has correct values."""
         # Assert
         assert ServiceLifetime.SINGLETON.value == "singleton"
@@ -81,7 +98,7 @@ class TestServiceLifetime:
 class TestServiceStatus:
     """Test ServiceStatus enum."""
 
-    def test_service_status_values(self):
+    def test_service_status_values(self) -> None:
         """Test ServiceStatus has correct values."""
         # Assert
         assert ServiceStatus.UNINITIALIZED.value == "uninitialized"
@@ -100,7 +117,7 @@ class TestServiceStatus:
 class TestServiceDescriptor:
     """Test ServiceDescriptor dataclass."""
 
-    def test_service_descriptor_minimal(self, sample_service):
+    def test_service_descriptor_minimal(self, sample_service: type[SampleService]) -> None:
         """Test ServiceDescriptor with minimal parameters."""
         # Arrange & Act
         descriptor = ServiceDescriptor(service_type=sample_service)
@@ -116,12 +133,12 @@ class TestServiceDescriptor:
         assert descriptor.status == ServiceStatus.UNINITIALIZED
         assert descriptor.initialization_order == 0
 
-    def test_service_descriptor_full(self, sample_service):
+    def test_service_descriptor_full(self, sample_service: type[SampleService]) -> None:
         """Test ServiceDescriptor with all parameters."""
         # Arrange
         instance = sample_service()
 
-        def factory():
+        def factory() -> SampleService:
             return sample_service()
 
         deps = [int, str]
@@ -160,7 +177,7 @@ class TestServiceDescriptor:
 class TestDIContainerRegistration:
     """Test DIContainer service registration."""
 
-    def test_di_container_init(self):
+    def test_di_container_init(self) -> None:
         """Test DIContainer initialization."""
         # Act
         container = DIContainer()
@@ -172,7 +189,9 @@ class TestDIContainerRegistration:
         assert container._initialization_order == 0
         assert container._is_initializing is False
 
-    def test_register_singleton_minimal(self, di_container, sample_service):
+    def test_register_singleton_minimal(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test register_singleton with minimal parameters."""
         # Act
         result = di_container.register_singleton(sample_service)
@@ -184,7 +203,7 @@ class TestDIContainerRegistration:
         assert descriptor.service_type == sample_service
         assert descriptor.lifetime == ServiceLifetime.SINGLETON
 
-    def test_register_singleton_with_implementation(self, di_container):
+    def test_register_singleton_with_implementation(self, di_container: DIContainer) -> None:
         """Test register_singleton with separate interface/implementation."""
 
         # Arrange
@@ -202,11 +221,13 @@ class TestDIContainerRegistration:
         assert descriptor.service_type == IService
         assert descriptor.implementation_type == ServiceImpl
 
-    def test_register_singleton_with_factory(self, di_container, sample_service):
+    def test_register_singleton_with_factory(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test register_singleton with factory function."""
 
         # Arrange
-        def factory():
+        def factory() -> SampleService:
             return sample_service()
 
         # Act
@@ -216,7 +237,9 @@ class TestDIContainerRegistration:
         descriptor = di_container._services[sample_service]
         assert descriptor.factory == factory
 
-    def test_register_singleton_with_instance(self, di_container, sample_service):
+    def test_register_singleton_with_instance(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test register_singleton with pre-created instance."""
         # Arrange
         instance = sample_service()
@@ -228,7 +251,9 @@ class TestDIContainerRegistration:
         descriptor = di_container._services[sample_service]
         assert descriptor.instance is instance
 
-    def test_register_singleton_with_configuration(self, di_container, sample_service):
+    def test_register_singleton_with_configuration(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test register_singleton with configuration."""
         # Arrange
         config = {"setting1": "value1", "setting2": 42}
@@ -240,7 +265,9 @@ class TestDIContainerRegistration:
         descriptor = di_container._services[sample_service]
         assert descriptor.configuration == config
 
-    def test_register_transient(self, di_container, sample_service):
+    def test_register_transient(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test register_transient service."""
         # Act
         result = di_container.register_transient(sample_service)
@@ -250,7 +277,9 @@ class TestDIContainerRegistration:
         descriptor = di_container._services[sample_service]
         assert descriptor.lifetime == ServiceLifetime.TRANSIENT
 
-    def test_register_scoped(self, di_container, sample_service):
+    def test_register_scoped(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test register_scoped service."""
         # Act
         result = di_container.register_scoped(sample_service)
@@ -260,7 +289,9 @@ class TestDIContainerRegistration:
         descriptor = di_container._services[sample_service]
         assert descriptor.lifetime == ServiceLifetime.SCOPED
 
-    def test_register_service_replaces_existing(self, di_container, sample_service):
+    def test_register_service_replaces_existing(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test registering same service twice replaces it."""
         # Arrange
         di_container.register_singleton(sample_service)
@@ -282,12 +313,12 @@ class TestDIContainerRegistration:
 class TestDIContainerDependencyAnalysis:
     """Test DIContainer dependency analysis."""
 
-    def test_analyze_dependencies_no_params(self, di_container):
+    def test_analyze_dependencies_no_params(self, di_container: DIContainer) -> None:
         """Test _analyze_dependencies with no constructor parameters."""
 
         # Arrange
         class SimpleService:
-            def __init__(self):
+            def __init__(self) -> None:
                 pass
 
         # Act
@@ -296,7 +327,7 @@ class TestDIContainerDependencyAnalysis:
         # Assert
         assert deps == []
 
-    def test_analyze_dependencies_with_types(self, di_container):
+    def test_analyze_dependencies_with_types(self, di_container: DIContainer) -> None:
         """Test _analyze_dependencies with typed parameters."""
 
         # Arrange
@@ -316,7 +347,7 @@ class TestDIContainerDependencyAnalysis:
         # Assert
         assert deps == [DepA, DepB]
 
-    def test_analyze_dependencies_with_generics(self, di_container):
+    def test_analyze_dependencies_with_generics(self, di_container: DIContainer) -> None:
         """Test _analyze_dependencies with generic types."""
 
         # Arrange
@@ -330,7 +361,7 @@ class TestDIContainerDependencyAnalysis:
         # Assert
         assert deps == [list]
 
-    def test_analyze_dependencies_skips_self(self, di_container):
+    def test_analyze_dependencies_skips_self(self, di_container: DIContainer) -> None:
         """Test _analyze_dependencies skips self parameter."""
 
         # Arrange
@@ -356,13 +387,17 @@ class TestDIContainerDependencyAnalysis:
 class TestDIContainerSingletonResolution:
     """Test DIContainer singleton service resolution."""
 
-    async def test_get_service_not_registered(self, di_container, sample_service):
+    async def test_get_service_not_registered(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service raises ValueError if not registered."""
         # Act & Assert
         with pytest.raises(ValueError, match="is not registered"):
             await di_container.get_service(sample_service)
 
-    async def test_get_service_singleton_creates_instance(self, di_container, sample_service):
+    async def test_get_service_singleton_creates_instance(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service creates singleton instance."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -376,8 +411,8 @@ class TestDIContainerSingletonResolution:
         assert instance1 is instance2  # Same instance
 
     async def test_get_service_singleton_with_pre_created_instance(
-        self, di_container, sample_service
-    ):
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service returns pre-created instance."""
         # Arrange
         pre_created = sample_service()
@@ -389,11 +424,13 @@ class TestDIContainerSingletonResolution:
         # Assert
         assert instance is pre_created
 
-    async def test_get_service_singleton_with_factory(self, di_container, sample_service):
+    async def test_get_service_singleton_with_factory(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service uses factory function."""
 
         # Arrange
-        def factory():
+        def factory() -> SampleService:
             return sample_service()
 
         di_container.register_singleton(sample_service, factory=factory)
@@ -404,14 +441,17 @@ class TestDIContainerSingletonResolution:
         # Assert
         assert isinstance(instance, sample_service)
 
-    async def test_get_service_singleton_with_async_factory(self, di_container, sample_service):
+    async def test_get_service_singleton_with_async_factory(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service uses async factory function."""
 
         # Arrange
-        async def factory():
+        async def async_factory() -> SampleService:
             return sample_service()
 
-        di_container.register_singleton(sample_service, factory=factory)
+        # Cast to bypass type checking since DI container supports async factories at runtime
+        di_container.register_singleton(sample_service, factory=async_factory)  # type: ignore[arg-type]
 
         # Act
         instance = await di_container.get_service(sample_service)
@@ -419,7 +459,9 @@ class TestDIContainerSingletonResolution:
         # Assert
         assert isinstance(instance, sample_service)
 
-    async def test_get_service_singleton_calls_initialize(self, di_container, sample_service):
+    async def test_get_service_singleton_calls_initialize(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service calls initialize() if present."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -441,7 +483,9 @@ class TestDIContainerSingletonResolution:
 class TestDIContainerTransientResolution:
     """Test DIContainer transient service resolution."""
 
-    async def test_get_service_transient_creates_new_instance(self, di_container, sample_service):
+    async def test_get_service_transient_creates_new_instance(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service creates new transient instance each time."""
         # Arrange
         di_container.register_transient(sample_service, implementation_type=sample_service)
@@ -466,7 +510,9 @@ class TestDIContainerTransientResolution:
 class TestDIContainerScopedResolution:
     """Test DIContainer scoped service resolution."""
 
-    async def test_get_service_scoped_same_instance_in_scope(self, di_container, sample_service):
+    async def test_get_service_scoped_same_instance_in_scope(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service returns same scoped instance within scope."""
         # Arrange
         di_container.register_scoped(sample_service, implementation_type=sample_service)
@@ -478,7 +524,9 @@ class TestDIContainerScopedResolution:
         # Assert
         assert instance1 is instance2  # Same instance in same scope
 
-    async def test_scope_creates_new_scoped_instances(self, di_container, sample_service):
+    async def test_scope_creates_new_scoped_instances(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test scope() creates new scoped instances."""
         # Arrange
         di_container.register_scoped(sample_service, implementation_type=sample_service)
@@ -493,15 +541,15 @@ class TestDIContainerScopedResolution:
         # Assert
         assert instance1 is not instance2  # Different instances in different scopes
 
-    async def test_scope_disposes_instances_on_exit(self, di_container):
+    async def test_scope_disposes_instances_on_exit(self, di_container: DIContainer) -> None:
         """Test scope() disposes scoped instances on exit."""
 
         # Arrange
         class DisposableService:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.disposed = False
 
-            async def dispose(self):
+            async def dispose(self) -> None:
                 self.disposed = True
 
         di_container.register_scoped(DisposableService, implementation_type=DisposableService)
@@ -524,7 +572,13 @@ class TestDIContainerScopedResolution:
 class TestDIContainerDependencyInjection:
     """Test DIContainer dependency injection."""
 
-    async def test_get_service_resolves_dependencies(self, di_container, service_with_dependencies):
+    async def test_get_service_resolves_dependencies(
+        self,
+        di_container: DIContainer,
+        service_with_dependencies: tuple[
+            type[ServiceWithDeps], type[DependencyA], type[DependencyB]
+        ],
+    ) -> None:
         """Test get_service resolves constructor dependencies."""
         # Arrange
         ServiceWithDeps, DepA, DepB = service_with_dependencies
@@ -540,7 +594,9 @@ class TestDIContainerDependencyInjection:
         assert isinstance(instance.dep_a, DepA)
         assert isinstance(instance.dep_b, DepB)
 
-    async def test_get_service_handles_missing_dependencies(self, di_container):
+    async def test_get_service_handles_missing_dependencies(
+        self, di_container: DIContainer
+    ) -> None:
         """Test get_service handles missing dependencies gracefully."""
 
         # Arrange
@@ -573,7 +629,9 @@ class TestDIContainerDependencyInjection:
 class TestDIContainerLifecycle:
     """Test DIContainer lifecycle management."""
 
-    async def test_initialize_all_initializes_singletons(self, di_container, sample_service):
+    async def test_initialize_all_initializes_singletons(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test initialize_all initializes all singleton services."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -585,7 +643,9 @@ class TestDIContainerLifecycle:
         assert success is True
         assert sample_service in di_container._instances
 
-    async def test_initialize_all_skips_transients(self, di_container, sample_service):
+    async def test_initialize_all_skips_transients(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test initialize_all skips transient services."""
         # Arrange
         di_container.register_transient(sample_service, implementation_type=sample_service)
@@ -598,8 +658,8 @@ class TestDIContainerLifecycle:
         assert sample_service not in di_container._instances
 
     async def test_initialize_all_prevents_concurrent_initialization(
-        self, di_container, sample_service
-    ):
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test initialize_all prevents concurrent initialization."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -611,15 +671,15 @@ class TestDIContainerLifecycle:
         # Assert
         assert success is False
 
-    async def test_shutdown_calls_shutdown_on_services(self, di_container):
+    async def test_shutdown_calls_shutdown_on_services(self, di_container: DIContainer) -> None:
         """Test shutdown calls shutdown() on services."""
 
         # Arrange
         class ShutdownService:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.shutdown_called = False
 
-            async def shutdown(self):
+            async def shutdown(self) -> None:
                 self.shutdown_called = True
 
         di_container.register_singleton(ShutdownService, implementation_type=ShutdownService)
@@ -631,7 +691,9 @@ class TestDIContainerLifecycle:
         # Assert
         assert instance.shutdown_called is True
 
-    async def test_shutdown_clears_instances(self, di_container, sample_service):
+    async def test_shutdown_clears_instances(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test shutdown clears all instances."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -644,7 +706,9 @@ class TestDIContainerLifecycle:
         assert len(di_container._instances) == 0
         assert len(di_container._scoped_instances) == 0
 
-    async def test_shutdown_updates_service_statuses(self, di_container, sample_service):
+    async def test_shutdown_updates_service_statuses(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test shutdown updates service statuses to SHUTDOWN."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -667,7 +731,9 @@ class TestDIContainerLifecycle:
 class TestDIContainerStatusAndInfo:
     """Test DIContainer service status and information."""
 
-    def test_get_service_status_unregistered(self, di_container, sample_service):
+    def test_get_service_status_unregistered(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service_status returns UNINITIALIZED for unregistered service."""
         # Act
         status = di_container.get_service_status(sample_service)
@@ -675,7 +741,9 @@ class TestDIContainerStatusAndInfo:
         # Assert
         assert status == ServiceStatus.UNINITIALIZED
 
-    def test_get_service_status_registered(self, di_container, sample_service):
+    def test_get_service_status_registered(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_service_status returns status for registered service."""
         # Arrange
         di_container.register_singleton(sample_service)
@@ -686,7 +754,7 @@ class TestDIContainerStatusAndInfo:
         # Assert
         assert status == ServiceStatus.UNINITIALIZED
 
-    def test_list_services_empty(self, di_container):
+    def test_list_services_empty(self, di_container: DIContainer) -> None:
         """Test list_services returns empty dict when no services."""
         # Act
         services = di_container.list_services()
@@ -694,7 +762,13 @@ class TestDIContainerStatusAndInfo:
         # Assert
         assert services == {}
 
-    def test_list_services_with_registered_services(self, di_container, service_with_dependencies):
+    def test_list_services_with_registered_services(
+        self,
+        di_container: DIContainer,
+        service_with_dependencies: tuple[
+            type[ServiceWithDeps], type[DependencyA], type[DependencyB]
+        ],
+    ) -> None:
         """Test list_services returns service information."""
         # Arrange
         ServiceWithDeps, DepA, DepB = service_with_dependencies
@@ -722,7 +796,9 @@ class TestDIContainerStatusAndInfo:
 class TestDIContainerGetServices:
     """Test DIContainer get_services method."""
 
-    async def test_get_services_returns_list(self, di_container, sample_service):
+    async def test_get_services_returns_list(
+        self, di_container: DIContainer, sample_service: type[SampleService]
+    ) -> None:
         """Test get_services returns list of services."""
         # Arrange
         di_container.register_singleton(sample_service, implementation_type=sample_service)
@@ -745,7 +821,7 @@ class TestDIContainerGetServices:
 class TestGlobalContainer:
     """Test global container instance."""
 
-    def test_global_container_exists(self):
+    def test_global_container_exists(self) -> None:
         """Test global container instance exists."""
         # Assert
         assert container is not None

@@ -19,6 +19,8 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import Engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.auth.revocation_service import TokenRevocationService
 from src.database.models.auth import RevokedToken
@@ -29,7 +31,7 @@ from src.database.models.auth import RevokedToken
 
 
 @pytest.fixture
-def revocation_service():
+def revocation_service() -> TokenRevocationService:
     """Factory for TokenRevocationService instance - MANDATORY DI.
 
     Creates service without db_session so it uses its own async_session().
@@ -38,7 +40,7 @@ def revocation_service():
 
 
 @pytest.fixture
-def sample_revocations():
+def sample_revocations() -> list[RevokedToken]:
     """Factory for sample revoked token records - DRY principle."""
     now = datetime.now(UTC)
     return [
@@ -64,7 +66,7 @@ class TestServiceInitialization:
     """Test TokenRevocationService initialization and dependency injection."""
 
     @pytest.mark.unit
-    def test_service_initialization_without_session(self):
+    def test_service_initialization_without_session(self) -> None:
         """Test service initializes without database session - SOLID DI principle.
 
         AAA Pattern:
@@ -79,10 +81,10 @@ class TestServiceInitialization:
         assert service._db_session is None
 
     @pytest.mark.unit
-    def test_service_initialization_with_mock_session(self):
+    def test_service_initialization_with_mock_session(self) -> None:
         """Test service initializes with injected database session."""
         # Arrange
-        mock_session = Mock()
+        mock_session: Mock = Mock()
 
         # Act
         service = TokenRevocationService(db_session=mock_session)
@@ -100,7 +102,9 @@ class TestCountByField:
     """Test _count_by_field helper method - DRY principle testing."""
 
     @pytest.mark.unit
-    def test_count_by_field_token_type(self, revocation_service, sample_revocations):
+    def test_count_by_field_token_type(
+        self, revocation_service: TokenRevocationService, sample_revocations: list[RevokedToken]
+    ) -> None:
         """Test counting revocations by token type.
 
         AAA Pattern:
@@ -120,7 +124,9 @@ class TestCountByField:
         assert counts["refresh"] == 5
 
     @pytest.mark.unit
-    def test_count_by_field_revocation_reason(self, revocation_service, sample_revocations):
+    def test_count_by_field_revocation_reason(
+        self, revocation_service: TokenRevocationService, sample_revocations: list[RevokedToken]
+    ) -> None:
         """Test counting revocations by reason."""
         # Act
         counts = revocation_service._count_by_field(sample_revocations, "revocation_reason")
@@ -134,10 +140,10 @@ class TestCountByField:
         assert counts["security_lockout"] == 6
 
     @pytest.mark.unit
-    def test_count_by_field_empty_list(self, revocation_service):
+    def test_count_by_field_empty_list(self, revocation_service: TokenRevocationService) -> None:
         """Test count by field with empty list."""
         # Arrange
-        empty_list = []
+        empty_list: list[RevokedToken] = []
 
         # Act
         counts = revocation_service._count_by_field(empty_list, "token_type")
@@ -146,7 +152,7 @@ class TestCountByField:
         assert counts == {}
 
     @pytest.mark.unit
-    def test_count_by_field_single_value(self, revocation_service):
+    def test_count_by_field_single_value(self, revocation_service: TokenRevocationService) -> None:
         """Test count by field with all same values."""
         # Arrange
         revocations = [
@@ -170,7 +176,7 @@ class TestCountByField:
         assert counts["access"] == 5
 
     @pytest.mark.unit
-    def test_count_by_field_user_id(self, revocation_service):
+    def test_count_by_field_user_id(self, revocation_service: TokenRevocationService) -> None:
         """Test counting by user_id to verify multiple users."""
         # Arrange
         user_id_1 = str(uuid4())
@@ -206,7 +212,9 @@ class TestCountRecentRevocations:
     """Test _count_recent_revocations helper method - time-based filtering."""
 
     @pytest.mark.unit
-    def test_count_recent_revocations_24_hours(self, revocation_service, sample_revocations):
+    def test_count_recent_revocations_24_hours(
+        self, revocation_service: TokenRevocationService, sample_revocations: list[RevokedToken]
+    ) -> None:
         """Test counting revocations within 24 hours.
 
         AAA Pattern:
@@ -224,7 +232,9 @@ class TestCountRecentRevocations:
         assert count == 10
 
     @pytest.mark.unit
-    def test_count_recent_revocations_5_hours(self, revocation_service, sample_revocations):
+    def test_count_recent_revocations_5_hours(
+        self, revocation_service: TokenRevocationService, sample_revocations: list[RevokedToken]
+    ) -> None:
         """Test counting revocations within 5 hours."""
         # Act
         count = revocation_service._count_recent_revocations(sample_revocations, hours=5)
@@ -234,7 +244,9 @@ class TestCountRecentRevocations:
         assert count == 5
 
     @pytest.mark.unit
-    def test_count_recent_revocations_7_days(self, revocation_service, sample_revocations):
+    def test_count_recent_revocations_7_days(
+        self, revocation_service: TokenRevocationService, sample_revocations: list[RevokedToken]
+    ) -> None:
         """Test counting revocations within 7 days."""
         # Act
         count = revocation_service._count_recent_revocations(sample_revocations, days=7)
@@ -244,10 +256,12 @@ class TestCountRecentRevocations:
         assert count == 10
 
     @pytest.mark.unit
-    def test_count_recent_revocations_empty_list(self, revocation_service):
+    def test_count_recent_revocations_empty_list(
+        self, revocation_service: TokenRevocationService
+    ) -> None:
         """Test count recent revocations with empty list."""
         # Arrange
-        empty_list = []
+        empty_list: list[RevokedToken] = []
 
         # Act
         count = revocation_service._count_recent_revocations(empty_list, hours=24)
@@ -256,7 +270,9 @@ class TestCountRecentRevocations:
         assert count == 0
 
     @pytest.mark.unit
-    def test_count_recent_revocations_no_time_period(self, revocation_service, sample_revocations):
+    def test_count_recent_revocations_no_time_period(
+        self, revocation_service: TokenRevocationService, sample_revocations: list[RevokedToken]
+    ) -> None:
         """Test count recent revocations without time period specified."""
         # Act
         count = revocation_service._count_recent_revocations(sample_revocations)
@@ -266,7 +282,9 @@ class TestCountRecentRevocations:
         assert count == 0
 
     @pytest.mark.unit
-    def test_count_recent_revocations_future_time(self, revocation_service):
+    def test_count_recent_revocations_future_time(
+        self, revocation_service: TokenRevocationService
+    ) -> None:
         """Test count with revocations that would be in future."""
         # Arrange
         now = datetime.now(UTC)
@@ -300,7 +318,7 @@ class TestRevokedTokenFactory:
     """Test RevokedToken.create_revocation_record factory method."""
 
     @pytest.mark.unit
-    def test_create_revocation_record_basic(self):
+    def test_create_revocation_record_basic(self) -> None:
         """Test creating revocation record with required fields.
 
         AAA Pattern:
@@ -334,7 +352,7 @@ class TestRevokedTokenFactory:
         assert revoked_token.revocation_reason is None  # Default when reason not provided
 
     @pytest.mark.unit
-    def test_create_revocation_record_with_optional_fields(self):
+    def test_create_revocation_record_with_optional_fields(self) -> None:
         """Test creating revocation record with all optional fields."""
         # Arrange
         jti = "test_jti_456"
@@ -363,7 +381,7 @@ class TestRevokedTokenFactory:
         assert revoked_token.user_agent == user_agent
 
     @pytest.mark.unit
-    def test_create_revocation_record_required_fields_only(self):
+    def test_create_revocation_record_required_fields_only(self) -> None:
         """Test factory method accepts only required fields."""
         # Arrange
         jti = "test_jti_789"
@@ -397,7 +415,7 @@ class TestModelRepresentation:
     """Test __repr__ method for RevokedToken model."""
 
     @pytest.mark.unit
-    def test_revoked_token_repr(self):
+    def test_revoked_token_repr(self) -> None:
         """Test RevokedToken string representation."""
         # Arrange
         jti = "test_jti_repr"
@@ -436,7 +454,7 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_revoke_token_success(self, test_database_engine):
+    async def test_revoke_token_success(self, test_database_engine: Engine) -> None:
         """Test successful token revocation - AAA Pattern.
 
         AAA Pattern:
@@ -445,9 +463,6 @@ class TestRevocationServiceAsyncIntegration:
         - Assert: Token successfully revoked and persisted
         """
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
-
         # Create async engine and session
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -455,7 +470,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -485,19 +500,16 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_revoke_token_already_revoked(self, test_database_engine):
+    async def test_revoke_token_already_revoked(self, test_database_engine: Engine) -> None:
         """Test revoking already revoked token returns True - idempotent operation."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
-
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
                 "postgresql+psycopg://", "postgresql+asyncpg://"
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -505,18 +517,26 @@ class TestRevocationServiceAsyncIntegration:
             service = TokenRevocationService(db_session=session)
             jti = "test_jti_duplicate"
             user_id = str(uuid4())
-            token_data = {
-                "jti": jti,
-                "user_id": user_id,
-                "token_type": "access",
-                "issued_at": datetime.now(UTC),
-                "expires_at": datetime.now(UTC) + timedelta(days=7),
-                "reason": "test",
-            }
+            issued_at = datetime.now(UTC)
+            expires_at = datetime.now(UTC) + timedelta(days=7)
 
             # Act - Revoke twice
-            first_result = await service.revoke_token(**token_data)
-            second_result = await service.revoke_token(**token_data)
+            first_result = await service.revoke_token(
+                jti=jti,
+                user_id=user_id,
+                token_type="access",
+                issued_at=issued_at,
+                expires_at=expires_at,
+                reason="test",
+            )
+            second_result = await service.revoke_token(
+                jti=jti,
+                user_id=user_id,
+                token_type="access",
+                issued_at=issued_at,
+                expires_at=expires_at,
+                reason="test",
+            )
 
             # Assert - Both should succeed (idempotent)
             assert first_result is True
@@ -525,11 +545,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_is_token_revoked_not_found(self, test_database_engine):
+    async def test_is_token_revoked_not_found(self, test_database_engine: Engine) -> None:
         """Test checking non-existent token returns False."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -537,7 +555,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -553,11 +571,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_revoke_all_user_tokens(self, test_database_engine):
+    async def test_revoke_all_user_tokens(self, test_database_engine: Engine) -> None:
         """Test bulk revocation for user tokens."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -565,7 +581,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -595,11 +611,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_cleanup_expired_revocations(self, test_database_engine):
+    async def test_cleanup_expired_revocations(self, test_database_engine: Engine) -> None:
         """Test cleanup of expired revocation records."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -607,7 +621,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -637,11 +651,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_get_revocation_stats_no_user_filter(self, test_database_engine):
+    async def test_get_revocation_stats_no_user_filter(self, test_database_engine: Engine) -> None:
         """Test getting overall revocation statistics."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -649,7 +661,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -670,11 +682,11 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_get_revocation_stats_with_user_filter(self, test_database_engine):
+    async def test_get_revocation_stats_with_user_filter(
+        self, test_database_engine: Engine
+    ) -> None:
         """Test getting revocation statistics for specific user."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -682,7 +694,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -711,11 +723,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_revoke_token_with_metadata(self, test_database_engine):
+    async def test_revoke_token_with_metadata(self, test_database_engine: Engine) -> None:
         """Test token revocation with full metadata (client_ip, user_agent)."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -723,7 +733,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -749,11 +759,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_find_revoked_token_helper(self, test_database_engine):
+    async def test_find_revoked_token_helper(self, test_database_engine: Engine) -> None:
         """Test _find_revoked_token helper method."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -761,7 +769,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -789,11 +797,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_cleanup_preserves_bulk_revocations(self, test_database_engine):
+    async def test_cleanup_preserves_bulk_revocations(self, test_database_engine: Engine) -> None:
         """Test that cleanup preserves bulk_revocation audit records."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -801,7 +807,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -825,11 +831,9 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_revoke_token_different_token_types(self, test_database_engine):
+    async def test_revoke_token_different_token_types(self, test_database_engine: Engine) -> None:
         """Test revoking different token types (access, refresh)."""
         # Arrange
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
 
         async_engine = create_async_engine(
             test_database_engine.url.render_as_string(hide_password=False).replace(
@@ -837,7 +841,7 @@ class TestRevocationServiceAsyncIntegration:
             ),
             echo=False,
         )
-        async_session_maker = sessionmaker(
+        async_session_maker = async_sessionmaker(
             async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -875,7 +879,7 @@ class TestRevocationServiceAsyncIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.database
-    async def test_service_without_injected_session(self, test_database_engine):
+    async def test_service_without_injected_session(self, test_database_engine: Engine) -> None:
         """Test service creates its own session when none injected."""
         # Arrange
         service = TokenRevocationService(db_session=None)

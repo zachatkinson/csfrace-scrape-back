@@ -36,7 +36,7 @@ from src.database.models.jobs import ContentResult, ScrapingJob
 
 
 @pytest.fixture
-def sample_job_create():
+def sample_job_create() -> JobCreate:
     """Factory for sample job create data - DRY principle."""
     return JobCreate(
         url=HttpUrl("https://example.com/test-page"),
@@ -49,13 +49,13 @@ def sample_job_create():
 
 
 @pytest.fixture
-def sample_job_update():
+def sample_job_update() -> JobUpdate:
     """Factory for sample job update data - DRY principle."""
     return JobUpdate(priority=JobPriority.HIGH, max_retries=5)
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Factory for mock database session - DRY principle."""
     session = AsyncMock()
     session.add = MagicMock()
@@ -67,7 +67,7 @@ def mock_db_session():
 
 
 @pytest.fixture
-def sample_job():
+def sample_job() -> ScrapingJob:
     """Factory for sample scraping job - DRY principle."""
     job = ScrapingJob(
         source_url="https://example.com/test",
@@ -88,7 +88,7 @@ def sample_job():
 
 
 @pytest.fixture
-def sample_content_result(sample_job):
+def sample_content_result(sample_job: ScrapingJob) -> ContentResult:
     """Factory for sample content result - DRY principle."""
     result = ContentResult(
         job_id=sample_job.id,
@@ -117,7 +117,9 @@ def sample_content_result(sample_job):
 class TestJobCRUDCreate:
     """Tests for JobCRUD.create_job()."""
 
-    async def test_create_job_creates_job_in_database(self, mock_db_session, sample_job_create):
+    async def test_create_job_creates_job_in_database(
+        self, mock_db_session: AsyncMock, sample_job_create: JobCreate
+    ) -> None:
         """Test create_job creates job in database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.api.crud.publish_job_created", AsyncMock()):
@@ -128,7 +130,9 @@ class TestJobCRUDCreate:
             assert job is not None
             assert job.source_url == str(sample_job_create.url)
 
-    async def test_create_job_parses_url_correctly(self, mock_db_session, sample_job_create):
+    async def test_create_job_parses_url_correctly(
+        self, mock_db_session: AsyncMock, sample_job_create: JobCreate
+    ) -> None:
         """Test create_job parses URL correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.api.crud.publish_job_created", AsyncMock()):
@@ -141,8 +145,8 @@ class TestJobCRUDCreate:
             assert "test-page" in parsed.path
 
     async def test_create_job_uses_custom_slug_if_provided(
-        self, mock_db_session, sample_job_create
-    ):
+        self, mock_db_session: AsyncMock, sample_job_create: JobCreate
+    ) -> None:
         """Test create_job uses custom_slug if provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.api.crud.publish_job_created", AsyncMock()):
@@ -154,7 +158,9 @@ class TestJobCRUDCreate:
             # Slug is used in output directory generation
             assert sample_job_create.custom_slug is not None
 
-    async def test_create_job_generates_slug_from_url_if_no_custom_slug(self, mock_db_session):
+    async def test_create_job_generates_slug_from_url_if_no_custom_slug(
+        self, mock_db_session: AsyncMock
+    ) -> None:
         """Test create_job generates slug from URL if no custom_slug - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_data = JobCreate(
@@ -172,7 +178,9 @@ class TestJobCRUDCreate:
             assert job is not None
             # Slug should be generated from URL path
 
-    async def test_create_job_generates_output_directory_if_not_provided(self, mock_db_session):
+    async def test_create_job_generates_output_directory_if_not_provided(
+        self, mock_db_session: AsyncMock
+    ) -> None:
         """Test create_job generates output directory if not provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_data = JobCreate(
@@ -190,7 +198,9 @@ class TestJobCRUDCreate:
             assert job is not None
             # Output directory should be auto-generated
 
-    async def test_create_job_sets_correct_defaults(self, mock_db_session, sample_job_create):
+    async def test_create_job_sets_correct_defaults(
+        self, mock_db_session: AsyncMock, sample_job_create: JobCreate
+    ) -> None:
         """Test create_job sets correct defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.api.crud.publish_job_created", AsyncMock()):
@@ -200,9 +210,11 @@ class TestJobCRUDCreate:
             # Assert - MANDATORY
             assert job.job_type == "single"
             assert job.target_format == "html"
-            assert job.priority == JobPriority.NORMAL.value
+            assert str(job.priority) == str(JobPriority.NORMAL.value)
 
-    async def test_create_job_publishes_job_created_event(self, mock_db_session, sample_job_create):
+    async def test_create_job_publishes_job_created_event(
+        self, mock_db_session: AsyncMock, sample_job_create: JobCreate
+    ) -> None:
         """Test create_job publishes job created event - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_publish = AsyncMock()
@@ -229,7 +241,9 @@ class TestJobCRUDCreate:
 class TestJobCRUDGet:
     """Tests for JobCRUD.get_job()."""
 
-    async def test_get_job_returns_job_if_exists(self, mock_db_session, sample_job):
+    async def test_get_job_returns_job_if_exists(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test get_job returns job if exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -244,7 +258,7 @@ class TestJobCRUDGet:
         assert job.id == sample_job.id
         assert job.source_url == sample_job.source_url
 
-    async def test_get_job_returns_none_if_not_exists(self, mock_db_session):
+    async def test_get_job_returns_none_if_not_exists(self, mock_db_session: AsyncMock) -> None:
         """Test get_job returns None if not exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         non_existent_id = "00000000-0000-0000-0000-000000000000"
@@ -259,8 +273,11 @@ class TestJobCRUDGet:
         assert job is None
 
     async def test_get_job_loads_content_results(
-        self, mock_db_session, sample_job, sample_content_result
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_job: ScrapingJob,
+        sample_content_result: ContentResult,
+    ) -> None:
         """Test get_job loads content_results relationship - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         sample_job.content_results = [sample_content_result]
@@ -288,7 +305,9 @@ class TestJobCRUDGet:
 class TestJobCRUDGetJobs:
     """Tests for JobCRUD.get_jobs()."""
 
-    async def test_get_jobs_returns_list_and_total(self, mock_db_session, sample_job):
+    async def test_get_jobs_returns_list_and_total(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test get_jobs returns list and total count - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_jobs_result = MagicMock()
@@ -310,7 +329,9 @@ class TestJobCRUDGetJobs:
         assert total == 1
         assert len(jobs) == 1
 
-    async def test_get_jobs_applies_pagination(self, mock_db_session, sample_job):
+    async def test_get_jobs_applies_pagination(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test get_jobs applies skip/limit pagination - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Create mock jobs list (simulating paginated results)
@@ -344,7 +365,7 @@ class TestJobCRUDGetJobs:
         assert len(jobs) == 2
         assert total == 5
 
-    async def test_get_jobs_filters_by_status(self, mock_db_session):
+    async def test_get_jobs_filters_by_status(self, mock_db_session: AsyncMock) -> None:
         """Test get_jobs filters by status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Create jobs with pending status
@@ -373,7 +394,7 @@ class TestJobCRUDGetJobs:
         assert all(job.status == JobStatus.PENDING.value for job in jobs)
         assert total == 1
 
-    async def test_get_jobs_filters_by_domain(self, mock_db_session):
+    async def test_get_jobs_filters_by_domain(self, mock_db_session: AsyncMock) -> None:
         """Test get_jobs filters by domain - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job1 = ScrapingJob(
@@ -401,7 +422,7 @@ class TestJobCRUDGetJobs:
         assert all(job.domain == "example.com" for job in jobs)
         assert total == 1
 
-    async def test_get_jobs_orders_by_created_at_desc(self, mock_db_session):
+    async def test_get_jobs_orders_by_created_at_desc(self, mock_db_session: AsyncMock) -> None:
         """Test get_jobs orders by created_at descending - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Create jobs with different timestamps (ordered descending)
@@ -460,7 +481,9 @@ class TestJobCRUDGetJobs:
 class TestJobCRUDUpdate:
     """Tests for JobCRUD.update_job()."""
 
-    async def test_update_job_updates_fields(self, mock_db_session, sample_job, sample_job_update):
+    async def test_update_job_updates_fields(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob, sample_job_update: JobUpdate
+    ) -> None:
         """Test update_job updates fields correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -472,10 +495,13 @@ class TestJobCRUDUpdate:
 
         # Assert - MANDATORY
         assert updated_job is not None
-        assert updated_job.priority == JobPriority.HIGH.value
+        # Note: update_job sets priority to enum.value (string), not db integer
+        assert updated_job.priority == JobPriority.HIGH.value  # type: ignore[comparison-overlap]
         assert updated_job.max_retries == 5
 
-    async def test_update_job_returns_none_if_not_found(self, mock_db_session, sample_job_update):
+    async def test_update_job_returns_none_if_not_found(
+        self, mock_db_session: AsyncMock, sample_job_update: JobUpdate
+    ) -> None:
         """Test update_job returns None if job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         non_existent_id = "00000000-0000-0000-0000-000000000000"
@@ -489,7 +515,9 @@ class TestJobCRUDUpdate:
         # Assert - MANDATORY
         assert updated_job is None
 
-    async def test_update_job_handles_enum_values(self, mock_db_session, sample_job):
+    async def test_update_job_handles_enum_values(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job handles enum values correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         update_data = JobUpdate(priority=JobPriority.HIGH)
@@ -502,9 +530,12 @@ class TestJobCRUDUpdate:
 
         # Assert - MANDATORY
         assert updated_job is not None
-        assert updated_job.priority == JobPriority.HIGH.value
+        # Note: update_job sets priority to enum.value (string), not db integer
+        assert updated_job.priority == JobPriority.HIGH.value  # type: ignore[comparison-overlap]
 
-    async def test_update_job_only_updates_provided_fields(self, mock_db_session, sample_job):
+    async def test_update_job_only_updates_provided_fields(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job only updates provided fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         original_max_retries = sample_job.max_retries
@@ -518,7 +549,8 @@ class TestJobCRUDUpdate:
 
         # Assert - MANDATORY
         assert updated_job is not None
-        assert updated_job.priority == JobPriority.HIGH.value
+        # Note: update_job sets priority to enum.value (string), not db integer
+        assert updated_job.priority == JobPriority.HIGH.value  # type: ignore[comparison-overlap]
         assert updated_job.max_retries == original_max_retries  # Unchanged
 
 
@@ -532,7 +564,9 @@ class TestJobCRUDUpdate:
 class TestJobCRUDDelete:
     """Tests for JobCRUD.delete_job()."""
 
-    async def test_delete_job_deletes_job(self, mock_db_session, sample_job):
+    async def test_delete_job_deletes_job(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test delete_job deletes job from database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = sample_job.id
@@ -553,7 +587,7 @@ class TestJobCRUDDelete:
             deleted_job = await JobCRUD.get_job(mock_db_session, job_id)
             assert deleted_job is None
 
-    async def test_delete_job_returns_false_if_not_found(self, mock_db_session):
+    async def test_delete_job_returns_false_if_not_found(self, mock_db_session: AsyncMock) -> None:
         """Test delete_job returns False if job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         non_existent_id = "00000000-0000-0000-0000-000000000000"
@@ -568,7 +602,9 @@ class TestJobCRUDDelete:
             # Assert - MANDATORY
             assert result is False
 
-    async def test_delete_job_publishes_deleted_event(self, mock_db_session, sample_job):
+    async def test_delete_job_publishes_deleted_event(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test delete_job publishes job deleted event - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -597,7 +633,9 @@ class TestJobCRUDDelete:
 class TestJobCRUDUpdateStatus:
     """Tests for JobCRUD.update_job_status()."""
 
-    async def test_update_job_status_updates_status(self, mock_db_session, sample_job):
+    async def test_update_job_status_updates_status(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job_status updates status correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -614,7 +652,9 @@ class TestJobCRUDUpdateStatus:
             assert updated_job is not None
             assert updated_job.status == JobStatus.RUNNING.value
 
-    async def test_update_job_status_sets_started_at_for_running(self, mock_db_session, sample_job):
+    async def test_update_job_status_sets_started_at_for_running(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job_status sets started_at for RUNNING status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -632,8 +672,8 @@ class TestJobCRUDUpdateStatus:
             assert updated_job.started_at is not None
 
     async def test_update_job_status_sets_completed_at_for_completed(
-        self, mock_db_session, sample_job
-    ):
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job_status sets completed_at for COMPLETED status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -651,8 +691,8 @@ class TestJobCRUDUpdateStatus:
             assert updated_job.completed_at is not None
 
     async def test_update_job_status_sets_completed_at_for_failed(
-        self, mock_db_session, sample_job
-    ):
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job_status sets completed_at for FAILED status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -671,8 +711,8 @@ class TestJobCRUDUpdateStatus:
             assert updated_job.error_message == "Test error"
 
     async def test_update_job_status_publishes_status_update_event(
-        self, mock_db_session, sample_job
-    ):
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job_status publishes status update event - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -688,8 +728,8 @@ class TestJobCRUDUpdateStatus:
             mock_publish.assert_called_once()
 
     async def test_update_job_status_does_not_publish_if_status_unchanged(
-        self, mock_db_session, sample_job
-    ):
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test update_job_status doesn't publish event if status unchanged - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -705,7 +745,9 @@ class TestJobCRUDUpdateStatus:
             # Assert - MANDATORY
             mock_publish.assert_not_called()
 
-    async def test_update_job_status_returns_none_if_not_found(self, mock_db_session):
+    async def test_update_job_status_returns_none_if_not_found(
+        self, mock_db_session: AsyncMock
+    ) -> None:
         """Test update_job_status returns None if job not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         non_existent_id = "00000000-0000-0000-0000-000000000000"
@@ -734,8 +776,8 @@ class TestContentResultCRUDGet:
     """Tests for ContentResultCRUD.get_content_result()."""
 
     async def test_get_content_result_returns_result_if_exists(
-        self, mock_db_session, sample_content_result
-    ):
+        self, mock_db_session: AsyncMock, sample_content_result: ContentResult
+    ) -> None:
         """Test get_content_result returns result if exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -752,7 +794,9 @@ class TestContentResultCRUDGet:
         assert result.id == sample_content_result.id
         assert result.title == sample_content_result.title
 
-    async def test_get_content_result_returns_none_if_not_exists(self, mock_db_session):
+    async def test_get_content_result_returns_none_if_not_exists(
+        self, mock_db_session: AsyncMock
+    ) -> None:
         """Test get_content_result returns None if not exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         non_existent_id = 999999
@@ -778,8 +822,11 @@ class TestContentResultCRUDGetByJob:
     """Tests for ContentResultCRUD.get_content_results_by_job()."""
 
     async def test_get_content_results_by_job_returns_list(
-        self, mock_db_session, sample_job, sample_content_result
-    ):
+        self,
+        mock_db_session: AsyncMock,
+        sample_job: ScrapingJob,
+        sample_content_result: ContentResult,
+    ) -> None:
         """Test get_content_results_by_job returns list - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -797,8 +844,8 @@ class TestContentResultCRUDGetByJob:
         assert all(r.job_id == sample_job.id for r in results)
 
     async def test_get_content_results_by_job_returns_empty_if_no_results(
-        self, mock_db_session, sample_job
-    ):
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test get_content_results_by_job returns empty list if no results - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -815,8 +862,8 @@ class TestContentResultCRUDGetByJob:
         assert len(results) == 0
 
     async def test_get_content_results_by_job_orders_by_created_at_desc(
-        self, mock_db_session, sample_job
-    ):
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """Test get_content_results_by_job orders by created_at desc - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from datetime import timedelta
@@ -861,7 +908,9 @@ class TestContentResultCRUDGetByJob:
 class TestCRUDIntegration:
     """Integration tests for CRUD operations."""
 
-    async def test_full_job_lifecycle(self, mock_db_session, sample_job_create, sample_job):
+    async def test_full_job_lifecycle(
+        self, mock_db_session: AsyncMock, sample_job_create: JobCreate, sample_job: ScrapingJob
+    ) -> None:
         """Test complete job lifecycle - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Mock sequence: create returns job, get returns job (3x), delete returns job, final get returns None
@@ -902,7 +951,8 @@ class TestCRUDIntegration:
             update_data = JobUpdate(priority=JobPriority.HIGH)
             updated_job = await JobCRUD.update_job(mock_db_session, job.id, update_data)
             assert updated_job is not None
-            assert updated_job.priority == JobPriority.HIGH.value
+            # Note: update_job sets priority to enum.value (string), not db integer
+            assert updated_job.priority == JobPriority.HIGH.value  # type: ignore[comparison-overlap]
 
             # Update status
             status_updated = await JobCRUD.update_job_status(
@@ -931,7 +981,7 @@ class TestCRUDIntegration:
 class TestCRUDPerformance:
     """MANDATORY performance tests for CRUD operations."""
 
-    async def test_create_job_performance(self, mock_db_session):
+    async def test_create_job_performance(self, mock_db_session: AsyncMock) -> None:
         """MANDATORY performance test - job creation speed."""
         # Arrange - MANDATORY
         iterations = 10
@@ -960,7 +1010,9 @@ class TestCRUDPerformance:
             assert avg_time < 0.1  # <100ms per job creation
             assert execution_time < 1.0  # Total <1s for 10 creations
 
-    async def test_get_jobs_performance(self, mock_db_session, sample_job):
+    async def test_get_jobs_performance(
+        self, mock_db_session: AsyncMock, sample_job: ScrapingJob
+    ) -> None:
         """MANDATORY performance test - get jobs list speed."""
         # Arrange - MANDATORY
         iterations = 100

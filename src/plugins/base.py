@@ -33,7 +33,7 @@ class PluginConfig:
     priority: int = 100  # Lower number = higher priority
     settings: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.settings is None:
             self.settings = {}
 

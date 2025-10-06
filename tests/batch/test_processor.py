@@ -66,7 +66,7 @@ def sample_urls() -> list[str]:
 class TestBatchProcessorInit:
     """Test BatchProcessor initialization following MANDATORY AAA pattern."""
 
-    def test_init_creates_processor_with_default_config(self):
+    def test_init_creates_processor_with_default_config(self) -> None:
         """Test __init__ creates processor with default config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -79,7 +79,7 @@ class TestBatchProcessorInit:
         assert processor.jobs == []
         assert processor.semaphore._value == processor.config.max_concurrent
 
-    def test_init_creates_processor_with_custom_config(self, batch_config: BatchConfig):
+    def test_init_creates_processor_with_custom_config(self, batch_config: BatchConfig) -> None:
         """Test __init__ creates processor with custom config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         batch_config.max_concurrent = 5
@@ -102,7 +102,7 @@ class TestBatchProcessorInit:
 class TestBatchProcessorJobManagement:
     """Test BatchProcessor job management following MANDATORY AAA pattern."""
 
-    def test_add_job_creates_batch_job(self, batch_processor: BatchProcessor):
+    def test_add_job_creates_batch_job(self, batch_processor: BatchProcessor) -> None:
         """Test add_job creates BatchJob - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test-post"
@@ -117,7 +117,7 @@ class TestBatchProcessorJobManagement:
         assert job.output_dir is not None
         assert len(batch_processor.jobs) == 1
 
-    def test_add_job_with_custom_output_dir(self, batch_processor: BatchProcessor):
+    def test_add_job_with_custom_output_dir(self, batch_processor: BatchProcessor) -> None:
         """Test add_job with custom output directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test-post"
@@ -129,7 +129,7 @@ class TestBatchProcessorJobManagement:
         # Assert - MANDATORY
         assert job.output_dir == custom_dir
 
-    def test_add_job_with_custom_slug(self, batch_processor: BatchProcessor):
+    def test_add_job_with_custom_slug(self, batch_processor: BatchProcessor) -> None:
         """Test add_job with custom slug - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test-post"
@@ -147,7 +147,9 @@ class TestBatchProcessorJobManagement:
             # Assert - MANDATORY
             assert "my-custom-slug" in str(job.output_dir)
 
-    def test_add_multiple_jobs_creates_unique_directories(self, batch_processor: BatchProcessor):
+    def test_add_multiple_jobs_creates_unique_directories(
+        self, batch_processor: BatchProcessor
+    ) -> None:
         """Test adding multiple jobs creates unique directories - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         same_url = "https://example.com/same-post"
@@ -173,7 +175,7 @@ class TestBatchProcessorJobManagement:
 class TestBatchProcessorFileLoading:
     """Test BatchProcessor file loading following MANDATORY AAA pattern."""
 
-    def test_add_jobs_from_txt_file(self, batch_processor: BatchProcessor, tmp_path: Path):
+    def test_add_jobs_from_txt_file(self, batch_processor: BatchProcessor, tmp_path: Path) -> None:
         """Test add_jobs_from_file with text file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         urls_file = tmp_path / "urls.txt"
@@ -204,7 +206,9 @@ class TestBatchProcessorFileLoading:
             assert added == 3
             assert len(batch_processor.jobs) == 3
 
-    def test_add_jobs_from_file_raises_for_missing_file(self, batch_processor: BatchProcessor):
+    def test_add_jobs_from_file_raises_for_missing_file(
+        self, batch_processor: BatchProcessor
+    ) -> None:
         """Test add_jobs_from_file raises for missing file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         missing_file = Path("/nonexistent/file.txt")
@@ -223,7 +227,7 @@ class TestBatchProcessorFileLoading:
 class TestBatchProcessorDirectoryGeneration:
     """Test BatchProcessor directory generation following MANDATORY AAA pattern."""
 
-    def test_generate_output_directory_from_url(self, batch_processor: BatchProcessor):
+    def test_generate_output_directory_from_url(self, batch_processor: BatchProcessor) -> None:
         """Test _generate_output_directory creates valid path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/my-blog-post"
@@ -241,7 +245,9 @@ class TestBatchProcessorDirectoryGeneration:
             assert "example" in str(output_dir).lower()
             assert "my-blog-post" in str(output_dir)
 
-    def test_generate_output_directory_with_custom_slug(self, batch_processor: BatchProcessor):
+    def test_generate_output_directory_with_custom_slug(
+        self, batch_processor: BatchProcessor
+    ) -> None:
         """Test _generate_output_directory with custom slug - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/original-slug"
@@ -261,7 +267,7 @@ class TestBatchProcessorDirectoryGeneration:
 
     def test_generate_output_directory_sanitizes_special_chars(
         self, batch_processor: BatchProcessor
-    ):
+    ) -> None:
         """Test _generate_output_directory sanitizes special characters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/post@#$%with&special*chars"
@@ -287,7 +293,7 @@ class TestBatchProcessorProcessing:
 
     async def test_process_all_with_no_jobs_returns_empty_summary(
         self, batch_processor: BatchProcessor
-    ):
+    ) -> None:
         """Test process_all with no jobs returns empty summary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no jobs added)
 
@@ -301,7 +307,7 @@ class TestBatchProcessorProcessing:
         assert summary["skipped"] == 0
         assert summary["jobs"] == []
 
-    async def test_process_all_processes_single_job(self, batch_processor: BatchProcessor):
+    async def test_process_all_processes_single_job(self, batch_processor: BatchProcessor) -> None:
         """Test process_all processes single job - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test-post"
@@ -321,7 +327,7 @@ class TestBatchProcessorProcessing:
         assert summary["successful"] == 1
         assert summary["failed"] == 0
 
-    async def test_process_all_handles_job_failure(self, batch_processor: BatchProcessor):
+    async def test_process_all_handles_job_failure(self, batch_processor: BatchProcessor) -> None:
         """Test process_all handles job failure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/failing-post"
@@ -351,7 +357,7 @@ class TestBatchProcessorProcessing:
 class TestBatchJob:
     """Test BatchJob dataclass following MANDATORY AAA pattern."""
 
-    def test_batch_job_duration_returns_none_when_incomplete(self):
+    def test_batch_job_duration_returns_none_when_incomplete(self) -> None:
         """Test BatchJob.duration returns None when incomplete - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job = BatchJob(url="https://example.com/test", output_dir=Path("/tmp/test"))
@@ -362,7 +368,7 @@ class TestBatchJob:
         # Assert - MANDATORY
         assert duration is None
 
-    def test_batch_job_duration_calculates_correctly(self):
+    def test_batch_job_duration_calculates_correctly(self) -> None:
         """Test BatchJob.duration calculates correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job = BatchJob(url="https://example.com/test", output_dir=Path("/tmp/test"))
@@ -386,7 +392,7 @@ class TestBatchProcessorSecurity:
     """MANDATORY security tests for batch processor."""
 
     @pytest.mark.unit
-    def test_add_job_handles_malicious_url_safely(self, batch_processor: BatchProcessor):
+    def test_add_job_handles_malicious_url_safely(self, batch_processor: BatchProcessor) -> None:
         """MANDATORY security test - batch processor handles malicious URLs safely."""
         # Arrange - MANDATORY
         malicious_urls = [
@@ -416,7 +422,9 @@ class TestBatchProcessorSecurity:
                 pass
 
     @pytest.mark.unit
-    def test_generate_directory_prevents_path_traversal(self, batch_processor: BatchProcessor):
+    def test_generate_directory_prevents_path_traversal(
+        self, batch_processor: BatchProcessor
+    ) -> None:
         """MANDATORY security test - directory generation prevents path traversal."""
         # Arrange - MANDATORY
         traversal_urls = [
@@ -426,7 +434,7 @@ class TestBatchProcessorSecurity:
         ]
 
         # Mock the decorator-wrapped method to simulate sanitized output (use Mock, not AsyncMock)
-        def safe_path_generator(url, slug=None):
+        def safe_path_generator(url: str, slug: str | None = None) -> Path:
             return batch_processor.config.output_base_dir / "example-com_passwd"
 
         with patch.object(
@@ -456,7 +464,7 @@ class TestBatchProcessorPerformance:
     """MANDATORY performance tests for batch processor."""
 
     @pytest.mark.unit
-    def test_add_job_performance_benchmark(self, batch_processor: BatchProcessor):
+    def test_add_job_performance_benchmark(self, batch_processor: BatchProcessor) -> None:
         """MANDATORY performance test - add_job completes quickly."""
         # Arrange - MANDATORY
         iterations = 100
@@ -475,7 +483,9 @@ class TestBatchProcessorPerformance:
         assert execution_time < 1.0  # Total under 1 second for 100 jobs
 
     @pytest.mark.unit
-    def test_directory_generation_performance_benchmark(self, batch_processor: BatchProcessor):
+    def test_directory_generation_performance_benchmark(
+        self, batch_processor: BatchProcessor
+    ) -> None:
         """MANDATORY performance test - directory generation completes quickly."""
         # Arrange - MANDATORY
         iterations = 500
@@ -504,7 +514,9 @@ class TestBatchProcessorPerformance:
 class TestBatchProcessorCSVDetection:
     """Test BatchProcessor CSV format detection following MANDATORY AAA pattern."""
 
-    def test_csv_file_extension_detected(self, batch_processor: BatchProcessor, tmp_path: Path):
+    def test_csv_file_extension_detected(
+        self, batch_processor: BatchProcessor, tmp_path: Path
+    ) -> None:
         """Test CSV files are detected by extension - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         csv_file = tmp_path / "urls.csv"
@@ -522,7 +534,7 @@ class TestBatchProcessorCSVDetection:
 
     def test_add_job_with_explicit_output_dir_skips_generation(
         self, batch_processor: BatchProcessor, tmp_path: Path
-    ):
+    ) -> None:
         """Test add_job with explicit output_dir skips directory generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/my-test-post"
@@ -549,7 +561,7 @@ class TestBatchProcessorArchiveCreation:
 
     async def test_create_archive_creates_zip_file(
         self, batch_processor: BatchProcessor, tmp_path: Path
-    ):
+    ) -> None:
         """Test _create_archive creates ZIP file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_dir = tmp_path / "test_job"
@@ -570,7 +582,7 @@ class TestBatchProcessorArchiveCreation:
 
     async def test_create_archive_raises_for_nonexistent_directory(
         self, batch_processor: BatchProcessor, tmp_path: Path
-    ):
+    ) -> None:
         """Test _create_archive raises for nonexistent directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         nonexistent_dir = tmp_path / "nonexistent"
@@ -593,7 +605,7 @@ class TestBatchProcessorProcessingWithArchives:
 
     async def test_process_all_creates_archives_when_configured(
         self, batch_processor: BatchProcessor
-    ):
+    ) -> None:
         """Test process_all creates archives when configured - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         batch_processor.config.create_archives = True
@@ -622,7 +634,7 @@ class TestBatchProcessorProcessingWithArchives:
 
     async def test_process_all_skips_existing_when_configured(
         self, batch_processor: BatchProcessor, tmp_path: Path
-    ):
+    ) -> None:
         """Test process_all skips existing output - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         batch_processor.config.skip_existing = True
@@ -640,7 +652,7 @@ class TestBatchProcessorProcessingWithArchives:
         assert summary["skipped"] == 1
         assert batch_processor.jobs[0].status == JobStatus.SKIPPED
 
-    async def test_process_all_handles_timeout(self, batch_processor: BatchProcessor):
+    async def test_process_all_handles_timeout(self, batch_processor: BatchProcessor) -> None:
         """Test process_all handles job timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         batch_processor.config.timeout_per_job = 1  # 1 second timeout
@@ -648,7 +660,7 @@ class TestBatchProcessorProcessingWithArchives:
         batch_processor.add_job(url)
 
         # Mock converter with slow operation
-        async def slow_convert(*args, **kwargs):
+        async def slow_convert(*args: object, **kwargs: object) -> None:
             await asyncio.sleep(5)  # Longer than timeout
 
         with patch("src.batch.processor.AsyncWordPressConverter") as mock_converter:
@@ -674,7 +686,9 @@ class TestBatchProcessorProcessingWithArchives:
 class TestBatchProcessorResultCompilation:
     """Test BatchProcessor result compilation."""
 
-    async def test_process_all_compiles_accurate_statistics(self, batch_processor: BatchProcessor):
+    async def test_process_all_compiles_accurate_statistics(
+        self, batch_processor: BatchProcessor
+    ) -> None:
         """Test process_all compiles accurate statistics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         batch_processor.add_job("https://example.com/post-1")
@@ -684,7 +698,7 @@ class TestBatchProcessorResultCompilation:
         # Mock converter: 2 success, 1 failure
         call_count = [0]
 
-        async def mock_convert(*args, **kwargs):
+        async def mock_convert(*args: object, **kwargs: object) -> None:
             call_count[0] += 1
             if call_count[0] == 3:
                 raise Exception("Test failure")
@@ -705,7 +719,7 @@ class TestBatchProcessorResultCompilation:
 
     async def test_process_all_creates_summary_report_when_configured(
         self, batch_processor: BatchProcessor, tmp_path: Path
-    ):
+    ) -> None:
         """Test process_all creates summary report - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         batch_processor.config.create_summary = True

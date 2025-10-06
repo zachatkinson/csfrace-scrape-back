@@ -98,7 +98,8 @@ class AuthService:
             raise ValueError(f"Username {user_create.username} already taken")
 
         # The database operations are handled by the helper method
-        return self._create_user_in_database_safe(user_create)
+        created_user: User = self._create_user_in_database_safe(user_create)
+        return created_user
 
     @with_transaction_rollback
     @auth_error_handler("create user in database")
@@ -462,7 +463,7 @@ class AuthService:
         # Hash new password and update (reuse existing user_row)
         new_password_hash = security_manager.get_password_hash(new_password)
 
-        user_row.hashed_password = new_password_hash  # type: ignore[attr-defined]
+        user_row.hashed_password = new_password_hash
         user_row.updated_at = datetime.now(UTC)
         self.db.commit()
         logger.info("Password changed successfully", user_id=user_id)

@@ -4,6 +4,8 @@ Test coverage: 85 statements, 0% → 75%+
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from collections.abc import AsyncIterator
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -22,7 +24,7 @@ from src.processors.image_downloader import AsyncImageDownloader
 class TestAsyncImageDownloaderInitialization:
     """Test AsyncImageDownloader initialization."""
 
-    def test_initialization_with_output_dir(self, tmp_path):
+    def test_initialization_with_output_dir(self, tmp_path: Path) -> None:
         """Test initialization with output directory."""
         # Arrange
         output_dir = tmp_path / "images"
@@ -34,7 +36,7 @@ class TestAsyncImageDownloaderInitialization:
         assert downloader.output_dir == output_dir
         assert isinstance(downloader.semaphore, asyncio.Semaphore)
 
-    def test_initialization_with_custom_max_concurrent(self, tmp_path):
+    def test_initialization_with_custom_max_concurrent(self, tmp_path: Path) -> None:
         """Test initialization with custom max_concurrent."""
         # Arrange
         output_dir = tmp_path / "images"
@@ -57,7 +59,7 @@ class TestAsyncImageDownloaderInitialization:
 class TestAsyncImageDownloaderDownloadAll:
     """Test AsyncImageDownloader.download_all() method."""
 
-    async def test_download_all_with_empty_list(self, tmp_path):
+    async def test_download_all_with_empty_list(self, tmp_path: Path) -> None:
         """Test download_all returns empty list for empty input."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -69,7 +71,7 @@ class TestAsyncImageDownloaderDownloadAll:
         # Assert
         assert result == []
 
-    async def test_download_all_with_single_url(self, tmp_path):
+    async def test_download_all_with_single_url(self, tmp_path: Path) -> None:
         """Test download_all with single URL."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -83,7 +85,7 @@ class TestAsyncImageDownloaderDownloadAll:
             # Assert
             assert result == ["image1.jpg"]
 
-    async def test_download_all_with_multiple_urls(self, tmp_path):
+    async def test_download_all_with_multiple_urls(self, tmp_path: Path) -> None:
         """Test download_all with multiple URLs."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -108,7 +110,7 @@ class TestAsyncImageDownloaderDownloadAll:
             assert "image2.jpg" in result
             assert "image3.jpg" in result
 
-    async def test_download_all_handles_exceptions(self, tmp_path):
+    async def test_download_all_handles_exceptions(self, tmp_path: Path) -> None:
         """Test download_all handles download exceptions gracefully."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -132,7 +134,7 @@ class TestAsyncImageDownloaderDownloadAll:
             assert "image1.jpg" in result
             assert "image3.jpg" in result
 
-    async def test_download_all_handles_none_results(self, tmp_path):
+    async def test_download_all_handles_none_results(self, tmp_path: Path) -> None:
         """Test download_all handles None results (failed downloads)."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -154,7 +156,7 @@ class TestAsyncImageDownloaderDownloadAll:
             assert "image1.jpg" in result
             assert "image3.jpg" in result
 
-    async def test_download_all_calls_progress_callback(self, tmp_path):
+    async def test_download_all_calls_progress_callback(self, tmp_path: Path) -> None:
         """Test download_all calls progress callback if provided."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -180,7 +182,7 @@ class TestAsyncImageDownloaderDownloadAll:
 class TestAsyncImageDownloaderDownloadSingle:
     """Test AsyncImageDownloader._download_single() method."""
 
-    async def test_download_single_respects_semaphore(self, tmp_path):
+    async def test_download_single_respects_semaphore(self, tmp_path: Path) -> None:
         """Test _download_single respects semaphore for concurrency control."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path, max_concurrent=1)
@@ -197,7 +199,7 @@ class TestAsyncImageDownloaderDownloadSingle:
             assert result == "image.jpg"
             mock_download.assert_called_once_with(session, url)
 
-    async def test_download_single_calls_progress_callback(self, tmp_path):
+    async def test_download_single_calls_progress_callback(self, tmp_path: Path) -> None:
         """Test _download_single calls progress callback."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -212,7 +214,7 @@ class TestAsyncImageDownloaderDownloadSingle:
             # Assert
             progress_callback.assert_called_once_with(0.6)  # (2+1)/5 = 0.6
 
-    async def test_download_single_includes_rate_limiting(self, tmp_path):
+    async def test_download_single_includes_rate_limiting(self, tmp_path: Path) -> None:
         """Test _download_single includes rate limiting delay."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -237,7 +239,7 @@ class TestAsyncImageDownloaderDownloadSingle:
 class TestAsyncImageDownloaderGenerateFilename:
     """Test AsyncImageDownloader._generate_filename() method."""
 
-    def test_generate_filename_uses_original_filename(self, tmp_path):
+    def test_generate_filename_uses_original_filename(self, tmp_path: Path) -> None:
         """Test uses original filename from URL when available."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -251,7 +253,7 @@ class TestAsyncImageDownloaderGenerateFilename:
         # Assert
         assert filename == "sunset.jpg"
 
-    def test_generate_filename_handles_url_without_extension(self, tmp_path):
+    def test_generate_filename_handles_url_without_extension(self, tmp_path: Path) -> None:
         """Test generates filename when URL has no extension."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -266,7 +268,7 @@ class TestAsyncImageDownloaderGenerateFilename:
         assert filename.startswith("image_")
         assert filename.endswith(".png")
 
-    def test_generate_filename_uses_content_type(self, tmp_path):
+    def test_generate_filename_uses_content_type(self, tmp_path: Path) -> None:
         """Test uses content-type header to determine extension."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -280,7 +282,7 @@ class TestAsyncImageDownloaderGenerateFilename:
         # Assert
         assert filename.endswith(".webp")
 
-    def test_generate_filename_uses_hash_for_uniqueness(self, tmp_path):
+    def test_generate_filename_uses_hash_for_uniqueness(self, tmp_path: Path) -> None:
         """Test uses URL hash to generate unique filename."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -306,7 +308,7 @@ class TestAsyncImageDownloaderGenerateFilename:
 class TestAsyncImageDownloaderGetExtensionFromContentType:
     """Test AsyncImageDownloader._get_extension_from_content_type() method."""
 
-    def test_get_extension_for_jpeg(self, tmp_path):
+    def test_get_extension_for_jpeg(self, tmp_path: Path) -> None:
         """Test returns .jpg for image/jpeg."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -317,7 +319,7 @@ class TestAsyncImageDownloaderGetExtensionFromContentType:
         # Assert
         assert extension == ".jpg"
 
-    def test_get_extension_for_png(self, tmp_path):
+    def test_get_extension_for_png(self, tmp_path: Path) -> None:
         """Test returns .png for image/png."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -328,7 +330,7 @@ class TestAsyncImageDownloaderGetExtensionFromContentType:
         # Assert
         assert extension == ".png"
 
-    def test_get_extension_for_webp(self, tmp_path):
+    def test_get_extension_for_webp(self, tmp_path: Path) -> None:
         """Test returns .webp for image/webp."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -339,7 +341,7 @@ class TestAsyncImageDownloaderGetExtensionFromContentType:
         # Assert
         assert extension == ".webp"
 
-    def test_get_extension_for_gif(self, tmp_path):
+    def test_get_extension_for_gif(self, tmp_path: Path) -> None:
         """Test returns .gif for image/gif."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -350,7 +352,7 @@ class TestAsyncImageDownloaderGetExtensionFromContentType:
         # Assert
         assert extension == ".gif"
 
-    def test_get_extension_returns_default_for_unknown(self, tmp_path):
+    def test_get_extension_returns_default_for_unknown(self, tmp_path: Path) -> None:
         """Test returns default extension for unknown content type."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -361,7 +363,7 @@ class TestAsyncImageDownloaderGetExtensionFromContentType:
         # Assert
         assert extension == ".jpg"  # DEFAULT_IMAGE_EXTENSION
 
-    def test_get_extension_handles_content_type_with_charset(self, tmp_path):
+    def test_get_extension_handles_content_type_with_charset(self, tmp_path: Path) -> None:
         """Test handles content-type with charset parameter."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -383,7 +385,7 @@ class TestAsyncImageDownloaderGetExtensionFromContentType:
 class TestAsyncImageDownloaderDownloadImageSafe:
     """Test AsyncImageDownloader._download_image_safe() method."""
 
-    async def test_download_image_safe_returns_filename_on_success(self, tmp_path):
+    async def test_download_image_safe_returns_filename_on_success(self, tmp_path: Path) -> None:
         """Test _download_image_safe returns filename on success."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -397,7 +399,7 @@ class TestAsyncImageDownloaderDownloadImageSafe:
             # Assert
             assert result == "image.jpg"
 
-    async def test_download_image_safe_returns_none_on_exception(self, tmp_path):
+    async def test_download_image_safe_returns_none_on_exception(self, tmp_path: Path) -> None:
         """Test _download_image_safe returns None when exception occurs."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -422,7 +424,9 @@ class TestAsyncImageDownloaderDownloadImageSafe:
 class TestAsyncImageDownloaderDownloadImage:
     """Test AsyncImageDownloader._download_image() method."""
 
-    async def test_download_image_raises_conversion_error_on_client_error(self, tmp_path):
+    async def test_download_image_raises_conversion_error_on_client_error(
+        self, tmp_path: Path
+    ) -> None:
         """Test _download_image raises ConversionError on aiohttp.ClientError."""
         # Arrange
         downloader = AsyncImageDownloader(tmp_path)
@@ -438,7 +442,7 @@ class TestAsyncImageDownloaderDownloadImage:
             with pytest.raises(ConversionError, match="Failed to download image"):
                 await downloader._download_image(session, url)
 
-    async def test_download_image_creates_output_directory(self, tmp_path):
+    async def test_download_image_creates_output_directory(self, tmp_path: Path) -> None:
         """Test _download_image creates output directory if it doesn't exist."""
         # Arrange
         output_dir = tmp_path / "images" / "subfolder"
@@ -447,7 +451,7 @@ class TestAsyncImageDownloaderDownloadImage:
         url = "https://example.com/image.jpg"
 
         # Mock response with async iterator for content chunks
-        async def mock_iter_chunked(size):
+        async def mock_iter_chunked(size: int) -> AsyncIterator[bytes]:
             """Mock async iterator for response chunks."""
             yield b"image_data"
 

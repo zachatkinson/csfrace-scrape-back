@@ -13,6 +13,7 @@ Tests AuthService database operations.
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.orm import Session
 
 from src.auth.models import OAuthUserCreate, UserCreate, UserUpdate
 from src.auth.service import AuthService
@@ -24,7 +25,7 @@ from src.database.models.auth import User as UserTable
 
 
 @pytest.fixture
-def user_create_password():
+def user_create_password() -> UserCreate:
     """Factory for password-based user creation - DRY principle."""
     return UserCreate(
         username="testuser",
@@ -35,7 +36,7 @@ def user_create_password():
 
 
 @pytest.fixture
-def user_create_oauth():
+def user_create_oauth() -> OAuthUserCreate:
     """Factory for OAuth user creation - DRY principle."""
     return OAuthUserCreate(
         username="oauth_user",
@@ -45,13 +46,13 @@ def user_create_oauth():
 
 
 @pytest.fixture
-def user_update_partial():
+def user_update_partial() -> UserUpdate:
     """Factory for partial user update."""
     return UserUpdate(full_name="Updated Name")
 
 
 @pytest.fixture
-def user_update_full():
+def user_update_full() -> UserUpdate:
     """Factory for full user update."""
     return UserUpdate(
         email="updated@example.com",
@@ -69,7 +70,7 @@ class TestAuthServiceInit:
     """Test AuthService initialization."""
 
     @pytest.mark.unit
-    def test_auth_service_init(self, test_session):
+    def test_auth_service_init(self, test_session: Session) -> None:
         """Test AuthService initializes with database session."""
         # Arrange & Act
         service = AuthService(db=test_session)
@@ -87,7 +88,9 @@ class TestGetUserByUsername:
     """Test get user by username lookup - Lines 27-44."""
 
     @pytest.mark.integration
-    def test_get_user_by_username_exists(self, test_session, user_create_password):
+    def test_get_user_by_username_exists(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test get_user_by_username returns user when exists."""
         # Arrange
         service = AuthService(db=test_session)
@@ -103,7 +106,7 @@ class TestGetUserByUsername:
         assert result.email == user_create_password.email
 
     @pytest.mark.unit
-    def test_get_user_by_username_not_exists(self, test_session):
+    def test_get_user_by_username_not_exists(self, test_session: Session) -> None:
         """Test get_user_by_username returns None when user not found."""
         # Arrange
         service = AuthService(db=test_session)
@@ -115,7 +118,9 @@ class TestGetUserByUsername:
         assert result is None
 
     @pytest.mark.integration
-    def test_get_user_by_username_case_sensitive(self, test_session, user_create_password):
+    def test_get_user_by_username_case_sensitive(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test get_user_by_username is case-sensitive."""
         # Arrange
         service = AuthService(db=test_session)
@@ -137,7 +142,9 @@ class TestGetUserByEmail:
     """Test get user by email lookup - Lines 46-63."""
 
     @pytest.mark.integration
-    def test_get_user_by_email_exists(self, test_session, user_create_password):
+    def test_get_user_by_email_exists(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test get_user_by_email returns user when exists."""
         # Arrange
         service = AuthService(db=test_session)
@@ -152,7 +159,7 @@ class TestGetUserByEmail:
         assert result.email == user_create_password.email
 
     @pytest.mark.unit
-    def test_get_user_by_email_not_exists(self, test_session):
+    def test_get_user_by_email_not_exists(self, test_session: Session) -> None:
         """Test get_user_by_email returns None when user not found."""
         # Arrange
         service = AuthService(db=test_session)
@@ -164,7 +171,9 @@ class TestGetUserByEmail:
         assert result is None
 
     @pytest.mark.integration
-    def test_get_user_by_email_case_sensitive(self, test_session, user_create_password):
+    def test_get_user_by_email_case_sensitive(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test get_user_by_email is case-sensitive."""
         # Arrange
         service = AuthService(db=test_session)
@@ -186,7 +195,9 @@ class TestGetUserById:
     """Test get user by ID lookup - Lines 65-82."""
 
     @pytest.mark.integration
-    def test_get_user_by_id_exists(self, test_session, user_create_password):
+    def test_get_user_by_id_exists(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test get_user_by_id returns user when exists."""
         # Arrange
         service = AuthService(db=test_session)
@@ -201,7 +212,7 @@ class TestGetUserById:
         assert result.username == user_create_password.username
 
     @pytest.mark.unit
-    def test_get_user_by_id_not_exists(self, test_session):
+    def test_get_user_by_id_not_exists(self, test_session: Session) -> None:
         """Test get_user_by_id returns None when user not found."""
         # Arrange
         service = AuthService(db=test_session)
@@ -223,7 +234,9 @@ class TestCreateUser:
     """Test user creation for both password and OAuth users."""
 
     @pytest.mark.integration
-    def test_create_user_password_success(self, test_session, user_create_password):
+    def test_create_user_password_success(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test create_user successfully creates password-based user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -241,7 +254,9 @@ class TestCreateUser:
         assert result.created_at is not None
 
     @pytest.mark.integration
-    def test_create_user_oauth_success(self, test_session, user_create_oauth):
+    def test_create_user_oauth_success(
+        self, test_session: Session, user_create_oauth: OAuthUserCreate
+    ) -> None:
         """Test create_user successfully creates OAuth user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -256,7 +271,9 @@ class TestCreateUser:
         assert result.full_name == user_create_oauth.full_name
 
     @pytest.mark.integration
-    def test_create_user_duplicate_email(self, test_session, user_create_password):
+    def test_create_user_duplicate_email(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test create_user fails with duplicate email."""
         # Arrange
         service = AuthService(db=test_session)
@@ -275,7 +292,9 @@ class TestCreateUser:
             service.create_user(duplicate)
 
     @pytest.mark.integration
-    def test_create_user_duplicate_username(self, test_session, user_create_password):
+    def test_create_user_duplicate_username(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test create_user fails with duplicate username."""
         # Arrange
         service = AuthService(db=test_session)
@@ -294,7 +313,9 @@ class TestCreateUser:
             service.create_user(duplicate)
 
     @pytest.mark.integration
-    def test_create_user_password_hashed(self, test_session, user_create_password):
+    def test_create_user_password_hashed(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test create_user hashes password for password-based users."""
         # Arrange
         service = AuthService(db=test_session)
@@ -304,11 +325,14 @@ class TestCreateUser:
 
         # Assert - Password should be hashed in database
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.hashed_password is not None
         assert user_row.hashed_password != user_create_password.password
 
     @pytest.mark.integration
-    def test_create_user_oauth_no_password(self, test_session, user_create_oauth):
+    def test_create_user_oauth_no_password(
+        self, test_session: Session, user_create_oauth: OAuthUserCreate
+    ) -> None:
         """Test create_user does not store password for OAuth users."""
         # Arrange
         service = AuthService(db=test_session)
@@ -318,10 +342,13 @@ class TestCreateUser:
 
         # Assert - OAuth user should have no password
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.hashed_password is None
 
     @pytest.mark.integration
-    def test_create_user_sets_defaults(self, test_session, user_create_password):
+    def test_create_user_sets_defaults(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test create_user sets proper default values."""
         # Arrange
         service = AuthService(db=test_session)
@@ -335,7 +362,9 @@ class TestCreateUser:
         assert result.created_at is not None
 
     @pytest.mark.integration
-    def test_create_user_generates_unique_id(self, test_session, user_create_password):
+    def test_create_user_generates_unique_id(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test create_user generates unique UUID for each user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -365,7 +394,12 @@ class TestUpdateUser:
     """Test user update operations - Lines 147-183."""
 
     @pytest.mark.integration
-    def test_update_user_partial(self, test_session, user_create_password, user_update_partial):
+    def test_update_user_partial(
+        self,
+        test_session: Session,
+        user_create_password: UserCreate,
+        user_update_partial: UserUpdate,
+    ) -> None:
         """Test update_user with partial update."""
         # Arrange
         service = AuthService(db=test_session)
@@ -381,7 +415,9 @@ class TestUpdateUser:
         assert result.email == user_create_password.email  # Unchanged
 
     @pytest.mark.integration
-    def test_update_user_full(self, test_session, user_create_password, user_update_full):
+    def test_update_user_full(
+        self, test_session: Session, user_create_password: UserCreate, user_update_full: UserUpdate
+    ) -> None:
         """Test update_user with full update."""
         # Arrange
         service = AuthService(db=test_session)
@@ -398,7 +434,9 @@ class TestUpdateUser:
         assert result.is_active == user_update_full.is_active
 
     @pytest.mark.integration
-    def test_update_user_not_found(self, test_session, user_update_partial):
+    def test_update_user_not_found(
+        self, test_session: Session, user_update_partial: UserUpdate
+    ) -> None:
         """Test update_user returns None for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -412,25 +450,32 @@ class TestUpdateUser:
 
     @pytest.mark.integration
     def test_update_user_updates_timestamp(
-        self, test_session, user_create_password, user_update_partial
-    ):
+        self,
+        test_session: Session,
+        user_create_password: UserCreate,
+        user_update_partial: UserUpdate,
+    ) -> None:
         """Test update_user updates the updated_at timestamp."""
         # Arrange
         service = AuthService(db=test_session)
         created_user = service.create_user(user_create_password)
-        original_updated_at = (
-            test_session.query(UserTable).filter(UserTable.id == created_user.id).first().updated_at
-        )
+        original_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert original_row is not None
+        original_updated_at = original_row.updated_at
 
         # Act
         result = service.update_user(created_user.id, user_update_partial)
 
         # Assert
+        assert result is not None
         updated_row = test_session.query(UserTable).filter(UserTable.id == result.id).first()
+        assert updated_row is not None
         assert updated_row.updated_at > original_updated_at
 
     @pytest.mark.integration
-    def test_update_user_excludes_unset_fields(self, test_session, user_create_password):
+    def test_update_user_excludes_unset_fields(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test update_user only updates fields that are explicitly set."""
         # Arrange
         service = AuthService(db=test_session)
@@ -443,6 +488,7 @@ class TestUpdateUser:
         result = service.update_user(created_user.id, partial_update)
 
         # Assert - Only full_name changed
+        assert result is not None
         assert result.full_name == "New Name"
         assert result.username == user_create_password.username
         assert result.email == user_create_password.email
@@ -457,7 +503,9 @@ class TestUpdateLastLogin:
     """Test last login timestamp updates - Lines 185-203."""
 
     @pytest.mark.integration
-    def test_update_last_login_success(self, test_session, user_create_password):
+    def test_update_last_login_success(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test update_last_login successfully updates timestamp."""
         # Arrange
         service = AuthService(db=test_session)
@@ -469,10 +517,11 @@ class TestUpdateLastLogin:
         # Assert
         assert result is True
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.last_login is not None
 
     @pytest.mark.unit
-    def test_update_last_login_not_found(self, test_session):
+    def test_update_last_login_not_found(self, test_session: Session) -> None:
         """Test update_last_login returns False for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -485,7 +534,9 @@ class TestUpdateLastLogin:
         assert result is False
 
     @pytest.mark.integration
-    def test_update_last_login_updates_updated_at(self, test_session, user_create_password):
+    def test_update_last_login_updates_updated_at(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test update_last_login also updates updated_at timestamp."""
         # Arrange
         service = AuthService(db=test_session)
@@ -496,6 +547,7 @@ class TestUpdateLastLogin:
 
         # Assert
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.updated_at is not None
         assert user_row.last_login is not None
 
@@ -509,7 +561,9 @@ class TestListUsers:
     """Test user listing with pagination - Lines 205-227."""
 
     @pytest.mark.integration
-    def test_list_users_default_pagination(self, test_session, user_create_password):
+    def test_list_users_default_pagination(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test list_users with default pagination."""
         # Arrange
         service = AuthService(db=test_session)
@@ -523,7 +577,7 @@ class TestListUsers:
         assert result[0].username == user_create_password.username
 
     @pytest.mark.integration
-    def test_list_users_with_skip_limit(self, test_session):
+    def test_list_users_with_skip_limit(self, test_session: Session) -> None:
         """Test list_users with skip and limit parameters."""
         # Arrange
         service = AuthService(db=test_session)
@@ -545,7 +599,7 @@ class TestListUsers:
         assert len(result) == 2
 
     @pytest.mark.integration
-    def test_list_users_ordered_by_created_at_desc(self, test_session):
+    def test_list_users_ordered_by_created_at_desc(self, test_session: Session) -> None:
         """Test list_users returns users ordered by created_at descending."""
         # Arrange
         service = AuthService(db=test_session)
@@ -575,7 +629,9 @@ class TestListUsers:
         assert result[1].id == user1.id
 
     @pytest.mark.integration
-    def test_list_users_includes_last_login(self, test_session, user_create_password):
+    def test_list_users_includes_last_login(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test list_users includes last_login field."""
         # Arrange
         service = AuthService(db=test_session)
@@ -598,7 +654,9 @@ class TestDeactivateUser:
     """Test user deactivation - Lines 229-251."""
 
     @pytest.mark.integration
-    def test_deactivate_user_success(self, test_session, user_create_password):
+    def test_deactivate_user_success(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test deactivate_user successfully deactivates active user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -610,10 +668,11 @@ class TestDeactivateUser:
         # Assert
         assert result is True
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.is_active is False
 
     @pytest.mark.unit
-    def test_deactivate_user_not_found(self, test_session):
+    def test_deactivate_user_not_found(self, test_session: Session) -> None:
         """Test deactivate_user returns False for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -626,7 +685,9 @@ class TestDeactivateUser:
         assert result is False
 
     @pytest.mark.integration
-    def test_deactivate_user_already_deactivated(self, test_session, user_create_password):
+    def test_deactivate_user_already_deactivated(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test deactivate_user returns True for already deactivated user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -640,20 +701,23 @@ class TestDeactivateUser:
         assert result is True
 
     @pytest.mark.integration
-    def test_deactivate_user_updates_timestamp(self, test_session, user_create_password):
+    def test_deactivate_user_updates_timestamp(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test deactivate_user updates updated_at timestamp."""
         # Arrange
         service = AuthService(db=test_session)
         created_user = service.create_user(user_create_password)
-        original_updated_at = (
-            test_session.query(UserTable).filter(UserTable.id == created_user.id).first().updated_at
-        )
+        original_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert original_row is not None
+        original_updated_at = original_row.updated_at
 
         # Act
         service.deactivate_user(created_user.id)
 
         # Assert
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.updated_at > original_updated_at
 
 
@@ -666,7 +730,9 @@ class TestDeleteUserAccount:
     """Test permanent user deletion - Lines 253-297."""
 
     @pytest.mark.integration
-    def test_delete_user_account_success(self, test_session, user_create_password):
+    def test_delete_user_account_success(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test delete_user_account successfully deletes user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -681,7 +747,7 @@ class TestDeleteUserAccount:
         assert user_row is None
 
     @pytest.mark.unit
-    def test_delete_user_account_not_found(self, test_session):
+    def test_delete_user_account_not_found(self, test_session: Session) -> None:
         """Test delete_user_account returns False for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -694,7 +760,9 @@ class TestDeleteUserAccount:
         assert result is False
 
     @pytest.mark.integration
-    def test_delete_user_account_removes_from_database(self, test_session, user_create_password):
+    def test_delete_user_account_removes_from_database(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test delete_user_account completely removes user from database."""
         # Arrange
         service = AuthService(db=test_session)
@@ -718,7 +786,9 @@ class TestAuthenticateUser:
     """Test user authentication - Lines 299-340."""
 
     @pytest.mark.integration
-    def test_authenticate_user_success_with_username(self, test_session, user_create_password):
+    def test_authenticate_user_success_with_username(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test authenticate_user succeeds with valid username and password."""
         # Arrange
         service = AuthService(db=test_session)
@@ -734,7 +804,9 @@ class TestAuthenticateUser:
         assert result.username == user_create_password.username
 
     @pytest.mark.integration
-    def test_authenticate_user_success_with_email(self, test_session, user_create_password):
+    def test_authenticate_user_success_with_email(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test authenticate_user succeeds with valid email and password."""
         # Arrange
         service = AuthService(db=test_session)
@@ -750,7 +822,9 @@ class TestAuthenticateUser:
         assert result.email == user_create_password.email
 
     @pytest.mark.integration
-    def test_authenticate_user_invalid_password(self, test_session, user_create_password):
+    def test_authenticate_user_invalid_password(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test authenticate_user fails with invalid password."""
         # Arrange
         service = AuthService(db=test_session)
@@ -763,7 +837,7 @@ class TestAuthenticateUser:
         assert result is None
 
     @pytest.mark.unit
-    def test_authenticate_user_user_not_found(self, test_session):
+    def test_authenticate_user_user_not_found(self, test_session: Session) -> None:
         """Test authenticate_user returns None for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -775,7 +849,9 @@ class TestAuthenticateUser:
         assert result is None
 
     @pytest.mark.integration
-    def test_authenticate_user_inactive_user(self, test_session, user_create_password):
+    def test_authenticate_user_inactive_user(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test authenticate_user fails for inactive user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -791,7 +867,9 @@ class TestAuthenticateUser:
         assert result is None
 
     @pytest.mark.integration
-    def test_authenticate_user_oauth_user_no_password(self, test_session, user_create_oauth):
+    def test_authenticate_user_oauth_user_no_password(
+        self, test_session: Session, user_create_oauth: OAuthUserCreate
+    ) -> None:
         """Test authenticate_user fails for OAuth user (no password)."""
         # Arrange
         service = AuthService(db=test_session)
@@ -813,7 +891,9 @@ class TestChangePassword:
     """Test password change operations - Lines 342-382."""
 
     @pytest.mark.integration
-    def test_change_password_success(self, test_session, user_create_password):
+    def test_change_password_success(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test change_password successfully changes password."""
         # Arrange
         service = AuthService(db=test_session)
@@ -833,7 +913,7 @@ class TestChangePassword:
         assert auth_result is not None
 
     @pytest.mark.unit
-    def test_change_password_user_not_found(self, test_session):
+    def test_change_password_user_not_found(self, test_session: Session) -> None:
         """Test change_password returns False for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
@@ -846,7 +926,9 @@ class TestChangePassword:
         assert result is False
 
     @pytest.mark.integration
-    def test_change_password_invalid_old_password(self, test_session, user_create_password):
+    def test_change_password_invalid_old_password(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test change_password fails with invalid old password."""
         # Arrange
         service = AuthService(db=test_session)
@@ -859,44 +941,43 @@ class TestChangePassword:
         assert result is False
 
     @pytest.mark.integration
-    def test_change_password_updates_hash(self, test_session, user_create_password):
+    def test_change_password_updates_hash(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test change_password updates password hash in database."""
         # Arrange
         service = AuthService(db=test_session)
         created_user = service.create_user(user_create_password)
-        original_hash = (
-            test_session.query(UserTable)
-            .filter(UserTable.id == created_user.id)
-            .first()
-            .hashed_password
-        )
+        original_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert original_row is not None
+        original_hash = original_row.hashed_password
         new_password = "NewSecurePass456!"
 
         # Act
         service.change_password(created_user.id, user_create_password.password, new_password)
 
         # Assert - Hash should be different
-        new_hash = (
-            test_session.query(UserTable)
-            .filter(UserTable.id == created_user.id)
-            .first()
-            .hashed_password
-        )
+        new_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert new_row is not None
+        new_hash = new_row.hashed_password
         assert new_hash != original_hash
 
     @pytest.mark.integration
-    def test_change_password_updates_timestamp(self, test_session, user_create_password):
+    def test_change_password_updates_timestamp(
+        self, test_session: Session, user_create_password: UserCreate
+    ) -> None:
         """Test change_password updates updated_at timestamp."""
         # Arrange
         service = AuthService(db=test_session)
         created_user = service.create_user(user_create_password)
-        original_updated_at = (
-            test_session.query(UserTable).filter(UserTable.id == created_user.id).first().updated_at
-        )
+        original_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert original_row is not None
+        original_updated_at = original_row.updated_at
 
         # Act
         service.change_password(created_user.id, user_create_password.password, "NewSecurePass456!")
 
         # Assert
         user_row = test_session.query(UserTable).filter(UserTable.id == created_user.id).first()
+        assert user_row is not None
         assert user_row.updated_at > original_updated_at

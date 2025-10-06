@@ -21,11 +21,12 @@ router = APIRouter(prefix="/performance", tags=["Performance Monitoring"])
 def safe_json_dumps(data: Any) -> str:
     """JSON dumps with handling for non-serializable types like Decimal."""
 
-    def default_serializer(obj):
+    def default_serializer(obj: Any) -> float | str:
         if isinstance(obj, Decimal):
             return float(obj)
         elif hasattr(obj, "isoformat"):
-            return obj.isoformat()
+            isoformat_str: str = obj.isoformat()
+            return isoformat_str
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     return json.dumps(data, default=default_serializer)

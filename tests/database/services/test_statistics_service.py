@@ -13,6 +13,7 @@ This module tests all statistics-related database operations:
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy.orm import Session
 
 from src.common.status import JobStatus
 from src.database.models.auth import (
@@ -28,7 +29,7 @@ class TestStatisticsServiceJobStatistics:
     """Test job statistics calculation."""
 
     @pytest.mark.database
-    def test_get_job_statistics_basic(self, test_session):
+    def test_get_job_statistics_basic(self, test_session: Session) -> None:
         """Test basic job statistics calculation."""
         # Arrange
         # Rollback any pending work and cleanup for isolation
@@ -72,7 +73,7 @@ class TestStatisticsServiceJobStatistics:
         assert "end_date" in stats
 
     @pytest.mark.database
-    def test_get_job_statistics_no_jobs(self, test_session):
+    def test_get_job_statistics_no_jobs(self, test_session: Session) -> None:
         """Test statistics with no jobs."""
         # Arrange
         # Rollback any pending work and cleanup for isolation
@@ -99,7 +100,7 @@ class TestStatisticsServiceJobStatistics:
         assert len(stats["hourly_distribution"]) == 24  # Full 24-hour distribution
 
     @pytest.mark.database
-    def test_get_job_statistics_custom_period(self, test_session):
+    def test_get_job_statistics_custom_period(self, test_session: Session) -> None:
         """Test statistics with custom time period."""
         # Arrange
         # Rollback any pending work and cleanup for isolation
@@ -145,7 +146,7 @@ class TestStatisticsServiceJobStatistics:
         assert stats["period_days"] == 30
 
     @pytest.mark.database
-    def test_get_job_statistics_top_domains(self, test_session):
+    def test_get_job_statistics_top_domains(self, test_session: Session) -> None:
         """Test top domains calculation."""
         # Arrange
         # Rollback any pending work and cleanup for isolation
@@ -186,7 +187,7 @@ class TestStatisticsServiceJobStatistics:
         assert stats["top_domains"][1]["count"] == 2
 
     @pytest.mark.database
-    def test_get_job_statistics_hourly_distribution(self, test_session):
+    def test_get_job_statistics_hourly_distribution(self, test_session: Session) -> None:
         """Test hourly distribution calculation."""
         # Arrange
         job_service = JobService(test_session)
@@ -209,7 +210,7 @@ class TestStatisticsServiceJobStatistics:
             assert str(hour).zfill(2) in stats["hourly_distribution"]
 
     @pytest.mark.database
-    def test_get_job_statistics_retry_stats(self, test_session):
+    def test_get_job_statistics_retry_stats(self, test_session: Session) -> None:
         """Test retry statistics calculation."""
         # Arrange
         job_service = JobService(test_session)
@@ -232,7 +233,7 @@ class TestStatisticsServiceJobStatistics:
         assert retry_stats["max_retry_count"] == 2
 
     @pytest.mark.database
-    def test_get_job_statistics_size_stats(self, test_session):
+    def test_get_job_statistics_size_stats(self, test_session: Session) -> None:
         """Test size statistics calculation."""
         # Arrange
         job_service = JobService(test_session)
@@ -265,7 +266,7 @@ class TestStatisticsServicePerformanceMetrics:
     """Test performance metrics calculation."""
 
     @pytest.mark.database
-    def test_get_performance_metrics_basic(self, test_session):
+    def test_get_performance_metrics_basic(self, test_session: Session) -> None:
         """Test basic performance metrics calculation."""
         # Arrange
         job_service = JobService(test_session)
@@ -290,7 +291,7 @@ class TestStatisticsServicePerformanceMetrics:
         assert metrics["period_days"] == 30
 
     @pytest.mark.database
-    def test_get_performance_metrics_no_completed_jobs(self, test_session):
+    def test_get_performance_metrics_no_completed_jobs(self, test_session: Session) -> None:
         """Test performance metrics with no completed jobs."""
         # Arrange
         job_service = JobService(test_session)
@@ -310,7 +311,7 @@ class TestStatisticsServicePerformanceMetrics:
         assert metrics["sample_size"] == 0
 
     @pytest.mark.database
-    def test_get_performance_metrics_domain_filter(self, test_session):
+    def test_get_performance_metrics_domain_filter(self, test_session: Session) -> None:
         """Test performance metrics with domain filter."""
         # Arrange
         job_service = JobService(test_session)
@@ -338,7 +339,7 @@ class TestStatisticsServicePerformanceMetrics:
         assert metrics["avg_processing_time_ms"] == 1000.0
 
     @pytest.mark.database
-    def test_get_performance_metrics_percentiles(self, test_session):
+    def test_get_performance_metrics_percentiles(self, test_session: Session) -> None:
         """Test percentiles calculation with sufficient data."""
         # Arrange
         job_service = JobService(test_session)
@@ -366,7 +367,9 @@ class TestStatisticsServicePerformanceMetrics:
         assert metrics["sample_size"] == 20
 
     @pytest.mark.database
-    def test_get_performance_metrics_no_percentiles_small_sample(self, test_session):
+    def test_get_performance_metrics_no_percentiles_small_sample(
+        self, test_session: Session
+    ) -> None:
         """Test that percentiles are not calculated with small sample size."""
         # Arrange
         job_service = JobService(test_session)
@@ -391,7 +394,7 @@ class TestStatisticsServiceHelperMethods:
     """Test helper methods."""
 
     @pytest.mark.database
-    def test_calculate_hourly_distribution_empty(self, test_session):
+    def test_calculate_hourly_distribution_empty(self, test_session: Session) -> None:
         """Test hourly distribution with no jobs."""
         # Arrange
         stats_service = StatisticsService(test_session)
@@ -409,7 +412,7 @@ class TestStatisticsServiceHelperMethods:
             assert distribution[str(hour).zfill(2)] == 0
 
     @pytest.mark.database
-    def test_calculate_retry_statistics_no_retries(self, test_session):
+    def test_calculate_retry_statistics_no_retries(self, test_session: Session) -> None:
         """Test retry statistics with no retries."""
         # Arrange
         job_service = JobService(test_session)
@@ -430,7 +433,7 @@ class TestStatisticsServiceHelperMethods:
         assert retry_stats["max_retry_count"] == 0
 
     @pytest.mark.database
-    def test_calculate_size_statistics_no_sizes(self, test_session):
+    def test_calculate_size_statistics_no_sizes(self, test_session: Session) -> None:
         """Test size statistics with no size data."""
         # Arrange
         job_service = JobService(test_session)
@@ -451,7 +454,7 @@ class TestStatisticsServiceHelperMethods:
         assert size_stats["total_download_size"] == 0
 
     @pytest.mark.database
-    def test_calculate_percentiles_empty(self, test_session):
+    def test_calculate_percentiles_empty(self, test_session: Session) -> None:
         """Test percentiles calculation with no data."""
         # Arrange
         stats_service = StatisticsService(test_session)
@@ -464,7 +467,7 @@ class TestStatisticsServiceHelperMethods:
         assert percentiles == {}
 
     @pytest.mark.database
-    def test_calculate_percentiles_with_domain_filter(self, test_session):
+    def test_calculate_percentiles_with_domain_filter(self, test_session: Session) -> None:
         """Test percentiles calculation with domain filter."""
         # Arrange
         job_service = JobService(test_session)
@@ -503,7 +506,7 @@ class TestStatisticsServiceEdgeCases:
     """Test edge cases and validation."""
 
     @pytest.mark.database
-    def test_get_job_statistics_zero_days(self, test_session):
+    def test_get_job_statistics_zero_days(self, test_session: Session) -> None:
         """Test statistics with zero days period."""
         # Arrange
         stats_service = StatisticsService(test_session)
@@ -516,7 +519,7 @@ class TestStatisticsServiceEdgeCases:
         assert stats["total_jobs"] == 0
 
     @pytest.mark.database
-    def test_get_job_statistics_all_statuses(self, test_session):
+    def test_get_job_statistics_all_statuses(self, test_session: Session) -> None:
         """Test statistics with all possible job statuses."""
         # Arrange
         job_service = JobService(test_session)
@@ -540,7 +543,7 @@ class TestStatisticsServiceEdgeCases:
         assert stats["status_breakdown"]["FAILED"] == 1
 
     @pytest.mark.database
-    def test_get_performance_metrics_null_processing_times(self, test_session):
+    def test_get_performance_metrics_null_processing_times(self, test_session: Session) -> None:
         """Test performance metrics with null processing times."""
         # Arrange
         job_service = JobService(test_session)
@@ -559,7 +562,7 @@ class TestStatisticsServiceEdgeCases:
         assert metrics["avg_processing_time_ms"] == 0
 
     @pytest.mark.database
-    def test_get_job_statistics_large_period(self, test_session):
+    def test_get_job_statistics_large_period(self, test_session: Session) -> None:
         """Test statistics with very large time period."""
         # Arrange
         job_service = JobService(test_session)
@@ -577,7 +580,7 @@ class TestStatisticsServiceEdgeCases:
         assert stats["total_jobs"] == 1
 
     @pytest.mark.database
-    def test_get_performance_metrics_extreme_values(self, test_session):
+    def test_get_performance_metrics_extreme_values(self, test_session: Session) -> None:
         """Test performance metrics with extreme processing time values."""
         # Arrange
         job_service = JobService(test_session)

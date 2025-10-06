@@ -212,6 +212,7 @@ strict = true  # Enables all optional error checking flags (recommended best pra
 show_error_codes = true
 show_error_code_links = true  # New: provides detailed error explanations
 namespace_packages = true  # Required for OpenTelemetry (per official docs)
+plugins = ["pydantic.mypy"]  # Enable Pydantic mypy plugin for proper Field defaults
 
 # Additional strict settings beyond the built-in strict mode
 warn_unused_configs = true
@@ -231,8 +232,7 @@ module = [
     "redis.*",
     "opentelemetry.*",
 ]
-# Note: ignore_missing_imports removed - all imports should be properly typed
-# If specific modules need to be ignored, add them to per_module_options above
+ignore_missing_imports = true  # Required for optional dependencies without type stubs
 
 # Pytest configuration
 [tool.pytest.ini_options]

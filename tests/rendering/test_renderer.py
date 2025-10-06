@@ -16,6 +16,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncio
@@ -103,7 +104,7 @@ def dynamic_html() -> str:
 class TestRenderingStrategy:
     """Tests for RenderingStrategy configuration."""
 
-    def test_strategy_initialization_with_defaults(self):
+    def test_strategy_initialization_with_defaults(self) -> None:
         """Test strategy initializes with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -119,7 +120,7 @@ class TestRenderingStrategy:
         assert strategy.enable_network_capture is False
         assert strategy.max_concurrent_renders == 3
 
-    def test_strategy_with_custom_values(self):
+    def test_strategy_with_custom_values(self) -> None:
         """Test strategy accepts custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_values = {
@@ -138,7 +139,7 @@ class TestRenderingStrategy:
         assert strategy.enable_screenshots is True
         assert strategy.max_concurrent_renders == 10
 
-    def test_strategy_rejects_conflicting_force_options(self):
+    def test_strategy_rejects_conflicting_force_options(self) -> None:
         """Test strategy rejects conflicting force options - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         conflicting_values = {"force_javascript": True, "force_static": True}
@@ -149,7 +150,7 @@ class TestRenderingStrategy:
 
         assert "Cannot force both JavaScript and static rendering" in str(exc_info.value)
 
-    def test_strategy_with_browser_config(self):
+    def test_strategy_with_browser_config(self) -> None:
         """Test strategy with browser config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         browser_config = BrowserConfig(browser_type="firefox", timeout=60.0)
@@ -172,7 +173,7 @@ class TestRenderingStrategy:
 class TestAdaptiveRendererInitialization:
     """Tests for AdaptiveRenderer initialization."""
 
-    def test_renderer_initialization_with_defaults(self):
+    def test_renderer_initialization_with_defaults(self) -> None:
         """Test renderer initializes with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -187,7 +188,7 @@ class TestAdaptiveRendererInitialization:
 
     def test_renderer_initialization_with_custom_strategy(
         self, default_rendering_strategy: RenderingStrategy
-    ):
+    ) -> None:
         """Test renderer with custom strategy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_strategy = RenderingStrategy(
@@ -201,7 +202,9 @@ class TestAdaptiveRendererInitialization:
         assert renderer.strategy.confidence_threshold == 0.8
         assert renderer.strategy.enable_screenshots is True
 
-    def test_renderer_initialization_with_custom_detector(self, mock_detector):
+    def test_renderer_initialization_with_custom_detector(
+        self, mock_detector: DynamicContentDetector
+    ) -> None:
         """Test renderer with custom detector - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (mock_detector from fixture)
@@ -218,7 +221,7 @@ class TestAdaptiveRendererContentAnalysis:
     """Tests for AdaptiveRenderer content analysis."""
 
     @pytest.mark.asyncio
-    async def test_analyze_content_with_force_javascript(self, static_html: str):
+    async def test_analyze_content_with_force_javascript(self, static_html: str) -> None:
         """Test analyze_content with forced JavaScript - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = RenderingStrategy(force_javascript=True)
@@ -234,7 +237,7 @@ class TestAdaptiveRendererContentAnalysis:
         assert analysis.fallback_strategy == "javascript"
 
     @pytest.mark.asyncio
-    async def test_analyze_content_with_force_static(self, dynamic_html: str):
+    async def test_analyze_content_with_force_static(self, dynamic_html: str) -> None:
         """Test analyze_content with forced static - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = RenderingStrategy(force_static=True)
@@ -250,7 +253,7 @@ class TestAdaptiveRendererContentAnalysis:
         assert analysis.fallback_strategy == "standard"
 
     @pytest.mark.asyncio
-    async def test_analyze_content_automatic_detection_static(self, static_html: str):
+    async def test_analyze_content_automatic_detection_static(self, static_html: str) -> None:
         """Test automatic detection for static content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -263,7 +266,7 @@ class TestAdaptiveRendererContentAnalysis:
         assert analysis.confidence_score < 0.5
 
     @pytest.mark.asyncio
-    async def test_analyze_content_automatic_detection_dynamic(self, dynamic_html: str):
+    async def test_analyze_content_automatic_detection_dynamic(self, dynamic_html: str) -> None:
         """Test automatic detection for dynamic content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -276,7 +279,7 @@ class TestAdaptiveRendererContentAnalysis:
         assert "react" in analysis.frameworks_detected
 
     @pytest.mark.asyncio
-    async def test_analyze_content_applies_confidence_threshold(self):
+    async def test_analyze_content_applies_confidence_threshold(self) -> None:
         """Test confidence threshold is applied - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Create HTML that results in medium confidence (around 0.4)
@@ -304,7 +307,9 @@ class TestAdaptiveRendererPageRendering:
     """Tests for AdaptiveRenderer page rendering."""
 
     @pytest.mark.asyncio
-    async def test_render_page_with_static_html_sufficient(self, static_html: str, mock_detector):
+    async def test_render_page_with_static_html_sufficient(
+        self, static_html: str, mock_detector: DynamicContentDetector
+    ) -> None:
         """Test render_page uses static HTML when sufficient - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer(detector=mock_detector)
@@ -319,7 +324,7 @@ class TestAdaptiveRendererPageRendering:
         assert result.metadata["source"] == "static_provided"
 
     @pytest.mark.asyncio
-    async def test_render_page_uses_javascript_for_dynamic(self, dynamic_html: str):
+    async def test_render_page_uses_javascript_for_dynamic(self, dynamic_html: str) -> None:
         """Test render_page uses JavaScript for dynamic content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -350,7 +355,7 @@ class TestAdaptiveRendererPageRendering:
         assert result.metadata["rendering_strategy"] == "javascript"
 
     @pytest.mark.asyncio
-    async def test_render_page_without_static_html(self):
+    async def test_render_page_without_static_html(self) -> None:
         """Test render_page without static HTML - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -379,7 +384,7 @@ class TestAdaptiveRendererPageRendering:
         mock_js.render_page.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_render_page_applies_strategy_options(self):
+    async def test_render_page_applies_strategy_options(self) -> None:
         """Test render_page applies strategy options - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = RenderingStrategy(enable_screenshots=True, enable_network_capture=True)
@@ -415,7 +420,7 @@ class TestAdaptiveRendererConcurrentRendering:
     """Tests for AdaptiveRenderer concurrent rendering."""
 
     @pytest.mark.asyncio
-    async def test_render_multiple_urls(self):
+    async def test_render_multiple_urls(self) -> None:
         """Test render_multiple with multiple URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -425,7 +430,7 @@ class TestAdaptiveRendererConcurrentRendering:
             mock_js = AsyncMock(spec=JavaScriptRenderer)
             mock_js.initialize = AsyncMock()
 
-            async def mock_render(url, **kwargs):
+            async def mock_render(url: str, **kwargs: Any) -> RenderResult:
                 return RenderResult(
                     html=f"<html>{url}</html>",
                     url=url,
@@ -449,7 +454,7 @@ class TestAdaptiveRendererConcurrentRendering:
             assert result.url == url
 
     @pytest.mark.asyncio
-    async def test_render_multiple_handles_errors(self):
+    async def test_render_multiple_handles_errors(self) -> None:
         """Test render_multiple handles errors gracefully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -459,7 +464,7 @@ class TestAdaptiveRendererConcurrentRendering:
             mock_js = AsyncMock(spec=JavaScriptRenderer)
             mock_js.initialize = AsyncMock()
 
-            async def mock_render(url, **kwargs):
+            async def mock_render(url: str, **kwargs: Any) -> RenderResult:
                 if "2" in url:
                     raise RuntimeError("Test error")
                 return RenderResult(
@@ -486,7 +491,7 @@ class TestAdaptiveRendererConcurrentRendering:
         assert "error" in results["https://example.com/2"][0].metadata
 
     @pytest.mark.asyncio
-    async def test_render_multiple_respects_concurrency_limit(self):
+    async def test_render_multiple_respects_concurrency_limit(self) -> None:
         """Test render_multiple respects concurrency limit - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = RenderingStrategy(max_concurrent_renders=2)
@@ -500,7 +505,7 @@ class TestAdaptiveRendererConcurrentRendering:
             mock_js = AsyncMock(spec=JavaScriptRenderer)
             mock_js.initialize = AsyncMock()
 
-            async def mock_render(url, **kwargs):
+            async def mock_render(url: str, **kwargs: Any) -> RenderResult:
                 nonlocal concurrent_count, max_concurrent
                 concurrent_count += 1
                 max_concurrent = max(max_concurrent, concurrent_count)
@@ -530,7 +535,7 @@ class TestAdaptiveRendererCleanup:
     """Tests for AdaptiveRenderer cleanup."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_closes_js_renderer(self):
+    async def test_cleanup_closes_js_renderer(self) -> None:
         """Test cleanup closes JavaScript renderer - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()
@@ -552,7 +557,7 @@ class TestAdaptiveRendererCleanup:
         assert renderer._js_renderer is None
 
     @pytest.mark.asyncio
-    async def test_renderer_context_manager(self):
+    async def test_renderer_context_manager(self) -> None:
         """Test renderer as async context manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -574,7 +579,7 @@ class TestAdaptiveRendererCleanup:
 class TestRenderingService:
     """Tests for RenderingService."""
 
-    def test_service_initialization(self):
+    def test_service_initialization(self) -> None:
         """Test service initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -586,7 +591,7 @@ class TestRenderingService:
         assert service.adaptive_renderer is not None
 
     @pytest.mark.asyncio
-    async def test_should_render_with_javascript(self, static_html: str):
+    async def test_should_render_with_javascript(self, static_html: str) -> None:
         """Test should_render_with_javascript - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = RenderingService()
@@ -599,7 +604,7 @@ class TestRenderingService:
         assert isinstance(analysis, ContentAnalysis)
 
     @pytest.mark.asyncio
-    async def test_enhance_static_content_returns_static(self, static_html: str):
+    async def test_enhance_static_content_returns_static(self, static_html: str) -> None:
         """Test enhance_static_content returns static when sufficient - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = RenderingService()
@@ -613,7 +618,7 @@ class TestRenderingService:
         assert result == static_html
 
     @pytest.mark.asyncio
-    async def test_enhance_static_content_uses_javascript(self, dynamic_html: str):
+    async def test_enhance_static_content_uses_javascript(self, dynamic_html: str) -> None:
         """Test enhance_static_content uses JS for dynamic - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = RenderingService()
@@ -643,7 +648,7 @@ class TestRenderingService:
         assert render_result.javascript_executed is True
 
     @pytest.mark.asyncio
-    async def test_render_page_with_fallback_static_sufficient(self, static_html: str):
+    async def test_render_page_with_fallback_static_sufficient(self, static_html: str) -> None:
         """Test render_page_with_fallback with static - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = RenderingService()
@@ -658,7 +663,7 @@ class TestRenderingService:
         assert metadata["enhanced"] is False
 
     @pytest.mark.asyncio
-    async def test_render_page_with_fallback_error_handling(self):
+    async def test_render_page_with_fallback_error_handling(self) -> None:
         """Test render_page_with_fallback handles errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = RenderingService()
@@ -679,7 +684,7 @@ class TestRenderingService:
         assert "error" in metadata
 
     @pytest.mark.asyncio
-    async def test_service_context_manager(self):
+    async def test_service_context_manager(self) -> None:
         """Test service as async context manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -699,7 +704,7 @@ class TestRenderingService:
 class TestFactoryFunctions:
     """Tests for factory functions."""
 
-    def test_create_adaptive_renderer_with_defaults(self):
+    def test_create_adaptive_renderer_with_defaults(self) -> None:
         """Test create_adaptive_renderer with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -710,9 +715,11 @@ class TestFactoryFunctions:
         # Assert - MANDATORY
         assert isinstance(renderer, AdaptiveRenderer)
         assert renderer.strategy.browser_config is not None
-        assert renderer.strategy.browser_config.browser_type == "chromium"
+        browser_config = renderer.strategy.browser_config
+        assert browser_config is not None
+        assert browser_config.browser_type == "chromium"
 
-    def test_create_adaptive_renderer_with_custom_params(self):
+    def test_create_adaptive_renderer_with_custom_params(self) -> None:
         """Test create_adaptive_renderer with custom params - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         browser_type = "firefox"
@@ -724,10 +731,12 @@ class TestFactoryFunctions:
         )
 
         # Assert - MANDATORY
-        assert renderer.strategy.browser_config.browser_type == "firefox"
+        browser_config = renderer.strategy.browser_config
+        assert browser_config is not None
+        assert browser_config.browser_type == "firefox"
         assert renderer.strategy.confidence_threshold == 0.7
 
-    def test_create_rendering_service_with_defaults(self):
+    def test_create_rendering_service_with_defaults(self) -> None:
         """Test create_rendering_service with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -739,7 +748,7 @@ class TestFactoryFunctions:
         assert isinstance(service, RenderingService)
         assert service.adaptive_renderer is not None
 
-    def test_create_rendering_service_with_custom_params(self):
+    def test_create_rendering_service_with_custom_params(self) -> None:
         """Test create_rendering_service with custom params - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         browser_type = "webkit"
@@ -751,7 +760,9 @@ class TestFactoryFunctions:
         )
 
         # Assert - MANDATORY
-        assert service.adaptive_renderer.strategy.browser_config.browser_type == "webkit"
+        browser_config = service.adaptive_renderer.strategy.browser_config
+        assert browser_config is not None
+        assert browser_config.browser_type == "webkit"
         assert service.adaptive_renderer.strategy.confidence_threshold == 0.8
 
 
@@ -765,7 +776,7 @@ class TestFactoryFunctions:
 class TestRendererPerformance:
     """MANDATORY performance tests for renderer."""
 
-    def test_rendering_strategy_initialization_performance(self):
+    def test_rendering_strategy_initialization_performance(self) -> None:
         """MANDATORY performance test - rendering strategy initialization speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -784,7 +795,7 @@ class TestRendererPerformance:
         assert avg_time < 0.001  # <1ms per initialization
         assert execution_time < 1.0  # Total <1s for 1000 initializations
 
-    def test_adaptive_renderer_initialization_performance(self):
+    def test_adaptive_renderer_initialization_performance(self) -> None:
         """MANDATORY performance test - adaptive renderer initialization speed."""
         # Arrange - MANDATORY
         iterations = 100
@@ -804,7 +815,7 @@ class TestRendererPerformance:
         assert execution_time < 1.0  # Total <1s for 100 initializations
 
     @pytest.mark.asyncio
-    async def test_analyze_content_performance(self, static_html: str):
+    async def test_analyze_content_performance(self, static_html: str) -> None:
         """MANDATORY performance test - content analysis speed."""
         # Arrange - MANDATORY
         renderer = AdaptiveRenderer()

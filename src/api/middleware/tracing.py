@@ -1,7 +1,8 @@
 """Tracing middleware that integrates custom performance monitoring with OpenTelemetry."""
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,7 +15,7 @@ from ...monitoring import distributed_tracer, performance_monitor
 class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
     """Enhanced tracing middleware combining custom and OpenTelemetry tracing."""
 
-    def __init__(self, app, correlation_header: str = "X-Correlation-ID"):
+    def __init__(self, app: Any, correlation_header: str = "X-Correlation-ID") -> None:
         """Initialize enhanced tracing middleware.
 
         Args:
@@ -25,7 +26,9 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-
         self.correlation_header = correlation_header
 
     @api_error_handler("process enhanced tracing")
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Process request with enhanced tracing.
 
         Args:
@@ -74,7 +77,7 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-
         ) as span:
             try:
                 # Add correlation ID to response headers
-                response = await call_next(request)
+                response: Response = await call_next(request)
                 response.headers[self.correlation_header] = correlation_id
 
                 # Add trace ID to response headers if available
@@ -113,7 +116,7 @@ class EnhancedTracingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-
 class CorrelationMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
     """Lightweight correlation ID middleware for requests without full tracing."""
 
-    def __init__(self, app, correlation_header: str = "X-Correlation-ID"):
+    def __init__(self, app: Any, correlation_header: str = "X-Correlation-ID") -> None:
         """Initialize correlation middleware.
 
         Args:
@@ -124,7 +127,9 @@ class CorrelationMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-publ
         self.correlation_header = correlation_header
 
     @api_error_handler("process correlation tracking")
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Add correlation ID to request/response.
 
         Args:
@@ -141,7 +146,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-publ
         distributed_tracer.set_attribute("correlation.id", correlation_id)
 
         # Process request
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # Add correlation ID to response
         response.headers[self.correlation_header] = correlation_id

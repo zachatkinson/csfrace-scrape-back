@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -226,7 +227,7 @@ class TokenRevocationService:
                 await db.close()
 
     @database_error_handler("get revocation statistics")
-    async def get_revocation_stats(self, user_id: str | None = None) -> dict:
+    async def get_revocation_stats(self, user_id: str | None = None) -> dict[str, Any]:
         """Get revocation statistics for monitoring - SOLID Single Responsibility.
 
         Args:
@@ -270,7 +271,9 @@ class TokenRevocationService:
         result = await db.execute(select(RevokedToken).where(RevokedToken.jti == jti))
         return result.scalar_one_or_none()
 
-    def _count_by_field(self, revocations: Sequence[RevokedToken], field_name: str) -> dict:
+    def _count_by_field(
+        self, revocations: Sequence[RevokedToken], field_name: str
+    ) -> dict[str, int]:
         """Count revocations by a specific field - DRY principle helper method."""
         counts: dict[str, int] = {}
         for revocation in revocations:

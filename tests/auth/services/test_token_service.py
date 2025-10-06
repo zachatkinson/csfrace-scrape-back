@@ -4,8 +4,9 @@ Tests for JWT token creation and management service with comprehensive coverage
 following AAA pattern and SOLID testing principles.
 """
 
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -19,7 +20,7 @@ class TestTokenService:
     """Test suite for TokenService following AAA pattern."""
 
     @pytest.fixture
-    def sample_user(self):
+    def sample_user(self) -> User:
         """Create sample user for testing."""
         return User(
             id=str(uuid4()),
@@ -32,7 +33,7 @@ class TestTokenService:
         )
 
     @pytest.fixture
-    def mock_security_manager(self):
+    def mock_security_manager(self) -> Generator[MagicMock]:
         """Mock security_manager for testing."""
         with patch("src.auth.services.token_service.security_manager") as mock:
             # Configure mock return values
@@ -41,7 +42,7 @@ class TestTokenService:
             yield mock
 
     @pytest.fixture
-    def mock_auth_config(self):
+    def mock_auth_config(self) -> Generator[MagicMock]:
         """Mock auth_config for testing."""
         with patch("src.auth.services.token_service.auth_config") as mock:
             mock.ACCESS_TOKEN_EXPIRE_MINUTES = 30  # 30 minutes
@@ -49,8 +50,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_create_tokens_for_user_success(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test successful token creation for user.
 
         AAA Pattern:
@@ -86,8 +90,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_create_tokens_for_user_default_parameters(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test token creation with default parameters.
 
         Ensures DRY principle compliance by testing default values.
@@ -111,11 +118,14 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_create_tokens_for_user_empty_scopes(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test token creation with explicitly empty scopes."""
         # Arrange
-        scopes = []
+        scopes: list[str] = []
 
         # Act
         result = TokenService.create_tokens_for_user(user=sample_user, scopes=scopes)
@@ -131,8 +141,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_create_tokens_for_user_with_custom_scopes(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test token creation with custom scopes array."""
         # Arrange
         custom_scopes = ["admin", "read", "write", "delete"]
@@ -151,8 +164,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_create_access_token_only_success(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test successful creation of access token only.
 
         Used for refresh token operations.
@@ -177,8 +193,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_create_access_token_only_user_data(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test that correct user data is included in access token."""
         # Arrange - Act
         result = TokenService.create_access_token_only(user=sample_user)
@@ -193,8 +212,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_token_expiration_calculation(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test that token expiration is calculated correctly in seconds."""
         # Arrange
         mock_auth_config.ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
@@ -206,7 +228,9 @@ class TestTokenService:
         assert result.expires_in == 60 * 60  # 1 hour in seconds
 
     @pytest.mark.unit
-    def test_token_type_consistency(self, sample_user, mock_security_manager, mock_auth_config):
+    def test_token_type_consistency(
+        self, sample_user: User, mock_security_manager: MagicMock, mock_auth_config: MagicMock
+    ) -> None:
         """Test that token type is consistent across all token creation methods."""
         # Arrange - Act
         full_token = TokenService.create_tokens_for_user(user=sample_user)
@@ -218,7 +242,9 @@ class TestTokenService:
         assert full_token.token_type == access_only_token.token_type
 
     @pytest.mark.unit
-    def test_is_new_user_flag_behavior(self, sample_user, mock_security_manager, mock_auth_config):
+    def test_is_new_user_flag_behavior(
+        self, sample_user: User, mock_security_manager: MagicMock, mock_auth_config: MagicMock
+    ) -> None:
         """Test is_new_user flag behavior in different scenarios."""
         # Arrange - Act
         new_user_token = TokenService.create_tokens_for_user(user=sample_user, is_new_user=True)
@@ -233,7 +259,9 @@ class TestTokenService:
         assert refresh_token.is_new_user is False  # Always False for refresh
 
     @pytest.mark.unit
-    def test_user_data_inclusion(self, sample_user, mock_security_manager, mock_auth_config):
+    def test_user_data_inclusion(
+        self, sample_user: User, mock_security_manager: MagicMock, mock_auth_config: MagicMock
+    ) -> None:
         """Test that all required user data is included in tokens."""
         # Arrange
         scopes = ["test_scope"]
@@ -265,8 +293,12 @@ class TestTokenService:
         ],
     )
     def test_expiration_time_calculation_parametrized(
-        self, sample_user, mock_security_manager, expire_minutes, expected_seconds
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        expire_minutes: int,
+        expected_seconds: int,
+    ) -> None:
         """Test expiration time calculation with various durations.
 
         Parametrized test for comprehensive coverage of edge cases.
@@ -283,8 +315,11 @@ class TestTokenService:
 
     @pytest.mark.unit
     def test_security_manager_integration(
-        self, sample_user, mock_security_manager, mock_auth_config
-    ):
+        self,
+        sample_user: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test integration with security_manager follows contract."""
         # Arrange
         scopes = ["admin"]
@@ -303,7 +338,9 @@ class TestTokenService:
         assert access_call[1]["expires_delta"] == timedelta(minutes=30)
 
     @pytest.mark.unit
-    def test_method_isolation(self, sample_user, mock_security_manager, mock_auth_config):
+    def test_method_isolation(
+        self, sample_user: User, mock_security_manager: MagicMock, mock_auth_config: MagicMock
+    ) -> None:
         """Test that methods don't interfere with each other.
 
         Ensures SOLID Single Responsibility principle compliance.
@@ -330,7 +367,7 @@ class TestTokenServiceEdgeCases:
     """Edge cases and error scenarios for TokenService."""
 
     @pytest.fixture
-    def user_with_special_chars(self):
+    def user_with_special_chars(self) -> User:
         """User with special characters in username."""
         return User(
             id=str(uuid4()),
@@ -344,8 +381,11 @@ class TestTokenServiceEdgeCases:
 
     @pytest.mark.unit
     def test_user_with_special_characters(
-        self, user_with_special_chars, mock_security_manager, mock_auth_config
-    ):
+        self,
+        user_with_special_chars: User,
+        mock_security_manager: MagicMock,
+        mock_auth_config: MagicMock,
+    ) -> None:
         """Test token creation with special characters in username."""
         with (
             patch("src.auth.services.token_service.security_manager", mock_security_manager),
@@ -362,7 +402,9 @@ class TestTokenServiceEdgeCases:
             assert access_call_data["sub"] == user_with_special_chars.username
 
     @pytest.mark.unit
-    def test_large_scopes_array(self, sample_user, mock_security_manager, mock_auth_config):
+    def test_large_scopes_array(
+        self, sample_user: User, mock_security_manager: MagicMock, mock_auth_config: MagicMock
+    ) -> None:
         """Test token creation with large scopes array."""
         with (
             patch("src.auth.services.token_service.security_manager", mock_security_manager),
@@ -383,7 +425,7 @@ class TestTokenServiceEdgeCases:
             assert len(access_call_data["scopes"]) == 100
 
     @pytest.fixture
-    def sample_user(self):
+    def sample_user(self) -> User:
         """Create sample user for testing."""
         return User(
             id=str(uuid4()),
@@ -396,7 +438,7 @@ class TestTokenServiceEdgeCases:
         )
 
     @pytest.fixture
-    def mock_security_manager(self):
+    def mock_security_manager(self) -> Generator[MagicMock]:
         """Mock security_manager for edge case testing."""
         with patch("src.auth.services.token_service.security_manager") as mock:
             mock.create_access_token.return_value = ("mock_access_token", "mock_access_jti")
@@ -404,7 +446,7 @@ class TestTokenServiceEdgeCases:
             yield mock
 
     @pytest.fixture
-    def mock_auth_config(self):
+    def mock_auth_config(self) -> Generator[MagicMock]:
         """Mock auth_config for edge case testing."""
         with patch("src.auth.services.token_service.auth_config") as mock:
             mock.ACCESS_TOKEN_EXPIRE_MINUTES = 30

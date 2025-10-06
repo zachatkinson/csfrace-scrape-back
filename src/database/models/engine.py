@@ -4,14 +4,18 @@ This module contains database engine creation and configuration
 following SQLAlchemy 2.0 best practices.
 """
 
+from typing import Any
+
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.pool import ConnectionPoolEntry, PoolResetState
 
 from src.core.logging_hierarchy import get_database_logger
 
 logger = get_database_logger()
 
 
-def create_database_engine(echo: bool = False):
+def create_database_engine(echo: bool = False) -> Engine:
     """Create SQLAlchemy engine optimized for PostgreSQL 17.6.
 
     Args:
@@ -45,7 +49,9 @@ def create_database_engine(echo: bool = False):
 
     # PostgreSQL connection reset handler for proper resource management
     @event.listens_for(engine, "reset")
-    def _reset_postgresql(dbapi_connection, _connection_record, reset_state):
+    def _reset_postgresql(
+        dbapi_connection: Any, _connection_record: ConnectionPoolEntry, reset_state: PoolResetState
+    ) -> None:
         """Reset PostgreSQL connections properly following best practices."""
         if not reset_state.terminate_only:
             # Use cursor for SQL commands - psycopg connection doesn't have execute method

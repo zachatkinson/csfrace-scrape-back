@@ -29,7 +29,7 @@ auth_config = AuthConfig()
 class SecurityManager:
     """Centralized security operations manager."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pwd_context = CryptContext(
             schemes=auth_config.PWD_CONTEXT_SCHEMES, deprecated=auth_config.PWD_CONTEXT_DEPRECATED
         )
@@ -43,7 +43,10 @@ class SecurityManager:
         return self.pwd_context.hash(password)
 
     def create_access_token(
-        self, data: dict, expires_delta: timedelta | None = None, jti: str | None = None
+        self,
+        data: dict[str, str | bool | datetime | list[str]],
+        expires_delta: timedelta | None = None,
+        jti: str | None = None,
     ) -> tuple[str, str]:
         """Create JWT access token with revocation support - SOLID Single Responsibility.
 
@@ -78,7 +81,10 @@ class SecurityManager:
         return encoded_jwt, token_jti
 
     def create_refresh_token(
-        self, data: dict, expires_delta: timedelta | None = None, jti: str | None = None
+        self,
+        data: dict[str, str | bool | datetime],
+        expires_delta: timedelta | None = None,
+        jti: str | None = None,
     ) -> tuple[str, str]:
         """Create JWT refresh token with revocation support - SOLID Single Responsibility.
 
@@ -147,9 +153,13 @@ class SecurityManager:
         return await token_revocation_service.is_token_revoked(jti)
 
     @auth_error_handler("decode access token")
-    def decode_access_token(self, token: str) -> dict:
+    def decode_access_token(self, token: str) -> dict[str, str | int | bool]:
         """Decode JWT token without revocation checking - for OAuth state tokens."""
-        payload = jwt.decode(token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
+        from typing import Any
+
+        payload: dict[str, Any] = jwt.decode(
+            token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM]
+        )
         return payload
 
     @auth_error_handler("check token expiration")

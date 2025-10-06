@@ -93,7 +93,7 @@ Crawl-delay: 2
 class TestRobotsCheckerInit:
     """Tests for RobotsChecker initialization."""
 
-    def test_robots_checker_initialization(self, robots_checker_instance: RobotsChecker):
+    def test_robots_checker_initialization(self, robots_checker_instance: RobotsChecker) -> None:
         """Test RobotsChecker initializes with empty caches - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -120,12 +120,10 @@ class TestGetRobotsParser:
         mock_session: AsyncMock,
         test_url: str,
         robots_txt_content_allow_all: str,
-    ):
+    ) -> None:
         """Test get_robots_parser with successful fetch - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_allow_all.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_allow_all)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             # Act - MANDATORY
             result = await robots_checker_instance.get_robots_parser(test_url, mock_session)
@@ -137,7 +135,7 @@ class TestGetRobotsParser:
 
     async def test_get_robots_parser_404_not_found(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test get_robots_parser with 404 Not Found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_response = HTTPResponse(status=404, content="")
@@ -156,12 +154,10 @@ class TestGetRobotsParser:
         mock_session: AsyncMock,
         test_url: str,
         robots_txt_content_allow_all: str,
-    ):
+    ) -> None:
         """Test get_robots_parser uses cache - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_allow_all.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_allow_all)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response) as mock_get:
             # Act - MANDATORY
             # First call
@@ -177,7 +173,7 @@ class TestGetRobotsParser:
 
     async def test_get_robots_parser_no_session(
         self, robots_checker_instance: RobotsChecker, test_url: str
-    ):
+    ) -> None:
         """Test get_robots_parser with no session - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no session provided)
 
@@ -189,7 +185,7 @@ class TestGetRobotsParser:
 
     async def test_get_robots_parser_handles_exception(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test get_robots_parser handles fetch exception - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.utils.robots.safe_http_get", side_effect=Exception("Network error")):
@@ -216,13 +212,11 @@ class TestCanFetch:
         robots_checker_instance: RobotsChecker,
         mock_session: AsyncMock,
         robots_txt_content_allow_all: str,
-    ):
+    ) -> None:
         """Test can_fetch with allowed URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/allowed"
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_allow_all.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_allow_all)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             # Act - MANDATORY
             result = await robots_checker_instance.can_fetch(test_url, "*", mock_session)
@@ -235,13 +229,11 @@ class TestCanFetch:
         robots_checker_instance: RobotsChecker,
         mock_session: AsyncMock,
         robots_txt_content_disallow_all: str,
-    ):
+    ) -> None:
         """Test can_fetch with disallowed URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/blocked"
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_disallow_all.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_disallow_all)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             # Act - MANDATORY
             result = await robots_checker_instance.can_fetch(test_url, "*", mock_session)
@@ -254,12 +246,10 @@ class TestCanFetch:
         robots_checker_instance: RobotsChecker,
         mock_session: AsyncMock,
         robots_txt_content_selective: str,
-    ):
+    ) -> None:
         """Test can_fetch with selective permissions - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_selective.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_selective)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             # Act & Assert - MANDATORY
             public_url = "https://example.com/public/page"
@@ -273,7 +263,7 @@ class TestCanFetch:
 
     async def test_can_fetch_no_robots_txt(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test can_fetch with no robots.txt - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -288,7 +278,7 @@ class TestCanFetch:
     @patch("src.utils.robots.RESPECT_ROBOTS_TXT", False)
     async def test_can_fetch_respect_disabled(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test can_fetch with respect disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -315,13 +305,11 @@ class TestGetCrawlDelay:
         robots_checker_instance: RobotsChecker,
         mock_session: AsyncMock,
         robots_txt_content_with_crawl_delay: str,
-    ):
+    ) -> None:
         """Test get_crawl_delay from robots.txt - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_with_crawl_delay.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_with_crawl_delay)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             # Act - MANDATORY
             result = await robots_checker_instance.get_crawl_delay(test_url, "*", mock_session)
@@ -334,13 +322,11 @@ class TestGetCrawlDelay:
         robots_checker_instance: RobotsChecker,
         mock_session: AsyncMock,
         robots_txt_content_allow_all: str,
-    ):
+    ) -> None:
         """Test get_crawl_delay returns default when not specified - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
-        mock_response = HTTPResponse(
-            status=200, content=robots_txt_content_allow_all.encode("utf-8")
-        )
+        mock_response = HTTPResponse(status=200, content=robots_txt_content_allow_all)
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             with patch("src.utils.robots.RATE_LIMIT_DELAY", 1.0):
                 # Act - MANDATORY
@@ -351,7 +337,7 @@ class TestGetCrawlDelay:
 
     async def test_get_crawl_delay_no_robots_txt(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test get_crawl_delay with no robots.txt - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -367,7 +353,7 @@ class TestGetCrawlDelay:
     @patch("src.utils.robots.RESPECT_ROBOTS_TXT", False)
     async def test_get_crawl_delay_respect_disabled(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test get_crawl_delay with respect disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -391,7 +377,7 @@ class TestEnforceCrawlDelay:
 
     async def test_enforce_crawl_delay_first_request(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test enforce_crawl_delay for first request - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -409,7 +395,7 @@ class TestEnforceCrawlDelay:
 
     async def test_enforce_crawl_delay_enforces_delay(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test enforce_crawl_delay enforces delay - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -431,7 +417,7 @@ class TestEnforceCrawlDelay:
 
     async def test_enforce_crawl_delay_multiple_domains(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test enforce_crawl_delay tracks multiple domains - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url1 = "https://example.com/page"
@@ -458,7 +444,7 @@ class TestCheckAndDelay:
 
     async def test_check_and_delay_allowed_url(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test check_and_delay with allowed URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/page"
@@ -475,7 +461,7 @@ class TestCheckAndDelay:
 
     async def test_check_and_delay_disallowed_url(
         self, robots_checker_instance: RobotsChecker, mock_session: AsyncMock
-    ):
+    ) -> None:
         """Test check_and_delay with disallowed URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         test_url = "https://example.com/blocked"
@@ -494,7 +480,7 @@ class TestCheckAndDelay:
 class TestClearCache:
     """Tests for clear_cache method."""
 
-    def test_clear_cache_empties_all_caches(self, robots_checker_instance: RobotsChecker):
+    def test_clear_cache_empties_all_caches(self, robots_checker_instance: RobotsChecker) -> None:
         """Test clear_cache empties all caches - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         robots_checker_instance._cache["https://example.com"] = MagicMock()
@@ -517,7 +503,7 @@ class TestClearCache:
 class TestGlobalInstance:
     """Tests for global robots_checker instance."""
 
-    def test_global_robots_checker_exists(self):
+    def test_global_robots_checker_exists(self) -> None:
         """Test global robots_checker instance exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (global import)
 
@@ -539,7 +525,7 @@ class TestGlobalInstance:
 class TestRobotsPerformance:
     """MANDATORY performance tests for robots.txt utilities."""
 
-    def test_robots_checker_initialization_performance(self):
+    def test_robots_checker_initialization_performance(self) -> None:
         """MANDATORY performance test - RobotsChecker initialization speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -559,12 +545,12 @@ class TestRobotsPerformance:
         assert execution_time < 1.0  # Total <1s for 10000 initializations
 
     @pytest.mark.asyncio
-    async def test_can_fetch_cache_hit_performance(self, mock_session: AsyncMock):
+    async def test_can_fetch_cache_hit_performance(self, mock_session: AsyncMock) -> None:
         """MANDATORY performance test - can_fetch cache performance."""
         # Arrange - MANDATORY
         checker = RobotsChecker()
         test_url = "https://example.com/page"
-        mock_response = HTTPResponse(status=200, content=b"User-agent: *\nAllow: /\n")
+        mock_response = HTTPResponse(status=200, content="User-agent: *\nAllow: /\n")
 
         with patch("src.utils.robots.safe_http_get", return_value=mock_response):
             # Prime the cache
@@ -586,7 +572,7 @@ class TestRobotsPerformance:
             assert avg_time < 0.001  # <1ms per cached check
             assert execution_time < 1.0  # Total <1s for 1000 checks
 
-    def test_clear_cache_performance(self):
+    def test_clear_cache_performance(self) -> None:
         """MANDATORY performance test - cache clearing speed."""
         # Arrange - MANDATORY
         checker = RobotsChecker()

@@ -29,11 +29,11 @@ logger = get_auth_logger()
 class SSEAuthService:
     """Service for SSE authentication status management - SOLID Single Responsibility."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize SSE auth service."""
         self.heartbeat_interval = 30  # Send heartbeat every 30 seconds
 
-    async def get_auth_status_from_cookies(self, request: Request) -> dict:
+    async def get_auth_status_from_cookies(self, request: Request) -> dict[str, bool | str | None]:
         """Extract authentication status from HTTP-only cookies.
 
         Args:

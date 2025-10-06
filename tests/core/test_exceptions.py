@@ -5,6 +5,7 @@ Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
 import pytest
+from pytest_mock import MockerFixture
 
 from src.core.exceptions import (
     APIBusinessLogicError,
@@ -35,19 +36,19 @@ from src.core.exceptions import (
 
 
 @pytest.fixture
-def sample_original_error():
+def sample_original_error() -> ValueError:
     """Factory for original error - DRY principle."""
     return ValueError("Original error message")
 
 
 @pytest.fixture
-def sample_details():
+def sample_details() -> dict[str, str]:
     """Factory for error details - DRY principle."""
     return {"key1": "value1", "key2": "value2"}
 
 
 @pytest.fixture
-def sample_context():
+def sample_context() -> dict[str, str]:
     """Factory for error context - DRY principle."""
     return {"context_key": "context_value"}
 
@@ -61,7 +62,7 @@ def sample_context():
 class TestBaseApplicationError:
     """Test BaseApplicationError core functionality."""
 
-    def test_base_error_init_minimal(self):
+    def test_base_error_init_minimal(self) -> None:
         """Test BaseApplicationError with minimal parameters."""
         # Arrange & Act
         error = BaseApplicationError("Test error")
@@ -74,7 +75,12 @@ class TestBaseApplicationError:
         assert error.context == {}
         assert isinstance(error.timestamp, str)
 
-    def test_base_error_init_full(self, sample_original_error, sample_details, sample_context):
+    def test_base_error_init_full(
+        self,
+        sample_original_error: ValueError,
+        sample_details: dict[str, str],
+        sample_context: dict[str, str],
+    ) -> None:
         """Test BaseApplicationError with all parameters."""
         # Arrange & Act
         error = BaseApplicationError(
@@ -92,7 +98,7 @@ class TestBaseApplicationError:
         assert error.original_error == sample_original_error
         assert error.context == sample_context
 
-    def test_base_error_str_minimal(self):
+    def test_base_error_str_minimal(self) -> None:
         """Test string representation with minimal parameters."""
         # Arrange
         error = BaseApplicationError("Test error")
@@ -103,7 +109,7 @@ class TestBaseApplicationError:
         # Assert
         assert result == "Test error"
 
-    def test_base_error_str_with_context(self):
+    def test_base_error_str_with_context(self) -> None:
         """Test string representation with context."""
         # Arrange
         error = BaseApplicationError("Test error", context={"url": "http://example.com"})
@@ -115,7 +121,7 @@ class TestBaseApplicationError:
         assert "Test error" in result
         assert "url=http://example.com" in result
 
-    def test_base_error_str_with_original_error(self, sample_original_error):
+    def test_base_error_str_with_original_error(self, sample_original_error: ValueError) -> None:
         """Test string representation with original error."""
         # Arrange
         error = BaseApplicationError("Test error", original_error=sample_original_error)
@@ -127,7 +133,12 @@ class TestBaseApplicationError:
         assert "Test error" in result
         assert "Caused by: Original error message" in result
 
-    def test_base_error_to_dict(self, sample_original_error, sample_details, sample_context):
+    def test_base_error_to_dict(
+        self,
+        sample_original_error: ValueError,
+        sample_details: dict[str, str],
+        sample_context: dict[str, str],
+    ) -> None:
         """Test to_dict conversion."""
         # Arrange
         error = BaseApplicationError(
@@ -151,7 +162,7 @@ class TestBaseApplicationError:
         assert result["original_error_type"] == "ValueError"
         assert isinstance(result["timestamp"], str)
 
-    def test_base_error_to_dict_no_original_error(self):
+    def test_base_error_to_dict_no_original_error(self) -> None:
         """Test to_dict conversion without original error."""
         # Arrange
         error = BaseApplicationError("Test error")
@@ -163,7 +174,7 @@ class TestBaseApplicationError:
         assert result["original_error"] is None
         assert result["original_error_type"] is None
 
-    def test_base_error_log_error_default(self, mocker):
+    def test_base_error_log_error_default(self, mocker: MockerFixture) -> None:
         """Test log_error with default level."""
         # Arrange
         mock_logger = mocker.patch("src.core.exceptions.logger.error")
@@ -177,7 +188,7 @@ class TestBaseApplicationError:
         call_args = mock_logger.call_args
         assert "Application error: APPLICATION_ERROR" in call_args[0]
 
-    def test_base_error_log_error_warning_level(self, mocker):
+    def test_base_error_log_error_warning_level(self, mocker: MockerFixture) -> None:
         """Test log_error with warning level."""
         # Arrange
         mock_logger = mocker.patch("src.core.exceptions.logger.warning")
@@ -199,7 +210,7 @@ class TestBaseApplicationError:
 class TestValidationError:
     """Test ValidationError exception."""
 
-    def test_validation_error_minimal(self):
+    def test_validation_error_minimal(self) -> None:
         """Test ValidationError with minimal parameters."""
         # Arrange & Act
         error = ValidationError("Invalid input")
@@ -208,7 +219,7 @@ class TestValidationError:
         assert error.message == "Invalid input"
         assert error.error_code == "VALIDATION_ERROR"
 
-    def test_validation_error_with_field(self):
+    def test_validation_error_with_field(self) -> None:
         """Test ValidationError with field."""
         # Arrange & Act
         error = ValidationError("Invalid email", field="email")
@@ -216,7 +227,7 @@ class TestValidationError:
         # Assert
         assert error.details["field"] == "email"
 
-    def test_validation_error_with_value(self):
+    def test_validation_error_with_value(self) -> None:
         """Test ValidationError with value."""
         # Arrange & Act
         error = ValidationError("Invalid email", value="not-an-email")
@@ -229,7 +240,7 @@ class TestValidationError:
 class TestResourceNotFoundError:
     """Test ResourceNotFoundError exception."""
 
-    def test_resource_not_found_error(self):
+    def test_resource_not_found_error(self) -> None:
         """Test ResourceNotFoundError construction."""
         # Arrange & Act
         error = ResourceNotFoundError("User", "user-123")
@@ -245,7 +256,7 @@ class TestResourceNotFoundError:
 class TestConfigurationError:
     """Test ConfigurationError exception."""
 
-    def test_configuration_error_default_message(self):
+    def test_configuration_error_default_message(self) -> None:
         """Test ConfigurationError with default message."""
         # Arrange & Act
         error = ConfigurationError("DATABASE_URL")
@@ -255,7 +266,7 @@ class TestConfigurationError:
         assert error.error_code == "CONFIGURATION_ERROR"
         assert error.context["config_key"] == "DATABASE_URL"
 
-    def test_configuration_error_custom_message(self):
+    def test_configuration_error_custom_message(self) -> None:
         """Test ConfigurationError with custom message."""
         # Arrange & Act
         error = ConfigurationError("DATABASE_URL", message="Custom error message")
@@ -268,7 +279,7 @@ class TestConfigurationError:
 class TestDatabaseError:
     """Test DatabaseError exception."""
 
-    def test_database_error(self, sample_original_error):
+    def test_database_error(self, sample_original_error: ValueError) -> None:
         """Test DatabaseError construction."""
         # Arrange & Act
         error = DatabaseError("SELECT users", sample_original_error)
@@ -284,7 +295,7 @@ class TestDatabaseError:
 class TestBusinessLogicError:
     """Test BusinessLogicError exception."""
 
-    def test_business_logic_error_default(self):
+    def test_business_logic_error_default(self) -> None:
         """Test BusinessLogicError with default error code."""
         # Arrange & Act
         error = BusinessLogicError("Cannot process refund")
@@ -293,7 +304,7 @@ class TestBusinessLogicError:
         assert error.message == "Cannot process refund"
         assert error.error_code == "BUSINESS_LOGIC_ERROR"
 
-    def test_business_logic_error_custom_code(self):
+    def test_business_logic_error_custom_code(self) -> None:
         """Test BusinessLogicError with custom error code."""
         # Arrange & Act
         error = BusinessLogicError("Cannot process refund", error_code="REFUND_ERROR")
@@ -306,7 +317,7 @@ class TestBusinessLogicError:
 class TestAuthenticationError:
     """Test AuthenticationError exception."""
 
-    def test_authentication_error_default(self):
+    def test_authentication_error_default(self) -> None:
         """Test AuthenticationError with default message."""
         # Arrange & Act
         error = AuthenticationError()
@@ -315,7 +326,7 @@ class TestAuthenticationError:
         assert error.message == "Authentication required"
         assert error.error_code == "AUTHENTICATION_ERROR"
 
-    def test_authentication_error_custom_message(self):
+    def test_authentication_error_custom_message(self) -> None:
         """Test AuthenticationError with custom message."""
         # Arrange & Act
         error = AuthenticationError("Invalid credentials")
@@ -328,7 +339,7 @@ class TestAuthenticationError:
 class TestAuthorizationError:
     """Test AuthorizationError exception."""
 
-    def test_authorization_error_default(self):
+    def test_authorization_error_default(self) -> None:
         """Test AuthorizationError with default message."""
         # Arrange & Act
         error = AuthorizationError()
@@ -337,7 +348,7 @@ class TestAuthorizationError:
         assert error.message == "Access denied"
         assert error.error_code == "AUTHORIZATION_ERROR"
 
-    def test_authorization_error_with_resource(self):
+    def test_authorization_error_with_resource(self) -> None:
         """Test AuthorizationError with resource."""
         # Arrange & Act
         error = AuthorizationError(resource="user_profile")
@@ -345,7 +356,7 @@ class TestAuthorizationError:
         # Assert
         assert error.context["resource"] == "user_profile"
 
-    def test_authorization_error_with_action(self):
+    def test_authorization_error_with_action(self) -> None:
         """Test AuthorizationError with action."""
         # Arrange & Act
         error = AuthorizationError(action="delete")
@@ -358,7 +369,7 @@ class TestAuthorizationError:
 class TestRateLimitError:
     """Test RateLimitError exception."""
 
-    def test_rate_limit_error_default(self):
+    def test_rate_limit_error_default(self) -> None:
         """Test RateLimitError with default message."""
         # Arrange & Act
         error = RateLimitError()
@@ -367,7 +378,7 @@ class TestRateLimitError:
         assert error.message == "Rate limit exceeded"
         assert error.error_code == "RATE_LIMIT_EXCEEDED"
 
-    def test_rate_limit_error_with_limit_and_window(self):
+    def test_rate_limit_error_with_limit_and_window(self) -> None:
         """Test RateLimitError with limit and window."""
         # Arrange & Act
         error = RateLimitError(limit=100, window="per hour")
@@ -381,7 +392,7 @@ class TestRateLimitError:
 class TestServiceUnavailableError:
     """Test ServiceUnavailableError exception."""
 
-    def test_service_unavailable_error_default(self):
+    def test_service_unavailable_error_default(self) -> None:
         """Test ServiceUnavailableError with default message."""
         # Arrange & Act
         error = ServiceUnavailableError()
@@ -390,7 +401,7 @@ class TestServiceUnavailableError:
         assert error.message == "Service temporarily unavailable"
         assert error.error_code == "SERVICE_UNAVAILABLE"
 
-    def test_service_unavailable_error_with_service_name(self):
+    def test_service_unavailable_error_with_service_name(self) -> None:
         """Test ServiceUnavailableError with service name."""
         # Arrange & Act
         error = ServiceUnavailableError(service_name="Database")
@@ -408,7 +419,7 @@ class TestServiceUnavailableError:
 class TestConversionError:
     """Test ConversionError exception."""
 
-    def test_conversion_error_minimal(self):
+    def test_conversion_error_minimal(self) -> None:
         """Test ConversionError with minimal parameters."""
         # Arrange & Act
         error = ConversionError("Conversion failed")
@@ -417,7 +428,7 @@ class TestConversionError:
         assert error.message == "Conversion failed"
         assert error.error_code == "CONVERSION_ERROR"
 
-    def test_conversion_error_with_url(self):
+    def test_conversion_error_with_url(self) -> None:
         """Test ConversionError with URL."""
         # Arrange & Act
         error = ConversionError("Conversion failed", url="http://example.com")
@@ -430,7 +441,7 @@ class TestConversionError:
 class TestFetchError:
     """Test FetchError exception."""
 
-    def test_fetch_error_minimal(self):
+    def test_fetch_error_minimal(self) -> None:
         """Test FetchError with minimal parameters."""
         # Arrange & Act
         error = FetchError("Failed to fetch page")
@@ -439,7 +450,7 @@ class TestFetchError:
         assert error.message == "Failed to fetch page"
         assert error.error_code == "FETCH_ERROR"
 
-    def test_fetch_error_with_status_code(self):
+    def test_fetch_error_with_status_code(self) -> None:
         """Test FetchError with status code."""
         # Arrange & Act
         error = FetchError("Failed to fetch page", status_code=404)
@@ -452,7 +463,7 @@ class TestFetchError:
 class TestProcessingError:
     """Test ProcessingError exception."""
 
-    def test_processing_error_minimal(self):
+    def test_processing_error_minimal(self) -> None:
         """Test ProcessingError with minimal parameters."""
         # Arrange & Act
         error = ProcessingError("Processing failed")
@@ -461,7 +472,7 @@ class TestProcessingError:
         assert error.message == "Processing failed"
         assert error.error_code == "PROCESSING_ERROR"
 
-    def test_processing_error_with_processor(self):
+    def test_processing_error_with_processor(self) -> None:
         """Test ProcessingError with processor name."""
         # Arrange & Act
         error = ProcessingError("Processing failed", processor="HTMLProcessor")
@@ -474,7 +485,7 @@ class TestProcessingError:
 class TestSaveError:
     """Test SaveError exception."""
 
-    def test_save_error_minimal(self):
+    def test_save_error_minimal(self) -> None:
         """Test SaveError with minimal parameters."""
         # Arrange & Act
         error = SaveError("Failed to save file")
@@ -483,7 +494,7 @@ class TestSaveError:
         assert error.message == "Failed to save file"
         assert error.error_code == "SAVE_ERROR"
 
-    def test_save_error_with_file_path(self):
+    def test_save_error_with_file_path(self) -> None:
         """Test SaveError with file path."""
         # Arrange & Act
         error = SaveError("Failed to save file", file_path="/tmp/output.html")
@@ -501,7 +512,7 @@ class TestSaveError:
 class TestAPIError:
     """Test APIError exception."""
 
-    def test_api_error_default(self):
+    def test_api_error_default(self) -> None:
         """Test APIError with default status code."""
         # Arrange & Act
         error = APIError("API error occurred")
@@ -511,7 +522,7 @@ class TestAPIError:
         assert error.status_code == 500
         assert error.error_code == "API_ERROR"
 
-    def test_api_error_custom_status(self):
+    def test_api_error_custom_status(self) -> None:
         """Test APIError with custom status code."""
         # Arrange & Act
         error = APIError("Not found", status_code=404)
@@ -524,7 +535,7 @@ class TestAPIError:
 class TestAPIValidationError:
     """Test APIValidationError exception."""
 
-    def test_api_validation_error(self):
+    def test_api_validation_error(self) -> None:
         """Test APIValidationError construction."""
         # Arrange & Act
         error = APIValidationError("Invalid email", field="email", value="not-an-email")
@@ -540,7 +551,7 @@ class TestAPIValidationError:
 class TestAPINotFoundError:
     """Test APINotFoundError exception."""
 
-    def test_api_not_found_error(self):
+    def test_api_not_found_error(self) -> None:
         """Test APINotFoundError construction."""
         # Arrange & Act
         error = APINotFoundError("User", "user-123")
@@ -555,7 +566,7 @@ class TestAPINotFoundError:
 class TestAPIDatabaseError:
     """Test APIDatabaseError exception."""
 
-    def test_api_database_error(self, sample_original_error):
+    def test_api_database_error(self, sample_original_error: ValueError) -> None:
         """Test APIDatabaseError construction."""
         # Arrange & Act
         error = APIDatabaseError("SELECT users", sample_original_error)
@@ -570,7 +581,7 @@ class TestAPIDatabaseError:
 class TestAPIBusinessLogicError:
     """Test APIBusinessLogicError exception."""
 
-    def test_api_business_logic_error_default(self):
+    def test_api_business_logic_error_default(self) -> None:
         """Test APIBusinessLogicError with default code."""
         # Arrange & Act
         error = APIBusinessLogicError("Cannot process refund")
@@ -580,7 +591,7 @@ class TestAPIBusinessLogicError:
         assert error.status_code == 400
         assert error.error_code == "API_BUSINESS_LOGIC_ERROR"
 
-    def test_api_business_logic_error_custom_code(self):
+    def test_api_business_logic_error_custom_code(self) -> None:
         """Test APIBusinessLogicError with custom code."""
         # Arrange & Act
         error = APIBusinessLogicError("Cannot process refund", error_code="REFUND_ERROR")
@@ -598,7 +609,7 @@ class TestAPIBusinessLogicError:
 class TestExceptionMapper:
     """Test ExceptionMapper utility class."""
 
-    def test_to_api_error_already_api_error(self):
+    def test_to_api_error_already_api_error(self) -> None:
         """Test to_api_error with already API error."""
         # Arrange
         api_error = APIError("Test error", status_code=400)
@@ -609,7 +620,7 @@ class TestExceptionMapper:
         # Assert
         assert result is api_error
 
-    def test_to_api_error_validation_error(self):
+    def test_to_api_error_validation_error(self) -> None:
         """Test to_api_error with ValidationError."""
         # Arrange
         validation_error = ValidationError("Invalid input")
@@ -622,7 +633,7 @@ class TestExceptionMapper:
         assert result.status_code == 422
         assert result.error_code == "API_VALIDATION_ERROR"
 
-    def test_to_api_error_resource_not_found(self):
+    def test_to_api_error_resource_not_found(self) -> None:
         """Test to_api_error with ResourceNotFoundError."""
         # Arrange
         not_found_error = ResourceNotFoundError("User", "user-123")
@@ -633,7 +644,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 404
 
-    def test_to_api_error_authentication_error(self):
+    def test_to_api_error_authentication_error(self) -> None:
         """Test to_api_error with AuthenticationError."""
         # Arrange
         auth_error = AuthenticationError()
@@ -644,7 +655,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 401
 
-    def test_to_api_error_authorization_error(self):
+    def test_to_api_error_authorization_error(self) -> None:
         """Test to_api_error with AuthorizationError."""
         # Arrange
         authz_error = AuthorizationError()
@@ -655,7 +666,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 403
 
-    def test_to_api_error_rate_limit_error(self):
+    def test_to_api_error_rate_limit_error(self) -> None:
         """Test to_api_error with RateLimitError."""
         # Arrange
         rate_limit_error = RateLimitError()
@@ -666,7 +677,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 429
 
-    def test_to_api_error_service_unavailable_error(self):
+    def test_to_api_error_service_unavailable_error(self) -> None:
         """Test to_api_error with ServiceUnavailableError."""
         # Arrange
         service_error = ServiceUnavailableError()
@@ -677,7 +688,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 503
 
-    def test_to_api_error_database_error(self, sample_original_error):
+    def test_to_api_error_database_error(self, sample_original_error: ValueError) -> None:
         """Test to_api_error with DatabaseError."""
         # Arrange
         db_error = DatabaseError("SELECT users", sample_original_error)
@@ -688,7 +699,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 500
 
-    def test_to_api_error_fetch_error(self):
+    def test_to_api_error_fetch_error(self) -> None:
         """Test to_api_error with FetchError."""
         # Arrange
         fetch_error = FetchError("Failed to fetch")
@@ -699,7 +710,7 @@ class TestExceptionMapper:
         # Assert
         assert result.status_code == 502
 
-    def test_to_api_error_unknown_error_code(self):
+    def test_to_api_error_unknown_error_code(self) -> None:
         """Test to_api_error with unknown error code."""
         # Arrange
         custom_error = BaseApplicationError("Custom error", error_code="CUSTOM_ERROR")
@@ -711,7 +722,7 @@ class TestExceptionMapper:
         assert result.status_code == 500
         assert result.error_code == "API_CUSTOM_ERROR"
 
-    def test_from_sqlalchemy_error_duplicate_key(self):
+    def test_from_sqlalchemy_error_duplicate_key(self) -> None:
         """Test from_sqlalchemy_error with duplicate key error."""
         # Arrange
         sql_error = Exception("duplicate key value violates unique constraint")
@@ -724,7 +735,7 @@ class TestExceptionMapper:
         assert "Duplicate resource" in result.message
         assert result.details["constraint_type"] == "unique"
 
-    def test_from_sqlalchemy_error_unique_constraint(self):
+    def test_from_sqlalchemy_error_unique_constraint(self) -> None:
         """Test from_sqlalchemy_error with unique constraint error."""
         # Arrange
         sql_error = Exception("UNIQUE constraint failed: users.email")
@@ -736,7 +747,7 @@ class TestExceptionMapper:
         assert isinstance(result, ValidationError)
         assert result.details["constraint_type"] == "unique"
 
-    def test_from_sqlalchemy_error_foreign_key(self):
+    def test_from_sqlalchemy_error_foreign_key(self) -> None:
         """Test from_sqlalchemy_error with foreign key error."""
         # Arrange
         sql_error = Exception("foreign key constraint failed")
@@ -749,7 +760,7 @@ class TestExceptionMapper:
         assert "Invalid reference" in result.message
         assert result.details["constraint_type"] == "foreign_key"
 
-    def test_from_sqlalchemy_error_not_null(self):
+    def test_from_sqlalchemy_error_not_null(self) -> None:
         """Test from_sqlalchemy_error with not null error."""
         # Arrange
         sql_error = Exception("NOT NULL constraint failed: users.email")
@@ -762,7 +773,7 @@ class TestExceptionMapper:
         assert "Required field missing" in result.message
         assert result.details["constraint_type"] == "not_null"
 
-    def test_from_sqlalchemy_error_generic(self):
+    def test_from_sqlalchemy_error_generic(self) -> None:
         """Test from_sqlalchemy_error with generic error."""
         # Arrange
         sql_error = Exception("Connection timeout")

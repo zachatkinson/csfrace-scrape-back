@@ -47,14 +47,14 @@ class RedisCache(BaseCacheBackend):
 
         super().__init__(config)
 
-        self.redis_client = None
+        self.redis_client: RedisType | None = None
         self._stats = {"hits": 0, "misses": 0, "sets": 0, "deletes": 0, "errors": 0}
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize Redis connection and test connectivity."""
         await self._get_client()  # This will establish and test the connection
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Close Redis connection."""
         if self.redis_client:
             await self.redis_client.aclose()
@@ -62,7 +62,7 @@ class RedisCache(BaseCacheBackend):
             self.logger.info("Redis connection closed")
 
     @cache_error_handler("Redis client connection")
-    async def _get_client(self):
+    async def _get_client(self) -> RedisType:
         """Get Redis client, creating connection if needed."""
         if self.redis_client is None:
             self.redis_client = redis.Redis(
@@ -76,6 +76,7 @@ class RedisCache(BaseCacheBackend):
             )
 
             # Test connection - this will raise an exception if connection fails
+            assert self.redis_client is not None, "Redis client should be initialized"
             await self.redis_client.ping()
             self.logger.info(
                 "Redis connection established",
@@ -269,11 +270,11 @@ class RedisCache(BaseCacheBackend):
         }
 
     @cache_error_handler("calculate total cache size")
-    async def _calculate_total_size_safe(self, client, keys: list) -> int:
+    async def _calculate_total_size_safe(self, client: RedisType, keys: list[bytes]) -> int:
         """Safely calculate total cache size by sampling keys."""
         # Sample a few keys to estimate average size
         sample_keys = keys[: min(SAMPLE_KEY_COUNT, len(keys))]
-        sample_sizes = []
+        sample_sizes: list[int] = []
 
         for key in sample_keys:
             data = await client.get(key)
@@ -304,6 +305,7 @@ class RedisCache(BaseCacheBackend):
     @cache_error_handler("close Redis connection")
     async def _close_redis_connection_safe(self) -> None:
         """Safely close Redis connection."""
+        assert self.redis_client is not None, "Redis client should exist before closing"
         await self.redis_client.close()
         self.logger.info("Redis connection closed")
         self.redis_client = None

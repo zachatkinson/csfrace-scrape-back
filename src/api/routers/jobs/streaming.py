@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
+from redis.asyncio import Redis
 
 from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
@@ -32,9 +33,10 @@ router = APIRouter()
 def safe_json_dumps(data: Any) -> str:
     """JSON dumps with handling for non-serializable types."""
 
-    def default_serializer(obj):
+    def default_serializer(obj: Any) -> str:
         if hasattr(obj, "isoformat"):
-            return obj.isoformat()
+            result: str = obj.isoformat()
+            return result
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     return json.dumps(data, default=default_serializer)
@@ -85,7 +87,7 @@ async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
         event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         # Redis pub/sub listener for job events
-        async def redis_job_listener():
+        async def redis_job_listener() -> None:
             """Listen to Redis job_events channel for real-time updates."""
             await _listen_to_redis_job_events_safe(redis_client, event_queue)
 
@@ -120,7 +122,7 @@ async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
 
 
 @router.post("/trigger-event")
-async def trigger_job_event(db: DBSession):  # noqa: ARG001
+async def trigger_job_event(db: DBSession) -> dict[str, Any]:  # noqa: ARG001
     """Manually trigger a job event for testing purposes.
 
     This endpoint allows testing the job event system by creating
@@ -138,10 +140,10 @@ async def trigger_job_event(db: DBSession):  # noqa: ARG001
 
 
 @api_error_handler("initialize job event system")
-async def _initialize_job_event_system_safe():
+async def _initialize_job_event_system_safe() -> Redis | None:
     """Safely initialize job event system."""
     await job_event_publisher.initialize()
-    redis_client = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
+    redis_client: Redis = await cache_manager._ensure_backend()._get_client()  # type: ignore[attr-defined]
     logger.debug("Job event system initialized successfully")
     return redis_client
 
@@ -179,7 +181,7 @@ async def _send_initial_job_data_safe(db: DBSession) -> str | None:
 
 @api_error_handler("listen to Redis job events")
 async def _listen_to_redis_job_events_safe(
-    redis_client, event_queue: asyncio.Queue[dict[str, Any]]
+    redis_client: Redis, event_queue: asyncio.Queue[dict[str, Any]]
 ) -> None:
     """Safely listen to Redis job events."""
     pubsub = redis_client.pubsub()
@@ -194,7 +196,7 @@ async def _listen_to_redis_job_events_safe(
 
 
 @api_error_handler("process job event message")
-async def _process_job_event_message_safe(message) -> dict[str, Any] | None:
+async def _process_job_event_message_safe(message: dict[str, Any]) -> dict[str, Any] | None:
     """Safely process job event message."""
     # Parse job event data
     job_event_data = json.loads(message["data"].decode("utf-8"))

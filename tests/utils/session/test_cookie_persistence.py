@@ -19,6 +19,8 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import json
 import time
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import aiohttp
@@ -32,13 +34,13 @@ from src.utils.session.cookie_persistence import CookiePersistenceService
 
 
 @pytest.fixture
-def temp_cookie_file(tmp_path):
+def temp_cookie_file(tmp_path: Path) -> Path:
     """Factory for temporary cookie file - DRY principle."""
     return tmp_path / "cookies.json"
 
 
 @pytest.fixture
-def sample_cookie_data():
+def sample_cookie_data() -> dict[str, dict[str, dict[str, Any]]]:
     """Factory for sample cookie data - DRY principle."""
     return {
         "example.com": {
@@ -65,7 +67,7 @@ def sample_cookie_data():
 
 
 @pytest.fixture
-def expired_cookie_data():
+def expired_cookie_data() -> dict[str, dict[str, dict[str, Any]]]:
     """Factory for expired cookie data - DRY principle."""
     return {
         "example.com": {
@@ -83,7 +85,7 @@ def expired_cookie_data():
 
 
 @pytest.fixture
-def mock_cookie_jar():
+def mock_cookie_jar() -> MagicMock:
     """Factory for mock cookie jar - DRY principle."""
     jar = MagicMock(spec=aiohttp.CookieJar)
     # Create mock cookies that behave like http.cookies.Morsel objects
@@ -124,7 +126,7 @@ def mock_cookie_jar():
 class TestCookiePersistenceService:
     """Tests for CookiePersistenceService class."""
 
-    def test_initialization(self, temp_cookie_file):
+    def test_initialization(self, temp_cookie_file: Path) -> None:
         """Test CookiePersistenceService initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -135,7 +137,7 @@ class TestCookiePersistenceService:
         assert service.cookies == {}
         assert temp_cookie_file.parent.exists()
 
-    def test_ensure_directory_creates_parent_directories(self, tmp_path):
+    def test_ensure_directory_creates_parent_directories(self, tmp_path: Path) -> None:
         """Test _ensure_directory() creates parent dirs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         nested_path = tmp_path / "level1" / "level2" / "cookies.json"
@@ -146,7 +148,7 @@ class TestCookiePersistenceService:
         # Assert - MANDATORY
         assert nested_path.parent.exists()
 
-    def test_load_cookies_no_existing_file(self, temp_cookie_file):
+    def test_load_cookies_no_existing_file(self, temp_cookie_file: Path) -> None:
         """Test load_cookies() with no existing file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -157,7 +159,9 @@ class TestCookiePersistenceService:
         # Assert - MANDATORY
         assert cookies == {}
 
-    def test_load_cookies_with_valid_data(self, temp_cookie_file, sample_cookie_data):
+    def test_load_cookies_with_valid_data(
+        self, temp_cookie_file: Path, sample_cookie_data: dict[str, dict[str, dict[str, Any]]]
+    ) -> None:
         """Test load_cookies() with valid data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Write sample data to file
@@ -175,8 +179,11 @@ class TestCookiePersistenceService:
         assert "user_pref" in cookies["example.com"]
 
     def test_filter_expired_cookies(
-        self, temp_cookie_file, sample_cookie_data, expired_cookie_data
-    ):
+        self,
+        temp_cookie_file: Path,
+        sample_cookie_data: dict[str, dict[str, dict[str, Any]]],
+        expired_cookie_data: dict[str, dict[str, dict[str, Any]]],
+    ) -> None:
         """Test _filter_expired_cookies() removes expired - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -198,8 +205,8 @@ class TestCookiePersistenceService:
         assert "expired_cookie" not in filtered["example.com"]  # Expired removed
 
     def test_filter_expired_cookies_session_cookies_kept(
-        self, temp_cookie_file, sample_cookie_data
-    ):
+        self, temp_cookie_file: Path, sample_cookie_data: dict[str, dict[str, dict[str, Any]]]
+    ) -> None:
         """Test session cookies (expires=None) are kept - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -210,7 +217,9 @@ class TestCookiePersistenceService:
         # Assert - MANDATORY
         assert "user_pref" in filtered["example.com"]  # Session cookie kept
 
-    def test_save_cookies_with_cookie_jar(self, temp_cookie_file, mock_cookie_jar):
+    def test_save_cookies_with_cookie_jar(
+        self, temp_cookie_file: Path, mock_cookie_jar: MagicMock
+    ) -> None:
         """Test save_cookies() with cookie jar - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -226,18 +235,18 @@ class TestCookiePersistenceService:
             saved_data = json.load(f)
         assert "example.com" in saved_data
 
-    def test_save_cookies_no_cookie_jar(self, temp_cookie_file):
+    def test_save_cookies_no_cookie_jar(self, temp_cookie_file: Path) -> None:
         """Test save_cookies() with None cookie jar - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
 
         # Act - MANDATORY
-        service.save_cookies(None)
+        service.save_cookies(None)  # type: ignore[arg-type]
 
         # Assert - MANDATORY
         assert not temp_cookie_file.exists()  # No file should be created
 
-    def test_extract_cookie_data(self, temp_cookie_file, mock_cookie_jar):
+    def test_extract_cookie_data(self, temp_cookie_file: Path, mock_cookie_jar: MagicMock) -> None:
         """Test _extract_cookie_data() from cookie jar - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -252,7 +261,7 @@ class TestCookiePersistenceService:
         assert cookie_data["example.com"]["cookie1"]["value"] == "value1"
         assert cookie_data["example.com"]["cookie2"]["value"] == "value2"
 
-    def test_extract_cookie_data_skips_invalid_cookies(self, temp_cookie_file):
+    def test_extract_cookie_data_skips_invalid_cookies(self, temp_cookie_file: Path) -> None:
         """Test _extract_cookie_data() skips invalid cookies - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -267,7 +276,9 @@ class TestCookiePersistenceService:
         # Assert - MANDATORY
         assert cookie_data == {}  # Invalid cookie should be skipped
 
-    def test_load_cookies_into_jar(self, temp_cookie_file, sample_cookie_data):
+    def test_load_cookies_into_jar(
+        self, temp_cookie_file: Path, sample_cookie_data: dict[str, dict[str, dict[str, Any]]]
+    ) -> None:
         """Test load_cookies_into_jar() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Write sample data to file
@@ -284,7 +295,7 @@ class TestCookiePersistenceService:
         # Assert - MANDATORY
         jar.update_cookies.assert_called()  # Cookies should be loaded
 
-    def test_load_cookies_into_jar_domain_matching(self, temp_cookie_file):
+    def test_load_cookies_into_jar_domain_matching(self, temp_cookie_file: Path) -> None:
         """Test domain matching in load_cookies_into_jar() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cookie_data = {
@@ -326,7 +337,7 @@ class TestCookiePersistenceService:
         # Only example.com cookies should be loaded
         jar.update_cookies.assert_called()
 
-    def test_load_cookies_into_jar_subdomain_matching(self, temp_cookie_file):
+    def test_load_cookies_into_jar_subdomain_matching(self, temp_cookie_file: Path) -> None:
         """Test subdomain matching in load_cookies_into_jar() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cookie_data = {
@@ -357,7 +368,9 @@ class TestCookiePersistenceService:
         # Should match subdomain
         jar.update_cookies.assert_called()
 
-    def test_save_cookies_creates_proper_structure(self, temp_cookie_file, mock_cookie_jar):
+    def test_save_cookies_creates_proper_structure(
+        self, temp_cookie_file: Path, mock_cookie_jar: MagicMock
+    ) -> None:
         """Test save_cookies() creates proper JSON structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -390,7 +403,9 @@ class TestCookiePersistenceService:
 class TestCookiePersistenceServicePerformance:
     """MANDATORY performance tests for cookie persistence operations."""
 
-    def test_save_cookies_performance(self, temp_cookie_file, mock_cookie_jar):
+    def test_save_cookies_performance(
+        self, temp_cookie_file: Path, mock_cookie_jar: MagicMock
+    ) -> None:
         """MANDATORY performance test - cookie saving speed."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)
@@ -410,7 +425,9 @@ class TestCookiePersistenceServicePerformance:
         assert avg_time < 0.1  # <100ms per save
         assert execution_time < 10.0  # Total <10s for 100 saves
 
-    def test_load_cookies_performance(self, temp_cookie_file, sample_cookie_data):
+    def test_load_cookies_performance(
+        self, temp_cookie_file: Path, sample_cookie_data: dict[str, dict[str, dict[str, Any]]]
+    ) -> None:
         """MANDATORY performance test - cookie loading speed."""
         # Arrange - MANDATORY
         # Write sample data
@@ -434,7 +451,7 @@ class TestCookiePersistenceServicePerformance:
         assert avg_time < 0.01  # <10ms per load
         assert execution_time < 1.0  # Total <1s for 100 loads
 
-    def test_filter_expired_cookies_performance(self, temp_cookie_file):
+    def test_filter_expired_cookies_performance(self, temp_cookie_file: Path) -> None:
         """MANDATORY performance test - cookie filtering speed."""
         # Arrange - MANDATORY
         service = CookiePersistenceService(temp_cookie_file)

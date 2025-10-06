@@ -263,14 +263,22 @@ class DynamicContentDetector:
 
         # Find all elements with class attributes
         for element in soup.find_all(class_=True):
-            classes = element.get("class", [])
-            if isinstance(classes, str):
-                classes = [classes]
+            if not isinstance(element, Tag):
+                continue
+            classes_attr = element.get("class")
+            # Handle str | list[str] | None return type
+            if isinstance(classes_attr, str):
+                classes = [classes_attr]
+            elif isinstance(classes_attr, list):
+                classes = classes_attr
+            else:
+                classes = []
 
             for class_name in classes:
+                class_str = class_name if isinstance(class_name, str) else str(class_name)
                 for prefix in self.indicators.js_dependent_classes:
-                    if class_name.lower().startswith(prefix.lower()):
-                        js_classes.add(class_name)
+                    if class_str.lower().startswith(prefix.lower()):
+                        js_classes.add(class_str)
 
         return list(js_classes)
 
@@ -280,15 +288,20 @@ class DynamicContentDetector:
 
         # Check in script content
         for script in soup.find_all("script", string=True):
-            script_content = script.string.lower()
-            for indicator in self.indicators.ajax_indicators:
-                if indicator in script_content:
-                    patterns_found.add(indicator)
+            if not isinstance(script, Tag):
+                continue
+            if script.string and isinstance(script.string, str):
+                script_content = script.string.lower()
+                for indicator in self.indicators.ajax_indicators:
+                    if indicator in script_content:
+                        patterns_found.add(indicator)
 
         # Check in data attributes
         for element in soup.find_all(attrs={"data-": True}):
+            if not isinstance(element, Tag):
+                continue
             for attr_name in element.attrs:
-                if attr_name.lower().startswith("data-"):
+                if isinstance(attr_name, str) and attr_name.lower().startswith("data-"):
                     attr_value = str(element.attrs[attr_name]).lower()
                     for indicator in self.indicators.ajax_indicators:
                         if indicator in attr_value or indicator in attr_name.lower():
@@ -316,9 +329,33 @@ class DynamicContentDetector:
         meta_tags = soup.find_all("meta")
 
         for meta in meta_tags:
-            content = meta.get("content", "").lower()
-            name = meta.get("name", "").lower()
-            property_val = meta.get("property", "").lower()
+            if not isinstance(meta, Tag):
+                continue
+
+            # Handle str | list[str] | None return types
+            content_attr = meta.get("content", "")
+            content = (
+                content_attr
+                if isinstance(content_attr, str)
+                else str(content_attr)
+                if content_attr
+                else ""
+            )
+            content = content.lower()
+
+            name_attr = meta.get("name", "")
+            name = name_attr if isinstance(name_attr, str) else str(name_attr) if name_attr else ""
+            name = name.lower()
+
+            property_attr = meta.get("property", "")
+            property_val = (
+                property_attr
+                if isinstance(property_attr, str)
+                else str(property_attr)
+                if property_attr
+                else ""
+            )
+            property_val = property_val.lower()
 
             for pattern in self.indicators.spa_meta_patterns:
                 if pattern in content or pattern in name or pattern in property_val:
@@ -329,21 +366,18 @@ class DynamicContentDetector:
     def _detect_empty_body_pattern(self, soup: BeautifulSoup) -> bool:
         """Detect empty body with only scripts (classic SPA pattern)."""
         body = soup.find("body")
-        if not body:
+        if not body or not isinstance(body, Tag):
             return False
 
         # Count non-script elements in body
-        if not isinstance(body, Tag):
-            return False
         non_script_elements = [
             elem
             for elem in body.find_all()
-            if elem.name not in ["script", "noscript", "style", "link", "meta"]
+            if isinstance(elem, Tag)
+            and elem.name not in ["script", "noscript", "style", "link", "meta"]
         ]
 
         # Check if body is mostly empty except for scripts
-        if not isinstance(body, Tag):
-            return False
         script_count = len(body.find_all("script"))
 
         return len(non_script_elements) <= 2 and script_count >= 1
