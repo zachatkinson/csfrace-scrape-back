@@ -298,6 +298,7 @@ class MediaProcessor(ContentExtractorBase):
             )
             # Secure URL validation: parse and check actual domain
             from urllib.parse import urlparse
+
             parsed = urlparse(src_str)
             allowed_domains = {"youtube.com", "www.youtube.com", "youtu.be", "www.youtu.be"}
             if parsed.netloc in allowed_domains:

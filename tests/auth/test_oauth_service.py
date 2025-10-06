@@ -178,6 +178,7 @@ class TestOAuthServiceInitiateLogin:
         assert result.authorization_url is not None
         if IMPORTS_AVAILABLE:
             from urllib.parse import urlparse
+
             parsed_url = urlparse(result.authorization_url)
             assert parsed_url.netloc == "accounts.google.com"
 
@@ -419,6 +420,7 @@ class TestGoogleOAuthProvider:
         # Assert
         if IMPORTS_AVAILABLE:
             from urllib.parse import urlparse
+
             parsed_url = urlparse(url)
             assert parsed_url.netloc == "accounts.google.com"
             assert "client_id=mock_google_client_id" in url
@@ -487,6 +489,7 @@ class TestGitHubOAuthProvider:
         # Assert
         if IMPORTS_AVAILABLE:
             from urllib.parse import urlparse
+
             parsed_url = urlparse(url)
             assert parsed_url.netloc == "github.com"
             assert "client_id=mock_github_client_id" in url
