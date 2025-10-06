@@ -18,7 +18,7 @@ from src.config.base import BaseConfig, DatabaseMixin, NetworkMixin, SecurityMix
 class TestBaseConfigLoadConfig:
     """Test BaseConfig.load_config() method."""
 
-    def test_load_config_creates_instance_successfully(self):
+    def test_load_config_creates_instance_successfully(self) -> None:
         """Test load_config creates valid config instance."""
 
         # Arrange
@@ -32,7 +32,7 @@ class TestBaseConfigLoadConfig:
         assert isinstance(config, TestConfig)
         assert config.test_field == "default"
 
-    def test_load_config_applies_overrides(self):
+    def test_load_config_applies_overrides(self) -> None:
         """Test load_config applies override values."""
 
         # Arrange
@@ -44,10 +44,10 @@ class TestBaseConfigLoadConfig:
         config = TestConfig.load_config(test_field="overridden", other_field=100)
 
         # Assert
-        assert config.test_field == "overridden"
-        assert config.other_field == 100
+        assert config.test_field == "overridden"  # type: ignore[attr-defined]
+        assert config.other_field == 100  # type: ignore[attr-defined]
 
-    def test_load_config_validates_fields(self):
+    def test_load_config_validates_fields(self) -> None:
         """Test load_config validates field types."""
 
         # Arrange
@@ -58,7 +58,7 @@ class TestBaseConfigLoadConfig:
         with pytest.raises(ValidationError):
             TestConfig.load_config(required_field="not_an_int")
 
-    def test_load_config_raises_on_validation_error(self):
+    def test_load_config_raises_on_validation_error(self) -> None:
         """Test load_config raises validation errors."""
 
         # Arrange
@@ -79,7 +79,7 @@ class TestBaseConfigLoadConfig:
 class TestSecurityMixinSecretKey:
     """Test SecurityMixin.validate_secret_key() validation."""
 
-    def test_validate_secret_key_accepts_valid_key(self):
+    def test_validate_secret_key_accepts_valid_key(self) -> None:
         """Test accepts valid SECRET_KEY."""
 
         # Arrange
@@ -94,7 +94,7 @@ class TestSecurityMixinSecretKey:
         # Assert
         assert valid_key == config.SECRET_KEY
 
-    def test_validate_secret_key_rejects_empty_key(self):
+    def test_validate_secret_key_rejects_empty_key(self) -> None:
         """Test rejects empty SECRET_KEY."""
 
         # Arrange
@@ -105,7 +105,7 @@ class TestSecurityMixinSecretKey:
         with pytest.raises(ValueError, match="SECRET_KEY must be set"):
             SecureConfig(SECRET_KEY="")
 
-    def test_validate_secret_key_rejects_short_key(self):
+    def test_validate_secret_key_rejects_short_key(self) -> None:
         """Test rejects SECRET_KEY shorter than 32 characters."""
 
         # Arrange
@@ -118,7 +118,7 @@ class TestSecurityMixinSecretKey:
         with pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"):
             SecureConfig(SECRET_KEY=short_key)
 
-    def test_validate_secret_key_accepts_long_key(self):
+    def test_validate_secret_key_accepts_long_key(self) -> None:
         """Test accepts SECRET_KEY longer than 32 characters."""
 
         # Arrange
@@ -144,7 +144,7 @@ class TestSecurityMixinSecretKey:
 class TestDatabaseMixinDatabaseUrl:
     """Test DatabaseMixin.validate_database_url() validation."""
 
-    def test_validate_database_url_accepts_postgresql_scheme(self):
+    def test_validate_database_url_accepts_postgresql_scheme(self) -> None:
         """Test accepts postgresql:// scheme."""
 
         # Arrange
@@ -159,7 +159,7 @@ class TestDatabaseMixinDatabaseUrl:
         # Assert
         assert url == config.DATABASE_URL
 
-    def test_validate_database_url_accepts_postgres_scheme(self):
+    def test_validate_database_url_accepts_postgres_scheme(self) -> None:
         """Test accepts postgres:// scheme."""
 
         # Arrange
@@ -174,7 +174,7 @@ class TestDatabaseMixinDatabaseUrl:
         # Assert
         assert url == config.DATABASE_URL
 
-    def test_validate_database_url_rejects_empty_url(self):
+    def test_validate_database_url_rejects_empty_url(self) -> None:
         """Test rejects empty DATABASE_URL."""
 
         # Arrange
@@ -185,7 +185,7 @@ class TestDatabaseMixinDatabaseUrl:
         with pytest.raises(ValueError, match="DATABASE_URL must be set"):
             DbConfig(DATABASE_URL="")
 
-    def test_validate_database_url_rejects_non_postgresql_url(self):
+    def test_validate_database_url_rejects_non_postgresql_url(self) -> None:
         """Test rejects non-PostgreSQL URLs."""
 
         # Arrange
@@ -196,7 +196,7 @@ class TestDatabaseMixinDatabaseUrl:
         with pytest.raises(ValueError, match="DATABASE_URL must be a valid PostgreSQL URL"):
             DbConfig(DATABASE_URL="sqlite:///test.db")
 
-    def test_validate_database_url_rejects_mysql_url(self):
+    def test_validate_database_url_rejects_mysql_url(self) -> None:
         """Test rejects MySQL URLs."""
 
         # Arrange
@@ -217,7 +217,7 @@ class TestDatabaseMixinDatabaseUrl:
 class TestNetworkMixinTimeout:
     """Test NetworkMixin.validate_timeout() validation."""
 
-    def test_validate_timeout_accepts_valid_timeout(self):
+    def test_validate_timeout_accepts_valid_timeout(self) -> None:
         """Test accepts valid timeout value."""
 
         # Arrange
@@ -230,7 +230,7 @@ class TestNetworkMixinTimeout:
         # Assert
         assert config.timeout == 60
 
-    def test_validate_timeout_rejects_zero_timeout(self):
+    def test_validate_timeout_rejects_zero_timeout(self) -> None:
         """Test rejects timeout of 0."""
 
         # Arrange
@@ -241,7 +241,7 @@ class TestNetworkMixinTimeout:
         with pytest.raises(ValueError, match="timeout must be greater than 0"):
             NetworkConfig(timeout=0)
 
-    def test_validate_timeout_rejects_negative_timeout(self):
+    def test_validate_timeout_rejects_negative_timeout(self) -> None:
         """Test rejects negative timeout."""
 
         # Arrange
@@ -252,7 +252,7 @@ class TestNetworkMixinTimeout:
         with pytest.raises(ValueError, match="timeout must be greater than 0"):
             NetworkConfig(timeout=-1)
 
-    def test_validate_timeout_rejects_excessive_timeout(self):
+    def test_validate_timeout_rejects_excessive_timeout(self) -> None:
         """Test rejects timeout exceeding 300 seconds."""
 
         # Arrange
@@ -263,7 +263,7 @@ class TestNetworkMixinTimeout:
         with pytest.raises(ValueError, match="timeout must be <= 300 seconds"):
             NetworkConfig(timeout=301)
 
-    def test_validate_timeout_accepts_maximum_timeout(self):
+    def test_validate_timeout_accepts_maximum_timeout(self) -> None:
         """Test accepts maximum timeout of 300 seconds."""
 
         # Arrange
@@ -286,7 +286,7 @@ class TestNetworkMixinTimeout:
 class TestNetworkMixinConcurrency:
     """Test NetworkMixin.validate_concurrency() validation."""
 
-    def test_validate_concurrency_accepts_valid_value(self):
+    def test_validate_concurrency_accepts_valid_value(self) -> None:
         """Test accepts valid concurrency value."""
 
         # Arrange
@@ -299,7 +299,7 @@ class TestNetworkMixinConcurrency:
         # Assert
         assert config.max_concurrent == 50
 
-    def test_validate_concurrency_rejects_zero(self):
+    def test_validate_concurrency_rejects_zero(self) -> None:
         """Test rejects max_concurrent of 0."""
 
         # Arrange
@@ -310,7 +310,7 @@ class TestNetworkMixinConcurrency:
         with pytest.raises(ValueError, match="max_concurrent must be greater than 0"):
             NetworkConfig(max_concurrent=0)
 
-    def test_validate_concurrency_rejects_negative_value(self):
+    def test_validate_concurrency_rejects_negative_value(self) -> None:
         """Test rejects negative max_concurrent."""
 
         # Arrange
@@ -321,7 +321,7 @@ class TestNetworkMixinConcurrency:
         with pytest.raises(ValueError, match="max_concurrent must be greater than 0"):
             NetworkConfig(max_concurrent=-5)
 
-    def test_validate_concurrency_rejects_excessive_value(self):
+    def test_validate_concurrency_rejects_excessive_value(self) -> None:
         """Test rejects max_concurrent exceeding 100."""
 
         # Arrange
@@ -332,7 +332,7 @@ class TestNetworkMixinConcurrency:
         with pytest.raises(ValueError, match="max_concurrent must be <= 100"):
             NetworkConfig(max_concurrent=101)
 
-    def test_validate_concurrency_accepts_maximum_value(self):
+    def test_validate_concurrency_accepts_maximum_value(self) -> None:
         """Test accepts maximum max_concurrent of 100."""
 
         # Arrange
@@ -355,7 +355,7 @@ class TestNetworkMixinConcurrency:
 class TestBaseConfigModelConfig:
     """Test BaseConfig model_config settings."""
 
-    def test_model_config_ignores_extra_fields(self):
+    def test_model_config_ignores_extra_fields(self) -> None:
         """Test model_config ignores extra environment variables."""
 
         # Arrange
@@ -369,7 +369,7 @@ class TestBaseConfigModelConfig:
         assert config.known_field == "test"
         assert not hasattr(config, "unknown_field")
 
-    def test_model_config_strips_whitespace(self):
+    def test_model_config_strips_whitespace(self) -> None:
         """Test model_config strips whitespace from strings."""
 
         # Arrange
@@ -382,7 +382,7 @@ class TestBaseConfigModelConfig:
         # Assert
         assert config.test_field == "value with spaces"
 
-    def test_model_config_case_insensitive(self):
+    def test_model_config_case_insensitive(self) -> None:
         """Test model_config is case insensitive for field names."""
 
         # Arrange
@@ -405,7 +405,7 @@ class TestBaseConfigModelConfig:
 class TestMixinCombination:
     """Test combining multiple mixins in one config class."""
 
-    def test_combines_security_and_database_mixins(self):
+    def test_combines_security_and_database_mixins(self) -> None:
         """Test combining SecurityMixin and DatabaseMixin."""
 
         # Arrange
@@ -422,7 +422,7 @@ class TestMixinCombination:
         assert len(config.SECRET_KEY) >= 32
         assert config.DATABASE_URL.startswith("postgresql://")
 
-    def test_combines_all_mixins(self):
+    def test_combines_all_mixins(self) -> None:
         """Test combining all mixins in one config."""
 
         # Arrange

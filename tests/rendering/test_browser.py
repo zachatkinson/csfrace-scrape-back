@@ -94,7 +94,7 @@ def mock_response() -> AsyncMock:
 class TestBrowserConfig:
     """Tests for BrowserConfig validation."""
 
-    def test_config_initialization_with_defaults(self):
+    def test_config_initialization_with_defaults(self) -> None:
         """Test config initializes with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -109,7 +109,7 @@ class TestBrowserConfig:
         assert config.viewport_height == 1080
         assert config.timeout == 30.0
 
-    def test_config_with_custom_values(self):
+    def test_config_with_custom_values(self) -> None:
         """Test config accepts custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_values = {
@@ -128,7 +128,7 @@ class TestBrowserConfig:
         assert config.viewport_width == 1280
         assert config.timeout == 60.0
 
-    def test_browser_type_validation_rejects_invalid(self):
+    def test_browser_type_validation_rejects_invalid(self) -> None:
         """Test browser_type validation rejects invalid values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_browser_type = "invalid_browser"
@@ -139,7 +139,7 @@ class TestBrowserConfig:
 
         assert "Browser type must be one of" in str(exc_info.value)
 
-    def test_browser_type_validation_accepts_valid(self):
+    def test_browser_type_validation_accepts_valid(self) -> None:
         """Test browser_type validation accepts valid values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         valid_browsers = ["chromium", "firefox", "webkit"]
@@ -151,7 +151,7 @@ class TestBrowserConfig:
             # Assert - MANDATORY
             assert config.browser_type == browser
 
-    def test_wait_until_validation_rejects_invalid(self):
+    def test_wait_until_validation_rejects_invalid(self) -> None:
         """Test wait_until validation rejects invalid values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_wait_until = "invalid_wait"
@@ -162,7 +162,7 @@ class TestBrowserConfig:
 
         assert "wait_until must be one of" in str(exc_info.value)
 
-    def test_wait_until_validation_accepts_valid(self):
+    def test_wait_until_validation_accepts_valid(self) -> None:
         """Test wait_until validation accepts valid values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         valid_conditions = ["load", "domcontentloaded", "networkidle"]
@@ -184,7 +184,7 @@ class TestBrowserConfig:
 class TestRenderResult:
     """Tests for RenderResult dataclass."""
 
-    def test_render_result_initialization(self):
+    def test_render_result_initialization(self) -> None:
         """Test RenderResult initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html = "<html><body>Content</body></html>"
@@ -214,7 +214,7 @@ class TestRenderResult:
         assert result.screenshots == {}
         assert result.network_requests == []
 
-    def test_render_result_with_metadata(self):
+    def test_render_result_with_metadata(self) -> None:
         """Test RenderResult with metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         metadata = {"title": "Example", "description": "Test page"}
@@ -234,7 +234,7 @@ class TestRenderResult:
         assert result.metadata == metadata
         assert result.metadata["title"] == "Example"
 
-    def test_render_result_with_screenshots(self):
+    def test_render_result_with_screenshots(self) -> None:
         """Test RenderResult with screenshots - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         screenshots = {"main": b"image_data"}
@@ -270,7 +270,7 @@ class TestBrowserPoolInitialization:
         default_browser_config: BrowserConfig,
         mock_playwright: AsyncMock,
         mock_browser: AsyncMock,
-    ):
+    ) -> None:
         """Test browser pool initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config)
@@ -290,7 +290,7 @@ class TestBrowserPoolInitialization:
         default_browser_config: BrowserConfig,
         mock_playwright: AsyncMock,
         mock_browser: AsyncMock,
-    ):
+    ) -> None:
         """Test browser pool cleanup closes resources - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config)
@@ -308,7 +308,7 @@ class TestBrowserPoolInitialization:
         assert len(pool._contexts) == 0
 
     @pytest.mark.asyncio
-    async def test_browser_pool_supports_chromium(self, mock_browser: AsyncMock):
+    async def test_browser_pool_supports_chromium(self, mock_browser: AsyncMock) -> None:
         """Test browser pool supports chromium - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = BrowserConfig(browser_type="chromium")
@@ -325,7 +325,7 @@ class TestBrowserPoolInitialization:
         assert pool._playwright is not None
 
     @pytest.mark.asyncio
-    async def test_browser_pool_supports_firefox(self, mock_browser: AsyncMock):
+    async def test_browser_pool_supports_firefox(self, mock_browser: AsyncMock) -> None:
         """Test browser pool supports firefox - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = BrowserConfig(browser_type="firefox")
@@ -342,7 +342,7 @@ class TestBrowserPoolInitialization:
         assert pool._playwright is not None
 
     @pytest.mark.asyncio
-    async def test_browser_pool_supports_webkit(self, mock_browser: AsyncMock):
+    async def test_browser_pool_supports_webkit(self, mock_browser: AsyncMock) -> None:
         """Test browser pool supports webkit - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = BrowserConfig(browser_type="webkit")
@@ -369,7 +369,7 @@ class TestBrowserPoolContextManagement:
         default_browser_config: BrowserConfig,
         mock_playwright: AsyncMock,
         mock_browser: AsyncMock,
-    ):
+    ) -> None:
         """Test get_context creates new context - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config, max_contexts=5)
@@ -392,7 +392,7 @@ class TestBrowserPoolContextManagement:
         default_browser_config: BrowserConfig,
         mock_playwright: AsyncMock,
         mock_browser: AsyncMock,
-    ):
+    ) -> None:
         """Test get_context reuses existing context - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config, context_reuse_limit=10)
@@ -418,7 +418,7 @@ class TestBrowserPoolContextManagement:
         default_browser_config: BrowserConfig,
         mock_playwright: AsyncMock,
         mock_browser: AsyncMock,
-    ):
+    ) -> None:
         """Test context usage counter increments - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config)
@@ -441,7 +441,9 @@ class TestBrowserPoolContextManagement:
         assert usage_after_second == 2
 
     @pytest.mark.asyncio
-    async def test_should_cleanup_context_logic(self, default_browser_config: BrowserConfig):
+    async def test_should_cleanup_context_logic(
+        self, default_browser_config: BrowserConfig
+    ) -> None:
         """Test should_cleanup_context logic - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config, context_reuse_limit=5)
@@ -485,7 +487,7 @@ class TestJavaScriptRendererInitialization:
     """Tests for JavaScriptRenderer initialization."""
 
     @pytest.mark.asyncio
-    async def test_renderer_initialization(self):
+    async def test_renderer_initialization(self) -> None:
         """Test renderer initializes correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = JavaScriptRenderer()
@@ -500,7 +502,7 @@ class TestJavaScriptRendererInitialization:
         assert renderer._pool is not None
 
     @pytest.mark.asyncio
-    async def test_renderer_cleanup(self):
+    async def test_renderer_cleanup(self) -> None:
         """Test renderer cleanup closes pool - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = JavaScriptRenderer()
@@ -517,7 +519,7 @@ class TestJavaScriptRendererInitialization:
         mock_pool.cleanup.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_renderer_with_custom_config(self):
+    async def test_renderer_with_custom_config(self) -> None:
         """Test renderer with custom config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = BrowserConfig(browser_type="firefox", timeout=60.0)
@@ -537,7 +539,7 @@ class TestJavaScriptRendererPageRendering:
     """Tests for JavaScriptRenderer page rendering."""
 
     @pytest.mark.asyncio
-    async def test_render_page_initializes_pool_if_needed(self):
+    async def test_render_page_initializes_pool_if_needed(self) -> None:
         """Test render_page initializes pool if needed - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = JavaScriptRenderer()
@@ -554,7 +556,7 @@ class TestJavaScriptRendererPageRendering:
             assert renderer._pool is not None
 
     @pytest.mark.asyncio
-    async def test_render_result_contains_expected_fields(self):
+    async def test_render_result_contains_expected_fields(self) -> None:
         """Test RenderResult contains all expected fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html = "<html><body>Test Content</body></html>"
@@ -580,7 +582,7 @@ class TestJavaScriptRendererPageRendering:
         assert isinstance(result.network_requests, list)
 
     @pytest.mark.asyncio
-    async def test_renderer_config_passed_to_pool(self):
+    async def test_renderer_config_passed_to_pool(self) -> None:
         """Test renderer config is passed to pool - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = BrowserConfig(browser_type="firefox", timeout=60.0)
@@ -600,7 +602,7 @@ class TestJavaScriptRendererPageRendering:
         assert call_args[0][0].timeout == 60.0
 
     @pytest.mark.asyncio
-    async def test_renderer_cleanup_closes_pool(self):
+    async def test_renderer_cleanup_closes_pool(self) -> None:
         """Test renderer cleanup closes pool - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         renderer = JavaScriptRenderer()
@@ -617,7 +619,7 @@ class TestJavaScriptRendererPageRendering:
         assert renderer._pool is None
 
     @pytest.mark.asyncio
-    async def test_renderer_context_manager(self):
+    async def test_renderer_context_manager(self) -> None:
         """Test renderer as async context manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -645,7 +647,7 @@ class TestJavaScriptRendererPageRendering:
 class TestFactoryFunctions:
     """Tests for factory functions."""
 
-    def test_create_renderer_with_defaults(self):
+    def test_create_renderer_with_defaults(self) -> None:
         """Test create_renderer with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -659,7 +661,7 @@ class TestFactoryFunctions:
         assert renderer.config.headless is True
         assert renderer.config.timeout == 30.0
 
-    def test_create_renderer_with_custom_params(self):
+    def test_create_renderer_with_custom_params(self) -> None:
         """Test create_renderer with custom parameters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         browser_type = "firefox"
@@ -685,7 +687,7 @@ class TestFactoryFunctions:
 class TestBrowserPerformance:
     """MANDATORY performance tests for browser management."""
 
-    def test_browser_config_initialization_performance(self):
+    def test_browser_config_initialization_performance(self) -> None:
         """MANDATORY performance test - browser config initialization speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -710,7 +712,7 @@ class TestBrowserPerformance:
         default_browser_config: BrowserConfig,
         mock_playwright: AsyncMock,
         mock_browser: AsyncMock,
-    ):
+    ) -> None:
         """MANDATORY performance test - browser pool initialization speed."""
         # Arrange - MANDATORY
         pool = BrowserPool(default_browser_config)
@@ -728,7 +730,7 @@ class TestBrowserPerformance:
         # Assert - MANDATORY
         assert execution_time < 1.0  # <1s for pool initialization
 
-    def test_render_result_creation_performance(self):
+    def test_render_result_creation_performance(self) -> None:
         """MANDATORY performance test - render result creation speed."""
         # Arrange - MANDATORY
         iterations = 10000

@@ -13,6 +13,7 @@ DatabaseService is a facade that delegates to specialized services:
 Tests verify delegation patterns, session management, and error handling.
 """
 
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -35,7 +36,7 @@ from src.database.service import (
 
 
 @pytest.fixture
-def mock_engine():
+def mock_engine() -> Mock:
     """Factory for mock SQLAlchemy engine - DRY principle."""
     engine = Mock(spec=Engine)
     engine.connect = MagicMock()
@@ -44,7 +45,7 @@ def mock_engine():
 
 
 @pytest.fixture
-def mock_session():
+def mock_session() -> Mock:
     """Factory for mock SQLAlchemy session - DRY principle."""
     session = Mock(spec=Session)
     session.commit = Mock()
@@ -55,7 +56,7 @@ def mock_session():
 
 
 @pytest.fixture
-def mock_session_maker(mock_session):
+def mock_session_maker(mock_session: Mock) -> Mock:
     """Factory for mock sessionmaker - DRY principle."""
     session_maker = Mock(spec=sessionmaker)
     session_maker.return_value = mock_session
@@ -64,7 +65,7 @@ def mock_session_maker(mock_session):
 
 
 @pytest.fixture
-def database_service_instance(mock_engine, mock_session_maker):
+def database_service_instance(mock_engine: Mock, mock_session_maker: Mock) -> DatabaseService:
     """Factory for DatabaseService instance - DRY principle."""
     with (
         patch("src.database.service.create_database_engine", return_value=mock_engine),
@@ -76,7 +77,7 @@ def database_service_instance(mock_engine, mock_session_maker):
 
 
 @pytest.fixture
-def sample_job_request():
+def sample_job_request() -> JobCreateRequest:
     """Factory for sample JobCreateRequest - DRY principle."""
     return JobCreateRequest(
         url="https://example.com/test-page",
@@ -90,7 +91,7 @@ def sample_job_request():
 
 
 @pytest.fixture
-def sample_job_log_request():
+def sample_job_log_request() -> JobLogRequest:
     """Factory for sample JobLogRequest - DRY principle."""
     return JobLogRequest(
         job_id="job123",
@@ -103,7 +104,7 @@ def sample_job_log_request():
 
 
 @pytest.fixture
-def sample_scraping_job():
+def sample_scraping_job() -> Mock:
     """Factory for sample ScrapingJob - DRY principle."""
     job = Mock(spec=ScrapingJob)
     job.id = "job123"
@@ -122,7 +123,7 @@ def sample_scraping_job():
 class TestDatabaseServiceInit:
     """Test DatabaseService initialization."""
 
-    def test_init_creates_engine_and_session_maker(self):
+    def test_init_creates_engine_and_session_maker(self) -> None:
         """Test initialization creates engine and session maker."""
         # Arrange
         mock_engine = Mock(spec=Engine)
@@ -142,7 +143,7 @@ class TestDatabaseServiceInit:
             assert service.engine is mock_engine
             assert service.echo is True
 
-    def test_create_with_engine_bypasses_init(self, mock_engine):
+    def test_create_with_engine_bypasses_init(self, mock_engine: Mock) -> None:
         """Test _create_with_engine class method bypasses __init__."""
         # Arrange & Act
         with patch("src.database.service.sessionmaker") as mock_sessionmaker:
@@ -163,31 +164,39 @@ class TestDatabaseServiceInit:
 class TestDatabaseServiceDatabaseInit:
     """Test DatabaseService database initialization."""
 
-    def test_initialize_database_creates_enums_and_tables(self, database_service_instance):
+    def test_initialize_database_creates_enums_and_tables(
+        self, database_service_instance: DatabaseService
+    ) -> None:
         """Test initialize_database creates enums and tables."""
         # Arrange
-        database_service_instance._create_enums_safely = Mock()
-
-        with patch("src.database.service.Base.metadata.create_all") as mock_create_all:
+        with (
+            patch.object(database_service_instance, "_create_enums_safely") as mock_create_enums,
+            patch("src.database.service.Base.metadata.create_all") as mock_create_all,
+        ):
             # Act
             database_service_instance.initialize_database()
 
             # Assert
-            database_service_instance._create_enums_safely.assert_called_once()
+            mock_create_enums.assert_called_once()
             mock_create_all.assert_called_once_with(
                 bind=database_service_instance.engine, checkfirst=True
             )
 
-    def test_create_enums_safely_creates_postgresql_enums(self, database_service_instance):
+    def test_create_enums_safely_creates_postgresql_enums(
+        self, database_service_instance: DatabaseService
+    ) -> None:
         """Test _create_enums_safely creates PostgreSQL enums."""
         # Arrange
         mock_connection = Mock()
         mock_connection.commit = Mock()
-        database_service_instance.engine.connect = MagicMock(
-            return_value=MagicMock(__enter__=Mock(return_value=mock_connection))
-        )
+        mock_context_manager = MagicMock()
+        mock_context_manager.__enter__ = Mock(return_value=mock_connection)
+        mock_context_manager.__exit__ = Mock(return_value=None)
 
         with (
+            patch.object(
+                database_service_instance.engine, "connect", return_value=mock_context_manager
+            ),
             patch("src.database.service.create_postgresql_enums") as mock_create_enums,
             patch("src.database.service.get_standard_enum_definitions") as mock_get_enums,
         ):
@@ -212,7 +221,9 @@ class TestDatabaseServiceDatabaseInit:
 class TestDatabaseServiceSessionManagement:
     """Test DatabaseService session management."""
 
-    def test_get_session_yields_session(self, database_service_instance, mock_session):
+    def test_get_session_yields_session(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_session yields a database session."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -226,7 +237,9 @@ class TestDatabaseServiceSessionManagement:
         mock_session.commit.assert_called_once()
         mock_session.close.assert_called_once()
 
-    def test_get_session_commits_on_success(self, database_service_instance, mock_session):
+    def test_get_session_commits_on_success(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_session commits transaction on success."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -239,7 +252,9 @@ class TestDatabaseServiceSessionManagement:
         mock_session.commit.assert_called_once()
         mock_session.rollback.assert_not_called()
 
-    def test_get_session_rollback_on_exception(self, database_service_instance, mock_session):
+    def test_get_session_rollback_on_exception(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_session rolls back on exception."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -264,8 +279,12 @@ class TestDatabaseServiceJobOperations:
     """Test DatabaseService job management operations."""
 
     def test_create_job_delegates_to_job_service(
-        self, database_service_instance, mock_session, sample_job_request, sample_scraping_job
-    ):
+        self,
+        database_service_instance: DatabaseService,
+        mock_session: Mock,
+        sample_job_request: JobCreateRequest,
+        sample_scraping_job: Mock,
+    ) -> None:
         """Test create_job delegates to JobService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -285,8 +304,11 @@ class TestDatabaseServiceJobOperations:
             assert result is sample_scraping_job
 
     def test_get_job_delegates_to_job_service(
-        self, database_service_instance, mock_session, sample_scraping_job
-    ):
+        self,
+        database_service_instance: DatabaseService,
+        mock_session: Mock,
+        sample_scraping_job: Mock,
+    ) -> None:
         """Test get_job delegates to JobService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -304,7 +326,9 @@ class TestDatabaseServiceJobOperations:
             mock_session.expunge.assert_called_once_with(sample_scraping_job)
             assert result is sample_scraping_job
 
-    def test_get_job_returns_none_when_not_found(self, database_service_instance, mock_session):
+    def test_get_job_returns_none_when_not_found(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_job returns None when job not found."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -321,7 +345,9 @@ class TestDatabaseServiceJobOperations:
             assert result is None
             mock_session.expunge.assert_not_called()
 
-    def test_update_job_status_converts_status_types(self, database_service_instance, mock_session):
+    def test_update_job_status_converts_status_types(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test update_job_status converts status and duration types."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -343,7 +369,9 @@ class TestDatabaseServiceJobOperations:
             )
             assert result is True
 
-    def test_get_pending_jobs_delegates_with_limit(self, database_service_instance, mock_session):
+    def test_get_pending_jobs_delegates_with_limit(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_pending_jobs delegates to JobService with limit."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -361,7 +389,9 @@ class TestDatabaseServiceJobOperations:
             mock_job_service.get_pending_jobs.assert_called_once_with(50)
             assert result == pending_jobs
 
-    def test_get_jobs_by_status_converts_status_type(self, database_service_instance, mock_session):
+    def test_get_jobs_by_status_converts_status_type(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_jobs_by_status converts status to enum."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -381,7 +411,9 @@ class TestDatabaseServiceJobOperations:
             )
             assert result == jobs
 
-    def test_get_retry_jobs_delegates_with_max_jobs(self, database_service_instance, mock_session):
+    def test_get_retry_jobs_delegates_with_max_jobs(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_retry_jobs delegates to JobService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -409,7 +441,9 @@ class TestDatabaseServiceJobOperations:
 class TestDatabaseServiceBatchOperations:
     """Test DatabaseService batch operations."""
 
-    def test_create_jobs_delegates_to_job_service(self, database_service_instance, mock_session):
+    def test_create_jobs_delegates_to_job_service(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test create_jobs delegates to JobService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -428,7 +462,9 @@ class TestDatabaseServiceBatchOperations:
             mock_job_service.create_jobs.assert_called_once_with(urls, output_directory="/tmp")
             assert result == created_jobs
 
-    def test_get_batch_jobs_delegates_to_job_service(self, database_service_instance, mock_session):
+    def test_get_batch_jobs_delegates_to_job_service(
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_batch_jobs delegates to JobService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -447,8 +483,8 @@ class TestDatabaseServiceBatchOperations:
             assert result == batch_jobs
 
     def test_get_batch_summary_delegates_to_job_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_batch_summary delegates to JobService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -477,8 +513,8 @@ class TestDatabaseServiceContentOperations:
     """Test DatabaseService content operations."""
 
     def test_save_content_result_delegates_to_content_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test save_content_result delegates to ContentService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -547,8 +583,8 @@ class TestDatabaseServiceLoggingOperations:
     """Test DatabaseService logging operations."""
 
     def test_add_job_log_delegates_to_helper_function(
-        self, database_service_instance, sample_job_log_request
-    ):
+        self, database_service_instance: DatabaseService, sample_job_log_request: JobLogRequest
+    ) -> None:
         """Test add_job_log delegates to _add_job_log_safe."""
         # Arrange
         job_log = Mock(spec=JobLog)
@@ -562,8 +598,11 @@ class TestDatabaseServiceLoggingOperations:
             assert result is job_log
 
     def test_add_job_log_safe_helper_converts_request(
-        self, database_service_instance, mock_session, sample_job_log_request
-    ):
+        self,
+        database_service_instance: DatabaseService,
+        mock_session: Mock,
+        sample_job_log_request: JobLogRequest,
+    ) -> None:
         """Test _add_job_log_safe converts request format."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -592,12 +631,12 @@ class TestDatabaseServiceStatisticsOperations:
     """Test DatabaseService statistics operations."""
 
     def test_get_job_statistics_delegates_to_statistics_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_job_statistics delegates to StatisticsService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        stats = {"total_jobs": 100, "completed": 80, "failed": 20}
+        stats: dict[str, Any] = {"total_jobs": 100, "completed": 80, "failed": 20}
 
         with patch("src.database.service.StatisticsService") as mock_stats_service_class:
             mock_stats_service = Mock()
@@ -612,12 +651,12 @@ class TestDatabaseServiceStatisticsOperations:
             assert result == stats
 
     def test_get_performance_metrics_delegates_to_statistics_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_performance_metrics delegates to StatisticsService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        metrics = {"avg_processing_time": 2.5, "p95": 5.0}
+        metrics: dict[str, Any] = {"avg_processing_time": 2.5, "p95": 5.0}
 
         with patch("src.database.service.StatisticsService") as mock_stats_service_class:
             mock_stats_service = Mock()
@@ -632,12 +671,12 @@ class TestDatabaseServiceStatisticsOperations:
             assert result == metrics
 
     def test_get_domain_statistics_wraps_result_in_list(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_domain_statistics wraps dict in list."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        stats = {"domain": "example.com", "total_jobs": 50}
+        stats: dict[str, Any] = {"domain": "example.com", "total_jobs": 50}
 
         with patch("src.database.service.StatisticsService") as mock_stats_service_class:
             mock_stats_service = Mock()
@@ -652,12 +691,12 @@ class TestDatabaseServiceStatisticsOperations:
             assert result == [stats]
 
     def test_get_processing_time_percentiles_delegates_to_statistics_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_processing_time_percentiles delegates to StatisticsService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        percentiles = {"p50": 2.0, "p95": 5.0, "p99": 10.0}
+        percentiles: dict[str, Any] = {"p50": 2.0, "p95": 5.0, "p99": 10.0}
 
         with patch("src.database.service.StatisticsService") as mock_stats_service_class:
             mock_stats_service = Mock()
@@ -682,8 +721,8 @@ class TestDatabaseServiceCleanupOperations:
     """Test DatabaseService cleanup operations."""
 
     def test_cleanup_jobs_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test cleanup_jobs delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -701,8 +740,8 @@ class TestDatabaseServiceCleanupOperations:
             assert result == 15
 
     def test_cleanup_failed_jobs_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test cleanup_failed_jobs delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -720,8 +759,8 @@ class TestDatabaseServiceCleanupOperations:
             assert result == 5
 
     def test_cleanup_orphaned_content_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test cleanup_orphaned_content delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -739,8 +778,8 @@ class TestDatabaseServiceCleanupOperations:
             assert result == 10
 
     def test_cleanup_orphaned_logs_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test cleanup_orphaned_logs delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
@@ -758,12 +797,12 @@ class TestDatabaseServiceCleanupOperations:
             assert result == 8
 
     def test_cleanup_all_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test cleanup_all delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        cleanup_summary = {
+        cleanup_summary: dict[str, Any] = {
             "old_jobs_deleted": 15,
             "failed_jobs_deleted": 5,
             "orphaned_content_deleted": 10,
@@ -784,12 +823,12 @@ class TestDatabaseServiceCleanupOperations:
             assert result == cleanup_summary
 
     def test_get_database_size_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_database_size delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        size_info = {"total_size": "100 MB", "tables_size": "80 MB"}
+        size_info: dict[str, Any] = {"total_size": "100 MB", "tables_size": "80 MB"}
 
         # Patch at the import location in service.py where it's used
         with patch("src.database.services.cleanup_service.CleanupService") as mock_cleanup_class:
@@ -805,12 +844,15 @@ class TestDatabaseServiceCleanupOperations:
             assert result == size_info
 
     def test_get_table_sizes_delegates_to_cleanup_service(
-        self, database_service_instance, mock_session
-    ):
+        self, database_service_instance: DatabaseService, mock_session: Mock
+    ) -> None:
         """Test get_table_sizes delegates to CleanupService."""
         # Arrange
         database_service_instance.SessionLocal = Mock(return_value=mock_session)
-        table_sizes = [{"table": "jobs", "size": "50 MB"}, {"table": "content", "size": "30 MB"}]
+        table_sizes: list[dict[str, Any]] = [
+            {"table": "jobs", "size": "50 MB"},
+            {"table": "content", "size": "30 MB"},
+        ]
 
         # Patch at the import location in service.py where it's used
         with patch("src.database.services.cleanup_service.CleanupService") as mock_cleanup_class:
@@ -835,7 +877,9 @@ class TestDatabaseServiceCleanupOperations:
 class TestDatabaseServiceSessionCleanup:
     """Test DatabaseService session cleanup."""
 
-    def test_close_all_sessions_delegates_to_helper(self, database_service_instance):
+    def test_close_all_sessions_delegates_to_helper(
+        self, database_service_instance: DatabaseService
+    ) -> None:
         """Test close_all_sessions delegates to _close_all_sessions_safe."""
         # Arrange
         with patch("src.database.service._close_all_sessions_safe") as mock_helper:
@@ -846,8 +890,8 @@ class TestDatabaseServiceSessionCleanup:
             mock_helper.assert_called_once_with(database_service_instance)
 
     def test_close_all_sessions_safe_closes_session_maker(
-        self, database_service_instance, mock_session_maker
-    ):
+        self, database_service_instance: DatabaseService, mock_session_maker: Mock
+    ) -> None:
         """Test _close_all_sessions_safe closes SessionLocal."""
         # Arrange
         database_service_instance.SessionLocal = mock_session_maker
@@ -858,7 +902,9 @@ class TestDatabaseServiceSessionCleanup:
         # Assert
         mock_session_maker.close_all.assert_called_once()
 
-    def test_close_all_sessions_safe_disposes_engine(self, database_service_instance, mock_engine):
+    def test_close_all_sessions_safe_disposes_engine(
+        self, database_service_instance: DatabaseService, mock_engine: Mock
+    ) -> None:
         """Test _close_all_sessions_safe disposes engine."""
         # Arrange
         database_service_instance.engine = mock_engine
@@ -869,7 +915,7 @@ class TestDatabaseServiceSessionCleanup:
         # Assert
         mock_engine.dispose.assert_called_once()
 
-    def test_close_all_sessions_safe_handles_missing_attributes(self):
+    def test_close_all_sessions_safe_handles_missing_attributes(self) -> None:
         """Test _close_all_sessions_safe handles missing attributes gracefully."""
         # Arrange
         service = Mock(spec=DatabaseService)
@@ -882,8 +928,8 @@ class TestDatabaseServiceSessionCleanup:
         # Assert - no errors raised
 
     def test_close_all_sessions_safe_handles_exceptions(
-        self, database_service_instance, mock_engine
-    ):
+        self, database_service_instance: DatabaseService, mock_engine: Mock
+    ) -> None:
         """Test _close_all_sessions_safe handles exceptions gracefully."""
         # Arrange
         database_service_instance.engine = mock_engine

@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.common.status import JobStatus
 from src.database.services.cleanup_service import CleanupService
@@ -20,7 +21,7 @@ class TestCriticalHealthChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_database_connection_health(self, test_session):
+    def test_database_connection_health(self, test_session: Session) -> None:
         """Test that database connection is healthy and responsive."""
         # Arrange - Act
         # Simple query to verify database connectivity
@@ -32,7 +33,7 @@ class TestCriticalHealthChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_job_creation_and_retrieval_e2e(self, test_session):
+    def test_job_creation_and_retrieval_e2e(self, test_session: Session) -> None:
         """Test complete job creation and retrieval workflow."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -53,7 +54,7 @@ class TestCriticalHealthChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_cleanup_service_basic_health(self, test_session):
+    def test_cleanup_service_basic_health(self, test_session: Session) -> None:
         """Test that cleanup service can perform basic operations."""
         # Arrange
         cleanup_service = CleanupService(session=test_session)
@@ -70,7 +71,7 @@ class TestCriticalHealthChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_database_size_monitoring_health(self, test_session):
+    def test_database_size_monitoring_health(self, test_session: Session) -> None:
         """Test database size monitoring functionality."""
         # Arrange
         cleanup_service = CleanupService(session=test_session)
@@ -94,7 +95,7 @@ class TestCriticalHealthChecks:
                 assert "size_bytes" in table_info
 
     @pytest.mark.e2e
-    def test_service_initialization_health(self, test_session):
+    def test_service_initialization_health(self, test_session: Session) -> None:
         """Test that core services can be initialized properly."""
         # Arrange - Act
         job_service = JobService(session=test_session)
@@ -106,7 +107,7 @@ class TestCriticalHealthChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_comprehensive_workflow_health(self, test_session):
+    def test_comprehensive_workflow_health(self, test_session: Session) -> None:
         """Test a comprehensive workflow that exercises multiple services."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -129,6 +130,7 @@ class TestCriticalHealthChecks:
 
         # Act - Get batch summary
         batch_id = batch_jobs[0].batch_id
+        assert batch_id is not None  # Ensure batch_id is not None before passing to method
         summary = job_service.get_batch_summary(batch_id)
 
         # Act - Run cleanup
@@ -164,7 +166,7 @@ class TestSystemIntegrityChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_data_consistency_across_services(self, test_session):
+    def test_data_consistency_across_services(self, test_session: Session) -> None:
         """Test data consistency when multiple services interact."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -178,6 +180,7 @@ class TestSystemIntegrityChecks:
         pending_jobs = job_service.get_pending_jobs()
 
         # Assert - Data consistency
+        assert retrieved_by_id is not None
         assert retrieved_by_id.id == created_job.id
         assert retrieved_by_id.source_url == created_job.source_url
 
@@ -187,7 +190,7 @@ class TestSystemIntegrityChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_foreign_key_integrity_across_operations(self, test_session):
+    def test_foreign_key_integrity_across_operations(self, test_session: Session) -> None:
         """Test that foreign key relationships remain intact across operations."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -211,7 +214,7 @@ class TestSystemIntegrityChecks:
     @pytest.mark.e2e
     @pytest.mark.database
     @pytest.mark.performance
-    def test_system_performance_under_load(self, test_session):
+    def test_system_performance_under_load(self, test_session: Session) -> None:
         """Test system performance with moderate load."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -244,7 +247,7 @@ class TestSystemIntegrityChecks:
 
     @pytest.mark.e2e
     @pytest.mark.database
-    def test_error_recovery_and_resilience(self, test_session):
+    def test_error_recovery_and_resilience(self, test_session: Session) -> None:
         """Test system resilience and error recovery."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -261,6 +264,7 @@ class TestSystemIntegrityChecks:
         failed_jobs = job_service.get_jobs_by_status(JobStatus.FAILED)
 
         # Assert - System handles failures gracefully
+        assert failed_job is not None
         assert failed_job.status == "failed"
         assert failed_job.error_message == "Simulated failure for resilience test"
 
@@ -276,7 +280,7 @@ class TestMinimalAPIHealthChecks:
     """Minimal E2E tests for API-level health checks."""
 
     @pytest.mark.e2e
-    def test_service_dependencies_health(self, test_session):
+    def test_service_dependencies_health(self, test_session: Session) -> None:
         """Test that service dependencies are properly injected and working."""
         # Arrange
         job_service = JobService(session=test_session)
@@ -299,7 +303,7 @@ class TestMinimalAPIHealthChecks:
 
     @pytest.mark.e2e
     @pytest.mark.slow
-    def test_system_stability_over_time(self, test_session):
+    def test_system_stability_over_time(self, test_session: Session) -> None:
         """Test system stability with repeated operations over time."""
         # Arrange
         job_service = JobService(session=test_session)

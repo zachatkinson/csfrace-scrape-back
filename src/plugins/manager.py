@@ -10,7 +10,7 @@ import asyncio
 from src.core.decorators import database_error_handler
 from src.core.logging_hierarchy import get_general_logger
 
-from .base import BasePlugin, PluginType
+from .base import BasePlugin, PluginConfig, PluginType
 from .registry import PluginRegistry, plugin_registry
 
 logger = get_general_logger()
@@ -77,7 +77,7 @@ class PluginManager:
         self._plugins: dict[str, BasePlugin] = {}
         self._pipeline: dict[PluginType, list[str]] = defaultdict(list)
         self._initialized = False
-        self._hooks: dict[str, list[Callable]] = defaultdict(list)
+        self._hooks: dict[str, list[Callable[..., Any]]] = defaultdict(list)
 
     async def initialize(self) -> None:
         """Initialize the plugin manager and all registered plugins."""
@@ -246,7 +246,7 @@ class PluginManager:
             "total_duration": context.end_time - context.start_time,
         }
 
-    def add_hook(self, event: str, callback: Callable) -> None:
+    def add_hook(self, event: str, callback: Callable[..., Any]) -> None:
         """Add a hook callback for plugin events.
 
         Args:
@@ -256,7 +256,7 @@ class PluginManager:
         self._hooks[event].append(callback)
         logger.logger.debug("Added plugin hook", event=event, callback=callback.__name__)
 
-    async def _call_hooks(self, event: str, *args, **kwargs) -> None:
+    async def _call_hooks(self, event: str, *args: Any, **kwargs: Any) -> None:
         """Call all hooks for a specific event.
 
         Args:
@@ -370,7 +370,7 @@ class PluginManager:
 
     @database_error_handler("initialize plugin")
     async def _initialize_plugin_safe(
-        self, plugin_name: str, plugin_class: type, plugin_config
+        self, plugin_name: str, plugin_class: type[BasePlugin], plugin_config: PluginConfig
     ) -> BasePlugin | None:
         """Initialize plugin with error handling."""
         # Create plugin instance
@@ -432,8 +432,8 @@ class PluginManager:
 
     @database_error_handler("execute full pipeline")
     async def _execute_full_pipeline_safe(
-        self, data: dict, context: PluginExecutionContext, url: str
-    ) -> dict:
+        self, data: dict[str, Any], context: PluginExecutionContext, url: str
+    ) -> dict[str, Any]:
         """Execute full pipeline with error handling."""
         # Execute plugin pipelines in order
 
@@ -459,7 +459,7 @@ class PluginManager:
 
     @database_error_handler("execute hook callback")
     async def _execute_hook_callback_safe(
-        self, callback: Callable, event: str, *args, **kwargs
+        self, callback: Callable[..., Any], event: str, *args: Any, **kwargs: Any
     ) -> None:
         """Execute hook callback with error handling."""
         if asyncio.iscoroutinefunction(callback):

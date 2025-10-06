@@ -36,7 +36,7 @@ from src.monitoring.observability import (
 
 
 @pytest.fixture
-def mock_metrics_collector():
+def mock_metrics_collector() -> MagicMock:
     """Factory for mock metrics collector - DRY principle."""
     collector = MagicMock()
     collector.config = MagicMock(enabled=True)
@@ -46,7 +46,7 @@ def mock_metrics_collector():
 
 
 @pytest.fixture
-def mock_health_checker():
+def mock_health_checker() -> MagicMock:
     """Factory for mock health checker - DRY principle."""
     checker = MagicMock()
     checker.config = MagicMock(enabled=True)
@@ -58,7 +58,7 @@ def mock_health_checker():
 
 
 @pytest.fixture
-def mock_alert_manager():
+def mock_alert_manager() -> MagicMock:
     """Factory for mock alert manager - DRY principle."""
     manager = MagicMock()
     manager.config = MagicMock(enabled=True)
@@ -68,7 +68,7 @@ def mock_alert_manager():
 
 
 @pytest.fixture
-def mock_performance_monitor():
+def mock_performance_monitor() -> MagicMock:
     """Factory for mock performance monitor - DRY principle."""
     monitor = MagicMock()
     monitor.config = MagicMock(enabled=True)
@@ -76,7 +76,7 @@ def mock_performance_monitor():
 
 
 @pytest.fixture
-def mock_distributed_tracer():
+def mock_distributed_tracer() -> MagicMock:
     """Factory for mock distributed tracer - DRY principle."""
     tracer = MagicMock()
     tracer.config = MagicMock(enabled=True)
@@ -85,7 +85,7 @@ def mock_distributed_tracer():
 
 
 @pytest.fixture
-def observability_config():
+def observability_config() -> ObservabilityConfig:
     """Factory for observability configuration - DRY principle."""
     return ObservabilityConfig(
         enabled=True,
@@ -105,7 +105,7 @@ def observability_config():
 class TestObservabilityConfig:
     """Tests for ObservabilityConfig dataclass."""
 
-    def test_observability_config_default_values(self):
+    def test_observability_config_default_values(self) -> None:
         """Test ObservabilityConfig default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # No explicit arrangement needed
@@ -120,7 +120,7 @@ class TestObservabilityConfig:
         assert config.enable_correlation_ids is True
         assert config.correlation_header_name == "X-Correlation-ID"
 
-    def test_observability_config_custom_values(self):
+    def test_observability_config_custom_values(self) -> None:
         """Test ObservabilityConfig with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_timeout = 60.0
@@ -140,7 +140,7 @@ class TestObservabilityConfig:
         assert config.graceful_shutdown_timeout == 60.0
         assert config.correlation_header_name == custom_header
 
-    def test_observability_config_with_component_configs(self):
+    def test_observability_config_with_component_configs(self) -> None:
         """Test ObservabilityConfig with component configs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         metrics_config = MagicMock()
@@ -170,12 +170,12 @@ class TestObservabilityManagerInit:
     @patch("src.monitoring.observability.distributed_tracer")
     def test_observability_manager_init_default_config(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test ObservabilityManager init with default config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Mocks already arranged
@@ -197,13 +197,13 @@ class TestObservabilityManagerInit:
     @patch("src.monitoring.observability.distributed_tracer")
     def test_observability_manager_init_custom_config(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-        observability_config,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+        observability_config: ObservabilityConfig,
+    ) -> None:
         """Test ObservabilityManager init with custom config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Config from fixture
@@ -234,12 +234,12 @@ class TestObservabilityManagerInitialize:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_initialize_all_components_enabled(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test initialize with all components enabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)
@@ -274,12 +274,12 @@ class TestObservabilityManagerInitialize:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_initialize_with_disabled_observability(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test initialize with disabled observability - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         disabled_config = ObservabilityConfig(enabled=False)
@@ -298,12 +298,12 @@ class TestObservabilityManagerInitialize:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_initialize_idempotent(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test initialize is idempotent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)
@@ -348,12 +348,12 @@ class TestStartupHealthCheck:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_startup_health_check_healthy_status(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test startup health check with healthy status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)
@@ -396,12 +396,12 @@ class TestObservabilityManagerShutdown:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_shutdown_all_components(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test shutdown stops all components - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)
@@ -439,12 +439,12 @@ class TestObservabilityManagerShutdown:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_shutdown_handles_component_errors(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """Test shutdown handles component errors gracefully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)
@@ -484,7 +484,7 @@ class TestObservabilityManagerShutdown:
 class TestSafeHelperFunctions:
     """Tests for safe helper functions."""
 
-    async def test_start_metrics_collector_safe(self, mock_metrics_collector):
+    async def test_start_metrics_collector_safe(self, mock_metrics_collector: MagicMock) -> None:
         """Test _start_metrics_collector_safe - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Mock from fixture
@@ -495,7 +495,7 @@ class TestSafeHelperFunctions:
         # Assert - MANDATORY
         mock_metrics_collector.start_collection.assert_called_once()
 
-    async def test_start_health_checker_safe(self, mock_health_checker):
+    async def test_start_health_checker_safe(self, mock_health_checker: MagicMock) -> None:
         """Test _start_health_checker_safe - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Mock from fixture
@@ -506,7 +506,7 @@ class TestSafeHelperFunctions:
         # Assert - MANDATORY
         mock_health_checker.start_monitoring.assert_called_once()
 
-    async def test_start_alert_manager_safe(self, mock_alert_manager):
+    async def test_start_alert_manager_safe(self, mock_alert_manager: MagicMock) -> None:
         """Test _start_alert_manager_safe - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Mock from fixture
@@ -517,7 +517,7 @@ class TestSafeHelperFunctions:
         # Assert - MANDATORY
         mock_alert_manager.start_evaluation.assert_called_once()
 
-    async def test_initialize_tracer_safe(self, mock_distributed_tracer):
+    async def test_initialize_tracer_safe(self, mock_distributed_tracer: MagicMock) -> None:
         """Test _initialize_tracer_safe - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Mock from fixture
@@ -547,12 +547,12 @@ class TestObservabilityManagerPerformance:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_initialization_performance(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """MANDATORY performance test - manager initialization speed."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)
@@ -587,12 +587,12 @@ class TestObservabilityManagerPerformance:
     @patch("src.monitoring.observability.distributed_tracer")
     async def test_shutdown_performance(
         self,
-        mock_tracer,
-        mock_perf,
-        mock_alerts,
-        mock_health,
-        mock_metrics,
-    ):
+        mock_tracer: MagicMock,
+        mock_perf: MagicMock,
+        mock_alerts: MagicMock,
+        mock_health: MagicMock,
+        mock_metrics: MagicMock,
+    ) -> None:
         """MANDATORY performance test - graceful shutdown speed."""
         # Arrange - MANDATORY
         mock_metrics.config = MagicMock(enabled=True)

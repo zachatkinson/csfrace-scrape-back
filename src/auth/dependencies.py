@@ -1,8 +1,11 @@
 """FastAPI dependencies for authentication following official patterns."""
 
+from collections.abc import Awaitable, Callable, Generator
+
 import jwt
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
 from ..api.errors import APIErrorFactory
 from ..database.service import DatabaseService
@@ -38,24 +41,26 @@ def get_database_service() -> DatabaseService:
 
 
 # Database session dependency for proper lifecycle management
-def get_db_session(db_service: DatabaseService = Depends(get_database_service)):
+def get_db_session(
+    db_service: DatabaseService = Depends(get_database_service),
+) -> Generator[Session]:
     """Get database session with proper lifecycle management for FastAPI."""
     with db_service.get_session() as session:
         yield session
 
 
 # Service injection patterns (DRY principle) - Fixed connection pool issue
-def get_auth_service(session=Depends(get_db_session)) -> AuthService:
+def get_auth_service(session: Session = Depends(get_db_session)) -> AuthService:
     """Get auth service with injected database session - eliminates boilerplate."""
     return AuthService(session)
 
 
-def get_oauth_service(session=Depends(get_db_session)) -> OAuthService:
+def get_oauth_service(session: Session = Depends(get_db_session)) -> OAuthService:
     """Get OAuth service with injected database session - eliminates boilerplate."""
     return OAuthService(session)
 
 
-def get_webauthn_service(session=Depends(get_db_session)) -> WebAuthnService:
+def get_webauthn_service(session: Session = Depends(get_db_session)) -> WebAuthnService:
     """Get WebAuthn service with injected database session - eliminates boilerplate."""
     return WebAuthnService(session)
 
@@ -73,7 +78,7 @@ async def get_current_user(
     """Get current authenticated user from JWT token."""
 
     # Use standardized error factory for consistent API responses
-    def raise_credentials_error():
+    def raise_credentials_error() -> None:
         raise APIErrorFactory.unauthorized("Could not validate credentials")
 
     # Verify token
@@ -86,14 +91,12 @@ async def get_current_user(
     assert token_data.username is not None, "username should not be None after verification"
 
     # Get user from database using injected auth service
-    # Use maybe_none wrapper (DRY principle) to handle assignment-from-none
-    # Import inside function to avoid circular dependency: auth.dependencies -> api.utils -> auth.*
-    from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
-
-    user = maybe_none(auth_service.get_user_by_username, token_data.username)
+    user: User | None = auth_service.get_user_by_username(token_data.username)
     if user is None:
         raise_credentials_error()
 
+    # Type narrowing: user is guaranteed to be User here (not None)
+    assert user is not None, "user should not be None after check"
     return user
 
 
@@ -111,11 +114,11 @@ def get_current_superuser(current_user: User = Depends(get_current_active_user))
     return current_user
 
 
-def require_scopes(*required_scopes: str):
+def require_scopes(*required_scopes: str) -> Callable[..., Awaitable[TokenData]]:
     """Dependency factory for scope-based authorization."""
 
     async def check_scopes(token: str = Depends(oauth2_scheme)) -> TokenData:
-        def raise_credentials_error():
+        def raise_credentials_error() -> None:
             raise APIErrorFactory.unauthorized("Could not validate credentials")
 
         token_data = await security_manager.verify_token(token)
@@ -139,7 +142,7 @@ async def get_current_user_from_cookie(
 ) -> User:
     """Get current authenticated user from HTTP-only cookie (for Astro best practices)."""
 
-    def raise_not_authenticated_error():
+    def raise_not_authenticated_error() -> None:
         raise APIErrorFactory.unauthorized("Not authenticated")
 
     # Try to get auth token from HTTP-only cookie
@@ -153,10 +156,12 @@ async def get_current_user_from_cookie(
     try:
         # Verify JWT token from cookie
         payload = jwt.decode(auth_token, auth_config.SECRET_KEY, algorithms=[auth_config.ALGORITHM])
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             raise_not_authenticated_error()
 
+        # Type narrowing: username is guaranteed to be str here (not None)
+        assert username is not None, "username should not be None after check"
         token_data = TokenData(username=username)
     except jwt.ExpiredSignatureError:
         raise APIErrorFactory.unauthorized("Token expired")
@@ -164,13 +169,14 @@ async def get_current_user_from_cookie(
         raise_not_authenticated_error()
 
     # Get user from database using injected auth service
-    # Import inside function to avoid circular dependency: auth.dependencies -> api.utils -> auth.*
-    from ..api.utils import maybe_none  # pylint: disable=import-outside-toplevel
-
-    user = maybe_none(auth_service.get_user_by_username, token_data.username)
+    # Type narrowing: token_data.username is guaranteed to be str here (not None)
+    assert token_data.username is not None, "token_data.username should not be None after check"
+    user: User | None = auth_service.get_user_by_username(token_data.username)
     if user is None:
         raise_not_authenticated_error()
 
+    # Type narrowing: user is guaranteed to be User here (not None)
+    assert user is not None, "user should not be None after check"
     return user
 
 

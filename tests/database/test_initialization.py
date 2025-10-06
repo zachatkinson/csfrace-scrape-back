@@ -12,6 +12,7 @@ MANDATORY REQUIREMENTS:
 Tests database initialization with comprehensive coverage of schema creation.
 """
 
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -26,7 +27,7 @@ from src.database.initialization import (
 # ============================================================================
 
 
-def create_mock_session_context():
+def create_mock_session_context() -> tuple[MagicMock, MagicMock]:
     """Helper to create a properly mocked session context manager."""
     mock_session = MagicMock()
     mock_context = MagicMock()
@@ -44,7 +45,7 @@ def create_mock_session_context():
 class TestDatabaseInitializer:
     """Unit tests for DatabaseInitializer - MANDATORY AAA pattern."""
 
-    def test_initializer_creation(self):
+    def test_initializer_creation(self) -> None:
         """Test initializer instance creation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup required)
@@ -57,7 +58,7 @@ class TestDatabaseInitializer:
         assert initializer.service is not None
         assert initializer.logger is not None
 
-    def test_initializer_with_custom_service(self):
+    def test_initializer_with_custom_service(self) -> None:
         """Test initializer with custom service - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -68,7 +69,7 @@ class TestDatabaseInitializer:
         # Assert - MANDATORY
         assert initializer.service is mock_service
 
-    def test_initialize_complete_schema_success(self):
+    def test_initialize_complete_schema_success(self) -> None:
         """Test complete schema initialization success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -88,7 +89,7 @@ class TestDatabaseInitializer:
                         mock_populate.assert_called_once()
                         mock_verify.assert_called_once()
 
-    def test_create_all_tables_called(self):
+    def test_create_all_tables_called(self) -> None:
         """Test _create_all_tables calls create_all - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -103,7 +104,7 @@ class TestDatabaseInitializer:
             # Assert - MANDATORY
             mock_base.metadata.create_all.assert_called_once_with(mock_engine)
 
-    def test_create_required_indexes_creates_indexes(self):
+    def test_create_required_indexes_creates_indexes(self) -> None:
         """Test _create_required_indexes creates all indexes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -118,7 +119,7 @@ class TestDatabaseInitializer:
         # Should call execute for multiple index creations
         assert mock_session.execute.call_count >= 8  # At least 8 indexes created
 
-    def test_populate_domain_fields_no_jobs_without_domain(self):
+    def test_populate_domain_fields_no_jobs_without_domain(self) -> None:
         """Test _populate_domain_fields with no jobs needing update - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -137,7 +138,7 @@ class TestDatabaseInitializer:
         # Should check for jobs without domain
         assert mock_session.execute.call_count >= 1
 
-    def test_populate_domain_fields_with_jobs_needing_update(self):
+    def test_populate_domain_fields_with_jobs_needing_update(self) -> None:
         """Test _populate_domain_fields updates jobs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -166,7 +167,7 @@ class TestDatabaseInitializer:
         # Should commit after batch processing
         mock_session.commit.assert_called()
 
-    def test_populate_domain_fields_handles_url_error(self):
+    def test_populate_domain_fields_handles_url_error(self) -> None:
         """Test _populate_domain_fields handles URL extraction errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -194,7 +195,7 @@ class TestDatabaseInitializer:
         # Should set domain to 'unknown' for failed extractions
         mock_session.commit.assert_called()
 
-    def test_verify_schema_integrity_all_tables_exist(self):
+    def test_verify_schema_integrity_all_tables_exist(self) -> None:
         """Test _verify_schema_integrity with all tables - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -223,7 +224,7 @@ class TestDatabaseInitializer:
         # Should check all tables, domain column, and NULL count
         assert mock_session.execute.call_count == 8
 
-    def test_verify_schema_integrity_raises_on_missing_table(self):
+    def test_verify_schema_integrity_raises_on_missing_table(self) -> None:
         """Test _verify_schema_integrity raises on missing table - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -239,7 +240,7 @@ class TestDatabaseInitializer:
         with pytest.raises(RuntimeError, match="Required table .* is missing"):
             initializer._verify_schema_integrity()
 
-    def test_verify_schema_integrity_raises_on_missing_column(self):
+    def test_verify_schema_integrity_raises_on_missing_column(self) -> None:
         """Test _verify_schema_integrity raises on missing column - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -249,7 +250,7 @@ class TestDatabaseInitializer:
         # All table checks pass, but domain column check fails
         call_count = 0
 
-        def side_effect_tables(*args, **kwargs):
+        def side_effect_tables(*args: Any, **kwargs: Any) -> bool:
             nonlocal call_count
             call_count += 1
             # First 6 calls (table existence) return True
@@ -264,7 +265,7 @@ class TestDatabaseInitializer:
         with pytest.raises(RuntimeError, match="missing required 'domain' column"):
             initializer._verify_schema_integrity()
 
-    def test_verify_schema_integrity_raises_on_null_domains(self):
+    def test_verify_schema_integrity_raises_on_null_domains(self) -> None:
         """Test _verify_schema_integrity raises on NULL domains - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -273,7 +274,7 @@ class TestDatabaseInitializer:
 
         call_count = 0
 
-        def side_effect_checks(*args, **kwargs):
+        def side_effect_checks(*args: Any, **kwargs: Any) -> bool | int:
             nonlocal call_count
             call_count += 1
             # All checks pass except the final NULL domain check
@@ -300,7 +301,7 @@ class TestDatabaseInitializer:
 class TestInitializationModuleFunctions:
     """Unit tests for module-level initialization functions - MANDATORY AAA pattern."""
 
-    def test_initialize_database_on_startup_success(self):
+    def test_initialize_database_on_startup_success(self) -> None:
         """Test initialize_database_on_startup returns True - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.initialization.DatabaseInitializer") as mock_init_class:
@@ -315,7 +316,7 @@ class TestInitializationModuleFunctions:
             assert result is True
             mock_instance.initialize_complete_schema.assert_called_once()
 
-    def test_initialize_database_on_startup_exits_on_failure(self):
+    def test_initialize_database_on_startup_exits_on_failure(self) -> None:
         """Test initialize_database_on_startup exits on failure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.initialization.DatabaseInitializer") as mock_init_class:
@@ -341,7 +342,7 @@ class TestInitializationModuleFunctions:
 class TestDatabaseInitializationSecurity:
     """MANDATORY security tests for database initialization."""
 
-    def test_sql_injection_prevention_in_domain_update(self):
+    def test_sql_injection_prevention_in_domain_update(self) -> None:
         """MANDATORY: Test SQL injection prevention in domain updates."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -369,7 +370,7 @@ class TestDatabaseInitializationSecurity:
         # Should use parameterized queries (text() with params dict)
         mock_session.commit.assert_called()
 
-    def test_table_name_validation(self):
+    def test_table_name_validation(self) -> None:
         """MANDATORY: Test table name validation in verification."""
         # Arrange - MANDATORY
         mock_service = Mock()
@@ -408,7 +409,7 @@ class TestDatabaseInitializationSecurity:
 class TestDatabaseInitializationPerformance:
     """MANDATORY performance tests for database initialization."""
 
-    def test_schema_initialization_performance(self):
+    def test_schema_initialization_performance(self) -> None:
         """MANDATORY: Test schema initialization performance."""
         # Arrange - MANDATORY
         import time
@@ -437,7 +438,7 @@ class TestDatabaseInitializationPerformance:
             # Assert - MANDATORY
             assert execution_time < 0.1  # <100ms for mocked initialization
 
-    def test_batch_processing_performance(self):
+    def test_batch_processing_performance(self) -> None:
         """MANDATORY: Test batch processing performance."""
         # Arrange - MANDATORY
         import time

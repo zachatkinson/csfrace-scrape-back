@@ -4,6 +4,8 @@ This module provides base classes and utilities for configuration management
 following modern Python best practices with Pydantic settings.
 """
 
+from typing import Any
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -25,7 +27,7 @@ class BaseConfig(BaseSettings):
     )
 
     @classmethod
-    def load_config(cls, **kwargs) -> "BaseConfig":
+    def load_config(cls, **kwargs: Any) -> "BaseConfig":
         """Load configuration with validation and logging.
 
         Args:

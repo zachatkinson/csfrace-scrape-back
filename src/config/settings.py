@@ -41,15 +41,15 @@ class AppConfig(BaseConfig):
 
     # Domain configurations - loaded from environment variables
     auth: AuthConfig = Field(
-        default_factory=lambda: AuthConfig(),  # type: ignore
+        default_factory=lambda: AuthConfig(),
         description="Authentication configuration",
     )
     database: DatabaseConfig = Field(
-        default_factory=lambda: DatabaseConfig(),  # type: ignore
+        default_factory=lambda: DatabaseConfig(),
         description="Database configuration",
     )
     converter: ConverterConfig = Field(
-        default_factory=lambda: ConverterConfig(),  # type: ignore
+        default_factory=lambda: ConverterConfig(),
         description="Converter configuration",
     )
 
@@ -139,7 +139,7 @@ class ConfigManager:
 
     @classmethod
     @content_processing_error_handler("load application configuration")
-    def load_config(cls, **overrides) -> AppConfig:
+    def load_config(cls, **overrides: Any) -> AppConfig:
         """Load and validate application configuration.
 
         Args:
@@ -175,7 +175,7 @@ class ConfigManager:
         return cls._instance
 
     @classmethod
-    def reload_config(cls, **overrides) -> AppConfig:
+    def reload_config(cls, **overrides: Any) -> AppConfig:
         """Reload configuration with new overrides.
 
         Args:
@@ -190,7 +190,7 @@ class ConfigManager:
 
 
 # Convenience function for getting configuration
-def get_settings(**overrides) -> AppConfig:
+def get_settings(**overrides: Any) -> AppConfig:
     """Get application settings.
 
     Args:
@@ -218,7 +218,7 @@ try:
     default_settings = _initialize_default_config()
 except Exception:
     logger.warning("Could not load default configuration, will initialize on first use")
-    default_settings = None  # type: ignore
+    default_settings = None
 
 # Export the default settings
 settings = default_settings

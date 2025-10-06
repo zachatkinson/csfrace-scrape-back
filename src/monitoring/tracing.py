@@ -20,10 +20,18 @@ logger = get_monitoring_logger()
 
 try:
     from opentelemetry import trace
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-    from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter,
+    )
+    from opentelemetry.instrumentation.aiohttp_client import (
+        AioHttpClientInstrumentor,
+    )
+    from opentelemetry.instrumentation.fastapi import (
+        FastAPIInstrumentor,
+    )
+    from opentelemetry.instrumentation.sqlalchemy import (
+        SQLAlchemyInstrumentor,
+    )
     from opentelemetry.propagate import set_global_textmap
     from opentelemetry.propagators.b3 import B3MultiFormat
     from opentelemetry.sdk.resources import Resource

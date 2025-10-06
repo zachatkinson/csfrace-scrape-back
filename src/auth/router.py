@@ -180,7 +180,7 @@ def register_user(
         raise APIErrorFactory.validation_error("Email already registered", "email")
 
     # Create user
-    user = maybe_none(auth_service.create_user, user_create)
+    user: User | None = maybe_none(auth_service.create_user, user_create)
     if not user:
         raise APIErrorFactory.internal_server_error("Failed to create user")
 
@@ -260,7 +260,7 @@ def update_user_me(
     ):
         raise APIErrorFactory.validation_error("Email already registered", "email")
 
-    updated_user = maybe_none(auth_service.update_user, current_user.id, user_update)
+    updated_user: User | None = maybe_none(auth_service.update_user, current_user.id, user_update)
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -282,7 +282,9 @@ def change_password(
         raise APIErrorFactory.business_logic_error("Incorrect current password", "INVALID_PASSWORD")
 
     # Change password
-    if not auth_service.change_password(current_user.id, password_change.new_password):
+    if not auth_service.change_password(
+        current_user.id, password_change.current_password, password_change.new_password
+    ):
         raise APIErrorFactory.internal_server_error("Failed to change password")
 
     return {"message": "Password changed successfully"}
@@ -336,7 +338,7 @@ def get_user(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
     """Get user by ID (admin only)."""
-    user = maybe_none(auth_service.get_user_by_id, user_id)
+    user: User | None = maybe_none(auth_service.get_user_by_id, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 

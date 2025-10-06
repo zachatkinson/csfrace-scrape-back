@@ -25,14 +25,14 @@ class QueryBuilder:
     @staticmethod
     def paginated_select(
         table: type[ModelType],
-        where_clause: ColumnElement | None = None,
-        order_by: ColumnElement | None = None,
+        where_clause: ColumnElement[Any] | None = None,
+        order_by: ColumnElement[Any] | None = None,
         skip: int = 0,
         limit: int = 100,
         order_desc: bool = True,
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect pagination pattern - used everywhere."""
-        stmt = select(table)
+        stmt: Select[Any] = select(table)
 
         if where_clause is not None:
             stmt = stmt.where(where_clause)
@@ -47,9 +47,11 @@ class QueryBuilder:
         return stmt.offset(skip).limit(limit)
 
     @staticmethod
-    def count_query(table: type[ModelType], where_clause: ColumnElement | None = None) -> Select:
+    def count_query(
+        table: type[ModelType], where_clause: ColumnElement[Any] | None = None
+    ) -> Select[Any]:
         """Perfect count pattern - used everywhere."""
-        stmt = select(func.count(table.id))  # type: ignore[attr-defined]
+        stmt: Select[Any] = select(func.count(table.id))  # type: ignore[attr-defined]
 
         if where_clause is not None:
             stmt = stmt.where(where_clause)
@@ -59,11 +61,11 @@ class QueryBuilder:
     @staticmethod
     def soft_delete(
         table: type[ModelType],
-        id_field: ColumnElement,
+        id_field: ColumnElement[Any],
         id_value: Any,
         deleted_at_field: str | None = "deleted_at",
         is_deleted_field: str | None = "is_deleted",
-    ):
+    ) -> Any:
         """Perfect soft delete pattern - used everywhere."""
         update_values: dict[str, Any] = {}
 
@@ -81,11 +83,11 @@ class QueryBuilder:
     @staticmethod
     def restore_soft_deleted(
         table: type[ModelType],
-        id_field: ColumnElement,
+        id_field: ColumnElement[Any],
         id_value: Any,
         deleted_at_field: str | None = "deleted_at",
         is_deleted_field: str | None = "is_deleted",
-    ):
+    ) -> Any:
         """Perfect soft delete restore pattern - used everywhere."""
         update_values: dict[str, Any] = {}
 
@@ -101,16 +103,16 @@ class QueryBuilder:
         return update(table).where(id_field == id_value).values(**update_values)
 
     @staticmethod
-    def find_by_id(table: type[ModelType], id_value: Any) -> Select:
+    def find_by_id(table: type[ModelType], id_value: Any) -> Select[Any]:
         """Perfect find by ID pattern - used everywhere."""
         return select(table).where(table.id == id_value)  # type: ignore[attr-defined]
 
     @staticmethod
     def find_by_field(
-        table: type[ModelType], field: ColumnElement, value: Any, include_deleted: bool = False
-    ) -> Select:
+        table: type[ModelType], field: ColumnElement[Any], value: Any, include_deleted: bool = False
+    ) -> Select[Any]:
         """Perfect find by field pattern - used everywhere."""
-        stmt = select(table).where(field == value)
+        stmt: Select[Any] = select(table).where(field == value)
 
         # Exclude soft-deleted records by default
         if not include_deleted and hasattr(table, "is_deleted"):
@@ -124,9 +126,9 @@ class QueryBuilder:
         filters: dict[str, Any],
         include_deleted: bool = False,
         use_or: bool = False,
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect multi-field search pattern - used everywhere."""
-        stmt = select(table)
+        stmt: Select[Any] = select(table)
 
         if filters:
             conditions = []
@@ -153,7 +155,7 @@ class QueryBuilder:
         id_value: Any,
         update_data: dict[str, Any],
         update_timestamp: bool = True,
-    ):
+    ) -> Any:
         """Perfect update by ID pattern - used everywhere."""
         if update_timestamp and hasattr(table, "updated_at"):
             update_data = update_data.copy()  # Don't mutate original
@@ -162,17 +164,17 @@ class QueryBuilder:
         return update(table).where(table.id == id_value).values(**update_data)  # type: ignore[attr-defined]
 
     @staticmethod
-    def delete_by_id(table: type[ModelType], id_value: Any):
+    def delete_by_id(table: type[ModelType], id_value: Any) -> Any:
         """Perfect hard delete by ID pattern - used everywhere."""
         return delete(table).where(table.id == id_value)  # type: ignore[attr-defined]
 
     @staticmethod
     def bulk_update(
         table: type[ModelType],
-        where_clause: ColumnElement,
+        where_clause: ColumnElement[Any],
         update_data: dict[str, Any],
         update_timestamp: bool = True,
-    ):
+    ) -> Any:
         """Perfect bulk update pattern - used everywhere."""
         if update_timestamp and hasattr(table, "updated_at"):
             update_data = update_data.copy()  # Don't mutate original
@@ -181,22 +183,22 @@ class QueryBuilder:
         return update(table).where(where_clause).values(**update_data)
 
     @staticmethod
-    def bulk_delete(table: type[ModelType], where_clause: ColumnElement):
+    def bulk_delete(table: type[ModelType], where_clause: ColumnElement[Any]) -> Any:
         """Perfect bulk delete pattern - used everywhere."""
         return delete(table).where(where_clause)
 
     @staticmethod
-    def exists_query(table: type[ModelType], where_clause: ColumnElement) -> Select:
+    def exists_query(table: type[ModelType], where_clause: ColumnElement[Any]) -> Select[Any]:
         """Perfect exists check pattern - used everywhere."""
         return select(func.count(table.id) > 0).where(where_clause)  # type: ignore[attr-defined]
 
     @staticmethod
     def search_text(
         table: type[ModelType],
-        search_fields: list[ColumnElement],
+        search_fields: list[ColumnElement[Any]],
         search_term: str,
         include_deleted: bool = False,
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect text search pattern - used everywhere."""
         if not search_term.strip():
             return select(table).where(func.false())  # No results for empty search
@@ -207,7 +209,7 @@ class QueryBuilder:
         for field in search_fields:
             search_conditions.append(field.ilike(search_pattern))
 
-        stmt = select(table).where(or_(*search_conditions))
+        stmt: Select[Any] = select(table).where(or_(*search_conditions))
 
         # Exclude soft-deleted records by default
         if not include_deleted and hasattr(table, "is_deleted"):
@@ -218,13 +220,13 @@ class QueryBuilder:
     @staticmethod
     def date_range_query(
         table: type[ModelType],
-        date_field: ColumnElement,
+        date_field: ColumnElement[Any],
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         include_deleted: bool = False,
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect date range query pattern - used everywhere."""
-        stmt = select(table)
+        stmt: Select[Any] = select(table)
 
         conditions = []
         if start_date:
@@ -242,7 +244,7 @@ class QueryBuilder:
         return stmt
 
     @staticmethod
-    def active_records_only(stmt: Select, table: type[ModelType]) -> Select:
+    def active_records_only(stmt: Select[Any], table: type[ModelType]) -> Select[Any]:
         """Perfect active records filter - used everywhere."""
         if hasattr(table, "is_active"):
             stmt = stmt.where(table.is_active.is_(True))  # type: ignore[attr-defined]
@@ -255,17 +257,19 @@ class UserQueries:
     """Perfect user-specific query patterns - OAuth/SSO focused."""
 
     @staticmethod
-    def find_by_email(user_table: type[ModelType], email: str) -> Select:
+    def find_by_email(user_table: type[ModelType], email: str) -> Select[Any]:
         """Perfect user by email query - used everywhere."""
         return QueryBuilder.find_by_field(user_table, user_table.email, email)  # type: ignore[attr-defined]
 
     @staticmethod
-    def find_by_username(user_table: type[ModelType], username: str) -> Select:
+    def find_by_username(user_table: type[ModelType], username: str) -> Select[Any]:
         """Perfect user by username query - used everywhere."""
         return QueryBuilder.find_by_field(user_table, user_table.username, username)  # type: ignore[attr-defined]
 
     @staticmethod
-    def find_active_users(user_table: type[ModelType], skip: int = 0, limit: int = 100) -> Select:
+    def find_active_users(
+        user_table: type[ModelType], skip: int = 0, limit: int = 100
+    ) -> Select[Any]:
         """Perfect active users query - used everywhere."""
         where_clause = user_table.is_active.is_(True)  # type: ignore[attr-defined]
         return QueryBuilder.paginated_select(
@@ -279,7 +283,7 @@ class UserQueries:
     @staticmethod
     def find_users_by_provider(
         user_table: type[ModelType], linked_account_table: type[ModelType], provider: str
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect users by OAuth provider query - used everywhere."""
         return (
             select(user_table)
@@ -289,7 +293,7 @@ class UserQueries:
         )
 
     @staticmethod
-    def count_active_users(user_table: type[ModelType]) -> Select:
+    def count_active_users(user_table: type[ModelType]) -> Select[Any]:
         """Perfect active users count - used everywhere."""
         return QueryBuilder.count_query(user_table, where_clause=user_table.is_active.is_(True))  # type: ignore[attr-defined]
 
@@ -304,7 +308,7 @@ class JobQueries:
         status: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect user jobs query - used everywhere."""
         conditions = [job_table.user_id == user_id]  # type: ignore[attr-defined]
 
@@ -323,7 +327,7 @@ class JobQueries:
     @staticmethod
     def find_jobs_by_status(
         job_table: type[ModelType], status: str, skip: int = 0, limit: int = 100
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect jobs by status query - used everywhere."""
         return QueryBuilder.paginated_select(
             job_table,
@@ -334,7 +338,7 @@ class JobQueries:
         )
 
     @staticmethod
-    def find_pending_jobs(job_table: type[ModelType], priority: str | None = None) -> Select:
+    def find_pending_jobs(job_table: type[ModelType], priority: str | None = None) -> Select[Any]:
         """Perfect pending jobs query - used everywhere."""
         conditions = [job_table.status == "pending"]  # type: ignore[attr-defined]
 
@@ -354,7 +358,7 @@ class JobQueries:
     @staticmethod
     def cleanup_jobs(
         job_table: type[ModelType], older_than: datetime, status_filter: list[str] | None = None
-    ):
+    ) -> Any:
         """Perfect jobs cleanup - used everywhere."""
         conditions = [job_table.created_at < older_than]  # type: ignore[attr-defined]
 
@@ -369,14 +373,14 @@ class AuthQueries:
     """Perfect authentication-specific query patterns."""
 
     @staticmethod
-    def find_revoked_token(revoked_token_table: type[ModelType], jti: str) -> Select:
+    def find_revoked_token(revoked_token_table: type[ModelType], jti: str) -> Select[Any]:
         """Perfect revoked token check - used everywhere."""
         return QueryBuilder.find_by_field(revoked_token_table, revoked_token_table.jti, jti)  # type: ignore[attr-defined]
 
     @staticmethod
     def find_user_tokens(
         revoked_token_table: type[ModelType], user_id: str, token_type: str | None = None
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect user tokens query - used everywhere."""
         conditions = [revoked_token_table.user_id == user_id]  # type: ignore[attr-defined]
 
@@ -387,7 +391,7 @@ class AuthQueries:
         return select(revoked_token_table).where(where_clause)
 
     @staticmethod
-    def cleanup_expired_tokens(revoked_token_table: type[ModelType], cutoff_date: datetime):
+    def cleanup_expired_tokens(revoked_token_table: type[ModelType], cutoff_date: datetime) -> Any:
         """Perfect expired tokens cleanup - used everywhere."""
         where_clause = and_(
             revoked_token_table.expires_at < cutoff_date,  # type: ignore[attr-defined]
@@ -398,7 +402,7 @@ class AuthQueries:
     @staticmethod
     def find_failed_attempts(
         lockout_table: type[ModelType], user_id: str, time_window: datetime
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect failed login attempts query - used everywhere."""
         where_clause = and_(
             lockout_table.user_id == user_id,  # type: ignore[attr-defined]
@@ -407,7 +411,7 @@ class AuthQueries:
         return select(lockout_table).where(where_clause)
 
     @staticmethod
-    def find_locked_account(lockout_table: type[ModelType], user_id: str) -> Select:
+    def find_locked_account(lockout_table: type[ModelType], user_id: str) -> Select[Any]:
         """Perfect locked account check - used everywhere."""
         where_clause = and_(lockout_table.user_id == user_id, lockout_table.is_locked.is_(True))  # type: ignore[attr-defined]
         return select(lockout_table).where(where_clause)
@@ -419,13 +423,13 @@ class MonitoringQueries:
     @staticmethod
     def aggregate_by_time_window(
         _table: type[ModelType],
-        date_field: ColumnElement,
-        aggregation_field: ColumnElement,
+        date_field: ColumnElement[Any],
+        aggregation_field: ColumnElement[Any],
         aggregation_func: str,
         start_time: datetime,
         end_time: datetime,
         group_by_hour: bool = False,
-    ) -> Select:
+    ) -> Select[Any]:
         """Perfect time-based aggregation - used everywhere."""
         if aggregation_func.lower() == "count":
             agg_expr = func.count(aggregation_field)
@@ -454,8 +458,11 @@ class MonitoringQueries:
 
     @staticmethod
     def get_recent_activity(
-        table: type[ModelType], date_field: ColumnElement, hours_back: int = 24, limit: int = 100
-    ) -> Select:
+        table: type[ModelType],
+        date_field: ColumnElement[Any],
+        hours_back: int = 24,
+        limit: int = 100,
+    ) -> Select[Any]:
         """Perfect recent activity query - used everywhere."""
         cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
         return (

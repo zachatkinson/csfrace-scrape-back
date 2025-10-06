@@ -31,13 +31,13 @@ from src.monitoring.health_checks.registry import HealthCheckRegistry
 
 
 @pytest.fixture
-def registry():
+def registry() -> HealthCheckRegistry:
     """Factory for HealthCheckRegistry - DRY principle."""
     return HealthCheckRegistry()
 
 
 @pytest.fixture
-def mock_health_check():
+def mock_health_check() -> HealthCheck:
     """Factory for mock HealthCheck - DRY principle."""
 
     class MockHealthCheck(HealthCheck):
@@ -53,7 +53,7 @@ def mock_health_check():
 
 
 @pytest.fixture
-def sample_health_result():
+def sample_health_result() -> HealthCheckResult:
     """Factory for sample HealthCheckResult - DRY principle."""
     return HealthCheckResult(
         name="sample_check",
@@ -73,7 +73,7 @@ def sample_health_result():
 class TestHealthCheckRegistryInit:
     """Tests for HealthCheckRegistry initialization."""
 
-    def test_registry_initialization_empty(self):
+    def test_registry_initialization_empty(self) -> None:
         """Test registry initializes with empty state - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -95,7 +95,9 @@ class TestHealthCheckRegistryInit:
 class TestRegisterUnregister:
     """Tests for health check registration and unregistration."""
 
-    def test_register_health_check_without_tags(self, registry, mock_health_check):
+    def test_register_health_check_without_tags(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test registering health check without tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (using fixtures)
 
@@ -107,7 +109,9 @@ class TestRegisterUnregister:
         assert registry._checks["mock_check"] == mock_health_check
         assert len(registry.list_checks()) == 1
 
-    def test_register_health_check_with_tags(self, registry, mock_health_check):
+    def test_register_health_check_with_tags(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test registering health check with tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tags = ["critical", "database"]
@@ -122,7 +126,9 @@ class TestRegisterUnregister:
         assert "mock_check" in registry._tags["critical"]
         assert "mock_check" in registry._tags["database"]
 
-    def test_register_duplicate_health_check_overwrites(self, registry, mock_health_check):
+    def test_register_duplicate_health_check_overwrites(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test registering duplicate check overwrites existing - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register(mock_health_check)
@@ -145,7 +151,9 @@ class TestRegisterUnregister:
         assert registry._checks["mock_check"] == new_check
         assert len(registry.list_checks()) == 1
 
-    def test_unregister_existing_health_check(self, registry, mock_health_check):
+    def test_unregister_existing_health_check(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test unregistering existing health check - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register(mock_health_check, tags=["test"])
@@ -159,7 +167,7 @@ class TestRegisterUnregister:
         assert len(registry.list_checks()) == 0
         assert len(registry._tags) == 0  # Tag cleaned up
 
-    def test_unregister_nonexistent_health_check(self, registry):
+    def test_unregister_nonexistent_health_check(self, registry: HealthCheckRegistry) -> None:
         """Test unregistering nonexistent check returns False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -178,7 +186,9 @@ class TestRegisterUnregister:
 class TestGetChecks:
     """Tests for getting checks and filtering by tags."""
 
-    def test_get_check_existing(self, registry, mock_health_check):
+    def test_get_check_existing(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test getting existing health check - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register(mock_health_check)
@@ -189,7 +199,7 @@ class TestGetChecks:
         # Assert - MANDATORY
         assert check == mock_health_check
 
-    def test_get_check_nonexistent(self, registry):
+    def test_get_check_nonexistent(self, registry: HealthCheckRegistry) -> None:
         """Test getting nonexistent check returns None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -198,7 +208,9 @@ class TestGetChecks:
         # Assert - MANDATORY
         assert check is None
 
-    def test_get_checks_by_tag_existing(self, registry, mock_health_check):
+    def test_get_checks_by_tag_existing(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test getting checks by existing tag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register(mock_health_check, tags=["critical"])
@@ -210,7 +222,7 @@ class TestGetChecks:
         assert len(checks) == 1
         assert checks[0] == mock_health_check
 
-    def test_get_checks_by_tag_nonexistent(self, registry):
+    def test_get_checks_by_tag_nonexistent(self, registry: HealthCheckRegistry) -> None:
         """Test getting checks by nonexistent tag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -219,7 +231,7 @@ class TestGetChecks:
         # Assert - MANDATORY
         assert len(checks) == 0
 
-    def test_list_checks(self, registry):
+    def test_list_checks(self, registry: HealthCheckRegistry) -> None:
         """Test listing all registered check names - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -246,7 +258,7 @@ class TestGetChecks:
         assert "check1" in check_names
         assert "check2" in check_names
 
-    def test_list_tags(self, registry, mock_health_check):
+    def test_list_tags(self, registry: HealthCheckRegistry, mock_health_check: HealthCheck) -> None:
         """Test listing all registered tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register(mock_health_check, tags=["critical", "database"])
@@ -270,7 +282,9 @@ class TestRunCheck:
     """Tests for running individual health checks."""
 
     @pytest.mark.asyncio
-    async def test_run_check_existing_successful(self, registry, mock_health_check):
+    async def test_run_check_existing_successful(
+        self, registry: HealthCheckRegistry, mock_health_check: HealthCheck
+    ) -> None:
         """Test running existing check successfully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register(mock_health_check)
@@ -284,7 +298,7 @@ class TestRunCheck:
         assert result.status == HealthStatus.HEALTHY
 
     @pytest.mark.asyncio
-    async def test_run_check_nonexistent(self, registry):
+    async def test_run_check_nonexistent(self, registry: HealthCheckRegistry) -> None:
         """Test running nonexistent check returns None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -294,7 +308,7 @@ class TestRunCheck:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_run_check_timeout_handling(self, registry):
+    async def test_run_check_timeout_handling(self, registry: HealthCheckRegistry) -> None:
         """Test run_check() handles timeout correctly - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -320,7 +334,7 @@ class TestRunCheck:
         assert "timed out" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_run_check_exception_handling(self, registry):
+    async def test_run_check_exception_handling(self, registry: HealthCheckRegistry) -> None:
         """Test run_check() handles exceptions correctly - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -351,7 +365,7 @@ class TestRunMultipleChecks:
     """Tests for running multiple health checks."""
 
     @pytest.mark.asyncio
-    async def test_run_checks_by_tag(self, registry):
+    async def test_run_checks_by_tag(self, registry: HealthCheckRegistry) -> None:
         """Test running checks by tag - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -378,7 +392,7 @@ class TestRunMultipleChecks:
         assert all(isinstance(r, HealthCheckResult) for r in results)
 
     @pytest.mark.asyncio
-    async def test_run_checks_by_nonexistent_tag(self, registry):
+    async def test_run_checks_by_nonexistent_tag(self, registry: HealthCheckRegistry) -> None:
         """Test running checks by nonexistent tag - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -388,7 +402,7 @@ class TestRunMultipleChecks:
         assert len(results) == 0
 
     @pytest.mark.asyncio
-    async def test_run_all_checks_parallel(self, registry):
+    async def test_run_all_checks_parallel(self, registry: HealthCheckRegistry) -> None:
         """Test running all checks in parallel - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -419,7 +433,7 @@ class TestRunMultipleChecks:
         assert execution_time < 0.3  # Should complete in <0.3s (parallel, not 0.2s sequential)
 
     @pytest.mark.asyncio
-    async def test_run_all_checks_sequential(self, registry):
+    async def test_run_all_checks_sequential(self, registry: HealthCheckRegistry) -> None:
         """Test running all checks sequentially - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -446,7 +460,7 @@ class TestRunMultipleChecks:
         assert all(isinstance(r, HealthCheckResult) for r in results)
 
     @pytest.mark.asyncio
-    async def test_run_all_checks_empty_registry(self, registry):
+    async def test_run_all_checks_empty_registry(self, registry: HealthCheckRegistry) -> None:
         """Test running all checks with empty registry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -465,10 +479,10 @@ class TestRunMultipleChecks:
 class TestHealthSummary:
     """Tests for health summary generation."""
 
-    def test_get_health_summary_empty_results(self, registry):
+    def test_get_health_summary_empty_results(self, registry: HealthCheckRegistry) -> None:
         """Test getting health summary with no results - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        results = []
+        results: list[HealthCheckResult] = []
 
         # Act - MANDATORY
         summary = registry.get_health_summary(results)
@@ -481,7 +495,7 @@ class TestHealthSummary:
         assert summary["unhealthy"] == 0
         assert summary["checks"] == []
 
-    def test_get_health_summary_all_healthy(self, registry):
+    def test_get_health_summary_all_healthy(self, registry: HealthCheckRegistry) -> None:
         """Test getting health summary with all healthy checks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         results = [
@@ -504,7 +518,7 @@ class TestHealthSummary:
         assert summary["unhealthy"] == 0
         assert len(summary["checks"]) == 2
 
-    def test_get_health_summary_with_degraded(self, registry):
+    def test_get_health_summary_with_degraded(self, registry: HealthCheckRegistry) -> None:
         """Test getting health summary with degraded checks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         results = [
@@ -526,7 +540,7 @@ class TestHealthSummary:
         assert summary["degraded"] == 1
         assert summary["unhealthy"] == 0
 
-    def test_get_health_summary_with_unhealthy(self, registry):
+    def test_get_health_summary_with_unhealthy(self, registry: HealthCheckRegistry) -> None:
         """Test getting health summary with unhealthy checks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         results = [
@@ -559,7 +573,7 @@ class TestHealthSummary:
 class TestHealthCheckRegistryPerformance:
     """MANDATORY performance tests for registry operations."""
 
-    def test_registry_creation_performance(self):
+    def test_registry_creation_performance(self) -> None:
         """MANDATORY performance test - registry creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -578,7 +592,7 @@ class TestHealthCheckRegistryPerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_register_check_performance(self, mock_health_check):
+    def test_register_check_performance(self, mock_health_check: HealthCheck) -> None:
         """MANDATORY performance test - check registration speed."""
         # Arrange - MANDATORY
         registry = HealthCheckRegistry()

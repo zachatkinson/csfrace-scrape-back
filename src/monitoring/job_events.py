@@ -52,12 +52,12 @@ class JobEvent(BaseModel):
 class JobEventPublisher:
     """Publisher for job events using Redis pub/sub."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the job event publisher."""
         self._redis_client = None
         self._initialized = False
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize Redis connection for job events."""
         if self._initialized:
             return

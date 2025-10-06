@@ -56,7 +56,7 @@ def cache_config() -> CacheConfig:
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_redis_client() -> AsyncMock:
     """Factory for mock Redis client - DRY principle."""
     client = AsyncMock()
     client.ping = AsyncMock(return_value=True)
@@ -94,7 +94,7 @@ def mock_redis_client():
 class TestRedisCacheInit:
     """Test RedisCache initialization following MANDATORY AAA pattern."""
 
-    def test_init_raises_import_error_if_redis_unavailable(self, cache_config: CacheConfig):
+    def test_init_raises_import_error_if_redis_unavailable(self, cache_config: CacheConfig) -> None:
         """Test __init__ raises ImportError if redis unavailable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.caching.redis_cache.REDIS_AVAILABLE", False):
@@ -102,7 +102,7 @@ class TestRedisCacheInit:
             with pytest.raises(ImportError, match="redis package is required"):
                 RedisCache(cache_config)
 
-    def test_init_creates_redis_cache(self, cache_config: CacheConfig):
+    def test_init_creates_redis_cache(self, cache_config: CacheConfig) -> None:
         """Test __init__ creates RedisCache - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (cache_config fixture)
 
@@ -129,7 +129,7 @@ class TestRedisCacheConnection:
 
     async def test_get_client_creates_connection(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test _get_client creates connection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -145,7 +145,7 @@ class TestRedisCacheConnection:
 
     async def test_get_client_reuses_existing_connection(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test _get_client reuses existing connection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -160,7 +160,7 @@ class TestRedisCacheConnection:
 
     async def test_initialize_establishes_connection(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test initialize establishes connection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -175,7 +175,7 @@ class TestRedisCacheConnection:
 
     async def test_shutdown_closes_connection(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test shutdown closes connection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -202,7 +202,7 @@ class TestRedisCacheGet:
 
     async def test_get_returns_none_for_missing_entry(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test get returns None for missing entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -219,7 +219,7 @@ class TestRedisCacheGet:
 
     async def test_get_returns_entry_for_valid_cache(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test get returns entry for valid cache - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -261,7 +261,7 @@ class TestRedisCacheSet:
 
     async def test_set_creates_cache_entry(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test set creates cache entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -277,7 +277,7 @@ class TestRedisCacheSet:
 
     async def test_set_with_zero_ttl_uses_set_not_setex(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test set with zero TTL uses set not setex - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -305,7 +305,7 @@ class TestRedisCacheDelete:
 
     async def test_delete_removes_cache_entry(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test delete removes cache entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -322,7 +322,7 @@ class TestRedisCacheDelete:
 
     async def test_delete_returns_false_for_nonexistent_key(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test delete returns False for nonexistent key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -349,7 +349,7 @@ class TestRedisCacheClear:
 
     async def test_clear_removes_all_cache_entries(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test clear removes all cache entries - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -381,7 +381,7 @@ class TestRedisCacheStats:
 
     async def test_stats_returns_cache_statistics(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test stats returns cache statistics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -411,7 +411,7 @@ class TestRedisCacheServerInfo:
 
     async def test_get_server_info_returns_redis_info(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test get_server_info returns Redis info - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -427,7 +427,7 @@ class TestRedisCacheServerInfo:
 
     async def test_get_backend_type_returns_descriptive_string(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """Test get_backend_type returns descriptive string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -452,7 +452,7 @@ class TestRedisCacheServerInfo:
 class TestRedisCacheKeyPrefix:
     """Test RedisCache key prefix following MANDATORY AAA pattern."""
 
-    def test_make_redis_key_adds_prefix(self, cache_config: CacheConfig):
+    def test_make_redis_key_adds_prefix(self, cache_config: CacheConfig) -> None:
         """Test _make_redis_key adds prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -480,7 +480,7 @@ class TestRedisCacheSecurity:
     @pytest.mark.asyncio
     async def test_set_handles_malicious_keys_safely(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """MANDATORY security test - set handles malicious keys safely."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -506,7 +506,7 @@ class TestRedisCacheSecurity:
     @pytest.mark.asyncio
     async def test_set_handles_malicious_values_safely(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """MANDATORY security test - set handles malicious values safely."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -542,7 +542,7 @@ class TestRedisCachePerformance:
     @pytest.mark.asyncio
     async def test_set_performance_benchmark(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """MANDATORY performance test - set completes quickly."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -566,7 +566,7 @@ class TestRedisCachePerformance:
     @pytest.mark.asyncio
     async def test_get_performance_benchmark(
         self, cache_config: CacheConfig, mock_redis_client: AsyncMock
-    ):
+    ) -> None:
         """MANDATORY performance test - get completes quickly."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)
@@ -599,7 +599,7 @@ class TestRedisCachePerformance:
 class TestRedisCacheCleanup:
     """Test RedisCache cleanup following MANDATORY AAA pattern."""
 
-    async def test_cleanup_expired_returns_zero(self, cache_config: CacheConfig):
+    async def test_cleanup_expired_returns_zero(self, cache_config: CacheConfig) -> None:
         """Test cleanup_expired returns zero - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         redis_cache = RedisCache(cache_config)

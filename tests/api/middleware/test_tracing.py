@@ -31,7 +31,7 @@ from src.api.middleware.tracing import CorrelationMiddleware, EnhancedTracingMid
 
 
 @pytest.fixture
-def mock_performance_monitor():
+def mock_performance_monitor() -> MagicMock:
     """Factory for mock performance monitor - DRY principle."""
     monitor = MagicMock()
     monitor.start_trace.return_value = "trace_id_12345"
@@ -40,7 +40,7 @@ def mock_performance_monitor():
 
 
 @pytest.fixture
-def mock_distributed_tracer():
+def mock_distributed_tracer() -> MagicMock:
     """Factory for mock distributed tracer - DRY principle."""
     tracer = MagicMock()
     tracer.trace_operation.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
@@ -52,7 +52,7 @@ def mock_distributed_tracer():
 
 
 @pytest.fixture
-def mock_request():
+def mock_request() -> MagicMock:
     """Factory for mock HTTP request - DRY principle."""
     request = MagicMock(spec=Request)
     request.method = "GET"
@@ -67,7 +67,7 @@ def mock_request():
 
 
 @pytest.fixture
-def mock_response():
+def mock_response() -> MagicMock:
     """Factory for mock HTTP response - DRY principle."""
     response = MagicMock(spec=Response)
     response.status_code = 200
@@ -77,16 +77,16 @@ def mock_response():
 
 
 @pytest.fixture
-def test_app():
+def test_app() -> FastAPI:
     """Factory for test FastAPI application - DRY principle."""
     app = FastAPI()
 
     @app.get("/test")
-    async def test_endpoint():
+    async def test_endpoint() -> dict[str, str]:
         return {"message": "test"}
 
     @app.get("/error")
-    async def error_endpoint():
+    async def error_endpoint() -> None:
         raise ValueError("Test error")
 
     return app
@@ -101,7 +101,7 @@ def test_app():
 class TestEnhancedTracingMiddleware:
     """Tests for EnhancedTracingMiddleware class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test middleware initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -113,7 +113,7 @@ class TestEnhancedTracingMiddleware:
         assert middleware.correlation_header == "X-Correlation-ID"
         assert middleware.app == app
 
-    def test_initialization_custom_correlation_header(self):
+    def test_initialization_custom_correlation_header(self) -> None:
         """Test middleware with custom correlation header - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -127,8 +127,12 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_generates_correlation_id(
-        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch generates correlation ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -150,8 +154,12 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_preserves_existing_correlation_id(
-        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch preserves existing correlation ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         existing_id = "existing-correlation-123"
@@ -172,8 +180,12 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_starts_performance_trace(
-        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch starts performance trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -195,8 +207,12 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_finishes_trace_on_success(
-        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch finishes trace on success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -217,8 +233,12 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_adds_trace_id_to_response(
-        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch adds OpenTelemetry trace ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -238,8 +258,11 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_handles_error(
-        self, mock_request, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch handles errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -263,8 +286,11 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_records_exception_in_otel(
-        self, mock_request, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test dispatch records exception in OpenTelemetry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -285,8 +311,11 @@ class TestEnhancedTracingMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_client_ip_extraction(
-        self, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """Test client IP extraction - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -324,7 +353,7 @@ class TestEnhancedTracingMiddleware:
 class TestCorrelationMiddleware:
     """Tests for CorrelationMiddleware class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test middleware initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -336,7 +365,7 @@ class TestCorrelationMiddleware:
         assert middleware.correlation_header == "X-Correlation-ID"
         assert middleware.app == app
 
-    def test_initialization_custom_header(self):
+    def test_initialization_custom_header(self) -> None:
         """Test middleware with custom header - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -350,8 +379,8 @@ class TestCorrelationMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_generates_correlation_id(
-        self, mock_request, mock_response, mock_distributed_tracer
-    ):
+        self, mock_request: MagicMock, mock_response: MagicMock, mock_distributed_tracer: MagicMock
+    ) -> None:
         """Test dispatch generates correlation ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -370,8 +399,8 @@ class TestCorrelationMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_preserves_existing_correlation_id(
-        self, mock_request, mock_response, mock_distributed_tracer
-    ):
+        self, mock_request: MagicMock, mock_response: MagicMock, mock_distributed_tracer: MagicMock
+    ) -> None:
         """Test dispatch preserves existing ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         existing_id = "preserved-correlation-456"
@@ -389,8 +418,8 @@ class TestCorrelationMiddleware:
 
     @pytest.mark.asyncio
     async def test_dispatch_sets_otel_attribute(
-        self, mock_request, mock_response, mock_distributed_tracer
-    ):
+        self, mock_request: MagicMock, mock_response: MagicMock, mock_distributed_tracer: MagicMock
+    ) -> None:
         """Test dispatch sets OpenTelemetry attribute - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -419,8 +448,12 @@ class TestTracingMiddlewarePerformance:
 
     @pytest.mark.asyncio
     async def test_enhanced_tracing_middleware_performance(
-        self, mock_request, mock_response, mock_performance_monitor, mock_distributed_tracer
-    ):
+        self,
+        mock_request: MagicMock,
+        mock_response: MagicMock,
+        mock_performance_monitor: MagicMock,
+        mock_distributed_tracer: MagicMock,
+    ) -> None:
         """MANDATORY performance test - enhanced middleware overhead."""
         # Arrange - MANDATORY
         app = FastAPI()
@@ -448,8 +481,8 @@ class TestTracingMiddlewarePerformance:
 
     @pytest.mark.asyncio
     async def test_correlation_middleware_performance(
-        self, mock_request, mock_response, mock_distributed_tracer
-    ):
+        self, mock_request: MagicMock, mock_response: MagicMock, mock_distributed_tracer: MagicMock
+    ) -> None:
         """MANDATORY performance test - correlation middleware overhead."""
         # Arrange - MANDATORY
         app = FastAPI()

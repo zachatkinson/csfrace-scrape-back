@@ -4,6 +4,8 @@ This addresses the critical SRP violation identified in the audit by
 separating concerns into focused, single-responsibility processors.
 """
 
+from typing import Any
+
 from bs4 import BeautifulSoup
 
 from src.core.decorators import content_processing_error_handler
@@ -113,11 +115,11 @@ class HTMLProcessorOrchestrator:
         return html_content
 
     @content_processing_error_handler("process single pipeline step")
-    async def _process_single_step(self, processor: ContentExtractorBase, content) -> any:
+    async def _process_single_step(self, processor: ContentExtractorBase, content: Any) -> Any:
         """Process a single step in the pipeline with centralized error handling."""
-        content = await processor.extract(content)
+        result: Any = await processor.extract(content)
         logger.debug("Processor completed", processor=processor.name)
-        return content
+        return result
 
     def add_processor(self, processor: ContentExtractorBase, position: int | None = None) -> None:
         """Add a custom processor to the pipeline.

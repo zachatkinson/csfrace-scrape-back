@@ -162,7 +162,9 @@ class EnhancedSessionManager:
         """Async context manager entry."""
         return await self.get_session()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -232,7 +234,7 @@ class EnhancedSessionManager:
             await self._session.close()
             logger.debug("Closed enhanced session", domain=self.domain)
 
-    async def make_request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
+    async def make_request(self, method: str, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
         """Make an HTTP request with the managed session.
 
         Args:

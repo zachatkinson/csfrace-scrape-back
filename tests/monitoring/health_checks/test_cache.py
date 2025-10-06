@@ -29,7 +29,7 @@ from src.monitoring.health_checks.cache import CacheHealthCheck, RedisHealthChec
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_redis_client() -> AsyncMock:
     """Factory for mock Redis client - DRY principle."""
     client = AsyncMock()
     client.set = AsyncMock()
@@ -40,7 +40,7 @@ def mock_redis_client():
 
 
 @pytest.fixture
-def mock_cache_manager():
+def mock_cache_manager() -> AsyncMock:
     """Factory for mock CacheManager - DRY principle."""
     manager = AsyncMock()
     manager.initialize = AsyncMock()
@@ -59,7 +59,7 @@ def mock_cache_manager():
 class TestRedisHealthCheck:
     """Tests for RedisHealthCheck class."""
 
-    def test_redis_health_check_initialization_defaults(self):
+    def test_redis_health_check_initialization_defaults(self) -> None:
         """Test RedisHealthCheck initialization with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -70,7 +70,7 @@ class TestRedisHealthCheck:
         assert health_check.timeout_seconds == 5.0
         assert health_check.redis_url is None
 
-    def test_redis_health_check_initialization_custom_values(self):
+    def test_redis_health_check_initialization_custom_values(self) -> None:
         """Test RedisHealthCheck with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_name = "redis_cache"
@@ -88,7 +88,9 @@ class TestRedisHealthCheck:
         assert health_check.redis_url == custom_url
 
     @pytest.mark.asyncio
-    async def test_check_successful_redis_operations_with_url(self, mock_redis_client):
+    async def test_check_successful_redis_operations_with_url(
+        self, mock_redis_client: AsyncMock
+    ) -> None:
         """Test check() with successful Redis operations using URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = RedisHealthCheck(redis_url="redis://localhost:6379/0")
@@ -109,7 +111,9 @@ class TestRedisHealthCheck:
         mock_redis_client.aclose.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_check_successful_redis_operations_without_url(self, mock_redis_client):
+    async def test_check_successful_redis_operations_without_url(
+        self, mock_redis_client: AsyncMock
+    ) -> None:
         """Test check() with successful Redis operations without URL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = RedisHealthCheck()
@@ -127,7 +131,7 @@ class TestRedisHealthCheck:
         )
 
     @pytest.mark.asyncio
-    async def test_check_redis_value_mismatch(self, mock_redis_client):
+    async def test_check_redis_value_mismatch(self, mock_redis_client: AsyncMock) -> None:
         """Test check() when Redis value doesn't match - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_redis_client.get.return_value = "wrong_value"  # Mismatch
@@ -154,7 +158,7 @@ class TestRedisHealthCheck:
 class TestCacheHealthCheck:
     """Tests for CacheHealthCheck class."""
 
-    def test_cache_health_check_initialization_defaults(self):
+    def test_cache_health_check_initialization_defaults(self) -> None:
         """Test CacheHealthCheck initialization with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -164,7 +168,7 @@ class TestCacheHealthCheck:
         assert health_check.name == "cache"
         assert health_check.timeout_seconds == 5.0
 
-    def test_cache_health_check_initialization_custom_values(self):
+    def test_cache_health_check_initialization_custom_values(self) -> None:
         """Test CacheHealthCheck with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_name = "app_cache"
@@ -178,7 +182,7 @@ class TestCacheHealthCheck:
         assert health_check.timeout_seconds == custom_timeout
 
     @pytest.mark.asyncio
-    async def test_check_cache_manager_import_error(self):
+    async def test_check_cache_manager_import_error(self) -> None:
         """Test check() handles CacheManager import error gracefully - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = CacheHealthCheck(name="test_cache")
@@ -211,7 +215,7 @@ class TestCacheHealthCheck:
         assert result.status in [HealthStatus.DEGRADED, HealthStatus.HEALTHY]
 
     @pytest.mark.asyncio
-    async def test_check_successful_cache_operations(self, mock_cache_manager):
+    async def test_check_successful_cache_operations(self, mock_cache_manager: AsyncMock) -> None:
         """Test check() with successful cache operations - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = CacheHealthCheck()
@@ -233,7 +237,7 @@ class TestCacheHealthCheck:
         mock_cache_manager.invalidate_url.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_check_cache_data_mismatch(self, mock_cache_manager):
+    async def test_check_cache_data_mismatch(self, mock_cache_manager: AsyncMock) -> None:
         """Test check() when cache data doesn't match - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_cache_manager.get_metadata.return_value = {"wrong": "data"}
@@ -252,7 +256,9 @@ class TestCacheHealthCheck:
         assert result.details["operations_tested"] == ["set", "get", "delete"]
 
     @pytest.mark.asyncio
-    async def test_check_cache_operations_use_correct_methods(self, mock_cache_manager):
+    async def test_check_cache_operations_use_correct_methods(
+        self, mock_cache_manager: AsyncMock
+    ) -> None:
         """Test check() uses correct cache manager methods - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = CacheHealthCheck()
@@ -285,7 +291,7 @@ class TestCacheHealthCheck:
 class TestCacheHealthCheckPerformance:
     """MANDATORY performance tests for cache health check operations."""
 
-    def test_redis_health_check_creation_performance(self):
+    def test_redis_health_check_creation_performance(self) -> None:
         """MANDATORY performance test - RedisHealthCheck creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -304,7 +310,7 @@ class TestCacheHealthCheckPerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_cache_health_check_creation_performance(self):
+    def test_cache_health_check_creation_performance(self) -> None:
         """MANDATORY performance test - CacheHealthCheck creation speed."""
         # Arrange - MANDATORY
         iterations = 10000

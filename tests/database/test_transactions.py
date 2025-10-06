@@ -7,6 +7,8 @@ Tests focus on async transaction management, error handling, retry logic,
 and parallel execution patterns for database operations.
 """
 
+from collections.abc import Callable, Coroutine
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -30,8 +32,21 @@ from src.database.transactions import (
 # =============================================================================
 
 
+class AsyncSessionContext:
+    """Async context manager for mock session."""
+
+    def __init__(self, session: AsyncMock) -> None:
+        self.session = session
+
+    async def __aenter__(self) -> AsyncMock:
+        return self.session
+
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        return None
+
+
 @pytest.fixture
-def mock_async_session():
+def mock_async_session() -> AsyncMock:
     """Factory for mock AsyncSession - DRY principle."""
     session = AsyncMock(spec=AsyncSession)
     session.commit = AsyncMock()
@@ -42,24 +57,18 @@ def mock_async_session():
 
 
 @pytest.fixture
-def mock_async_session_context(mock_async_session):
+def mock_async_session_context(
+    mock_async_session: AsyncMock,
+) -> AsyncSessionContext:
     """Factory for async session context manager - DRY principle."""
-
-    class AsyncSessionContext:
-        async def __aenter__(self):
-            return mock_async_session
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            return None
-
-    return AsyncSessionContext()
+    return AsyncSessionContext(mock_async_session)
 
 
 @pytest.fixture
-def sample_async_operation():
+def sample_async_operation() -> Callable[[AsyncSession], Coroutine[Any, Any, Mock]]:
     """Factory for sample async operation - DRY principle."""
 
-    async def operation(db: AsyncSession):
+    async def operation(db: AsyncSession) -> Mock:
         """Sample operation that uses database session."""
         result = Mock()
         result.data = "test_data"
@@ -77,7 +86,7 @@ def sample_async_operation():
 class TestTransactionError:
     """Test TransactionError custom exception."""
 
-    def test_transaction_error_with_message_only(self):
+    def test_transaction_error_with_message_only(self) -> None:
         """Test TransactionError with message only."""
         # Act
         error = TransactionError("Test error message")
@@ -86,7 +95,7 @@ class TestTransactionError:
         assert str(error) == "Test error message"
         assert error.original_error is None
 
-    def test_transaction_error_with_original_error(self):
+    def test_transaction_error_with_original_error(self) -> None:
         """Test TransactionError with original error."""
         # Arrange
         original = ValueError("Original error")
@@ -109,17 +118,17 @@ class TestTransactionError:
 class TestDatabaseTransaction:
     """Test database_transaction context manager."""
 
-    async def test_database_transaction_creates_new_session_when_none_provided(self):
+    async def test_database_transaction_creates_new_session_when_none_provided(self) -> None:
         """Test creates new session when none provided."""
         # Arrange
         mock_session = AsyncMock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
 
         class AsyncSessionContextManager:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncMock:
                 return mock_session
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
                 return None
 
         # Mock async_session to return context manager (not coroutine)
@@ -139,7 +148,9 @@ class TestDatabaseTransaction:
                 assert db is mock_session
                 mock_async_session_factory.assert_called_once()
 
-    async def test_database_transaction_uses_existing_session(self, mock_async_session):
+    async def test_database_transaction_uses_existing_session(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test uses existing session when provided."""
         # Arrange
         with patch("src.database.transactions._transaction_handler") as mock_handler:
@@ -167,7 +178,9 @@ class TestDatabaseTransaction:
 class TestTransactionHandler:
     """Test _transaction_handler internal transaction handler."""
 
-    async def test_transaction_handler_commits_on_success(self, mock_async_session):
+    async def test_transaction_handler_commits_on_success(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test transaction handler commits on success with auto_commit=True."""
         # Arrange
         from src.database.transactions import _transaction_handler
@@ -181,7 +194,9 @@ class TestTransactionHandler:
         mock_async_session.commit.assert_awaited_once()
         mock_async_session.rollback.assert_not_awaited()
 
-    async def test_transaction_handler_no_commit_when_auto_commit_false(self, mock_async_session):
+    async def test_transaction_handler_no_commit_when_auto_commit_false(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test transaction handler doesn't commit when auto_commit=False."""
         # Arrange
         from src.database.transactions import _transaction_handler
@@ -196,7 +211,9 @@ class TestTransactionHandler:
         mock_async_session.commit.assert_not_awaited()
         mock_async_session.rollback.assert_not_awaited()
 
-    async def test_transaction_handler_rollback_on_sqlalchemy_error(self, mock_async_session):
+    async def test_transaction_handler_rollback_on_sqlalchemy_error(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test transaction handler rolls back on SQLAlchemyError."""
         # Arrange
         from src.database.transactions import _transaction_handler
@@ -211,7 +228,9 @@ class TestTransactionHandler:
         mock_async_session.rollback.assert_awaited_once()
         mock_async_session.commit.assert_not_awaited()
 
-    async def test_transaction_handler_rollback_on_general_exception(self, mock_async_session):
+    async def test_transaction_handler_rollback_on_general_exception(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test transaction handler rolls back on general Exception."""
         # Arrange
         from src.database.transactions import _transaction_handler
@@ -226,7 +245,9 @@ class TestTransactionHandler:
         mock_async_session.rollback.assert_awaited_once()
         mock_async_session.commit.assert_not_awaited()
 
-    async def test_transaction_handler_sets_isolation_level(self, mock_async_session):
+    async def test_transaction_handler_sets_isolation_level(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test transaction handler sets isolation level when specified."""
         # Arrange
         from src.database.transactions import _transaction_handler
@@ -257,7 +278,9 @@ class TestTransactionHandler:
 class TestBatchTransaction:
     """Test batch_transaction context manager."""
 
-    async def test_batch_transaction_creates_transaction_with_auto_commit_false(self):
+    async def test_batch_transaction_creates_transaction_with_auto_commit_false(
+        self,
+    ) -> None:
         """Test batch_transaction creates transaction with auto_commit=False."""
         # Arrange
         mock_session = AsyncMock(spec=AsyncSession)
@@ -274,7 +297,7 @@ class TestBatchTransaction:
             # Assert
             mock_db_trans.assert_called_once_with(auto_commit=False)
 
-    async def test_batch_transaction_commits_at_end(self):
+    async def test_batch_transaction_commits_at_end(self) -> None:
         """Test batch_transaction commits at the end."""
         # Arrange
         mock_session = AsyncMock(spec=AsyncSession)
@@ -303,7 +326,7 @@ class TestBatchTransaction:
 class TestReadOnlyTransaction:
     """Test read_only_transaction context manager."""
 
-    async def test_read_only_transaction_uses_correct_isolation_level(self):
+    async def test_read_only_transaction_uses_correct_isolation_level(self) -> None:
         """Test read_only_transaction uses READ_COMMITTED isolation level."""
         # Arrange
         mock_session = AsyncMock(spec=AsyncSession)
@@ -322,7 +345,7 @@ class TestReadOnlyTransaction:
                 auto_commit=False, isolation_level="READ_COMMITTED"
             )
 
-    async def test_read_only_transaction_no_commit(self):
+    async def test_read_only_transaction_no_commit(self) -> None:
         """Test read_only_transaction doesn't commit."""
         # Arrange
         mock_session = AsyncMock(spec=AsyncSession)
@@ -351,7 +374,7 @@ class TestReadOnlyTransaction:
 class TestTransactionManager:
     """Test TransactionManager class."""
 
-    def test_transaction_manager_init(self):
+    def test_transaction_manager_init(self) -> None:
         """Test TransactionManager initialization."""
         # Act
         manager = TransactionManager()
@@ -361,14 +384,14 @@ class TestTransactionManager:
         assert len(manager._active_transactions) == 0
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_succeeds_on_first_attempt(self):
+    async def test_execute_with_retry_succeeds_on_first_attempt(self) -> None:
         """Test execute_with_retry succeeds on first attempt."""
         # Arrange
         manager = TransactionManager()
         mock_result = Mock()
         mock_result.data = "success"
 
-        async def successful_operation(db):
+        async def successful_operation(db: AsyncSession) -> Mock:
             return mock_result
 
         mock_session = AsyncMock(spec=AsyncSession)
@@ -385,14 +408,14 @@ class TestTransactionManager:
             assert result is mock_result
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_retries_on_sqlalchemy_error(self):
+    async def test_execute_with_retry_retries_on_sqlalchemy_error(self) -> None:
         """Test execute_with_retry retries on SQLAlchemyError."""
         # Arrange
         manager = TransactionManager()
         attempt_count = 0
         mock_result = Mock()
 
-        async def failing_then_succeeding_operation(db):
+        async def failing_then_succeeding_operation(db: AsyncSession) -> Mock:
             nonlocal attempt_count
             attempt_count += 1
             if attempt_count < 3:
@@ -416,12 +439,12 @@ class TestTransactionManager:
             assert attempt_count == 3
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_exhausts_retries(self):
+    async def test_execute_with_retry_exhausts_retries(self) -> None:
         """Test execute_with_retry exhausts all retries on persistent error."""
         # Arrange
         manager = TransactionManager()
 
-        async def always_failing_operation(db):
+        async def always_failing_operation(db: AsyncSession) -> None:
             raise SQLAlchemyError("Persistent error")
 
         mock_session = AsyncMock(spec=AsyncSession)
@@ -436,12 +459,12 @@ class TestTransactionManager:
                 await manager.execute_with_retry(always_failing_operation, max_retries=2)
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_no_retry_on_non_database_error(self):
+    async def test_execute_with_retry_no_retry_on_non_database_error(self) -> None:
         """Test execute_with_retry doesn't retry on non-database errors."""
         # Arrange
         manager = TransactionManager()
 
-        async def non_retryable_operation(db):
+        async def non_retryable_operation(db: AsyncSession) -> None:
             raise ValueError("Non-retryable error")
 
         mock_session = AsyncMock(spec=AsyncSession)
@@ -456,17 +479,17 @@ class TestTransactionManager:
                 await manager.execute_with_retry(non_retryable_operation, max_retries=3)
 
     @pytest.mark.asyncio
-    async def test_execute_in_parallel_runs_operations_concurrently(self):
+    async def test_execute_in_parallel_runs_operations_concurrently(self) -> None:
         """Test execute_in_parallel runs multiple operations concurrently."""
         # Arrange
         manager = TransactionManager()
-        results = []
+        results: list[int] = []
 
-        async def operation1(db):
+        async def operation1(db: AsyncSession) -> str:
             results.append(1)
             return "result1"
 
-        async def operation2(db):
+        async def operation2(db: AsyncSession) -> str:
             results.append(2)
             return "result2"
 
@@ -499,12 +522,12 @@ class TestTransactionManager:
 class TestConvenienceFunctions:
     """Test convenience functions."""
 
-    async def test_execute_with_transaction_wraps_operation(self):
+    async def test_execute_with_transaction_wraps_operation(self) -> None:
         """Test execute_with_transaction wraps operation in transaction."""
         # Arrange
         mock_result = Mock()
 
-        async def operation(db):
+        async def operation(db: AsyncSession) -> Mock:
             return mock_result
 
         mock_session = AsyncMock(spec=AsyncSession)
@@ -521,12 +544,12 @@ class TestConvenienceFunctions:
             assert result is mock_result
             mock_db_trans.assert_called_once_with(auto_commit=True)
 
-    async def test_execute_with_retry_convenience_delegates_to_manager(self):
+    async def test_execute_with_retry_convenience_delegates_to_manager(self) -> None:
         """Test execute_with_retry convenience function delegates to TransactionManager."""
         # Arrange
         mock_result = Mock()
 
-        async def operation(db):
+        async def operation(db: AsyncSession) -> Mock:
             return mock_result
 
         with patch.object(
@@ -550,13 +573,17 @@ class TestConvenienceFunctions:
 class TestHelperFunctions:
     """Test helper functions."""
 
-    async def test_set_isolation_level_safe_validates_level(self, mock_async_session):
+    async def test_set_isolation_level_safe_validates_level(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test _set_isolation_level_safe validates isolation level."""
         # Act & Assert
         with pytest.raises(ValueError, match="Invalid isolation level"):
             await _set_isolation_level_safe(mock_async_session, 123, "INVALID_LEVEL")
 
-    async def test_set_isolation_level_safe_sets_valid_level(self, mock_async_session):
+    async def test_set_isolation_level_safe_sets_valid_level(
+        self, mock_async_session: AsyncMock
+    ) -> None:
         """Test _set_isolation_level_safe sets valid isolation level."""
         # Act
         await _set_isolation_level_safe(mock_async_session, 123, "SERIALIZABLE")
@@ -567,17 +594,17 @@ class TestHelperFunctions:
         call_args = mock_async_session.execute.call_args[0][0]
         assert "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE" in str(call_args)
 
-    async def test_execute_parallel_operations_safe_gathers_results(self):
+    async def test_execute_parallel_operations_safe_gathers_results(self) -> None:
         """Test _execute_parallel_operations_safe gathers all results."""
 
         # Arrange
-        async def operation1():
+        async def operation1() -> str:
             return "result1"
 
-        async def operation2():
+        async def operation2() -> str:
             return "result2"
 
-        async def mock_execute_with_semaphore(op):
+        async def mock_execute_with_semaphore(op: Callable[[], Coroutine[Any, Any, str]]) -> str:
             return await op()
 
         operations = [operation1, operation2]

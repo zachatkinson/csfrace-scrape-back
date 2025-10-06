@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.caching.manager import CacheManager
 from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
 
@@ -244,15 +245,19 @@ class HealthService:
         await publish_health_change_events(response)
 
     @api_error_handler("get backend type")
-    async def _get_backend_type_safe(self, cache_manager) -> str:
+    async def _get_backend_type_safe(self, cache_manager: CacheManager) -> str:
         """Safely get cache backend type."""
-        return await cache_manager.get_detailed_backend_type()
+        backend_type: str = await cache_manager.get_detailed_backend_type()
+        return backend_type
 
     @api_error_handler("get cache info")
     async def _get_cache_info_safe(
-        self, cache_manager
+        self, cache_manager: CacheManager
     ) -> tuple[dict[str, str | int], dict[str, int]]:
         """Safely get cache server info and stats."""
+        if cache_manager.backend is None or not hasattr(cache_manager.backend, "get_server_info"):
+            return {}, {}
+
         server_info = await cache_manager.backend.get_server_info()
         stats_info = await cache_manager.backend.stats()
         return server_info, stats_info

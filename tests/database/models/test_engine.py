@@ -22,7 +22,7 @@ class TestCreateDatabaseEngineBasic:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_creates_engine_with_echo_disabled(self, mock_get_url, mock_create):
+    def test_creates_engine_with_echo_disabled(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test creates engine with echo disabled."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -40,7 +40,7 @@ class TestCreateDatabaseEngineBasic:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_creates_engine_with_echo_enabled(self, mock_get_url, mock_create):
+    def test_creates_engine_with_echo_enabled(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test creates engine with echo enabled."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -58,7 +58,7 @@ class TestCreateDatabaseEngineBasic:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_returns_engine_instance(self, mock_get_url, mock_create):
+    def test_returns_engine_instance(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test returns SQLAlchemy Engine instance."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -84,7 +84,7 @@ class TestCreateDatabaseEnginePoolConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_configures_pool_size(self, mock_get_url, mock_create):
+    def test_configures_pool_size(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test configures correct pool_size."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -101,7 +101,7 @@ class TestCreateDatabaseEnginePoolConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_configures_max_overflow(self, mock_get_url, mock_create):
+    def test_configures_max_overflow(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test configures correct max_overflow."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -118,7 +118,7 @@ class TestCreateDatabaseEnginePoolConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_configures_pool_timeout(self, mock_get_url, mock_create):
+    def test_configures_pool_timeout(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test configures correct pool_timeout."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -135,7 +135,7 @@ class TestCreateDatabaseEnginePoolConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_configures_pool_recycle(self, mock_get_url, mock_create):
+    def test_configures_pool_recycle(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test configures correct pool_recycle."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -152,7 +152,7 @@ class TestCreateDatabaseEnginePoolConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_enables_pool_pre_ping(self, mock_get_url, mock_create):
+    def test_enables_pool_pre_ping(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test enables pool_pre_ping."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -179,7 +179,7 @@ class TestCreateDatabaseEngineDatabaseConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_sets_isolation_level(self, mock_get_url, mock_create):
+    def test_sets_isolation_level(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test sets correct isolation level."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -196,7 +196,7 @@ class TestCreateDatabaseEngineDatabaseConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_configures_connect_args(self, mock_get_url, mock_create):
+    def test_configures_connect_args(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test configures connect_args."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -215,7 +215,7 @@ class TestCreateDatabaseEngineDatabaseConfig:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_sets_application_name(self, mock_get_url, mock_create):
+    def test_sets_application_name(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test sets application_name in connect_args."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -244,7 +244,9 @@ class TestCreateDatabaseEngineEventListener:
     @patch("src.database.models.engine.event.listens_for")
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_registers_reset_event_listener(self, mock_get_url, mock_create, mock_listens_for):
+    def test_registers_reset_event_listener(
+        self, mock_get_url: Mock, mock_create: Mock, mock_listens_for: Mock
+    ) -> None:
         """Test registers reset event listener."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -259,7 +261,9 @@ class TestCreateDatabaseEngineEventListener:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_reset_handler_executes_cleanup_commands(self, mock_get_url, mock_create):
+    def test_reset_handler_executes_cleanup_commands(
+        self, mock_get_url: Mock, mock_create: Mock
+    ) -> None:
         """Test reset handler executes all cleanup SQL commands."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -298,7 +302,7 @@ class TestCreateDatabaseEngineEventListener:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_reset_handler_always_rollsback(self, mock_get_url, mock_create):
+    def test_reset_handler_always_rollsback(self, mock_get_url: Mock, mock_create: Mock) -> None:
         """Test reset handler always calls rollback."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"
@@ -333,7 +337,9 @@ class TestCreateDatabaseEngineEventListener:
 
     @patch("src.database.models.engine.create_engine")
     @patch("src.database.utils.get_database_url")
-    def test_reset_handler_skips_cleanup_on_terminate(self, mock_get_url, mock_create):
+    def test_reset_handler_skips_cleanup_on_terminate(
+        self, mock_get_url: Mock, mock_create: Mock
+    ) -> None:
         """Test reset handler skips cleanup when terminate_only is True."""
         # Arrange
         mock_get_url.return_value = "postgresql+psycopg://test:test@localhost:5432/testdb"

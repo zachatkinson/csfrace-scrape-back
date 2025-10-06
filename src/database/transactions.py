@@ -187,10 +187,10 @@ class TransactionManager:
 
     async def execute_with_retry(
         self,
-        operation: Callable,
+        operation: Callable[..., Any],
         max_retries: int = 3,
         backoff_factor: float = 2.0,
-        retry_exceptions: tuple = (SQLAlchemyError,),
+        retry_exceptions: tuple[type[Exception], ...] = (SQLAlchemyError,),
     ) -> Any:
         """Execute database operation with automatic retry on failure.
 
@@ -255,7 +255,7 @@ class TransactionManager:
         ) from last_exception
 
     async def execute_in_parallel(
-        self, operations: list[Callable], max_concurrent: int = 5
+        self, operations: list[Callable[..., Any]], max_concurrent: int = 5
     ) -> list[Any]:
         """Execute multiple database operations in parallel with separate transactions.
 
@@ -277,7 +277,7 @@ class TransactionManager:
         """
         semaphore = asyncio.Semaphore(max_concurrent)
 
-        async def _execute_with_semaphore(operation: Callable) -> Any:
+        async def _execute_with_semaphore(operation: Callable[..., Any]) -> Any:
             async with semaphore, database_transaction() as db:
                 return await operation(db)
 
@@ -289,7 +289,7 @@ transaction_manager = TransactionManager()
 
 
 # Convenience functions for common patterns
-async def execute_with_transaction(operation: Callable, **kwargs) -> Any:
+async def execute_with_transaction(operation: Callable[..., Any], **kwargs: Any) -> Any:
     """Convenience function to execute operation with transaction.
 
     Args:
@@ -303,7 +303,7 @@ async def execute_with_transaction(operation: Callable, **kwargs) -> Any:
         return await operation(db)
 
 
-async def execute_with_retry(operation: Callable, **kwargs) -> Any:
+async def execute_with_retry(operation: Callable[..., Any], **kwargs: Any) -> Any:
     """Convenience function to execute operation with retry logic.
 
     Args:
@@ -338,7 +338,7 @@ async def _set_isolation_level_safe(
 
 @database_error_handler("execute parallel operations")
 async def _execute_parallel_operations_safe(
-    operations: list[Callable], execute_with_semaphore: Callable
+    operations: list[Callable[..., Any]], execute_with_semaphore: Callable[..., Any]
 ) -> list[Any]:
     """Safely execute parallel operations."""
     results = await asyncio.gather(*[execute_with_semaphore(op) for op in operations])

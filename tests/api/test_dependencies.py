@@ -15,6 +15,7 @@ error handling, and resource cleanup.
 """
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,7 +30,7 @@ from src.api.dependencies import DBSession, async_session, engine, get_db_sessio
 class TestDatabaseEngine:
     """Unit tests for database engine configuration - MANDATORY AAA pattern."""
 
-    def test_engine_exists(self):
+    def test_engine_exists(self) -> None:
         """Test database engine is initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Engine should be created at module import
@@ -41,7 +42,7 @@ class TestDatabaseEngine:
         assert result is not None
         assert hasattr(result, "url")
 
-    def test_engine_uses_asyncpg_driver(self):
+    def test_engine_uses_asyncpg_driver(self) -> None:
         """Test engine uses asyncpg driver for async PostgreSQL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_driver = "asyncpg"
@@ -53,7 +54,7 @@ class TestDatabaseEngine:
         assert expected_driver in actual_driver
         assert "postgresql" in actual_driver
 
-    def test_engine_has_pool_configuration(self):
+    def test_engine_has_pool_configuration(self) -> None:
         """Test engine has connection pool configured - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Pool configuration should be set during engine creation
@@ -65,7 +66,7 @@ class TestDatabaseEngine:
         assert pool is not None
         assert hasattr(pool, "size")
 
-    def test_engine_has_pre_ping_enabled(self):
+    def test_engine_has_pre_ping_enabled(self) -> None:
         """Test engine has pool_pre_ping enabled for connection health - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Pre-ping validates connections before use
@@ -86,7 +87,7 @@ class TestDatabaseEngine:
 class TestAsyncSessionFactory:
     """Unit tests for async session factory - MANDATORY AAA pattern."""
 
-    def test_async_session_factory_exists(self):
+    def test_async_session_factory_exists(self) -> None:
         """Test async session factory is initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Session factory created at module import
@@ -98,7 +99,7 @@ class TestAsyncSessionFactory:
         assert result is not None
         assert callable(result)
 
-    def test_async_session_factory_creates_async_session(self):
+    def test_async_session_factory_creates_async_session(self) -> None:
         """Test session factory creates AsyncSession instances - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Factory should create proper session type
@@ -109,7 +110,7 @@ class TestAsyncSessionFactory:
         # Assert - MANDATORY
         assert session_class == AsyncSession
 
-    def test_async_session_expire_on_commit_disabled(self):
+    def test_async_session_expire_on_commit_disabled(self) -> None:
         """Test sessions have expire_on_commit=False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # This prevents detached instance errors
@@ -134,7 +135,7 @@ class TestAsyncSessionFactory:
 class TestGetDbSession:
     """Unit tests for get_db_session dependency - MANDATORY AAA pattern."""
 
-    async def test_get_db_session_yields_async_session(self):
+    async def test_get_db_session_yields_async_session(self) -> None:
         """Test get_db_session yields AsyncSession instance - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_generator = get_db_session()
@@ -149,7 +150,7 @@ class TestGetDbSession:
         # Cleanup - MANDATORY
         await session.close()
 
-    async def test_get_db_session_commits_on_success(self):
+    async def test_get_db_session_commits_on_success(self) -> None:
         """Test session commits when no exception raised - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_generator = get_db_session()
@@ -166,7 +167,7 @@ class TestGetDbSession:
         # Generator completes successfully without exceptions
         assert True  # Test passed if we got here without exception
 
-    async def test_get_db_session_rolls_back_on_exception(self):
+    async def test_get_db_session_rolls_back_on_exception(self) -> None:
         """Test session rolls back when exception occurs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_generator = get_db_session()
@@ -176,12 +177,12 @@ class TestGetDbSession:
         with pytest.raises(SQLAlchemyError):
             async for session in session_generator:
                 # Execute invalid SQL to trigger exception
-                await session.execute("INVALID SQL QUERY")
+                await session.execute(text("INVALID SQL QUERY"))
 
         # Test passed if exception was raised and handled
         assert True
 
-    async def test_get_db_session_closes_session_in_finally(self):
+    async def test_get_db_session_closes_session_in_finally(self) -> None:
         """Test session always closes in finally block - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_ref = None
@@ -207,7 +208,7 @@ class TestGetDbSession:
 class TestDBSessionAnnotation:
     """Unit tests for DBSession type annotation - MANDATORY AAA pattern."""
 
-    def test_db_session_annotation_exists(self):
+    def test_db_session_annotation_exists(self) -> None:
         """Test DBSession type annotation is defined - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Type annotation should be available for import
@@ -218,7 +219,7 @@ class TestDBSessionAnnotation:
         # Assert - MANDATORY
         assert annotation is not None
 
-    def test_db_session_is_annotated_type(self):
+    def test_db_session_is_annotated_type(self) -> None:
         """Test DBSession is proper Annotated type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from typing import get_args, get_origin
@@ -245,7 +246,7 @@ class TestDBSessionAnnotation:
 class TestDependenciesPerformance:
     """MANDATORY performance tests for database dependencies."""
 
-    async def test_session_creation_performance(self):
+    async def test_session_creation_performance(self) -> None:
         """MANDATORY performance test - session creation speed."""
         # Arrange - MANDATORY
         import time
@@ -279,7 +280,7 @@ class TestDependenciesPerformance:
 class TestDependenciesSecurity:
     """MANDATORY security tests for database dependencies."""
 
-    async def test_session_prevents_sql_injection_in_raw_queries(self):
+    async def test_session_prevents_sql_injection_in_raw_queries(self) -> None:
         """MANDATORY security test - SQL injection protection."""
         # Arrange - MANDATORY
         malicious_input = "'; DROP TABLE users; --"
@@ -290,12 +291,12 @@ class TestDependenciesSecurity:
         # Using parameterized queries prevents injection
         with pytest.raises(SQLAlchemyError):
             # This should fail safely without executing DROP
-            await session.execute(f"SELECT * FROM jobs WHERE url = '{malicious_input}'")
+            await session.execute(text(f"SELECT * FROM jobs WHERE url = '{malicious_input}'"))
 
         # Cleanup
         await session.close()
 
-    async def test_session_isolation_between_requests(self):
+    async def test_session_isolation_between_requests(self) -> None:
         """MANDATORY security test - session isolation."""
         # Arrange - MANDATORY
         session1_gen = get_db_session()

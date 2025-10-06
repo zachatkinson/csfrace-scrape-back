@@ -57,7 +57,7 @@ def metrics_collector(metrics_config: MetricsConfig) -> MetricsCollector:
 class TestMetricsConfig:
     """Tests for MetricsConfig configuration - MANDATORY AAA pattern."""
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test metrics config has sensible defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -75,7 +75,7 @@ class TestMetricsConfig:
         assert config.database_metrics_enabled is True
         assert config.retention_hours == 24
 
-    def test_config_customization(self):
+    def test_config_customization(self) -> None:
         """Test metrics config can be customized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_labels = {"environment": "test", "service": "scraper"}
@@ -108,7 +108,7 @@ class TestMetricsConfig:
 class TestMetricsCollectorInitialization:
     """Tests for MetricsCollector initialization - MANDATORY AAA pattern."""
 
-    def test_collector_initializes_with_config(self, metrics_config: MetricsConfig):
+    def test_collector_initializes_with_config(self, metrics_config: MetricsConfig) -> None:
         """Test metrics collector initializes with config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -121,7 +121,9 @@ class TestMetricsCollectorInitialization:
         assert isinstance(collector.application_metrics, dict)
         assert collector._collecting is False
 
-    def test_collector_initializes_application_metrics(self, metrics_collector: MetricsCollector):
+    def test_collector_initializes_application_metrics(
+        self, metrics_collector: MetricsCollector
+    ) -> None:
         """Test collector initializes application metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -137,7 +139,7 @@ class TestMetricsCollectorInitialization:
         assert "uptime" in app_metrics
         assert "total_requests" in app_metrics
 
-    def test_collector_without_prometheus_available(self):
+    def test_collector_without_prometheus_available(self) -> None:
         """Test collector handles Prometheus unavailable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = MetricsConfig(prometheus_enabled=True)
@@ -160,7 +162,7 @@ class TestMetricsCollectorInitialization:
 class TestSystemMetricsCollection:
     """Tests for system metrics collection - MANDATORY AAA pattern."""
 
-    async def test_collect_system_metrics_populates_data(self):
+    async def test_collect_system_metrics_populates_data(self) -> None:
         """Test system metrics collection populates data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         collector = MetricsCollector()
@@ -191,7 +193,7 @@ class TestSystemMetricsCollection:
             assert collector.system_metrics["cpu_percent"] == 50.0
             assert collector.system_metrics["memory_percent"] == 50.0
 
-    async def test_collect_system_metrics_when_disabled(self):
+    async def test_collect_system_metrics_when_disabled(self) -> None:
         """Test system metrics not collected when disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = MetricsConfig(system_metrics_enabled=False)
@@ -214,7 +216,7 @@ class TestSystemMetricsCollection:
 class TestApplicationMetricsRecording:
     """Tests for application metrics recording - MANDATORY AAA pattern."""
 
-    def test_record_request_updates_metrics(self, metrics_collector: MetricsCollector):
+    def test_record_request_updates_metrics(self, metrics_collector: MetricsCollector) -> None:
         """Test record_request updates application metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         method = "GET"
@@ -231,7 +233,7 @@ class TestApplicationMetricsRecording:
         assert metrics_collector.application_metrics["avg_response"] == 123.0
         assert metrics_collector.application_metrics["max_response"] == 123.0
 
-    def test_record_request_calculates_p95(self, metrics_collector: MetricsCollector):
+    def test_record_request_calculates_p95(self, metrics_collector: MetricsCollector) -> None:
         """Test record_request calculates P95 correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Record 100 requests with varying durations
@@ -242,11 +244,14 @@ class TestApplicationMetricsRecording:
         # Act - MANDATORY
         p95_response = metrics_collector.application_metrics["p95_response"]
 
+        # Type narrowing - MANDATORY for MyPy strict mode
+        assert isinstance(p95_response, (float, int))
+
         # Assert - MANDATORY
         # P95 of 0-99ms should be around 95ms
         assert 90.0 <= p95_response <= 99.0
 
-    def test_record_request_limits_history(self, metrics_collector: MetricsCollector):
+    def test_record_request_limits_history(self, metrics_collector: MetricsCollector) -> None:
         """Test record_request limits response time history - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Record 150 requests (more than 100 limit)
@@ -259,7 +264,7 @@ class TestApplicationMetricsRecording:
         # Assert - MANDATORY
         assert history_length == 100  # Should keep only last 100
 
-    def test_increment_active_connections(self, metrics_collector: MetricsCollector):
+    def test_increment_active_connections(self, metrics_collector: MetricsCollector) -> None:
         """Test increment active connections - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         initial = metrics_collector._active_connections
@@ -270,7 +275,7 @@ class TestApplicationMetricsRecording:
         # Assert - MANDATORY
         assert metrics_collector._active_connections == initial + 1
 
-    def test_decrement_active_connections(self, metrics_collector: MetricsCollector):
+    def test_decrement_active_connections(self, metrics_collector: MetricsCollector) -> None:
         """Test decrement active connections - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         metrics_collector._active_connections = 5
@@ -281,7 +286,9 @@ class TestApplicationMetricsRecording:
         # Assert - MANDATORY
         assert metrics_collector._active_connections == 4
 
-    def test_decrement_active_connections_not_negative(self, metrics_collector: MetricsCollector):
+    def test_decrement_active_connections_not_negative(
+        self, metrics_collector: MetricsCollector
+    ) -> None:
         """Test decrement doesn't go negative - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         metrics_collector._active_connections = 0
@@ -292,7 +299,7 @@ class TestApplicationMetricsRecording:
         # Assert - MANDATORY
         assert metrics_collector._active_connections == 0
 
-    def test_increment_queue_length(self, metrics_collector: MetricsCollector):
+    def test_increment_queue_length(self, metrics_collector: MetricsCollector) -> None:
         """Test increment queue length - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         initial = metrics_collector._queue_length
@@ -303,7 +310,7 @@ class TestApplicationMetricsRecording:
         # Assert - MANDATORY
         assert metrics_collector._queue_length == initial + 1
 
-    def test_decrement_queue_length(self, metrics_collector: MetricsCollector):
+    def test_decrement_queue_length(self, metrics_collector: MetricsCollector) -> None:
         """Test decrement queue length - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         metrics_collector._queue_length = 3
@@ -324,7 +331,7 @@ class TestApplicationMetricsRecording:
 class TestBatchJobMetrics:
     """Tests for batch job metrics - MANDATORY AAA pattern."""
 
-    def test_record_batch_job_completed(self, metrics_collector: MetricsCollector):
+    def test_record_batch_job_completed(self, metrics_collector: MetricsCollector) -> None:
         """Test record batch job with completed status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = "completed"
@@ -337,7 +344,7 @@ class TestBatchJobMetrics:
         # Should not raise error (Prometheus might not be available)
         assert True
 
-    def test_record_batch_job_failed(self, metrics_collector: MetricsCollector):
+    def test_record_batch_job_failed(self, metrics_collector: MetricsCollector) -> None:
         """Test record batch job with failed status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = "failed"
@@ -359,7 +366,7 @@ class TestBatchJobMetrics:
 class TestCacheMetrics:
     """Tests for cache metrics - MANDATORY AAA pattern."""
 
-    def test_record_cache_hit(self, metrics_collector: MetricsCollector):
+    def test_record_cache_hit(self, metrics_collector: MetricsCollector) -> None:
         """Test record cache hit - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cache_type = "html"
@@ -370,7 +377,7 @@ class TestCacheMetrics:
         # Assert - MANDATORY
         assert True  # No error
 
-    def test_record_cache_miss(self, metrics_collector: MetricsCollector):
+    def test_record_cache_miss(self, metrics_collector: MetricsCollector) -> None:
         """Test record cache miss - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cache_type = "image"
@@ -381,7 +388,7 @@ class TestCacheMetrics:
         # Assert - MANDATORY
         assert True  # No error
 
-    def test_update_cache_metrics(self, metrics_collector: MetricsCollector):
+    def test_update_cache_metrics(self, metrics_collector: MetricsCollector) -> None:
         """Test update cache size metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cache_type = "html"
@@ -404,7 +411,7 @@ class TestCacheMetrics:
 class TestDatabaseMetrics:
     """Tests for database metrics - MANDATORY AAA pattern."""
 
-    def test_record_database_query_success(self, metrics_collector: MetricsCollector):
+    def test_record_database_query_success(self, metrics_collector: MetricsCollector) -> None:
         """Test record successful database query - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "select"
@@ -417,7 +424,7 @@ class TestDatabaseMetrics:
         # Assert - MANDATORY
         assert True  # No error
 
-    def test_record_database_query_error(self, metrics_collector: MetricsCollector):
+    def test_record_database_query_error(self, metrics_collector: MetricsCollector) -> None:
         """Test record failed database query - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "insert"
@@ -440,7 +447,7 @@ class TestDatabaseMetrics:
 class TestMetricsSnapshot:
     """Tests for metrics snapshot generation - MANDATORY AAA pattern."""
 
-    def test_get_metrics_snapshot_structure(self, metrics_collector: MetricsCollector):
+    def test_get_metrics_snapshot_structure(self, metrics_collector: MetricsCollector) -> None:
         """Test metrics snapshot has correct structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -455,7 +462,7 @@ class TestMetricsSnapshot:
         assert "enabled" in snapshot["config"]
         assert "collection_interval" in snapshot["config"]
 
-    def test_get_metrics_snapshot_includes_system_metrics(self):
+    def test_get_metrics_snapshot_includes_system_metrics(self) -> None:
         """Test snapshot includes system metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         collector = MetricsCollector()
@@ -473,7 +480,7 @@ class TestMetricsSnapshot:
 
     def test_get_metrics_snapshot_includes_application_metrics(
         self, metrics_collector: MetricsCollector
-    ):
+    ) -> None:
         """Test snapshot includes application metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -498,7 +505,7 @@ class TestMetricsSnapshot:
 class TestMetricsCollectorAsyncOperations:
     """Tests for async metrics collector operations - MANDATORY AAA pattern."""
 
-    async def test_start_collection(self, metrics_collector: MetricsCollector):
+    async def test_start_collection(self, metrics_collector: MetricsCollector) -> None:
         """Test starting metrics collection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -512,7 +519,7 @@ class TestMetricsCollectorAsyncOperations:
         # Cleanup
         await metrics_collector.stop_collection()
 
-    async def test_stop_collection(self, metrics_collector: MetricsCollector):
+    async def test_stop_collection(self, metrics_collector: MetricsCollector) -> None:
         """Test stopping metrics collection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await metrics_collector.start_collection()
@@ -523,7 +530,7 @@ class TestMetricsCollectorAsyncOperations:
         # Assert - MANDATORY
         assert metrics_collector._collecting is False
 
-    async def test_shutdown_stops_collection(self, metrics_collector: MetricsCollector):
+    async def test_shutdown_stops_collection(self, metrics_collector: MetricsCollector) -> None:
         """Test shutdown stops collection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await metrics_collector.start_collection()
@@ -544,7 +551,9 @@ class TestMetricsCollectorAsyncOperations:
 class TestPrometheusExport:
     """Tests for Prometheus metrics export - MANDATORY AAA pattern."""
 
-    def test_export_prometheus_metrics_when_unavailable(self, metrics_collector: MetricsCollector):
+    def test_export_prometheus_metrics_when_unavailable(
+        self, metrics_collector: MetricsCollector
+    ) -> None:
         """Test export when Prometheus unavailable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -567,7 +576,7 @@ class TestPrometheusExport:
 class TestMetricsSecurity:
     """MANDATORY security tests for metrics system."""
 
-    def test_metric_label_sanitization(self, metrics_collector: MetricsCollector):
+    def test_metric_label_sanitization(self, metrics_collector: MetricsCollector) -> None:
         """MANDATORY security test - metric labels with malicious characters."""
         # Arrange - MANDATORY
         malicious_endpoints = [
@@ -583,7 +592,7 @@ class TestMetricsSecurity:
             metrics_collector.record_request("GET", endpoint, 200, 0.1)
             assert True
 
-    def test_cache_type_sanitization(self, metrics_collector: MetricsCollector):
+    def test_cache_type_sanitization(self, metrics_collector: MetricsCollector) -> None:
         """MANDATORY security test - cache types with malicious input."""
         # Arrange - MANDATORY
         malicious_types = [
@@ -609,7 +618,7 @@ class TestMetricsSecurity:
 class TestMetricsPerformance:
     """MANDATORY performance tests for metrics system."""
 
-    def test_record_request_performance(self, metrics_collector: MetricsCollector):
+    def test_record_request_performance(self, metrics_collector: MetricsCollector) -> None:
         """MANDATORY performance test - record request speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -627,7 +636,7 @@ class TestMetricsPerformance:
         assert avg_time < 0.001  # <1ms per record
         assert execution_time < 1.0  # Total <1s for 1000 records
 
-    def test_get_metrics_snapshot_performance(self):
+    def test_get_metrics_snapshot_performance(self) -> None:
         """MANDATORY performance test - snapshot generation speed."""
         # Arrange - MANDATORY
         collector = MetricsCollector()
@@ -655,7 +664,7 @@ class TestMetricsPerformance:
         assert avg_time < 0.01  # <10ms per snapshot
         assert execution_time < 1.0  # Total <1s for 100 snapshots
 
-    def test_p95_calculation_performance(self, metrics_collector: MetricsCollector):
+    def test_p95_calculation_performance(self, metrics_collector: MetricsCollector) -> None:
         """MANDATORY performance test - P95 calculation speed."""
         # Arrange - MANDATORY
         # Pre-populate with 100 response times

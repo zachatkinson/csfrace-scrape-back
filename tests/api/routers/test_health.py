@@ -33,7 +33,7 @@ from src.api.routers.health import (
 
 
 @pytest.fixture
-def mock_checks_router():
+def mock_checks_router() -> APIRouter:
     """Factory for mock checks router - DRY principle."""
     checks = APIRouter()
     checks.add_api_route("/status", lambda: {"status": "ok"}, methods=["GET"])
@@ -41,7 +41,7 @@ def mock_checks_router():
 
 
 @pytest.fixture
-def mock_system_info_router():
+def mock_system_info_router() -> APIRouter:
     """Factory for mock system info router - DRY principle."""
     system_info = APIRouter()
     system_info.add_api_route("/system", lambda: {"system": "info"}, methods=["GET"])
@@ -49,7 +49,7 @@ def mock_system_info_router():
 
 
 @pytest.fixture
-def mock_metrics_router():
+def mock_metrics_router() -> APIRouter:
     """Factory for mock metrics router - DRY principle."""
     metrics = APIRouter()
     metrics.add_api_route("/metrics", lambda: "metrics data", methods=["GET"])
@@ -57,7 +57,7 @@ def mock_metrics_router():
 
 
 @pytest.fixture
-def mock_streaming_router():
+def mock_streaming_router() -> APIRouter:
     """Factory for mock streaming router - DRY principle."""
     streaming = APIRouter()
     streaming.add_api_route("/stream", lambda: "streaming", methods=["GET"])
@@ -73,7 +73,7 @@ def mock_streaming_router():
 class TestHealthRouter:
     """Tests for health router orchestration and configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that health router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -81,32 +81,32 @@ class TestHealthRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_prefix(self):
+    def test_router_has_prefix(self) -> None:
         """Test router has /health prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert router.prefix == "/health"
 
-    def test_router_has_tags(self):
+    def test_router_has_tags(self) -> None:
         """Test router has Health & Monitoring tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert "Health & Monitoring" in router.tags
 
-    def test_router_includes_sub_routers(self):
+    def test_router_includes_sub_routers(self) -> None:
         """Test router includes all sub-routers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Get all routes from the router
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes]  # type: ignore[attr-defined]
 
         # Assert - MANDATORY
         # Router should have routes from all sub-routers
         assert len(routes) > 0
 
-    def test_router_has_all_endpoint_categories(self):
+    def test_router_has_all_endpoint_categories(self) -> None:
         """Test router has endpoints from all categories - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Expected endpoint patterns from sub-routers
@@ -115,7 +115,7 @@ class TestHealthRouter:
         ]
 
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes]  # type: ignore[attr-defined]
         route_str = " ".join(routes)
 
         # Assert - MANDATORY
@@ -132,7 +132,7 @@ class TestHealthRouter:
 class TestHealthRouterExports:
     """Tests for health router module exports."""
 
-    def test_router_exported_in_all(self):
+    def test_router_exported_in_all(self) -> None:
         """Test router is exported in __all__ - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.health import __all__
@@ -141,7 +141,7 @@ class TestHealthRouterExports:
         # Assert - MANDATORY
         assert "router" in __all__
 
-    def test_metrics_collector_exported_in_all(self):
+    def test_metrics_collector_exported_in_all(self) -> None:
         """Test metrics_collector is exported - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.health import __all__
@@ -150,7 +150,7 @@ class TestHealthRouterExports:
         # Assert - MANDATORY
         assert "metrics_collector" in __all__
 
-    def test_cache_manager_exported_in_all(self):
+    def test_cache_manager_exported_in_all(self) -> None:
         """Test cache_manager is exported - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.health import __all__
@@ -159,7 +159,7 @@ class TestHealthRouterExports:
         # Assert - MANDATORY
         assert "cache_manager" in __all__
 
-    def test_performance_monitor_exported_in_all(self):
+    def test_performance_monitor_exported_in_all(self) -> None:
         """Test performance_monitor is exported - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.routers.health import __all__
@@ -168,7 +168,7 @@ class TestHealthRouterExports:
         # Assert - MANDATORY
         assert "performance_monitor" in __all__
 
-    def test_all_exports_available(self):
+    def test_all_exports_available(self) -> None:
         """Test all exported items are importable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -190,7 +190,7 @@ class TestHealthRouterExports:
 class TestHealthRouterDependencies:
     """Tests for health router dependency imports."""
 
-    def test_metrics_collector_import(self):
+    def test_metrics_collector_import(self) -> None:
         """Test metrics_collector is imported - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -198,7 +198,7 @@ class TestHealthRouterDependencies:
         # metrics_collector should be imported and available
         assert metrics_collector is not None
 
-    def test_cache_manager_import(self):
+    def test_cache_manager_import(self) -> None:
         """Test cache_manager is imported if available - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -207,7 +207,7 @@ class TestHealthRouterDependencies:
         # This is expected behavior - test passes either way
         assert cache_manager is not None or cache_manager is None
 
-    def test_performance_monitor_import(self):
+    def test_performance_monitor_import(self) -> None:
         """Test performance_monitor is imported if available - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -226,7 +226,7 @@ class TestHealthRouterDependencies:
 class TestHealthRouterIntegration:
     """Integration tests for health router orchestration."""
 
-    def test_router_combines_multiple_endpoints(self):
+    def test_router_combines_multiple_endpoints(self) -> None:
         """Test router combines endpoints from all sub-routers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -237,21 +237,21 @@ class TestHealthRouterIntegration:
         # Should have routes from multiple sub-routers
         assert len(routes) >= 1  # At minimum should have some routes
 
-    def test_router_maintains_route_uniqueness(self):
+    def test_router_maintains_route_uniqueness(self) -> None:
         """Test router doesn't have duplicate routes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes]  # type: ignore[attr-defined]
 
         # Assert - MANDATORY
         # All routes should be unique (no duplicates)
         assert len(routes) == len(set(routes))
 
-    def test_router_all_routes_have_health_prefix(self):
+    def test_router_all_routes_have_health_prefix(self) -> None:
         """Test all routes include /health prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes]  # type: ignore[attr-defined]
 
         # Assert - MANDATORY
         # All routes should start with /health
@@ -270,7 +270,7 @@ class TestHealthRouterIntegration:
 class TestHealthRouterPerformance:
     """MANDATORY performance tests for health router orchestration."""
 
-    def test_router_initialization_performance(self):
+    def test_router_initialization_performance(self) -> None:
         """MANDATORY performance test - router initialization speed."""
         # Arrange - MANDATORY
         iterations = 100
@@ -292,7 +292,7 @@ class TestHealthRouterPerformance:
         assert avg_time < 0.001  # <1ms per access
         assert execution_time < 0.1  # Total <100ms for 100 accesses
 
-    def test_router_routes_enumeration_performance(self):
+    def test_router_routes_enumeration_performance(self) -> None:
         """MANDATORY performance test - routes enumeration speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -301,7 +301,7 @@ class TestHealthRouterPerformance:
         start_time = time.perf_counter()
 
         for _ in range(iterations):
-            _ = [route.path for route in router.routes]
+            _ = [route.path for route in router.routes]  # type: ignore[attr-defined]
 
         end_time = time.perf_counter()
         execution_time = end_time - start_time

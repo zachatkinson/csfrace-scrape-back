@@ -95,13 +95,23 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         og_tags = soup.find_all("meta", attrs={"property": re.compile(r"^og:")})
         for tag in og_tags:
-            property_name = tag.get("property", "")
-            content = tag.get("content", "").strip()
+            if not isinstance(tag, Tag):
+                continue
+            property_name = tag.get("property")
+            property_str = (
+                property_name
+                if isinstance(property_name, str)
+                else property_name[0]
+                if isinstance(property_name, list) and property_name
+                else ""
+            )
+            content = tag.get("content")
+            content_str = content.strip() if isinstance(content, str) else ""
 
-            if property_name and content:
+            if property_str and content_str:
                 # Convert og:property to open_graph_property
-                key = property_name.replace("og:", "open_graph_")
-                og_metadata[key] = content
+                key = property_str.replace("og:", "open_graph_")
+                og_metadata[key] = content_str
 
         return {"open_graph": og_metadata} if og_metadata else {}
 
@@ -111,13 +121,23 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
 
         twitter_tags = soup.find_all("meta", attrs={"name": re.compile(r"^twitter:")})
         for tag in twitter_tags:
-            name = tag.get("name", "")
-            content = tag.get("content", "").strip()
+            if not isinstance(tag, Tag):
+                continue
+            name = tag.get("name")
+            name_str = (
+                name
+                if isinstance(name, str)
+                else name[0]
+                if isinstance(name, list) and name
+                else ""
+            )
+            content = tag.get("content")
+            content_str = content.strip() if isinstance(content, str) else ""
 
-            if name and content:
+            if name_str and content_str:
                 # Convert twitter:property to twitter_property
-                key = name.replace("twitter:", "twitter_")
-                twitter_metadata[key] = content
+                key = name_str.replace("twitter:", "twitter_")
+                twitter_metadata[key] = content_str
 
         return {"twitter": twitter_metadata} if twitter_metadata else {}
 
@@ -139,19 +159,37 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
         # Microdata (basic extraction)
         microdata_items = soup.find_all(attrs={"itemscope": True})
         for item in microdata_items:
-            item_type = item.get("itemtype", "")
-            if item_type:
-                microdata = {"@type": item_type.split("/")[-1]}
+            if not isinstance(item, Tag):
+                continue
+            item_type = item.get("itemtype")
+            item_type_str = (
+                item_type
+                if isinstance(item_type, str)
+                else item_type[0]
+                if isinstance(item_type, list) and item_type
+                else ""
+            )
+            if item_type_str:
+                microdata: dict[str, Any] = {"@type": item_type_str.split("/")[-1]}
 
                 # Extract itemprop values
                 props = item.find_all(attrs={"itemprop": True})
                 for prop in props:
+                    if not isinstance(prop, Tag):
+                        continue
                     prop_name = prop.get("itemprop")
+                    prop_name_str = (
+                        prop_name
+                        if isinstance(prop_name, str)
+                        else prop_name[0]
+                        if isinstance(prop_name, list) and prop_name
+                        else None
+                    )
                     prop_value = (
                         prop.get("content") or prop.get("datetime") or prop.get_text().strip()
                     )
-                    if prop_name and prop_value:
-                        microdata[prop_name] = prop_value
+                    if prop_name_str and prop_value:
+                        microdata[prop_name_str] = prop_value
 
                 if len(microdata) > 1:  # Has properties beyond @type
                     schema_data.append(microdata)
@@ -176,7 +214,9 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
         # Image optimization
         images = soup.find_all("img")
         if images:
-            img_without_alt = len([img for img in images if not img.get("alt")])
+            img_without_alt = len(
+                [img for img in images if isinstance(img, Tag) and not img.get("alt")]
+            )
             signals["images"] = {
                 "total_count": len(images),
                 "missing_alt_count": img_without_alt,
@@ -190,15 +230,24 @@ class SEOMetadataPlugin(MetadataExtractorPlugin):
             external_links = 0
 
             for link in links:
-                href = link.get("href", "")
-                if href.startswith("http"):
-                    parsed = urlparse(href)
+                if not isinstance(link, Tag):
+                    continue
+                href = link.get("href")
+                href_str = (
+                    href
+                    if isinstance(href, str)
+                    else href[0]
+                    if isinstance(href, list) and href
+                    else ""
+                )
+                if href_str.startswith("http"):
+                    parsed = urlparse(href_str)
                     # This is simplified - in reality you'd check against the current domain
                     if "csfrace.com" in parsed.netloc:
                         internal_links += 1
                     else:
                         external_links += 1
-                elif href.startswith("/") or href.startswith("."):
+                elif href_str.startswith("/") or href_str.startswith("."):
                     internal_links += 1
 
             signals["links"] = {

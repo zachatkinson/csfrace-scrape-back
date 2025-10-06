@@ -8,7 +8,8 @@ This module contains all application middleware including:
 """
 
 import time
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,9 +38,11 @@ class SecurityMiddleware:
 
     @staticmethod
     @api_error_handler("add security headers")
-    async def add_security_headers(request: Request, call_next) -> Response:
+    async def add_security_headers(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Add comprehensive security headers to all responses."""
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # X-Frame-Options: Prevent clickjacking attacks
         response.headers["X-Frame-Options"] = "DENY"
@@ -107,7 +110,9 @@ class MetricsMiddleware:
 
     @staticmethod
     @api_error_handler("collect metrics")
-    async def collect_metrics_middleware(request: Request, call_next) -> Response:
+    async def collect_metrics_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Collect application metrics for monitoring and observability."""
         from ..monitoring.metrics import metrics_collector
 
@@ -117,14 +122,15 @@ class MetricsMiddleware:
 
         # Skip metrics collection for static assets and health checks
         if path.startswith(("/static/", "/favicon.ico")) or path == "/health":
-            return await call_next(request)
+            skip_response: Response = await call_next(request)
+            return skip_response
 
         # Increment active requests and connections
         metrics_collector.increment_active_connections()
         if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
             _increment_active_requests_safe(metrics_collector)
 
-        response = await _handle_request_with_metrics_safe(
+        response: Response = await _handle_request_with_metrics_safe(
             call_next, request, metrics_collector, method, path, start_time
         )
 
@@ -177,21 +183,26 @@ def setup_middleware(app: "FastAPI", allowed_origins: list[str]) -> None:
 
 
 @api_error_handler("increment active requests metric")
-def _increment_active_requests_safe(metrics_collector) -> None:
+def _increment_active_requests_safe(metrics_collector: Any) -> None:
     """Safely increment active requests metric."""
     metrics_collector.metrics["active_requests"].inc()
 
 
 @api_error_handler("decrement active requests metric")
-def _decrement_active_requests_safe(metrics_collector) -> None:
+def _decrement_active_requests_safe(metrics_collector: Any) -> None:
     """Safely decrement active requests metric."""
     metrics_collector.metrics["active_requests"].dec()
 
 
 @api_error_handler("handle request with metrics")
 async def _handle_request_with_metrics_safe(
-    call_next, request, metrics_collector, method, path, start_time
-):
+    call_next: Callable[[Request], Awaitable[Response]],
+    request: Request,
+    metrics_collector: Any,
+    method: str,
+    path: str,
+    start_time: float,
+) -> Response:
     """Safely handle request with metrics recording."""
     try:
         response = await call_next(request)

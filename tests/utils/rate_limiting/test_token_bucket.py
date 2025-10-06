@@ -64,7 +64,7 @@ def token_bucket_pool(standard_config: TokenBucketConfig) -> TokenBucketPool:
 class TestTokenBucketConfig:
     """Tests for TokenBucketConfig dataclass."""
 
-    def test_token_bucket_config_valid_initialization(self):
+    def test_token_bucket_config_valid_initialization(self) -> None:
         """Test config with valid parameters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 10
@@ -78,7 +78,7 @@ class TestTokenBucketConfig:
         assert config.refill_rate == refill_rate
         assert config.initial_tokens == capacity  # Defaults to capacity
 
-    def test_token_bucket_config_with_custom_initial_tokens(self):
+    def test_token_bucket_config_with_custom_initial_tokens(self) -> None:
         """Test config with custom initial tokens - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 10
@@ -93,7 +93,7 @@ class TestTokenBucketConfig:
         # Assert - MANDATORY
         assert config.initial_tokens == initial_tokens
 
-    def test_token_bucket_config_invalid_capacity_raises_error(self):
+    def test_token_bucket_config_invalid_capacity_raises_error(self) -> None:
         """Test config with invalid capacity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 0
@@ -103,7 +103,7 @@ class TestTokenBucketConfig:
         with pytest.raises(ValueError, match="Capacity must be positive"):
             TokenBucketConfig(capacity=capacity, refill_rate=refill_rate)
 
-    def test_token_bucket_config_negative_capacity_raises_error(self):
+    def test_token_bucket_config_negative_capacity_raises_error(self) -> None:
         """Test config with negative capacity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = -5
@@ -113,7 +113,7 @@ class TestTokenBucketConfig:
         with pytest.raises(ValueError, match="Capacity must be positive"):
             TokenBucketConfig(capacity=capacity, refill_rate=refill_rate)
 
-    def test_token_bucket_config_invalid_refill_rate_raises_error(self):
+    def test_token_bucket_config_invalid_refill_rate_raises_error(self) -> None:
         """Test config with invalid refill rate - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 10
@@ -123,7 +123,7 @@ class TestTokenBucketConfig:
         with pytest.raises(ValueError, match="Refill rate must be positive"):
             TokenBucketConfig(capacity=capacity, refill_rate=refill_rate)
 
-    def test_token_bucket_config_negative_refill_rate_raises_error(self):
+    def test_token_bucket_config_negative_refill_rate_raises_error(self) -> None:
         """Test config with negative refill rate - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 10
@@ -133,7 +133,7 @@ class TestTokenBucketConfig:
         with pytest.raises(ValueError, match="Refill rate must be positive"):
             TokenBucketConfig(capacity=capacity, refill_rate=refill_rate)
 
-    def test_token_bucket_config_initial_tokens_exceeds_capacity(self):
+    def test_token_bucket_config_initial_tokens_exceeds_capacity(self) -> None:
         """Test config with initial tokens > capacity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 10
@@ -146,7 +146,7 @@ class TestTokenBucketConfig:
                 capacity=capacity, refill_rate=refill_rate, initial_tokens=initial_tokens
             )
 
-    def test_token_bucket_config_negative_initial_tokens(self):
+    def test_token_bucket_config_negative_initial_tokens(self) -> None:
         """Test config with negative initial tokens - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         capacity = 10
@@ -170,7 +170,7 @@ class TestTokenBucketConfig:
 class TestTokenBucket:
     """Tests for TokenBucket class."""
 
-    async def test_token_bucket_initialization(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_initialization(self, standard_config: TokenBucketConfig) -> None:
         """Test token bucket initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Use fixture config
@@ -183,7 +183,7 @@ class TestTokenBucket:
         tokens = await bucket.get_available_tokens()
         assert tokens == standard_config.capacity
 
-    async def test_token_bucket_consume_single_token(self, token_bucket: TokenBucket):
+    async def test_token_bucket_consume_single_token(self, token_bucket: TokenBucket) -> None:
         """Test consuming single token - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_to_consume = 1
@@ -197,7 +197,7 @@ class TestTokenBucket:
         # Allow for slight refill during test execution
         assert remaining == pytest.approx(9, abs=0.1)  # 10 initial - 1 consumed
 
-    async def test_token_bucket_consume_multiple_tokens(self, token_bucket: TokenBucket):
+    async def test_token_bucket_consume_multiple_tokens(self, token_bucket: TokenBucket) -> None:
         """Test consuming multiple tokens - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_to_consume = 5
@@ -210,7 +210,7 @@ class TestTokenBucket:
         remaining = await token_bucket.get_available_tokens()
         assert remaining == pytest.approx(5, abs=0.1)  # 10 initial - 5 consumed
 
-    async def test_token_bucket_consume_all_tokens(self, token_bucket: TokenBucket):
+    async def test_token_bucket_consume_all_tokens(self, token_bucket: TokenBucket) -> None:
         """Test consuming all available tokens - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_to_consume = 10
@@ -223,7 +223,9 @@ class TestTokenBucket:
         remaining = await token_bucket.get_available_tokens()
         assert remaining == pytest.approx(0, abs=0.1)
 
-    async def test_token_bucket_consume_more_than_available(self, token_bucket: TokenBucket):
+    async def test_token_bucket_consume_more_than_available(
+        self, token_bucket: TokenBucket
+    ) -> None:
         """Test consuming more tokens than available - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await token_bucket.consume(8)  # Consume 8, leaving 2
@@ -236,7 +238,7 @@ class TestTokenBucket:
         remaining = await token_bucket.get_available_tokens()
         assert remaining == pytest.approx(2, abs=0.1)  # Should still have 2 tokens
 
-    async def test_token_bucket_consume_exceeds_capacity(self, token_bucket: TokenBucket):
+    async def test_token_bucket_consume_exceeds_capacity(self, token_bucket: TokenBucket) -> None:
         """Test consuming more than bucket capacity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_to_consume = 15  # Exceeds capacity of 10
@@ -247,7 +249,9 @@ class TestTokenBucket:
         # Assert - MANDATORY
         assert result is False
 
-    async def test_token_bucket_consume_zero_tokens_raises_error(self, token_bucket: TokenBucket):
+    async def test_token_bucket_consume_zero_tokens_raises_error(
+        self, token_bucket: TokenBucket
+    ) -> None:
         """Test consuming zero tokens raises error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_to_consume = 0
@@ -258,7 +262,7 @@ class TestTokenBucket:
 
     async def test_token_bucket_consume_negative_tokens_raises_error(
         self, token_bucket: TokenBucket
-    ):
+    ) -> None:
         """Test consuming negative tokens raises error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_to_consume = -1
@@ -267,7 +271,7 @@ class TestTokenBucket:
         with pytest.raises(ValueError, match="Token count must be positive"):
             await token_bucket.consume(tokens_to_consume)
 
-    async def test_token_bucket_refill_over_time(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_refill_over_time(self, standard_config: TokenBucketConfig) -> None:
         """Test bucket refills over time - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         bucket = TokenBucket(standard_config)
@@ -281,7 +285,9 @@ class TestTokenBucket:
         # Should have ~2 tokens after 1 second (refill_rate = 2.0)
         assert tokens_after_wait >= 1.8  # Allow for timing variance
 
-    async def test_token_bucket_refill_caps_at_capacity(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_refill_caps_at_capacity(
+        self, standard_config: TokenBucketConfig
+    ) -> None:
         """Test bucket refill caps at capacity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         bucket = TokenBucket(standard_config)
@@ -293,7 +299,7 @@ class TestTokenBucket:
         # Assert - MANDATORY
         assert tokens == standard_config.capacity  # Should cap at 10
 
-    async def test_token_bucket_get_wait_time_immediate(self, token_bucket: TokenBucket):
+    async def test_token_bucket_get_wait_time_immediate(self, token_bucket: TokenBucket) -> None:
         """Test get_wait_time when tokens available - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_needed = 5
@@ -304,7 +310,9 @@ class TestTokenBucket:
         # Assert - MANDATORY
         assert wait_time == 0.0  # Tokens immediately available
 
-    async def test_token_bucket_get_wait_time_after_consumption(self, token_bucket: TokenBucket):
+    async def test_token_bucket_get_wait_time_after_consumption(
+        self, token_bucket: TokenBucket
+    ) -> None:
         """Test get_wait_time after consuming tokens - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await token_bucket.consume(10)  # Consume all tokens
@@ -316,7 +324,9 @@ class TestTokenBucket:
         # Wait time = 4 tokens / 2.0 tokens per second = 2.0 seconds
         assert wait_time == pytest.approx(2.0, abs=0.1)
 
-    async def test_token_bucket_get_wait_time_exceeds_capacity(self, token_bucket: TokenBucket):
+    async def test_token_bucket_get_wait_time_exceeds_capacity(
+        self, token_bucket: TokenBucket
+    ) -> None:
         """Test get_wait_time for request exceeding capacity - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         tokens_needed = 15  # Exceeds capacity of 10
@@ -327,7 +337,7 @@ class TestTokenBucket:
         # Assert - MANDATORY
         assert wait_time == float("inf")  # Never fulfilled
 
-    async def test_token_bucket_reset(self, token_bucket: TokenBucket):
+    async def test_token_bucket_reset(self, token_bucket: TokenBucket) -> None:
         """Test bucket reset functionality - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await token_bucket.consume(8)  # Consume some tokens
@@ -350,7 +360,9 @@ class TestTokenBucket:
 class TestTokenBucketPool:
     """Tests for TokenBucketPool class."""
 
-    async def test_token_bucket_pool_initialization(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_pool_initialization(
+        self, standard_config: TokenBucketConfig
+    ) -> None:
         """Test pool initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         max_buckets = 100
@@ -366,7 +378,7 @@ class TestTokenBucketPool:
 
     async def test_token_bucket_pool_get_bucket_creates_new(
         self, token_bucket_pool: TokenBucketPool
-    ):
+    ) -> None:
         """Test get_bucket creates new bucket - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "user_123"
@@ -381,7 +393,7 @@ class TestTokenBucketPool:
 
     async def test_token_bucket_pool_get_bucket_returns_existing(
         self, token_bucket_pool: TokenBucketPool
-    ):
+    ) -> None:
         """Test get_bucket returns existing bucket - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "user_123"
@@ -395,7 +407,9 @@ class TestTokenBucketPool:
         count = await token_bucket_pool.get_bucket_count()
         assert count == 1  # Still only 1 bucket
 
-    async def test_token_bucket_pool_consume_from_key(self, token_bucket_pool: TokenBucketPool):
+    async def test_token_bucket_pool_consume_from_key(
+        self, token_bucket_pool: TokenBucketPool
+    ) -> None:
         """Test consuming tokens via pool key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "user_123"
@@ -409,7 +423,7 @@ class TestTokenBucketPool:
 
     async def test_token_bucket_pool_get_wait_time_from_key(
         self, token_bucket_pool: TokenBucketPool
-    ):
+    ) -> None:
         """Test get_wait_time via pool key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "user_123"
@@ -421,7 +435,9 @@ class TestTokenBucketPool:
         # Assert - MANDATORY
         assert wait_time == 0.0  # Tokens immediately available
 
-    async def test_token_bucket_pool_multiple_keys(self, token_bucket_pool: TokenBucketPool):
+    async def test_token_bucket_pool_multiple_keys(
+        self, token_bucket_pool: TokenBucketPool
+    ) -> None:
         """Test pool with multiple keys - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         keys = ["user_1", "user_2", "user_3"]
@@ -434,7 +450,9 @@ class TestTokenBucketPool:
         count = await token_bucket_pool.get_bucket_count()
         assert count == 3
 
-    async def test_token_bucket_pool_cleanup_when_full(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_pool_cleanup_when_full(
+        self, standard_config: TokenBucketConfig
+    ) -> None:
         """Test pool cleanup when max buckets reached - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         pool = TokenBucketPool(default_config=standard_config, max_buckets=10)
@@ -450,7 +468,7 @@ class TestTokenBucketPool:
         # Should have cleaned up ~25% when exceeding max
         assert count <= 10
 
-    async def test_token_bucket_pool_reset_bucket(self, token_bucket_pool: TokenBucketPool):
+    async def test_token_bucket_pool_reset_bucket(self, token_bucket_pool: TokenBucketPool) -> None:
         """Test resetting specific bucket in pool - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "user_123"
@@ -475,7 +493,9 @@ class TestTokenBucketPool:
 class TestTokenBucketConcurrency:
     """Tests for concurrent access to token buckets."""
 
-    async def test_token_bucket_concurrent_consume(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_concurrent_consume(
+        self, standard_config: TokenBucketConfig
+    ) -> None:
         """Test concurrent token consumption - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         bucket = TokenBucket(standard_config)
@@ -489,7 +509,9 @@ class TestTokenBucketConcurrency:
         successful = sum(1 for r in results if r is True)
         assert successful == 10
 
-    async def test_token_bucket_pool_concurrent_access(self, token_bucket_pool: TokenBucketPool):
+    async def test_token_bucket_pool_concurrent_access(
+        self, token_bucket_pool: TokenBucketPool
+    ) -> None:
         """Test concurrent pool access - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         keys = [f"user_{i}" for i in range(10)]
@@ -514,7 +536,9 @@ class TestTokenBucketConcurrency:
 class TestTokenBucketPerformance:
     """MANDATORY performance tests for token bucket."""
 
-    async def test_token_bucket_consume_performance(self, standard_config: TokenBucketConfig):
+    async def test_token_bucket_consume_performance(
+        self, standard_config: TokenBucketConfig
+    ) -> None:
         """MANDATORY performance test - consume operation speed."""
         # Arrange - MANDATORY
         bucket = TokenBucket(standard_config)
@@ -537,7 +561,7 @@ class TestTokenBucketPerformance:
 
     async def test_token_bucket_pool_get_bucket_performance(
         self, token_bucket_pool: TokenBucketPool
-    ):
+    ) -> None:
         """MANDATORY performance test - get_bucket speed."""
         # Arrange - MANDATORY
         iterations = 1000

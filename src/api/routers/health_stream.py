@@ -1,6 +1,7 @@
 """Health monitoring SSE stream endpoint for real-time health updates."""
 
 import json
+from collections.abc import AsyncGenerator
 from decimal import Decimal
 from typing import Any
 
@@ -21,11 +22,12 @@ router = APIRouter(prefix="/health", tags=["Health & Monitoring"])
 def safe_json_dumps(data: Any) -> str:
     """JSON dumps with handling for non-serializable types like Decimal."""
 
-    def default_serializer(obj):
+    def default_serializer(obj: Any) -> float | str:
         if isinstance(obj, Decimal):
             return float(obj)
         elif hasattr(obj, "isoformat"):
-            return obj.isoformat()
+            result: str = obj.isoformat()
+            return result
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     return json.dumps(data, default=default_serializer)
@@ -35,14 +37,14 @@ def safe_json_dumps(data: Any) -> str:
 async def health_stream(db: DBSession) -> StreamingResponse:
     """Real-time SSE endpoint with actual health checks and response times."""
 
-    async def generate():
+    async def generate() -> AsyncGenerator[str]:
         import time
         from datetime import UTC, datetime
 
         import aiohttp
 
         # Helper function to check frontend health
-        async def check_frontend_health():
+        async def check_frontend_health() -> dict[str, str | int | float]:
             try:
                 start_time = time.time()
                 timeout = aiohttp.ClientTimeout(total=5)
@@ -137,7 +139,7 @@ async def health_stream(db: DBSession) -> StreamingResponse:
 
 @router.post("/trigger-check")
 @api_error_handler("trigger health check")
-async def trigger_health_check(db: DBSession):
+async def trigger_health_check(db: DBSession) -> dict[str, Any]:
     """Manually trigger a health check and event publication."""
     from ...monitoring.health_events import publish_health_change_events
 

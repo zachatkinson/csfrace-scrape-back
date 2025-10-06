@@ -38,7 +38,7 @@ class RedisHealthCheck(HealthCheck):
 
         # Create Redis connection
         if self.redis_url:
-            r = redis.from_url(self.redis_url)
+            r = redis.from_url(self.redis_url)  # type: ignore[no-untyped-call]
         else:
             r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 

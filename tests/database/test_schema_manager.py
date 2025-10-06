@@ -5,6 +5,7 @@ Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -19,7 +20,7 @@ from src.database.schema_manager import SchemaManager, ensure_database_ready
 
 
 @pytest.fixture
-def mock_async_engine():
+def mock_async_engine() -> AsyncMock:
     """Factory for mock AsyncEngine - DRY principle."""
     engine = AsyncMock(spec=AsyncEngine)
     engine.url = Mock()
@@ -28,7 +29,7 @@ def mock_async_engine():
 
 
 @pytest.fixture
-def alembic_ini_path(tmp_path):
+def alembic_ini_path(tmp_path: Path) -> Path:
     """Factory for temporary alembic.ini path - DRY principle."""
     ini_path = tmp_path / "alembic.ini"
     ini_path.write_text("[alembic]\nscript_location = alembic")
@@ -36,13 +37,13 @@ def alembic_ini_path(tmp_path):
 
 
 @pytest.fixture
-def schema_manager_instance(mock_async_engine, alembic_ini_path):
+def schema_manager_instance(mock_async_engine: AsyncMock, alembic_ini_path: Path) -> SchemaManager:
     """Factory for SchemaManager instance - DRY principle."""
     return SchemaManager(mock_async_engine, alembic_ini_path)
 
 
 @pytest.fixture
-def mock_connection():
+def mock_connection() -> AsyncMock:
     """Factory for mock async connection - DRY principle."""
     connection = AsyncMock()
     connection.execute = AsyncMock()
@@ -50,14 +51,19 @@ def mock_connection():
 
 
 @pytest.fixture
-def mock_async_context_manager(mock_connection):
+def mock_async_context_manager(mock_connection: AsyncMock) -> Any:
     """Factory for async context manager that returns mock connection - DRY principle."""
 
     class AsyncContextManager:
-        async def __aenter__(self):
+        async def __aenter__(self) -> AsyncMock:
             return mock_connection
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: Any,
+        ) -> None:
             return None
 
     return AsyncContextManager()
@@ -72,7 +78,7 @@ def mock_async_context_manager(mock_connection):
 class TestSchemaManagerInit:
     """Test SchemaManager initialization."""
 
-    def test_init_with_default_alembic_path(self, mock_async_engine):
+    def test_init_with_default_alembic_path(self, mock_async_engine: AsyncMock) -> None:
         """Test initialization with default alembic.ini path."""
         # Act
         manager = SchemaManager(mock_async_engine)
@@ -81,7 +87,9 @@ class TestSchemaManagerInit:
         assert manager.engine is mock_async_engine
         assert manager.alembic_ini_path == Path("alembic.ini")
 
-    def test_init_with_custom_alembic_path(self, mock_async_engine, alembic_ini_path):
+    def test_init_with_custom_alembic_path(
+        self, mock_async_engine: AsyncMock, alembic_ini_path: Path
+    ) -> None:
         """Test initialization with custom alembic.ini path."""
         # Act
         manager = SchemaManager(mock_async_engine, alembic_ini_path)
@@ -101,42 +109,58 @@ class TestSchemaManagerInit:
 class TestSchemaManagerDatabaseReadiness:
     """Test ensure_database_ready functionality."""
 
-    async def test_ensure_database_ready_success(self, schema_manager_instance):
+    async def test_ensure_database_ready_success(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test successful database readiness check."""
         # Arrange
-        schema_manager_instance._test_connectivity = AsyncMock()
-        # NOTE: _run_migrations is no longer called - migrations handled by init_db()
-        schema_manager_instance._ensure_critical_schema = AsyncMock()
-        schema_manager_instance._validate_schema = AsyncMock()
+        mock_test_connectivity = AsyncMock()
+        mock_ensure_critical_schema = AsyncMock()
+        mock_validate_schema = AsyncMock()
 
         # Act
-        result = await schema_manager_instance.ensure_database_ready("development")
+        with (
+            patch.object(schema_manager_instance, "_test_connectivity", mock_test_connectivity),
+            patch.object(
+                schema_manager_instance, "_ensure_critical_schema", mock_ensure_critical_schema
+            ),
+            patch.object(schema_manager_instance, "_validate_schema", mock_validate_schema),
+        ):
+            result = await schema_manager_instance.ensure_database_ready("development")
 
         # Assert
         assert result is True
-        schema_manager_instance._test_connectivity.assert_awaited_once()
+        mock_test_connectivity.assert_awaited_once()
         # NOTE: _run_migrations should NOT be called - migrations are handled separately
-        schema_manager_instance._ensure_critical_schema.assert_awaited_once()
-        schema_manager_instance._validate_schema.assert_awaited_once()
+        mock_ensure_critical_schema.assert_awaited_once()
+        mock_validate_schema.assert_awaited_once()
 
-    async def test_ensure_database_ready_production_environment(self, schema_manager_instance):
+    async def test_ensure_database_ready_production_environment(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test database readiness for production environment."""
         # Arrange
-        schema_manager_instance._test_connectivity = AsyncMock()
-        # NOTE: _run_migrations is no longer called - migrations handled by init_db()
-        schema_manager_instance._ensure_critical_schema = AsyncMock()
-        schema_manager_instance._validate_schema = AsyncMock()
+        mock_test_connectivity = AsyncMock()
+        mock_ensure_critical_schema = AsyncMock()
+        mock_validate_schema = AsyncMock()
 
         # Act
-        result = await schema_manager_instance.ensure_database_ready("production")
+        with (
+            patch.object(schema_manager_instance, "_test_connectivity", mock_test_connectivity),
+            patch.object(
+                schema_manager_instance, "_ensure_critical_schema", mock_ensure_critical_schema
+            ),
+            patch.object(schema_manager_instance, "_validate_schema", mock_validate_schema),
+        ):
+            result = await schema_manager_instance.ensure_database_ready("production")
 
         # Assert
         assert result is True
         # All steps should complete for production too
-        schema_manager_instance._test_connectivity.assert_awaited_once()
+        mock_test_connectivity.assert_awaited_once()
         # NOTE: _run_migrations should NOT be called - migrations are handled separately
-        schema_manager_instance._ensure_critical_schema.assert_awaited_once()
-        schema_manager_instance._validate_schema.assert_awaited_once()
+        mock_ensure_critical_schema.assert_awaited_once()
+        mock_validate_schema.assert_awaited_once()
 
 
 # =============================================================================
@@ -150,14 +174,18 @@ class TestSchemaManagerConnectivity:
     """Test database connectivity testing."""
 
     async def test_test_connectivity_success(
-        self, schema_manager_instance, mock_async_context_manager, mock_connection
-    ):
+        self,
+        schema_manager_instance: SchemaManager,
+        mock_async_context_manager: Any,
+        mock_connection: AsyncMock,
+    ) -> None:
         """Test successful database connectivity check."""
         # Arrange
-        schema_manager_instance.engine.begin = Mock(return_value=mock_async_context_manager)
+        mock_begin = Mock(return_value=mock_async_context_manager)
 
         # Act
-        await schema_manager_instance._test_connectivity()
+        with patch.object(schema_manager_instance.engine, "begin", mock_begin):
+            await schema_manager_instance._test_connectivity()
 
         # Assert
         mock_connection.execute.assert_awaited_once()
@@ -165,24 +193,33 @@ class TestSchemaManagerConnectivity:
         call_args = mock_connection.execute.call_args[0][0]
         assert "SELECT 1" in str(call_args)
 
-    async def test_test_connectivity_failure(self, schema_manager_instance):
+    async def test_test_connectivity_failure(self, schema_manager_instance: SchemaManager) -> None:
         """Test database connectivity failure."""
         # Arrange
         failing_connection = AsyncMock()
-        failing_connection.execute = AsyncMock(side_effect=SQLAlchemyError("Connection failed"))
+        mock_execute = AsyncMock(side_effect=SQLAlchemyError("Connection failed"))
+        failing_connection.execute = mock_execute
 
         class FailingContextManager:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncMock:
                 return failing_connection
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: Any,
+            ) -> None:
                 return None
 
-        schema_manager_instance.engine.begin = Mock(return_value=FailingContextManager())
+        mock_begin = Mock(return_value=FailingContextManager())
 
         # Act & Assert - _test_connectivity does NOT use @database_error_handler decorator
         # So it raises SQLAlchemyError directly, not wrapped in RuntimeError
-        with pytest.raises(SQLAlchemyError, match="Connection failed"):
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            pytest.raises(SQLAlchemyError, match="Connection failed"),
+        ):
             await schema_manager_instance._test_connectivity()
 
 
@@ -196,7 +233,7 @@ class TestSchemaManagerConnectivity:
 class TestSchemaManagerMigrations:
     """Test Alembic migration execution."""
 
-    async def test_run_migrations_success(self, schema_manager_instance):
+    async def test_run_migrations_success(self, schema_manager_instance: SchemaManager) -> None:
         """Test successful migration execution."""
         # Arrange
         with (
@@ -214,7 +251,9 @@ class TestSchemaManagerMigrations:
             mock_alembic_cfg.set_main_option.assert_called_once()
             mock_command.upgrade.assert_called_once_with(mock_alembic_cfg, "head")
 
-    async def test_run_migrations_skips_when_commented_out(self, schema_manager_instance):
+    async def test_run_migrations_skips_when_commented_out(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test migration skipping (temporary skip is logged)."""
         # Arrange - The function currently skips migrations with a log message
         with (
@@ -239,15 +278,22 @@ class TestSchemaManagerCriticalSchema:
     """Test critical schema element enforcement."""
 
     async def test_ensure_critical_schema_creates_user_id_column(
-        self, schema_manager_instance, mock_async_context_manager, mock_connection
-    ):
+        self,
+        schema_manager_instance: SchemaManager,
+        mock_async_context_manager: Any,
+        mock_connection: AsyncMock,
+    ) -> None:
         """Test adds user_id column to jobs table if missing."""
         # Arrange
-        schema_manager_instance.engine.begin = Mock(return_value=mock_async_context_manager)
-        schema_manager_instance._create_indexes = AsyncMock()
+        mock_begin = Mock(return_value=mock_async_context_manager)
+        mock_create_indexes = AsyncMock()
 
         # Act
-        await schema_manager_instance._ensure_critical_schema()
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            patch.object(schema_manager_instance, "_create_indexes", mock_create_indexes),
+        ):
+            await schema_manager_instance._ensure_critical_schema()
 
         # Assert
         # Should execute user_id column addition
@@ -257,15 +303,22 @@ class TestSchemaManagerCriticalSchema:
         assert "user_id" in executed_sql.lower()
 
     async def test_ensure_critical_schema_creates_revoked_tokens_table(
-        self, schema_manager_instance, mock_async_context_manager, mock_connection
-    ):
+        self,
+        schema_manager_instance: SchemaManager,
+        mock_async_context_manager: Any,
+        mock_connection: AsyncMock,
+    ) -> None:
         """Test creates revoked_tokens table."""
         # Arrange
-        schema_manager_instance.engine.begin = Mock(return_value=mock_async_context_manager)
-        schema_manager_instance._create_indexes = AsyncMock()
+        mock_begin = Mock(return_value=mock_async_context_manager)
+        mock_create_indexes = AsyncMock()
 
         # Act
-        await schema_manager_instance._ensure_critical_schema()
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            patch.object(schema_manager_instance, "_create_indexes", mock_create_indexes),
+        ):
+            await schema_manager_instance._ensure_critical_schema()
 
         # Assert
         # Should execute revoked_tokens table creation
@@ -273,15 +326,22 @@ class TestSchemaManagerCriticalSchema:
         assert any("revoked_tokens" in sql.lower() for sql in executed_sqls)
 
     async def test_ensure_critical_schema_creates_oauth_accounts_table(
-        self, schema_manager_instance, mock_async_context_manager, mock_connection
-    ):
+        self,
+        schema_manager_instance: SchemaManager,
+        mock_async_context_manager: Any,
+        mock_connection: AsyncMock,
+    ) -> None:
         """Test creates oauth_linked_accounts table."""
         # Arrange
-        schema_manager_instance.engine.begin = Mock(return_value=mock_async_context_manager)
-        schema_manager_instance._create_indexes = AsyncMock()
+        mock_begin = Mock(return_value=mock_async_context_manager)
+        mock_create_indexes = AsyncMock()
 
         # Act
-        await schema_manager_instance._ensure_critical_schema()
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            patch.object(schema_manager_instance, "_create_indexes", mock_create_indexes),
+        ):
+            await schema_manager_instance._ensure_critical_schema()
 
         # Assert
         # Should execute oauth_linked_accounts table creation
@@ -289,18 +349,25 @@ class TestSchemaManagerCriticalSchema:
         assert any("oauth_linked_accounts" in sql.lower() for sql in executed_sqls)
 
     async def test_ensure_critical_schema_creates_indexes(
-        self, schema_manager_instance, mock_async_context_manager, mock_connection
-    ):
+        self,
+        schema_manager_instance: SchemaManager,
+        mock_async_context_manager: Any,
+        mock_connection: AsyncMock,
+    ) -> None:
         """Test creates all required indexes."""
         # Arrange
-        schema_manager_instance.engine.begin = Mock(return_value=mock_async_context_manager)
-        schema_manager_instance._create_indexes = AsyncMock()
+        mock_begin = Mock(return_value=mock_async_context_manager)
+        mock_create_indexes = AsyncMock()
 
         # Act
-        await schema_manager_instance._ensure_critical_schema()
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            patch.object(schema_manager_instance, "_create_indexes", mock_create_indexes),
+        ):
+            await schema_manager_instance._ensure_critical_schema()
 
         # Assert
-        schema_manager_instance._create_indexes.assert_awaited_once_with(mock_connection)
+        mock_create_indexes.assert_awaited_once_with(mock_connection)
 
 
 # =============================================================================
@@ -314,29 +381,32 @@ class TestSchemaManagerIndexes:
     """Test index creation functionality."""
 
     async def test_create_indexes_creates_all_required_indexes(
-        self, schema_manager_instance, mock_connection
-    ):
+        self, schema_manager_instance: SchemaManager, mock_connection: AsyncMock
+    ) -> None:
         """Test creates all three required indexes."""
         # Arrange
-        schema_manager_instance._create_single_index_safe = AsyncMock()
+        mock_create_single_index = AsyncMock()
 
         # Act
-        await schema_manager_instance._create_indexes(mock_connection)
+        with patch.object(
+            schema_manager_instance, "_create_single_index_safe", mock_create_single_index
+        ):
+            await schema_manager_instance._create_indexes(mock_connection)
 
         # Assert
         # Should call _create_single_index_safe 3 times
-        assert schema_manager_instance._create_single_index_safe.await_count == 3
+        assert mock_create_single_index.await_count == 3
 
         # Verify index names
-        calls = schema_manager_instance._create_single_index_safe.call_args_list
+        calls = mock_create_single_index.call_args_list
         index_names = [call[0][1] for call in calls]
         assert "idx_jobs_user_id" in index_names
         assert "idx_revoked_tokens_user_id" in index_names
         assert "idx_oauth_accounts_user_id" in index_names
 
     async def test_create_single_index_safe_validates_identifiers(
-        self, schema_manager_instance, mock_connection
-    ):
+        self, schema_manager_instance: SchemaManager, mock_connection: AsyncMock
+    ) -> None:
         """Test validates SQL identifiers to prevent injection."""
         # Arrange - Invalid identifier with special characters
         invalid_index_name = "idx_test; DROP TABLE users; --"
@@ -350,7 +420,9 @@ class TestSchemaManagerIndexes:
         # Should not execute SQL due to validation failure
         mock_connection.execute.assert_not_awaited()
 
-    async def test_create_single_index_safe_creates_valid_index(self, schema_manager_instance):
+    async def test_create_single_index_safe_creates_valid_index(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test creates index with valid identifiers."""
         # Arrange
         index_name = "idx_test_index"
@@ -383,12 +455,14 @@ class TestSchemaManagerIndexes:
 class TestSchemaManagerValidation:
     """Test schema validation functionality."""
 
-    async def test_validate_schema_checks_critical_tables(self, schema_manager_instance):
+    async def test_validate_schema_checks_critical_tables(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test validates all critical tables exist."""
         # Arrange
         mock_connection = AsyncMock()
         mock_result = Mock()
-        mock_result.fetchall = Mock(
+        mock_fetchall = Mock(
             return_value=[
                 ("users",),
                 ("jobs",),
@@ -396,56 +470,79 @@ class TestSchemaManagerValidation:
                 ("oauth_linked_accounts",),
             ]
         )
+        mock_result.fetchall = mock_fetchall
 
         mock_column_result = Mock()
-        mock_column_result.fetchone = Mock(return_value=("user_id",))
+        mock_fetchone = Mock(return_value=("user_id",))
+        mock_column_result.fetchone = mock_fetchone
 
-        mock_connection.execute = AsyncMock(side_effect=[mock_result, mock_column_result])
+        mock_execute = AsyncMock(side_effect=[mock_result, mock_column_result])
+        mock_connection.execute = mock_execute
 
         class ValidationContextManager:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncMock:
                 return mock_connection
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: Any,
+            ) -> None:
                 return None
 
-        schema_manager_instance.engine.begin = Mock(return_value=ValidationContextManager())
+        mock_begin = Mock(return_value=ValidationContextManager())
 
         # Act
-        await schema_manager_instance._validate_schema()
+        with patch.object(schema_manager_instance.engine, "begin", mock_begin):
+            await schema_manager_instance._validate_schema()
 
         # Assert
         # Source code executes exactly 2 queries: table check + column check
-        assert mock_connection.execute.await_count == 2
+        assert mock_execute.await_count == 2
 
-    async def test_validate_schema_raises_on_missing_tables(self, schema_manager_instance):
+    async def test_validate_schema_raises_on_missing_tables(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test raises error when critical tables are missing."""
         # Arrange
         mock_connection = AsyncMock()
         mock_result = Mock()
-        mock_result.fetchall = Mock(return_value=[("users",), ("jobs",)])  # Missing tables
-        mock_connection.execute = AsyncMock(return_value=mock_result)
+        mock_fetchall = Mock(return_value=[("users",), ("jobs",)])  # Missing tables
+        mock_result.fetchall = mock_fetchall
+        mock_execute = AsyncMock(return_value=mock_result)
+        mock_connection.execute = mock_execute
 
         class ValidationContextManager:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncMock:
                 return mock_connection
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: Any,
+            ) -> None:
                 return None
 
-        schema_manager_instance.engine.begin = Mock(return_value=ValidationContextManager())
+        mock_begin = Mock(return_value=ValidationContextManager())
 
         # Act & Assert - _validate_schema raises SQLAlchemyError directly
         # It's NOT decorated with @database_error_handler, so error is not wrapped
-        with pytest.raises(SQLAlchemyError, match="Missing critical tables"):
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            pytest.raises(SQLAlchemyError, match="Missing critical tables"),
+        ):
             await schema_manager_instance._validate_schema()
 
-    async def test_validate_schema_checks_user_id_column(self, schema_manager_instance):
+    async def test_validate_schema_checks_user_id_column(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test validates user_id column exists in jobs table."""
         # Arrange
         mock_connection = AsyncMock()
         mock_table_result = Mock()
-        mock_table_result.fetchall = Mock(
+        mock_fetchall = Mock(
             return_value=[
                 ("users",),
                 ("jobs",),
@@ -453,34 +550,45 @@ class TestSchemaManagerValidation:
                 ("oauth_linked_accounts",),
             ]
         )
+        mock_table_result.fetchall = mock_fetchall
 
         mock_column_result = Mock()
-        mock_column_result.fetchone = Mock(return_value=("user_id",))
+        mock_fetchone = Mock(return_value=("user_id",))
+        mock_column_result.fetchone = mock_fetchone
 
-        mock_connection.execute = AsyncMock(side_effect=[mock_table_result, mock_column_result])
+        mock_execute = AsyncMock(side_effect=[mock_table_result, mock_column_result])
+        mock_connection.execute = mock_execute
 
         class ValidationContextManager:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncMock:
                 return mock_connection
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: Any,
+            ) -> None:
                 return None
 
-        schema_manager_instance.engine.begin = Mock(return_value=ValidationContextManager())
+        mock_begin = Mock(return_value=ValidationContextManager())
 
         # Act
-        await schema_manager_instance._validate_schema()
+        with patch.object(schema_manager_instance.engine, "begin", mock_begin):
+            await schema_manager_instance._validate_schema()
 
         # Assert
         # Source code executes exactly 2 queries: table check + column check
-        assert mock_connection.execute.await_count == 2
+        assert mock_execute.await_count == 2
 
-    async def test_validate_schema_raises_on_missing_column(self, schema_manager_instance):
+    async def test_validate_schema_raises_on_missing_column(
+        self, schema_manager_instance: SchemaManager
+    ) -> None:
         """Test raises error when user_id column is missing from jobs table."""
         # Arrange
         mock_connection = AsyncMock()
         mock_table_result = Mock()
-        mock_table_result.fetchall = Mock(
+        mock_fetchall = Mock(
             return_value=[
                 ("users",),
                 ("jobs",),
@@ -488,23 +596,34 @@ class TestSchemaManagerValidation:
                 ("oauth_linked_accounts",),
             ]
         )
+        mock_table_result.fetchall = mock_fetchall
 
         mock_column_result = Mock()
-        mock_column_result.fetchone = Mock(return_value=None)  # Column doesn't exist
+        mock_fetchone = Mock(return_value=None)  # Column doesn't exist
+        mock_column_result.fetchone = mock_fetchone
 
-        mock_connection.execute = AsyncMock(side_effect=[mock_table_result, mock_column_result])
+        mock_execute = AsyncMock(side_effect=[mock_table_result, mock_column_result])
+        mock_connection.execute = mock_execute
 
         class ValidationContextManager:
-            async def __aenter__(self):
+            async def __aenter__(self) -> AsyncMock:
                 return mock_connection
 
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: Any,
+            ) -> None:
                 return None
 
-        schema_manager_instance.engine.begin = Mock(return_value=ValidationContextManager())
+        mock_begin = Mock(return_value=ValidationContextManager())
 
         # Act & Assert - _validate_schema raises SQLAlchemyError for missing column
-        with pytest.raises(SQLAlchemyError, match="user_id column missing"):
+        with (
+            patch.object(schema_manager_instance.engine, "begin", mock_begin),
+            pytest.raises(SQLAlchemyError, match="user_id column missing"),
+        ):
             await schema_manager_instance._validate_schema()
 
 
@@ -518,7 +637,9 @@ class TestSchemaManagerValidation:
 class TestEnsureDatabaseReadyFunction:
     """Test ensure_database_ready convenience function."""
 
-    async def test_ensure_database_ready_function_success(self, mock_async_engine):
+    async def test_ensure_database_ready_function_success(
+        self, mock_async_engine: AsyncMock
+    ) -> None:
         """Test convenience function creates SchemaManager and calls ensure_database_ready."""
         # Arrange
         with patch.object(
@@ -533,7 +654,9 @@ class TestEnsureDatabaseReadyFunction:
             assert result is True
             mock_method.assert_awaited_once_with("development")
 
-    async def test_ensure_database_ready_function_with_production(self, mock_async_engine):
+    async def test_ensure_database_ready_function_with_production(
+        self, mock_async_engine: AsyncMock
+    ) -> None:
         """Test convenience function with production environment."""
         # Arrange
         with patch.object(

@@ -107,7 +107,7 @@ def path_traversal_payloads() -> list[str]:
 class TestSanitizerInitialization:
     """Tests for HTMLSanitizer initialization."""
 
-    def test_sanitizer_initialization_with_defaults(self):
+    def test_sanitizer_initialization_with_defaults(self) -> None:
         """Test sanitizer initializes with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -121,7 +121,7 @@ class TestSanitizerInitialization:
         assert len(sanitizer.ALLOWED_TAGS) > 0
         assert len(sanitizer.ALLOWED_PROTOCOLS) > 0
 
-    def test_sanitizer_initialization_with_strict_mode_false(self):
+    def test_sanitizer_initialization_with_strict_mode_false(self) -> None:
         """Test sanitizer initializes with strict_mode=False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -133,7 +133,7 @@ class TestSanitizerInitialization:
         assert sanitizer.strict_mode is False
         assert sanitizer.cleaner is not None
 
-    def test_sanitizer_has_required_allowed_tags(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitizer_has_required_allowed_tags(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test sanitizer has required allowed tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         required_tags = {"p", "div", "span", "a", "img", "h1", "h2", "h3", "ul", "ol", "li"}
@@ -145,7 +145,9 @@ class TestSanitizerInitialization:
         for tag in required_tags:
             assert tag in allowed_tags
 
-    def test_sanitizer_has_required_allowed_protocols(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitizer_has_required_allowed_protocols(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """Test sanitizer has required allowed protocols - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         required_protocols = {"http", "https"}
@@ -157,7 +159,7 @@ class TestSanitizerInitialization:
         for protocol in required_protocols:
             assert protocol in allowed_protocols
 
-    def test_sanitizer_has_trusted_iframe_domains(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitizer_has_trusted_iframe_domains(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test sanitizer has trusted iframe domains - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_domains = {"youtube.com", "vimeo.com"}
@@ -182,7 +184,7 @@ class TestXSSPrevention:
 
     def test_sanitize_html_blocks_script_tags(
         self, default_sanitizer: HTMLSanitizer, xss_payloads: list[str]
-    ):
+    ) -> None:
         """MANDATORY security test - blocks script tag XSS - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         script_payload = '<script>alert("XSS")</script>'
@@ -194,7 +196,7 @@ class TestXSSPrevention:
         assert "<script>" not in sanitized.lower()
         assert "alert" not in sanitized.lower()
 
-    def test_sanitize_html_blocks_img_onerror_xss(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_blocks_img_onerror_xss(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks img onerror XSS - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         img_payload = '<img src=x onerror=alert("XSS")>'
@@ -206,7 +208,7 @@ class TestXSSPrevention:
         assert "onerror" not in sanitized.lower()
         assert "alert" not in sanitized.lower()
 
-    def test_sanitize_html_blocks_svg_onload_xss(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_blocks_svg_onload_xss(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks SVG onload XSS - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         svg_payload = '<svg onload=alert("XSS")>'
@@ -218,7 +220,9 @@ class TestXSSPrevention:
         assert "onload" not in sanitized.lower()
         assert "alert" not in sanitized.lower()
 
-    def test_sanitize_html_blocks_javascript_protocol(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_blocks_javascript_protocol(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """MANDATORY security test - blocks javascript: protocol - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         js_protocol = "<a href=\"javascript:alert('XSS')\">Click</a>"
@@ -229,7 +233,7 @@ class TestXSSPrevention:
         # Assert - MANDATORY
         assert "javascript:" not in sanitized.lower()
 
-    def test_sanitize_html_blocks_iframe_javascript(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_blocks_iframe_javascript(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks iframe javascript - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         iframe_payload = "<iframe src=\"javascript:alert('XSS')\"></iframe>"
@@ -240,7 +244,7 @@ class TestXSSPrevention:
         # Assert - MANDATORY
         assert "javascript:" not in sanitized.lower()
 
-    def test_sanitize_html_blocks_body_onload(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_blocks_body_onload(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks body onload - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         body_payload = '<body onload=alert("XSS")>Content</body>'
@@ -254,7 +258,7 @@ class TestXSSPrevention:
 
     def test_sanitize_html_blocks_all_xss_payloads(
         self, default_sanitizer: HTMLSanitizer, xss_payloads: list[str]
-    ):
+    ) -> None:
         """MANDATORY security test - blocks all XSS payloads - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (xss_payloads from fixture)
@@ -271,7 +275,9 @@ class TestXSSPrevention:
                 # For plain text XSS attempts, ensure they're encoded
                 assert "&lt;" in sanitized or payload.lower() == sanitized.lower()
 
-    def test_detect_potential_xss_identifies_script_tags(self, default_sanitizer: HTMLSanitizer):
+    def test_detect_potential_xss_identifies_script_tags(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """Test XSS detection identifies script tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_script = '<html><script>alert("XSS")</script></html>'
@@ -282,7 +288,9 @@ class TestXSSPrevention:
         # Assert - MANDATORY
         assert is_xss is True
 
-    def test_detect_potential_xss_identifies_event_handlers(self, default_sanitizer: HTMLSanitizer):
+    def test_detect_potential_xss_identifies_event_handlers(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """Test XSS detection identifies event handlers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_events = '<img src="test.jpg" onerror="alert(1)">'
@@ -295,7 +303,7 @@ class TestXSSPrevention:
 
     def test_detect_potential_xss_identifies_javascript_protocol(
         self, default_sanitizer: HTMLSanitizer
-    ):
+    ) -> None:
         """Test XSS detection identifies javascript: protocol - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_js_protocol = '<a href="javascript:alert(1)">Click</a>'
@@ -319,7 +327,7 @@ class TestSQLInjectionDetection:
 
     def test_sanitize_attribute_value_handles_sql_injection(
         self, default_sanitizer: HTMLSanitizer, sql_injection_payloads: list[str]
-    ):
+    ) -> None:
         """MANDATORY security test - sanitize SQL injection in attributes - MANDATORY AAA."""
         # Arrange - MANDATORY
         # (sql_injection_payloads from fixture)
@@ -334,7 +342,7 @@ class TestSQLInjectionDetection:
 
     def test_sanitize_text_encodes_sql_characters(
         self, default_sanitizer: HTMLSanitizer, sql_injection_payloads: list[str]
-    ):
+    ) -> None:
         """MANDATORY security test - encode SQL injection characters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (sql_injection_payloads from fixture)
@@ -359,7 +367,7 @@ class TestPathTraversalPrevention:
 
     def test_sanitize_url_blocks_path_traversal(
         self, default_sanitizer: HTMLSanitizer, path_traversal_payloads: list[str]
-    ):
+    ) -> None:
         """MANDATORY security test - blocks path traversal - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (path_traversal_payloads from fixture)
@@ -370,7 +378,7 @@ class TestPathTraversalPrevention:
             # Path traversal should be blocked
             assert sanitized == "" or "../" not in sanitized
 
-    def test_is_safe_url_blocks_path_traversal(self, default_sanitizer: HTMLSanitizer):
+    def test_is_safe_url_blocks_path_traversal(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - is_safe_url blocks traversal - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         traversal_url = "../../../etc/passwd"
@@ -392,7 +400,7 @@ class TestPathTraversalPrevention:
 class TestURLSanitization:
     """MANDATORY security tests for URL validation and sanitization."""
 
-    def test_sanitize_url_allows_http_protocol(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_url_allows_http_protocol(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test URL sanitization allows HTTP protocol - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         http_url = "http://example.com/page"
@@ -403,7 +411,7 @@ class TestURLSanitization:
         # Assert - MANDATORY
         assert sanitized == http_url
 
-    def test_sanitize_url_allows_https_protocol(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_url_allows_https_protocol(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test URL sanitization allows HTTPS protocol - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         https_url = "https://example.com/page"
@@ -414,7 +422,7 @@ class TestURLSanitization:
         # Assert - MANDATORY
         assert sanitized == https_url
 
-    def test_sanitize_url_blocks_data_protocol(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_url_blocks_data_protocol(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks data: protocol - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data_url = "data:text/html,<script>alert('XSS')</script>"
@@ -425,7 +433,7 @@ class TestURLSanitization:
         # Assert - MANDATORY
         assert sanitized == ""
 
-    def test_sanitize_url_blocks_file_protocol(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_url_blocks_file_protocol(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks file: protocol - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         file_url = "file:///etc/passwd"
@@ -436,7 +444,7 @@ class TestURLSanitization:
         # Assert - MANDATORY
         assert sanitized == ""
 
-    def test_is_safe_url_allows_relative_urls(self, default_sanitizer: HTMLSanitizer):
+    def test_is_safe_url_allows_relative_urls(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test is_safe_url allows relative URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         relative_url = "/path/to/page"
@@ -447,7 +455,9 @@ class TestURLSanitization:
         # Assert - MANDATORY
         assert is_safe is True
 
-    def test_is_safe_url_blocks_protocol_relative_urls(self, default_sanitizer: HTMLSanitizer):
+    def test_is_safe_url_blocks_protocol_relative_urls(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """MANDATORY security test - blocks protocol-relative URLs - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         protocol_relative = "//malicious.com/xss"
@@ -469,7 +479,9 @@ class TestURLSanitization:
 class TestCSSInjectionPrevention:
     """MANDATORY security tests for CSS injection prevention."""
 
-    def test_sanitize_css_blocks_expression_injection(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_css_blocks_expression_injection(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """MANDATORY security test - blocks CSS expression() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         css_with_expression = "width: expression(alert('XSS'))"
@@ -484,7 +496,7 @@ class TestCSSInjectionPrevention:
         # or at minimum the dangerous expression pattern should be gone
         assert "expression(" not in sanitized.lower()
 
-    def test_sanitize_css_blocks_javascript_in_url(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_css_blocks_javascript_in_url(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks javascript in CSS url() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         css_with_js = "background: url('javascript:alert(1)')"
@@ -495,7 +507,7 @@ class TestCSSInjectionPrevention:
         # Assert - MANDATORY
         assert "javascript:" not in sanitized.lower()
 
-    def test_sanitize_css_blocks_data_urls(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_css_blocks_data_urls(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks data: URLs in CSS - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         css_with_data_url = "background: url('data:text/html,<script>alert(1)</script>')"
@@ -506,7 +518,7 @@ class TestCSSInjectionPrevention:
         # Assert - MANDATORY
         assert "data:" not in sanitized.lower()
 
-    def test_sanitize_css_blocks_import_directives(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_css_blocks_import_directives(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - blocks @import directives - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         css_with_import = "@import url('malicious.css'); color: red;"
@@ -517,7 +529,7 @@ class TestCSSInjectionPrevention:
         # Assert - MANDATORY
         assert "@import" not in sanitized.lower()
 
-    def test_sanitize_css_allows_safe_properties(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_css_allows_safe_properties(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test CSS sanitization allows safe properties - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         safe_css = "color: red; font-size: 14px; margin: 10px;"
@@ -530,7 +542,7 @@ class TestCSSInjectionPrevention:
         assert "font-size: 14px" in sanitized
         assert "margin: 10px" in sanitized
 
-    def test_sanitize_css_removes_unsafe_properties(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_css_removes_unsafe_properties(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - removes unsafe CSS properties - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         unsafe_css = "position: absolute; z-index: 9999; opacity: 0;"
@@ -554,7 +566,9 @@ class TestCSSInjectionPrevention:
 class TestIframeSourceValidation:
     """MANDATORY security tests for iframe source validation."""
 
-    def test_is_trusted_iframe_source_allows_youtube(self, default_sanitizer: HTMLSanitizer):
+    def test_is_trusted_iframe_source_allows_youtube(
+        self, default_sanitizer: HTMLSanitizer
+    ) -> None:
         """Test iframe validation allows YouTube - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         youtube_url = "https://www.youtube.com/embed/video123"
@@ -565,7 +579,7 @@ class TestIframeSourceValidation:
         # Assert - MANDATORY
         assert is_trusted is True
 
-    def test_is_trusted_iframe_source_allows_vimeo(self, default_sanitizer: HTMLSanitizer):
+    def test_is_trusted_iframe_source_allows_vimeo(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test iframe validation allows Vimeo - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         vimeo_url = "https://player.vimeo.com/video/123456"
@@ -578,7 +592,7 @@ class TestIframeSourceValidation:
 
     def test_is_trusted_iframe_source_blocks_untrusted_domain(
         self, default_sanitizer: HTMLSanitizer
-    ):
+    ) -> None:
         """MANDATORY security test - blocks untrusted iframe sources - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         untrusted_url = "https://malicious.com/embed"
@@ -589,7 +603,7 @@ class TestIframeSourceValidation:
         # Assert - MANDATORY
         assert is_trusted is False
 
-    def test_sanitize_html_removes_untrusted_iframes(self, strict_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_removes_untrusted_iframes(self, strict_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - removes untrusted iframes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_iframe = '<iframe src="https://malicious.com/xss"></iframe>'
@@ -611,7 +625,7 @@ class TestIframeSourceValidation:
 class TestHTMLEntityEncoding:
     """MANDATORY security tests for HTML entity encoding."""
 
-    def test_sanitize_text_encodes_less_than(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_text_encodes_less_than(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test text sanitization encodes < character - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         text_with_lt = "5 < 10"
@@ -622,7 +636,7 @@ class TestHTMLEntityEncoding:
         # Assert - MANDATORY
         assert "&lt;" in sanitized
 
-    def test_sanitize_text_encodes_greater_than(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_text_encodes_greater_than(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test text sanitization encodes > character - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         text_with_gt = "10 > 5"
@@ -633,7 +647,7 @@ class TestHTMLEntityEncoding:
         # Assert - MANDATORY
         assert "&gt;" in sanitized
 
-    def test_sanitize_text_encodes_double_quotes(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_text_encodes_double_quotes(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test text sanitization encodes double quotes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         text_with_quotes = 'He said "hello"'
@@ -644,7 +658,7 @@ class TestHTMLEntityEncoding:
         # Assert - MANDATORY
         assert "&quot;" in sanitized
 
-    def test_sanitize_text_encodes_single_quotes(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_text_encodes_single_quotes(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test text sanitization encodes single quotes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         text_with_quotes = "It's a test"
@@ -668,7 +682,7 @@ class TestContentPreprocessing:
 
     def test_pre_process_html_removes_script_tags_completely(
         self, default_sanitizer: HTMLSanitizer
-    ):
+    ) -> None:
         """MANDATORY security test - pre-processing removes scripts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_script = '<div>Safe</div><script>alert("XSS")</script><div>Content</div>'
@@ -682,7 +696,7 @@ class TestContentPreprocessing:
         assert "<div>Safe</div>" in processed
         assert "<div>Content</div>" in processed
 
-    def test_pre_process_html_removes_style_tags(self, default_sanitizer: HTMLSanitizer):
+    def test_pre_process_html_removes_style_tags(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - removes style tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_style = "<div>Content</div><style>body { display: none; }</style>"
@@ -693,7 +707,7 @@ class TestContentPreprocessing:
         # Assert - MANDATORY
         assert "<style>" not in processed
 
-    def test_pre_process_html_removes_form_elements(self, default_sanitizer: HTMLSanitizer):
+    def test_pre_process_html_removes_form_elements(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - removes form elements - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_form = '<div>Safe</div><form><input type="text"></form>'
@@ -705,7 +719,7 @@ class TestContentPreprocessing:
         assert "<form>" not in processed
         assert "<input>" not in processed
 
-    def test_pre_process_html_removes_meta_tags(self, default_sanitizer: HTMLSanitizer):
+    def test_pre_process_html_removes_meta_tags(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - removes meta tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_meta = '<div>Content</div><meta http-equiv="refresh" content="0;url=malicious">'
@@ -727,7 +741,7 @@ class TestContentPreprocessing:
 class TestStrictModeApplication:
     """MANDATORY security tests for strict mode application."""
 
-    def test_apply_strict_rules_validates_all_links(self, strict_sanitizer: HTMLSanitizer):
+    def test_apply_strict_rules_validates_all_links(self, strict_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY security test - strict mode validates links - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_unsafe_link = '<a href="javascript:alert(1)">Click</a>'
@@ -738,7 +752,9 @@ class TestStrictModeApplication:
         # Assert - MANDATORY
         assert 'href="#"' in strict_html or "javascript:" not in strict_html
 
-    def test_apply_strict_rules_removes_untrusted_iframes(self, strict_sanitizer: HTMLSanitizer):
+    def test_apply_strict_rules_removes_untrusted_iframes(
+        self, strict_sanitizer: HTMLSanitizer
+    ) -> None:
         """MANDATORY security test - strict mode removes iframes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         html_with_iframe = '<iframe src="https://malicious.com/embed"></iframe>'
@@ -760,7 +776,7 @@ class TestStrictModeApplication:
 class TestEdgeCases:
     """Tests for edge cases and empty content handling."""
 
-    def test_sanitize_html_handles_empty_string(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_handles_empty_string(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test sanitize_html handles empty string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         empty_html = ""
@@ -771,18 +787,18 @@ class TestEdgeCases:
         # Assert - MANDATORY
         assert sanitized == ""
 
-    def test_sanitize_html_handles_none_input(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_handles_none_input(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test sanitize_html handles None input - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        none_input = None
+        none_input: str | None = None
 
         # Act - MANDATORY
-        sanitized = default_sanitizer.sanitize_html(none_input)
+        sanitized = default_sanitizer.sanitize_html(none_input)  # type: ignore[arg-type]
 
         # Assert - MANDATORY
         assert sanitized == ""
 
-    def test_sanitize_html_handles_whitespace_only(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_handles_whitespace_only(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test sanitize_html handles whitespace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         whitespace_html = "   \n\t   "
@@ -793,7 +809,7 @@ class TestEdgeCases:
         # Assert - MANDATORY
         assert sanitized.strip() == ""
 
-    def test_sanitize_html_preserves_safe_content(self, default_sanitizer: HTMLSanitizer):
+    def test_sanitize_html_preserves_safe_content(self, default_sanitizer: HTMLSanitizer) -> None:
         """Test sanitize_html preserves safe content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         safe_html = "<p>This is <strong>safe</strong> content.</p>"
@@ -818,7 +834,7 @@ class TestEdgeCases:
 class TestSanitizationPerformance:
     """MANDATORY performance tests for sanitization operations."""
 
-    def test_sanitization_initialization_performance(self):
+    def test_sanitization_initialization_performance(self) -> None:
         """MANDATORY performance test - sanitizer initialization speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -837,7 +853,7 @@ class TestSanitizationPerformance:
         assert avg_time < 0.01  # <10ms per initialization
         assert execution_time < 10.0  # Total <10s for 1000 initializations
 
-    def test_html_sanitization_performance(self, default_sanitizer: HTMLSanitizer):
+    def test_html_sanitization_performance(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY performance test - HTML sanitization speed."""
         # Arrange - MANDATORY
         html_content = "<div><p>Safe content</p><script>alert('XSS')</script></div>" * 100
@@ -857,7 +873,7 @@ class TestSanitizationPerformance:
         assert avg_time < 0.06  # <60ms per sanitization (relaxed for CI with logging overhead)
         assert execution_time < 6.0  # Total <6s for 100 sanitizations (relaxed for CI)
 
-    def test_url_sanitization_performance(self, default_sanitizer: HTMLSanitizer):
+    def test_url_sanitization_performance(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY performance test - URL sanitization speed."""
         # Arrange - MANDATORY
         urls = [
@@ -883,7 +899,7 @@ class TestSanitizationPerformance:
         assert avg_time < 0.001  # <1ms per URL sanitization
         assert execution_time < 1.0  # Total <1s for 1000 URLs
 
-    def test_css_sanitization_performance(self, default_sanitizer: HTMLSanitizer):
+    def test_css_sanitization_performance(self, default_sanitizer: HTMLSanitizer) -> None:
         """MANDATORY performance test - CSS sanitization speed."""
         # Arrange - MANDATORY
         css_content = "color: red; font-size: 14px; expression(alert('XSS'))" * 100

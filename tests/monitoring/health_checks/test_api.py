@@ -29,7 +29,7 @@ from src.monitoring.health_checks.base import HealthStatus
 
 
 @pytest.fixture
-def mock_settings():
+def mock_settings() -> MagicMock:
     """Factory for mock settings - DRY principle."""
     settings = MagicMock()
     settings.database_url = "postgresql://localhost/test"
@@ -38,7 +38,7 @@ def mock_settings():
 
 
 @pytest.fixture
-def mock_base_model():
+def mock_base_model() -> MagicMock:
     """Factory for mock Base model - DRY principle."""
     return MagicMock()
 
@@ -52,7 +52,7 @@ def mock_base_model():
 class TestAPIHealthCheck:
     """Tests for APIHealthCheck class."""
 
-    def test_api_health_check_initialization_defaults(self):
+    def test_api_health_check_initialization_defaults(self) -> None:
         """Test APIHealthCheck initialization with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -62,7 +62,7 @@ class TestAPIHealthCheck:
         assert health_check.name == "api"
         assert health_check.timeout_seconds == 10.0
 
-    def test_api_health_check_initialization_custom_values(self):
+    def test_api_health_check_initialization_custom_values(self) -> None:
         """Test APIHealthCheck with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_name = "rest_api"
@@ -76,7 +76,7 @@ class TestAPIHealthCheck:
         assert health_check.timeout_seconds == custom_timeout
 
     @pytest.mark.asyncio
-    async def test_check_api_health_all_checks_pass(self):
+    async def test_check_api_health_all_checks_pass(self) -> None:
         """Test check() when all API health checks pass - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_settings = MagicMock()
@@ -97,7 +97,7 @@ class TestAPIHealthCheck:
         assert "database_models_available" in result.details["checks_passed"]
 
     @pytest.mark.asyncio
-    async def test_check_api_health_settings_unavailable(self):
+    async def test_check_api_health_settings_unavailable(self) -> None:
         """Test check() when settings are unavailable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = APIHealthCheck()
@@ -115,7 +115,7 @@ class TestAPIHealthCheck:
         assert "configuration_loaded" in result.details["failed_checks"]
 
     @pytest.mark.asyncio
-    async def test_check_api_health_models_unavailable(self):
+    async def test_check_api_health_models_unavailable(self) -> None:
         """Test check() when database models are unavailable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_settings = MagicMock()
@@ -142,7 +142,7 @@ class TestAPIHealthCheck:
 class TestDependencyHealthCheck:
     """Tests for DependencyHealthCheck class."""
 
-    def test_dependency_health_check_initialization_defaults(self):
+    def test_dependency_health_check_initialization_defaults(self) -> None:
         """Test DependencyHealthCheck initialization with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -152,7 +152,7 @@ class TestDependencyHealthCheck:
         assert health_check.name == "dependencies"
         assert health_check.timeout_seconds == 15.0
 
-    def test_dependency_health_check_initialization_custom_values(self):
+    def test_dependency_health_check_initialization_custom_values(self) -> None:
         """Test DependencyHealthCheck with custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_name = "external_deps"
@@ -166,7 +166,7 @@ class TestDependencyHealthCheck:
         assert health_check.timeout_seconds == custom_timeout
 
     @pytest.mark.asyncio
-    async def test_check_all_dependencies_healthy(self):
+    async def test_check_all_dependencies_healthy(self) -> None:
         """Test check() when all dependencies are healthy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = DependencyHealthCheck()
@@ -188,7 +188,7 @@ class TestDependencyHealthCheck:
         assert "sqlalchemy" in dep_names
 
     @pytest.mark.asyncio
-    async def test_check_import_health_successful(self):
+    async def test_check_import_health_successful(self) -> None:
         """Test _check_import_health() with successful import - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = DependencyHealthCheck()
@@ -201,7 +201,7 @@ class TestDependencyHealthCheck:
         assert result == "healthy"
 
     @pytest.mark.asyncio
-    async def test_check_import_health_with_import_name(self):
+    async def test_check_import_health_with_import_name(self) -> None:
         """Test _check_import_health() with specific import name - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = DependencyHealthCheck()
@@ -215,7 +215,7 @@ class TestDependencyHealthCheck:
         assert result == "healthy"
 
     @pytest.mark.asyncio
-    async def test_check_dependency_statuses(self):
+    async def test_check_dependency_statuses(self) -> None:
         """Test check() returns correct dependency statuses - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_check = DependencyHealthCheck()
@@ -239,7 +239,7 @@ class TestDependencyHealthCheck:
 class TestAPIHealthCheckPerformance:
     """MANDATORY performance tests for API health check operations."""
 
-    def test_api_health_check_creation_performance(self):
+    def test_api_health_check_creation_performance(self) -> None:
         """MANDATORY performance test - APIHealthCheck creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -258,7 +258,7 @@ class TestAPIHealthCheckPerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_dependency_health_check_creation_performance(self):
+    def test_dependency_health_check_creation_performance(self) -> None:
         """MANDATORY performance test - DependencyHealthCheck creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -278,7 +278,7 @@ class TestAPIHealthCheckPerformance:
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
     @pytest.mark.asyncio
-    async def test_check_import_health_performance(self):
+    async def test_check_import_health_performance(self) -> None:
         """MANDATORY performance test - import health check speed."""
         # Arrange - MANDATORY
         health_check = DependencyHealthCheck()

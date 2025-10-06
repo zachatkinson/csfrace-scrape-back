@@ -31,7 +31,7 @@ from src.database.migrations import (
 class TestMigrationManager:
     """Unit tests for MigrationManager - MANDATORY AAA pattern."""
 
-    def test_migration_manager_creation_with_default_config(self):
+    def test_migration_manager_creation_with_default_config(self) -> None:
         """Test migration manager creation with default config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -47,7 +47,7 @@ class TestMigrationManager:
                     assert manager.config_file == Path("alembic.ini")
                     mock_config.assert_called_once()
 
-    def test_migration_manager_creation_with_custom_config(self):
+    def test_migration_manager_creation_with_custom_config(self) -> None:
         """Test migration manager creation with custom config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_path = Path("/custom/alembic.ini")
@@ -64,7 +64,7 @@ class TestMigrationManager:
                     assert manager.config_file == custom_path
                     mock_config.assert_called_once_with(str(custom_path))
 
-    def test_migration_manager_raises_on_missing_config(self):
+    def test_migration_manager_raises_on_missing_config(self) -> None:
         """Test migration manager raises FileNotFoundError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=False):
@@ -72,7 +72,7 @@ class TestMigrationManager:
             with pytest.raises(FileNotFoundError, match="Alembic config file not found"):
                 MigrationManager()
 
-    def test_is_initialized_returns_true_when_complete(self):
+    def test_is_initialized_returns_true_when_complete(self) -> None:
         """Test is_initialized returns True with complete setup - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -90,12 +90,12 @@ class TestMigrationManager:
                         # Assert - MANDATORY
                         assert result is True
 
-    def test_is_initialized_returns_false_when_incomplete(self):
+    def test_is_initialized_returns_false_when_incomplete(self) -> None:
         """Test is_initialized returns False with missing files - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         call_count = [0]
 
-        def mock_exists_selective():
+        def mock_exists_selective() -> bool:
             """Mock exists to return True for config file, False for directories."""
             call_count[0] += 1
             # First call: manager.config_file.exists() in __init__ -> True
@@ -118,7 +118,7 @@ class TestMigrationManager:
                     # Assert - MANDATORY
                     assert result is False
 
-    def test_create_migration_with_autogenerate(self):
+    def test_create_migration_with_autogenerate(self) -> None:
         """Test create_migration with autogenerate - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -140,7 +140,7 @@ class TestMigrationManager:
                             autogenerate=True,
                         )
 
-    def test_create_migration_without_autogenerate(self):
+    def test_create_migration_without_autogenerate(self) -> None:
         """Test create_migration without autogenerate - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -161,7 +161,7 @@ class TestMigrationManager:
                             message="Empty migration",
                         )
 
-    def test_upgrade_database_to_head(self):
+    def test_upgrade_database_to_head(self) -> None:
         """Test upgrade_database to head - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -178,7 +178,7 @@ class TestMigrationManager:
                         # Assert - MANDATORY
                         mock_upgrade.assert_called_once_with(manager.config, "head")
 
-    def test_upgrade_database_to_specific_revision(self):
+    def test_upgrade_database_to_specific_revision(self) -> None:
         """Test upgrade_database to specific revision - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -195,7 +195,7 @@ class TestMigrationManager:
                         # Assert - MANDATORY
                         mock_upgrade.assert_called_once_with(manager.config, "abc123")
 
-    def test_downgrade_database(self):
+    def test_downgrade_database(self) -> None:
         """Test downgrade_database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -212,7 +212,7 @@ class TestMigrationManager:
                         # Assert - MANDATORY
                         mock_downgrade.assert_called_once_with(manager.config, "abc123")
 
-    def test_get_current_revision(self):
+    def test_get_current_revision(self) -> None:
         """Test get_current_revision - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -231,7 +231,7 @@ class TestMigrationManager:
                         # Assert - MANDATORY
                         assert result == "abc123"
 
-    def test_get_migration_history(self):
+    def test_get_migration_history(self) -> None:
         """Test get_migration_history - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_history = ["rev1: First migration", "rev2: Second migration"]
@@ -254,7 +254,7 @@ class TestMigrationManager:
                         assert result == expected_history
                         assert len(result) == 2
 
-    def test_show_current_head(self):
+    def test_show_current_head(self) -> None:
         """Test show_current_head - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -273,7 +273,7 @@ class TestMigrationManager:
                         # Assert - MANDATORY
                         assert result == "xyz789"
 
-    def test_ensure_database_current_when_not_initialized(self):
+    def test_ensure_database_current_when_not_initialized(self) -> None:
         """Test ensure_database_current when db not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -296,7 +296,7 @@ class TestMigrationManager:
                                 # Assert - MANDATORY
                                 mock_upgrade.assert_called_once()
 
-    def test_ensure_database_current_when_behind_head(self):
+    def test_ensure_database_current_when_behind_head(self) -> None:
         """Test ensure_database_current when db behind head - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -319,7 +319,7 @@ class TestMigrationManager:
                                 # Assert - MANDATORY
                                 mock_upgrade.assert_called_once()
 
-    def test_ensure_database_current_when_up_to_date(self):
+    def test_ensure_database_current_when_up_to_date(self) -> None:
         """Test ensure_database_current when db up to date - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -353,7 +353,7 @@ class TestMigrationManager:
 class TestMigrationModuleFunctions:
     """Unit tests for module-level migration functions - MANDATORY AAA pattern."""
 
-    def test_get_migration_manager_returns_instance(self):
+    def test_get_migration_manager_returns_instance(self) -> None:
         """Test get_migration_manager returns MigrationManager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -379,7 +379,7 @@ class TestMigrationModuleFunctions:
 class TestMigrationsSecurity:
     """MANDATORY security tests for migrations."""
 
-    def test_config_file_path_validation(self):
+    def test_config_file_path_validation(self) -> None:
         """MANDATORY: Test config file path validation."""
         # Arrange - MANDATORY
         malicious_path = Path("../../etc/passwd")
@@ -389,7 +389,7 @@ class TestMigrationsSecurity:
             with pytest.raises(FileNotFoundError):
                 MigrationManager(config_file=malicious_path)
 
-    def test_database_url_from_environment_only(self):
+    def test_database_url_from_environment_only(self) -> None:
         """MANDATORY: Test database URL comes from secure source."""
         # Arrange - MANDATORY
         with patch("src.database.migrations.Path.exists", return_value=True):
@@ -419,7 +419,7 @@ class TestMigrationsSecurity:
 class TestMigrationsPerformance:
     """MANDATORY performance tests for migrations."""
 
-    def test_migration_manager_initialization_performance(self):
+    def test_migration_manager_initialization_performance(self) -> None:
         """MANDATORY: Test migration manager initialization performance."""
         # Arrange - MANDATORY
         import time

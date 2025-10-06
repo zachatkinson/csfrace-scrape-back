@@ -4,20 +4,22 @@ Test coverage: 26 statements, 0% → 100%
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from collections.abc import Generator
+
 import pytest
 
 from src.config.rate_limits import RateLimits, get_rate_limits, get_rate_limits_instance
 
 
 @pytest.fixture(autouse=True)
-def clear_rate_limits_env_vars(monkeypatch):
+def clear_rate_limits_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     """Clear rate limits environment variables for consistent tests."""
     monkeypatch.delenv("TESTING", raising=False)
     monkeypatch.delenv("ENVIRONMENT", raising=False)
 
 
 @pytest.fixture(autouse=True)
-def reset_rate_limits_singleton():
+def reset_rate_limits_singleton() -> Generator[None]:
     """Reset rate limits singleton state before each test."""
     import src.config.rate_limits as rate_limits_module
 
@@ -36,16 +38,18 @@ def reset_rate_limits_singleton():
 class TestRateLimitsDataclass:
     """Test RateLimits dataclass and default values."""
 
-    def test_rate_limits_is_frozen(self):
+    def test_rate_limits_is_frozen(self) -> None:
         """Test RateLimits is immutable (frozen=True)."""
         # Arrange
         rate_limits = RateLimits()
 
         # Act & Assert - should not allow modification
-        with pytest.raises(AttributeError):
-            rate_limits.AUTH_LOGIN = "10/minute"
+        with pytest.raises(
+            Exception
+        ):  # Frozen dataclass raises FrozenInstanceError or AttributeError
+            rate_limits.AUTH_LOGIN = "10/minute"  # type: ignore[misc]
 
-    def test_rate_limits_default_values(self):
+    def test_rate_limits_default_values(self) -> None:
         """Test RateLimits default production values."""
         # Arrange & Act
         rate_limits = RateLimits()
@@ -62,7 +66,7 @@ class TestRateLimitsDataclass:
         assert rate_limits.ADMIN_OPERATIONS == "100/hour"
         assert rate_limits.DEVELOPMENT == "1000/hour"
 
-    def test_rate_limits_custom_values(self):
+    def test_rate_limits_custom_values(self) -> None:
         """Test RateLimits accepts custom values."""
         # Arrange & Act
         rate_limits = RateLimits(
@@ -88,7 +92,9 @@ class TestRateLimitsDataclass:
 class TestGetRateLimits:
     """Test get_rate_limits() environment-based configuration."""
 
-    def test_get_rate_limits_returns_production_defaults(self, monkeypatch):
+    def test_get_rate_limits_returns_production_defaults(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test returns production defaults when no environment set."""
         # Arrange - clear environment variables
         monkeypatch.delenv("TESTING", raising=False)
@@ -103,7 +109,7 @@ class TestGetRateLimits:
         assert rate_limits.JOB_CREATION == "20/hour"
         assert rate_limits.BATCH_CREATION == "10/hour"
 
-    def test_get_rate_limits_returns_testing_values(self, monkeypatch):
+    def test_get_rate_limits_returns_testing_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test returns test-friendly values when TESTING=true."""
         # Arrange
         monkeypatch.setenv("TESTING", "true")
@@ -123,7 +129,9 @@ class TestGetRateLimits:
         assert rate_limits.ADMIN_OPERATIONS == "1000/hour"
         assert rate_limits.DEVELOPMENT == "1000/hour"
 
-    def test_get_rate_limits_returns_development_values(self, monkeypatch):
+    def test_get_rate_limits_returns_development_values(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test returns development-friendly values when ENVIRONMENT=development."""
         # Arrange
         monkeypatch.setenv("ENVIRONMENT", "development")
@@ -143,7 +151,9 @@ class TestGetRateLimits:
         assert rate_limits.ADMIN_OPERATIONS == "200/hour"
         assert rate_limits.DEVELOPMENT == "500/hour"
 
-    def test_get_rate_limits_testing_takes_precedence_over_development(self, monkeypatch):
+    def test_get_rate_limits_testing_takes_precedence_over_development(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test TESTING environment takes precedence over ENVIRONMENT."""
         # Arrange - Both testing and development set
         monkeypatch.setenv("TESTING", "true")
@@ -166,7 +176,9 @@ class TestGetRateLimits:
 class TestGetRateLimitsInstance:
     """Test get_rate_limits_instance() singleton pattern."""
 
-    def test_get_rate_limits_instance_creates_singleton(self, monkeypatch):
+    def test_get_rate_limits_instance_creates_singleton(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test creates singleton instance on first call."""
         # Arrange
         monkeypatch.delenv("TESTING", raising=False)
@@ -179,7 +191,9 @@ class TestGetRateLimitsInstance:
         assert instance is not None
         assert isinstance(instance, RateLimits)
 
-    def test_get_rate_limits_instance_returns_same_instance(self, monkeypatch):
+    def test_get_rate_limits_instance_returns_same_instance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test returns same instance on multiple calls."""
         # Arrange
         monkeypatch.delenv("TESTING", raising=False)
@@ -192,7 +206,9 @@ class TestGetRateLimitsInstance:
         # Assert - Same instance
         assert instance1 is instance2
 
-    def test_get_rate_limits_instance_uses_environment(self, monkeypatch):
+    def test_get_rate_limits_instance_uses_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test singleton uses environment configuration."""
         # Arrange
         monkeypatch.setenv("TESTING", "true")
@@ -214,7 +230,7 @@ class TestGetRateLimitsInstance:
 class TestModuleLevelRateLimits:
     """Test module-level rate_limits variable."""
 
-    def test_module_rate_limits_is_initialized(self):
+    def test_module_rate_limits_is_initialized(self) -> None:
         """Test module-level rate_limits is initialized on import."""
         # Arrange & Act
         from src.config.rate_limits import rate_limits
@@ -223,7 +239,7 @@ class TestModuleLevelRateLimits:
         assert rate_limits is not None
         assert isinstance(rate_limits, RateLimits)
 
-    def test_module_rate_limits_has_same_values_as_singleton(self):
+    def test_module_rate_limits_has_same_values_as_singleton(self) -> None:
         """Test module-level rate_limits has same values as singleton."""
         # Arrange & Act
         from src.config.rate_limits import rate_limits

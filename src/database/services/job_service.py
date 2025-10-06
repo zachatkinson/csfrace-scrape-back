@@ -13,6 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import and_, desc, select
+from sqlalchemy.orm import Session
 
 from src.core.decorators import database_error_handler
 from src.core.logging_hierarchy import get_database_logger
@@ -55,7 +56,7 @@ class JobCreateRequest:
 class JobService:
     """Service for job management operations."""
 
-    def __init__(self, session):
+    def __init__(self, session: Session) -> None:
         """Initialize with provided database session."""
         self.session = session
 
@@ -211,7 +212,7 @@ class JobService:
         """
         logger.debug("Getting job", job_id=job_id)
 
-        job = self.session.get(ScrapingJob, job_id)
+        job: ScrapingJob | None = self.session.get(ScrapingJob, job_id)
         if job:
             logger.debug("Job found", job_id=job_id, status=job.status)
         else:
@@ -242,7 +243,7 @@ class JobService:
         """
         logger.info("Updating job status", job_id=job_id, new_status=new_status.name)
 
-        job = self.session.get(ScrapingJob, job_id)
+        job: ScrapingJob | None = self.session.get(ScrapingJob, job_id)
         if not job:
             logger.warning("Job not found for status update", job_id=job_id)
             return None

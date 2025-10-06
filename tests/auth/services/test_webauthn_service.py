@@ -13,6 +13,7 @@ Tests WebAuthn/Passkeys authentication flows - 80% unit tests (MANDATORY).
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -32,7 +33,7 @@ from src.auth.webauthn_service import (
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> Mock:
     """Mock database session for unit tests - MANDATORY isolation."""
     session = Mock()
     session.add = Mock()
@@ -43,7 +44,7 @@ def mock_db_session():
 
 
 @pytest.fixture
-def mock_auth_service():
+def mock_auth_service() -> Mock:
     """Mock AuthService - Dependency Inversion."""
     auth_service = Mock()
     mock_user = Mock(
@@ -58,13 +59,13 @@ def mock_auth_service():
 
 
 @pytest.fixture
-def webauthn_config():
+def webauthn_config() -> Any:
     """WebAuthn configuration - DRY principle."""
     return WebAuthnConfig(rp_id="localhost", rp_name="Test RP", origin="http://localhost:3000")
 
 
 @pytest.fixture
-def webauthn_service(mock_db_session, webauthn_config, mock_auth_service):
+def webauthn_service(mock_db_session: Mock, webauthn_config: Any, mock_auth_service: Mock) -> Any:
     """Create WebAuthnService instance - MANDATORY DI."""
     return WebAuthnService(
         db_session=mock_db_session, config=webauthn_config, auth_service=mock_auth_service
@@ -72,7 +73,7 @@ def webauthn_service(mock_db_session, webauthn_config, mock_auth_service):
 
 
 @pytest.fixture
-def sample_user():
+def sample_user() -> Mock:
     """Factory for User model - DRY principle."""
     return Mock(
         id=str(uuid4()),
@@ -84,7 +85,7 @@ def sample_user():
 
 
 @pytest.fixture
-def sample_credential():
+def sample_credential() -> Any:
     """Factory for WebAuthn credential - DRY principle."""
     return WebAuthnCredential(
         credential_id="test_credential_id_123",
@@ -106,7 +107,9 @@ class TestWebAuthnRegistration:
     """Test WebAuthn registration flow - MANDATORY business logic focus."""
 
     @pytest.mark.unit
-    def test_generate_registration_options_creates_challenge(self, webauthn_service, sample_user):
+    def test_generate_registration_options_creates_challenge(
+        self, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test registration options generation creates challenge.
 
         AAA Pattern:
@@ -141,7 +144,9 @@ class TestWebAuthnRegistration:
         assert webauthn_service._pending_challenges[challenge_key]["type"] == "registration"
 
     @pytest.mark.unit
-    def test_verify_registration_stores_credential(self, webauthn_service, sample_user):
+    def test_verify_registration_stores_credential(
+        self, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test registration verification stores credential in database.
 
         Focus: Business logic of storing credential, NOT webauthn verification.
@@ -182,7 +187,7 @@ class TestWebAuthnRegistration:
         webauthn_service._store_credential.assert_called_once()
 
     @pytest.mark.unit
-    def test_registration_rejects_invalid_challenge(self, webauthn_service):
+    def test_registration_rejects_invalid_challenge(self, webauthn_service: Any) -> None:
         """Test registration rejects invalid challenge - Security validation."""
         # Arrange
         invalid_challenge = "invalid_key"
@@ -203,8 +208,8 @@ class TestWebAuthnAuthentication:
 
     @pytest.mark.unit
     def test_generate_authentication_options_creates_challenge(
-        self, webauthn_service, sample_user, sample_credential
-    ):
+        self, webauthn_service: Any, sample_user: Mock, sample_credential: Any
+    ) -> None:
         """Test authentication options generation creates challenge."""
         # Arrange
         webauthn_service._get_user_credentials = Mock(return_value=[sample_credential])
@@ -228,8 +233,12 @@ class TestWebAuthnAuthentication:
 
     @pytest.mark.unit
     def test_verify_authentication_updates_credential(
-        self, webauthn_service, sample_user, sample_credential, mock_auth_service
-    ):
+        self,
+        webauthn_service: Any,
+        sample_user: Mock,
+        sample_credential: Any,
+        mock_auth_service: Mock,
+    ) -> None:
         """Test authentication updates credential sign count and usage."""
         # Arrange
         challenge_key = f"auth_{sample_user.id}_challenge"
@@ -270,7 +279,7 @@ class TestWebAuthnAuthentication:
         webauthn_service._update_credential.assert_called_once()
 
     @pytest.mark.unit
-    def test_authentication_rejects_invalid_challenge(self, webauthn_service):
+    def test_authentication_rejects_invalid_challenge(self, webauthn_service: Any) -> None:
         """Test authentication rejects invalid challenge - Security validation."""
         # Arrange
         invalid_challenge = "invalid_key"
@@ -290,7 +299,7 @@ class TestCredentialManagement:
     """Test credential management operations - MANDATORY business logic."""
 
     @pytest.mark.unit
-    def test_get_user_credentials(self, webauthn_service, sample_user):
+    def test_get_user_credentials(self, webauthn_service: Any, sample_user: Mock) -> None:
         """Test retrieving user credentials."""
         # Arrange
         mock_credentials = [Mock(), Mock()]
@@ -304,7 +313,9 @@ class TestCredentialManagement:
         webauthn_service._get_user_credentials.assert_called_once_with(sample_user.id)
 
     @pytest.mark.unit
-    def test_revoke_credential_success(self, webauthn_service, sample_user, sample_credential):
+    def test_revoke_credential_success(
+        self, webauthn_service: Any, sample_user: Mock, sample_credential: Any
+    ) -> None:
         """Test credential revocation marks credential inactive."""
         # Arrange
         sample_credential.user_id = sample_user.id
@@ -320,7 +331,7 @@ class TestCredentialManagement:
         webauthn_service._update_credential.assert_called_once()
 
     @pytest.mark.unit
-    def test_cleanup_expired_challenges(self, webauthn_service, sample_user):
+    def test_cleanup_expired_challenges(self, webauthn_service: Any, sample_user: Mock) -> None:
         """Test cleanup of expired challenges - Maintenance logic."""
         # Arrange
         current_time = datetime.now(UTC)
@@ -362,8 +373,8 @@ class TestWebAuthnEdgeCases:
 
     @pytest.mark.unit
     def test_authentication_rejects_inactive_credential(
-        self, webauthn_service, sample_user, sample_credential
-    ):
+        self, webauthn_service: Any, sample_user: Mock, sample_credential: Any
+    ) -> None:
         """Test authentication rejects inactive credentials - Security."""
         # Arrange
         challenge_key = f"auth_{sample_user.id}_challenge"
@@ -386,8 +397,8 @@ class TestWebAuthnEdgeCases:
 
     @pytest.mark.unit
     def test_revoke_credential_wrong_user_fails(
-        self, webauthn_service, sample_user, sample_credential
-    ):
+        self, webauthn_service: Any, sample_user: Mock, sample_credential: Any
+    ) -> None:
         """Test credential revocation fails for wrong user - Security."""
         # Arrange
         sample_credential.user_id = "different_user_id"
@@ -409,12 +420,14 @@ class TestPasskeyManager:
     """Test PasskeyManager facade - High-level API testing."""
 
     @pytest.fixture
-    def passkey_manager(self, webauthn_service):
+    def passkey_manager(self, webauthn_service: Any) -> Any:
         """Create PasskeyManager instance."""
         return PasskeyManager(webauthn_service)
 
     @pytest.mark.unit
-    def test_start_passkey_registration(self, passkey_manager, webauthn_service, sample_user):
+    def test_start_passkey_registration(
+        self, passkey_manager: Any, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test passkey registration returns proper API format."""
         # Arrange
         mock_options = Mock()
@@ -443,7 +456,9 @@ class TestPasskeyManager:
         assert result["deviceName"] == "Test Device"
 
     @pytest.mark.unit
-    def test_get_passkey_summary(self, passkey_manager, webauthn_service, sample_user):
+    def test_get_passkey_summary(
+        self, passkey_manager: Any, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test passkey summary returns dashboard data."""
         # Arrange
         mock_credentials = [
@@ -486,7 +501,9 @@ class TestWebAuthnEnhancedEdgeCases:
     """Test additional edge cases to achieve 95%+ coverage."""
 
     @pytest.mark.unit
-    def test_registration_rejects_wrong_challenge_type(self, webauthn_service, sample_user):
+    def test_registration_rejects_wrong_challenge_type(
+        self, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test registration rejects authentication challenge - Line 217."""
         # Arrange - Create authentication challenge instead of registration
         challenge_key = f"reg_{sample_user.id}_challenge"
@@ -504,7 +521,9 @@ class TestWebAuthnEnhancedEdgeCases:
             webauthn_service.verify_registration_response(mock_credential, challenge_key)
 
     @pytest.mark.unit
-    def test_authentication_rejects_wrong_challenge_type(self, webauthn_service, sample_user):
+    def test_authentication_rejects_wrong_challenge_type(
+        self, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test authentication rejects registration challenge - Line 317."""
         # Arrange - Create registration challenge instead of authentication
         challenge_key = f"auth_{sample_user.id}_challenge"
@@ -523,7 +542,7 @@ class TestWebAuthnEnhancedEdgeCases:
             webauthn_service.verify_authentication_response(mock_credential, challenge_key)
 
     @pytest.mark.unit
-    def test_usernameless_authentication_no_user_provided(self, webauthn_service):
+    def test_usernameless_authentication_no_user_provided(self, webauthn_service: Any) -> None:
         """Test usernameless/discoverable authentication - Lines 265-266."""
         # Arrange - No user provided (usernameless login)
         with patch("src.auth.webauthn_service.generate_authentication_options") as mock_gen:
@@ -546,8 +565,12 @@ class TestWebAuthnEnhancedEdgeCases:
 
     @pytest.mark.unit
     def test_authentication_rejects_inactive_user(
-        self, webauthn_service, sample_user, sample_credential, mock_auth_service
-    ):
+        self,
+        webauthn_service: Any,
+        sample_user: Mock,
+        sample_credential: Any,
+        mock_auth_service: Mock,
+    ) -> None:
         """Test authentication rejects inactive user - Line 346."""
         # Arrange
         challenge_key = f"auth_{sample_user.id}_challenge"
@@ -586,8 +609,8 @@ class TestWebAuthnEnhancedEdgeCases:
 
     @pytest.mark.unit
     def test_passkey_authentication_usernameless(
-        self, mock_db_session, webauthn_config, mock_auth_service
-    ):
+        self, mock_db_session: Mock, webauthn_config: Any, mock_auth_service: Mock
+    ) -> None:
         """Test PasskeyManager start_passkey_authentication without user - Lines 506-508."""
         # Arrange
         webauthn_service = WebAuthnService(
@@ -602,18 +625,19 @@ class TestWebAuthnEnhancedEdgeCases:
         mock_options.allow_credentials = []
         mock_options.user_verification = "preferred"
 
-        webauthn_service.generate_authentication_options = Mock(
-            return_value=(mock_options, "challenge_key_any")
-        )
+        with patch.object(
+            webauthn_service,
+            "generate_authentication_options",
+            return_value=(mock_options, "challenge_key_any"),
+        ) as mock_generate:
+            # Act - No user provided (usernameless)
+            result = passkey_manager.start_passkey_authentication(user=None)
 
-        # Act - No user provided (usernameless)
-        result = passkey_manager.start_passkey_authentication(user=None)
-
-        # Assert
-        assert "publicKey" in result
-        assert "challengeKey" in result
-        assert result["challengeKey"] == "challenge_key_any"
-        webauthn_service.generate_authentication_options.assert_called_once_with(None)
+            # Assert
+            assert "publicKey" in result
+            assert "challengeKey" in result
+            assert result["challengeKey"] == "challenge_key_any"
+            mock_generate.assert_called_once_with(None)
 
 
 # ============================================================================
@@ -626,8 +650,8 @@ class TestWebAuthnPrivateMethods:
 
     @pytest.mark.unit
     def test_get_user_credentials_empty_list(
-        self, mock_db_session, webauthn_config, mock_auth_service
-    ):
+        self, mock_db_session: Mock, webauthn_config: Any, mock_auth_service: Mock
+    ) -> None:
         """Test _get_user_credentials when user has no credentials - Lines 387-396."""
         # Arrange
         webauthn_service = WebAuthnService(
@@ -650,8 +674,8 @@ class TestWebAuthnPrivateMethods:
 
     @pytest.mark.unit
     def test_get_credential_by_id_not_found(
-        self, mock_db_session, webauthn_config, mock_auth_service
-    ):
+        self, mock_db_session: Mock, webauthn_config: Any, mock_auth_service: Mock
+    ) -> None:
         """Test _get_credential_by_id when credential not found - Lines 414-425."""
         # Arrange
         webauthn_service = WebAuthnService(
@@ -673,8 +697,12 @@ class TestWebAuthnPrivateMethods:
 
     @pytest.mark.unit
     def test_update_credential_database_operation(
-        self, mock_db_session, webauthn_config, mock_auth_service, sample_credential
-    ):
+        self,
+        mock_db_session: Mock,
+        webauthn_config: Any,
+        mock_auth_service: Mock,
+        sample_credential: Any,
+    ) -> None:
         """Test _update_credential database operation - Lines 461-475."""
         # Arrange
         webauthn_service = WebAuthnService(

@@ -15,6 +15,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import time
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
@@ -30,7 +31,7 @@ from src.common.status import JobPriority, JobStatus
 
 
 @pytest.fixture
-def sample_job_data():
+def sample_job_data() -> dict[str, Any]:
     """Factory for sample job data - DRY principle."""
     return {
         "id": str(uuid4()),
@@ -55,7 +56,7 @@ def sample_job_data():
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Factory for mock database session - DRY principle."""
     session = AsyncMock()
     session.flush = AsyncMock()
@@ -65,14 +66,14 @@ def mock_db_session():
 
 
 @pytest.fixture
-def mock_job_crud():
+def mock_job_crud() -> Any:
     """Factory for mock JobCRUD - DRY principle."""
     with patch("src.api.routers.jobs.execution.JobCRUD") as mock:
         yield mock
 
 
 @pytest.fixture
-def mock_background_tasks():
+def mock_background_tasks() -> Mock:
     """Factory for mock BackgroundTasks - DRY principle."""
     tasks = Mock(spec=BackgroundTasks)
     tasks.add_task = Mock()
@@ -80,7 +81,7 @@ def mock_background_tasks():
 
 
 @pytest.fixture
-def mock_request():
+def mock_request() -> Mock:
     """Factory for mock Request (for rate limiting) - DRY principle."""
     request = Mock(spec=Request)
     request.client = Mock()
@@ -99,8 +100,12 @@ class TestCreateJobsEndpoint:
     """Tests for POST / endpoint - create jobs with batch detection."""
 
     async def test_create_single_job_success(
-        self, mock_request, mock_background_tasks, mock_db_session, sample_job_data
-    ):
+        self,
+        mock_request: Mock,
+        mock_background_tasks: Mock,
+        mock_db_session: AsyncMock,
+        sample_job_data: dict[str, Any],
+    ) -> None:
         """Test create single job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.schemas import JobsCreateRequest
@@ -138,8 +143,12 @@ class TestCreateJobsEndpoint:
             mock_background_tasks.add_task.assert_called_once()
 
     async def test_create_batch_jobs_success(
-        self, mock_request, mock_background_tasks, mock_db_session, sample_job_data
-    ):
+        self,
+        mock_request: Mock,
+        mock_background_tasks: Mock,
+        mock_db_session: AsyncMock,
+        sample_job_data: dict[str, Any],
+    ) -> None:
         """Test create batch jobs success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.schemas import JobsCreateRequest
@@ -190,8 +199,12 @@ class TestCreateJobsEndpoint:
             assert mock_background_tasks.add_task.call_count == 3
 
     async def test_create_jobs_with_custom_priority(
-        self, mock_request, mock_background_tasks, mock_db_session, sample_job_data
-    ):
+        self,
+        mock_request: Mock,
+        mock_background_tasks: Mock,
+        mock_db_session: AsyncMock,
+        sample_job_data: dict[str, Any],
+    ) -> None:
         """Test create jobs with custom priority - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.schemas import JobsCreateRequest
@@ -226,8 +239,12 @@ class TestCreateJobsEndpoint:
             assert call_kwargs["priority"] == JobPriority.HIGH.value
 
     async def test_create_jobs_extracts_domain(
-        self, mock_request, mock_background_tasks, mock_db_session, sample_job_data
-    ):
+        self,
+        mock_request: Mock,
+        mock_background_tasks: Mock,
+        mock_db_session: AsyncMock,
+        sample_job_data: dict[str, Any],
+    ) -> None:
         """Test create jobs extracts domain correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.schemas import JobsCreateRequest
@@ -262,8 +279,12 @@ class TestCreateJobsEndpoint:
             assert call_kwargs["domain"] == "custom-domain.com"
 
     async def test_create_jobs_schedules_background_tasks(
-        self, mock_request, mock_background_tasks, mock_db_session, sample_job_data
-    ):
+        self,
+        mock_request: Mock,
+        mock_background_tasks: Mock,
+        mock_db_session: AsyncMock,
+        sample_job_data: dict[str, Any],
+    ) -> None:
         """Test create jobs schedules background tasks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         from src.api.schemas import JobsCreateRequest
@@ -308,7 +329,7 @@ class TestCreateJobsEndpoint:
 class TestExecuteConversionJob:
     """Tests for execute_conversion_job background task."""
 
-    async def test_execute_conversion_job_success(self, mock_job_crud):
+    async def test_execute_conversion_job_success(self, mock_job_crud: Any) -> None:
         """Test execute_conversion_job success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -363,7 +384,7 @@ class TestExecuteConversionJob:
             # Verify converter was called
             mock_converter.convert.assert_called_once()
 
-    async def test_execute_conversion_job_creates_output_dir(self, mock_job_crud):
+    async def test_execute_conversion_job_creates_output_dir(self, mock_job_crud: Any) -> None:
         """Test execute_conversion_job creates output directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = str(uuid4())
@@ -421,8 +442,12 @@ class TestJobsExecutionPerformance:
     """MANDATORY performance tests for Jobs execution endpoints."""
 
     async def test_create_jobs_performance(
-        self, mock_request, mock_background_tasks, mock_db_session, sample_job_data
-    ):
+        self,
+        mock_request: Mock,
+        mock_background_tasks: Mock,
+        mock_db_session: AsyncMock,
+        sample_job_data: dict[str, Any],
+    ) -> None:
         """MANDATORY performance test - create jobs endpoint speed."""
         # Arrange - MANDATORY
         from src.api.schemas import JobsCreateRequest

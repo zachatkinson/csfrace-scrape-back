@@ -17,11 +17,13 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import asyncio
 import pytest
 from fastapi import APIRouter
+from fastapi.routing import APIRoute
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -40,7 +42,7 @@ from src.auth.models import StatusResponse
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> Mock:
     """Factory for mock database session - DRY principle."""
     db = MagicMock()
     db.execute = AsyncMock()
@@ -48,7 +50,7 @@ def mock_db_session():
 
 
 @pytest.fixture
-def sample_healthy_status():
+def sample_healthy_status() -> dict[str, Any]:
     """Factory for sample healthy health status - DRY principle."""
     from datetime import datetime
 
@@ -63,7 +65,7 @@ def sample_healthy_status():
 
 
 @pytest.fixture
-def sample_unhealthy_status():
+def sample_unhealthy_status() -> dict[str, Any]:
     """Factory for sample unhealthy health status - DRY principle."""
     from datetime import datetime
 
@@ -78,7 +80,7 @@ def sample_unhealthy_status():
 
 
 @pytest.fixture
-def sample_degraded_status():
+def sample_degraded_status() -> dict[str, Any]:
     """Factory for sample degraded health status - DRY principle."""
     from datetime import datetime
 
@@ -101,7 +103,7 @@ def sample_degraded_status():
 class TestHealthChecksRouter:
     """Tests for health checks router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that checks router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -109,40 +111,41 @@ class TestHealthChecksRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_health_check_endpoint(self):
+    def test_router_has_health_check_endpoint(self) -> None:
         """Test router has / endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/" in routes
 
-    def test_router_has_liveness_endpoint(self):
+    def test_router_has_liveness_endpoint(self) -> None:
         """Test router has /live endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/live" in routes
 
-    def test_router_has_readiness_endpoint(self):
+    def test_router_has_readiness_endpoint(self) -> None:
         """Test router has /ready endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/ready" in routes
 
-    def test_all_endpoints_use_get_method(self):
+    def test_all_endpoints_use_get_method(self) -> None:
         """Test all endpoints use GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         for route in router.routes:
-            assert "GET" in route.methods
+            if isinstance(route, APIRoute):
+                assert "GET" in route.methods
 
 
 # ============================================================================
@@ -156,8 +159,8 @@ class TestHealthCheckEndpoint:
 
     @pytest.mark.asyncio
     async def test_health_check_returns_healthy_response(
-        self, mock_db_session, sample_healthy_status
-    ):
+        self, mock_db_session: Mock, sample_healthy_status: dict[str, Any]
+    ) -> None:
         """Test health_check returns healthy response - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()
@@ -177,8 +180,8 @@ class TestHealthCheckEndpoint:
 
     @pytest.mark.asyncio
     async def test_health_check_includes_all_components(
-        self, mock_db_session, sample_healthy_status
-    ):
+        self, mock_db_session: Mock, sample_healthy_status: dict[str, Any]
+    ) -> None:
         """Test health_check includes all components - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()
@@ -197,8 +200,8 @@ class TestHealthCheckEndpoint:
 
     @pytest.mark.asyncio
     async def test_health_check_raises_when_unhealthy(
-        self, mock_db_session, sample_unhealthy_status
-    ):
+        self, mock_db_session: Mock, sample_unhealthy_status: dict[str, Any]
+    ) -> None:
         """Test health_check raises exception when unhealthy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()
@@ -217,8 +220,8 @@ class TestHealthCheckEndpoint:
 
     @pytest.mark.asyncio
     async def test_health_check_accepts_degraded_status(
-        self, mock_db_session, sample_degraded_status
-    ):
+        self, mock_db_session: Mock, sample_degraded_status: dict[str, Any]
+    ) -> None:
         """Test health_check accepts degraded status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()
@@ -235,7 +238,9 @@ class TestHealthCheckEndpoint:
             assert response.status == "degraded"
 
     @pytest.mark.asyncio
-    async def test_health_check_calls_health_service(self, mock_db_session, sample_healthy_status):
+    async def test_health_check_calls_health_service(
+        self, mock_db_session: Mock, sample_healthy_status: dict[str, Any]
+    ) -> None:
         """Test health_check calls health service - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()
@@ -263,7 +268,7 @@ class TestLivenessCheckEndpoint:
     """Tests for liveness check endpoint."""
 
     @pytest.mark.asyncio
-    async def test_liveness_check_returns_alive_status(self):
+    async def test_liveness_check_returns_alive_status(self) -> None:
         """Test liveness_check returns alive status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -274,7 +279,7 @@ class TestLivenessCheckEndpoint:
         assert response.status == "alive"
 
     @pytest.mark.asyncio
-    async def test_liveness_check_includes_uptime(self):
+    async def test_liveness_check_includes_uptime(self) -> None:
         """Test liveness_check includes uptime - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -282,11 +287,12 @@ class TestLivenessCheckEndpoint:
 
         # Assert - MANDATORY
         assert hasattr(response, "uptime_seconds")
+        assert response.uptime_seconds is not None
         assert isinstance(response.uptime_seconds, int)
         assert response.uptime_seconds >= 0
 
     @pytest.mark.asyncio
-    async def test_liveness_check_calculates_uptime_correctly(self):
+    async def test_liveness_check_calculates_uptime_correctly(self) -> None:
         """Test liveness_check calculates uptime - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Wait a brief moment to ensure uptime increases
@@ -297,10 +303,14 @@ class TestLivenessCheckEndpoint:
         second_response = await liveness_check()
 
         # Assert - MANDATORY
-        assert second_response.uptime_seconds >= initial_response.uptime_seconds
+        initial_uptime = initial_response.uptime_seconds
+        second_uptime = second_response.uptime_seconds
+        assert initial_uptime is not None
+        assert second_uptime is not None
+        assert second_uptime >= initial_uptime
 
     @pytest.mark.asyncio
-    async def test_liveness_check_does_not_require_db(self):
+    async def test_liveness_check_does_not_require_db(self) -> None:
         """Test liveness_check doesn't require database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -311,7 +321,7 @@ class TestLivenessCheckEndpoint:
         assert response.status == "alive"
 
     @pytest.mark.asyncio
-    async def test_liveness_check_is_fast(self):
+    async def test_liveness_check_is_fast(self) -> None:
         """Test liveness_check executes quickly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         start_time = time.perf_counter()
@@ -334,7 +344,7 @@ class TestReadinessCheckEndpoint:
     """Tests for readiness check endpoint."""
 
     @pytest.mark.asyncio
-    async def test_readiness_check_returns_ready_status(self, mock_db_session):
+    async def test_readiness_check_returns_ready_status(self, mock_db_session: Mock) -> None:
         """Test readiness_check returns ready status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_db_session.execute = AsyncMock()
@@ -347,7 +357,7 @@ class TestReadinessCheckEndpoint:
         assert response.status == "ready"
 
     @pytest.mark.asyncio
-    async def test_readiness_check_verifies_database(self, mock_db_session):
+    async def test_readiness_check_verifies_database(self, mock_db_session: Mock) -> None:
         """Test readiness_check verifies database - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_db_session.execute = AsyncMock()
@@ -362,7 +372,7 @@ class TestReadinessCheckEndpoint:
         assert isinstance(call_args, type(text("SELECT 1")))
 
     @pytest.mark.asyncio
-    async def test_readiness_check_fails_when_db_unavailable(self):
+    async def test_readiness_check_fails_when_db_unavailable(self) -> None:
         """Test readiness_check fails with unavailable DB - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_db_session = MagicMock()
@@ -379,7 +389,7 @@ class TestReadinessCheckEndpoint:
         assert "readiness check" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_readiness_check_requires_db_session(self):
+    async def test_readiness_check_requires_db_session(self) -> None:
         """Test readiness_check requires database session - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_db_session = MagicMock()
@@ -403,7 +413,7 @@ class TestReadinessCheckEndpoint:
 class TestStartupTime:
     """Tests for startup time tracking."""
 
-    def test_startup_time_is_set(self):
+    def test_startup_time_is_set(self) -> None:
         """Test startup time is initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -412,7 +422,7 @@ class TestStartupTime:
         assert isinstance(_startup_time, float)
         assert _startup_time > 0
 
-    def test_startup_time_is_reasonable(self):
+    def test_startup_time_is_reasonable(self) -> None:
         """Test startup time is reasonable - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         current_time = time.time()
@@ -435,7 +445,7 @@ class TestHealthChecksIntegration:
     """Integration tests for health check endpoints."""
 
     @pytest.mark.asyncio
-    async def test_liveness_and_readiness_work_together(self, mock_db_session):
+    async def test_liveness_and_readiness_work_together(self, mock_db_session: Mock) -> None:
         """Test liveness and readiness checks work together - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_db_session.execute = AsyncMock()
@@ -449,7 +459,9 @@ class TestHealthChecksIntegration:
         assert readiness_response.status == "ready"
 
     @pytest.mark.asyncio
-    async def test_health_check_with_healthy_service(self, mock_db_session, sample_healthy_status):
+    async def test_health_check_with_healthy_service(
+        self, mock_db_session: Mock, sample_healthy_status: dict[str, Any]
+    ) -> None:
         """Test health check with healthy service - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()
@@ -481,7 +493,7 @@ class TestHealthChecksPerformance:
     """MANDATORY performance tests for health check endpoints."""
 
     @pytest.mark.asyncio
-    async def test_liveness_check_performance(self):
+    async def test_liveness_check_performance(self) -> None:
         """MANDATORY performance test - liveness check speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -501,7 +513,7 @@ class TestHealthChecksPerformance:
         assert execution_time < 1.0  # Total <1s for 1000 checks
 
     @pytest.mark.asyncio
-    async def test_readiness_check_performance(self, mock_db_session):
+    async def test_readiness_check_performance(self, mock_db_session: Mock) -> None:
         """MANDATORY performance test - readiness check speed."""
         # Arrange - MANDATORY
         mock_db_session.execute = AsyncMock()
@@ -522,7 +534,9 @@ class TestHealthChecksPerformance:
         assert execution_time < 1.0  # Total <1s for 100 checks
 
     @pytest.mark.asyncio
-    async def test_health_check_performance(self, mock_db_session, sample_healthy_status):
+    async def test_health_check_performance(
+        self, mock_db_session: Mock, sample_healthy_status: dict[str, Any]
+    ) -> None:
         """MANDATORY performance test - health check speed."""
         # Arrange - MANDATORY
         mock_health_service = MagicMock()

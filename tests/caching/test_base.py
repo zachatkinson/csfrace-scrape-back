@@ -17,6 +17,7 @@ Tests cache base classes following TEST_BUILDING.md with comprehensive coverage.
 
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -66,7 +67,7 @@ def cache_entry() -> CacheEntry:
 class TestCacheBackend:
     """Test CacheBackend enum following MANDATORY AAA pattern."""
 
-    def test_cache_backend_has_file_type(self):
+    def test_cache_backend_has_file_type(self) -> None:
         """Test CacheBackend has FILE type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -77,7 +78,7 @@ class TestCacheBackend:
         assert backend.value == "file"
         assert backend == CacheBackend.FILE
 
-    def test_cache_backend_has_redis_type(self):
+    def test_cache_backend_has_redis_type(self) -> None:
         """Test CacheBackend has REDIS type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -88,7 +89,7 @@ class TestCacheBackend:
         assert backend.value == "redis"
         assert backend == CacheBackend.REDIS
 
-    def test_cache_backend_has_memory_type(self):
+    def test_cache_backend_has_memory_type(self) -> None:
         """Test CacheBackend has MEMORY type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -109,7 +110,7 @@ class TestCacheBackend:
 class TestCacheConfig:
     """Test CacheConfig dataclass following MANDATORY AAA pattern."""
 
-    def test_cache_config_has_default_values(self):
+    def test_cache_config_has_default_values(self) -> None:
         """Test CacheConfig creates with default values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -123,7 +124,7 @@ class TestCacheConfig:
         assert config.max_cache_size_mb > 0
         assert config.compress is True
 
-    def test_cache_config_accepts_custom_values(self, cache_config: CacheConfig):
+    def test_cache_config_accepts_custom_values(self, cache_config: CacheConfig) -> None:
         """Test CacheConfig accepts custom values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_backend = CacheBackend.REDIS
@@ -136,7 +137,7 @@ class TestCacheConfig:
         assert config.backend == custom_backend
         assert config.ttl_default == custom_ttl
 
-    def test_cache_config_from_environment_returns_config(self):
+    def test_cache_config_from_environment_returns_config(self) -> None:
         """Test CacheConfig.from_environment creates config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (environment already set)
 
@@ -157,7 +158,7 @@ class TestCacheConfig:
 class TestCacheEntry:
     """Test CacheEntry dataclass following MANDATORY AAA pattern."""
 
-    def test_cache_entry_creates_with_required_fields(self):
+    def test_cache_entry_creates_with_required_fields(self) -> None:
         """Test CacheEntry creates with required fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "test:key"
@@ -177,7 +178,9 @@ class TestCacheEntry:
         assert entry.size_bytes == 0
         assert entry.compressed is False
 
-    def test_cache_entry_is_expired_returns_false_for_valid_entry(self, cache_entry: CacheEntry):
+    def test_cache_entry_is_expired_returns_false_for_valid_entry(
+        self, cache_entry: CacheEntry
+    ) -> None:
         """Test CacheEntry.is_expired returns False for valid entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cache_entry.created_at = time.time()
@@ -189,7 +192,9 @@ class TestCacheEntry:
         # Assert - MANDATORY
         assert is_expired is False
 
-    def test_cache_entry_is_expired_returns_true_for_expired_entry(self, cache_entry: CacheEntry):
+    def test_cache_entry_is_expired_returns_true_for_expired_entry(
+        self, cache_entry: CacheEntry
+    ) -> None:
         """Test CacheEntry.is_expired returns True for expired entry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cache_entry.created_at = time.time() - 7200  # 2 hours ago
@@ -201,7 +206,7 @@ class TestCacheEntry:
         # Assert - MANDATORY
         assert is_expired is True
 
-    def test_cache_entry_is_expired_handles_zero_ttl(self, cache_entry: CacheEntry):
+    def test_cache_entry_is_expired_handles_zero_ttl(self, cache_entry: CacheEntry) -> None:
         """Test CacheEntry.is_expired handles zero TTL (never expires) - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         cache_entry.created_at = time.time() - 100000  # Long time ago
@@ -213,7 +218,7 @@ class TestCacheEntry:
         # Assert - MANDATORY
         assert is_expired is False
 
-    def test_cache_entry_age_seconds_calculates_correctly(self, cache_entry: CacheEntry):
+    def test_cache_entry_age_seconds_calculates_correctly(self, cache_entry: CacheEntry) -> None:
         """Test CacheEntry.age_seconds calculates age - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         created_time = time.time() - 100  # 100 seconds ago
@@ -226,7 +231,7 @@ class TestCacheEntry:
         assert age >= 100
         assert age < 102  # Allow small margin for execution time
 
-    def test_cache_entry_to_dict_serializes_correctly(self, cache_entry: CacheEntry):
+    def test_cache_entry_to_dict_serializes_correctly(self, cache_entry: CacheEntry) -> None:
         """Test CacheEntry.to_dict serializes to dictionary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (cache_entry fixture)
 
@@ -243,7 +248,7 @@ class TestCacheEntry:
         assert result["size_bytes"] == cache_entry.size_bytes
         assert result["compressed"] == cache_entry.compressed
 
-    def test_cache_entry_from_dict_deserializes_correctly(self):
+    def test_cache_entry_from_dict_deserializes_correctly(self) -> None:
         """Test CacheEntry.from_dict creates entry from dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = {
@@ -279,7 +284,7 @@ class TestCacheEntry:
 class TestBaseCacheBackendKeyGeneration:
     """Test BaseCacheBackend key generation following MANDATORY AAA pattern."""
 
-    def test_generate_key_creates_simple_key(self, cache_config: CacheConfig):
+    def test_generate_key_creates_simple_key(self, cache_config: CacheConfig) -> None:
         """Test generate_key creates simple key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -292,7 +297,7 @@ class TestBaseCacheBackendKeyGeneration:
         assert key == "user:123:profile"
         assert ":" in key
 
-    def test_generate_key_hashes_long_keys(self, cache_config: CacheConfig):
+    def test_generate_key_hashes_long_keys(self, cache_config: CacheConfig) -> None:
         """Test generate_key hashes overly long keys - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -305,7 +310,7 @@ class TestBaseCacheBackendKeyGeneration:
         assert len(key) <= cache_config.max_key_length
         assert ":" in key
 
-    def test_generate_key_handles_numeric_parts(self, cache_config: CacheConfig):
+    def test_generate_key_handles_numeric_parts(self, cache_config: CacheConfig) -> None:
         """Test generate_key handles numeric parts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -316,7 +321,7 @@ class TestBaseCacheBackendKeyGeneration:
         # Assert - MANDATORY
         assert key == "user:123:456.789"
 
-    def test_get_ttl_for_content_type_returns_html_ttl(self, cache_config: CacheConfig):
+    def test_get_ttl_for_content_type_returns_html_ttl(self, cache_config: CacheConfig) -> None:
         """Test get_ttl_for_content_type returns HTML TTL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -328,7 +333,7 @@ class TestBaseCacheBackendKeyGeneration:
         assert ttl == cache_config.ttl_html
         assert ttl > 0
 
-    def test_get_ttl_for_content_type_returns_image_ttl(self, cache_config: CacheConfig):
+    def test_get_ttl_for_content_type_returns_image_ttl(self, cache_config: CacheConfig) -> None:
         """Test get_ttl_for_content_type returns image TTL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -340,7 +345,9 @@ class TestBaseCacheBackendKeyGeneration:
         assert ttl == cache_config.ttl_images
         assert ttl > 0
 
-    def test_get_ttl_for_content_type_returns_default_for_unknown(self, cache_config: CacheConfig):
+    def test_get_ttl_for_content_type_returns_default_for_unknown(
+        self, cache_config: CacheConfig
+    ) -> None:
         """Test get_ttl_for_content_type returns default for unknown type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -365,7 +372,7 @@ class MockCacheBackend(BaseCacheBackend):
         return None
 
     async def set(
-        self, key: str, value, ttl: int | None = None, content_type: str = "generic"
+        self, key: str, value: Any, ttl: int | None = None, content_type: str = "generic"
     ) -> bool:
         """Mock set implementation."""
         return True
@@ -378,7 +385,7 @@ class MockCacheBackend(BaseCacheBackend):
         """Mock clear implementation."""
         return True
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         """Mock stats implementation."""
         return {}
 
@@ -397,7 +404,7 @@ class TestCacheBaseSecurity:
     """MANDATORY security tests for cache base module."""
 
     @pytest.mark.unit
-    def test_generate_key_sanitizes_path_traversal(self, cache_config: CacheConfig):
+    def test_generate_key_sanitizes_path_traversal(self, cache_config: CacheConfig) -> None:
         """MANDATORY security test - key generation sanitizes path traversal."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -413,7 +420,7 @@ class TestCacheBaseSecurity:
             assert isinstance(key, str)
 
     @pytest.mark.unit
-    def test_cache_entry_handles_malicious_values(self):
+    def test_cache_entry_handles_malicious_values(self) -> None:
         """MANDATORY security test - cache entry handles malicious values safely."""
         # Arrange - MANDATORY
         malicious_values = [
@@ -450,7 +457,7 @@ class TestCacheBasePerformance:
     """MANDATORY performance tests for cache base module."""
 
     @pytest.mark.unit
-    def test_generate_key_performance_benchmark(self, cache_config: CacheConfig):
+    def test_generate_key_performance_benchmark(self, cache_config: CacheConfig) -> None:
         """MANDATORY performance test - key generation completes quickly."""
         # Arrange - MANDATORY
         backend = MockCacheBackend(cache_config)
@@ -470,7 +477,7 @@ class TestCacheBasePerformance:
         assert execution_time < 1.0  # Total under 1 second for 1000 keys
 
     @pytest.mark.unit
-    def test_cache_entry_serialization_performance_benchmark(self, cache_entry: CacheEntry):
+    def test_cache_entry_serialization_performance_benchmark(self, cache_entry: CacheEntry) -> None:
         """MANDATORY performance test - entry serialization completes quickly."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -490,7 +497,7 @@ class TestCacheBasePerformance:
         assert execution_time < 1.0  # Total under 1 second for 10000 operations
 
     @pytest.mark.unit
-    def test_is_expired_check_performance_benchmark(self):
+    def test_is_expired_check_performance_benchmark(self) -> None:
         """MANDATORY performance test - expiry check completes quickly."""
         # Arrange - MANDATORY
         entries = [

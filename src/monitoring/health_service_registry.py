@@ -37,7 +37,7 @@ logger = get_monitoring_logger()
 def serialize_health_data(data: dict[str, Any]) -> dict[str, Any]:
     """Serialize health data, converting non-JSON-serializable types."""
 
-    def convert_value(value):
+    def convert_value(value: Any) -> Any:
         if isinstance(value, Decimal):
             return float(value)
         elif isinstance(value, datetime):
@@ -205,7 +205,7 @@ class RedisHealthEmitter(HealthEmitter):
 class PostgreSQLHealthEmitter(HealthEmitter):
     """PostgreSQL service health emitter."""
 
-    def __init__(self, redis_client: Redis, db_session_factory, check_interval: float = 30.0):
+    def __init__(self, redis_client: Redis, db_session_factory: Any, check_interval: float = 30.0):
         super().__init__("postgresql", redis_client, check_interval)
         self.db_session_factory = db_session_factory
 
@@ -435,7 +435,7 @@ class HealthServiceRegistry:
             self._logger.info("Stopped monitoring", service=service_name)
 
     async def initialize_default_services(
-        self, db_session_factory, frontend_url: str = "http://frontend:3000"
+        self, db_session_factory: Any, frontend_url: str = "http://frontend:3000"
     ) -> None:
         """Initialize all default service emitters."""
         # Register Redis health emitter
@@ -466,7 +466,7 @@ health_service_registry: HealthServiceRegistry | None = None
 
 
 async def initialize_health_service_registry(
-    redis_client: Redis, db_session_factory
+    redis_client: Redis, db_session_factory: Any
 ) -> HealthServiceRegistry:
     """Initialize the global health service registry."""
     global health_service_registry

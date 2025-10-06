@@ -4,6 +4,7 @@ This test file provides minimal test coverage to generate a coverage report
 that will show us which parts of the codebase need testing.
 """
 
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -13,7 +14,7 @@ class TestBasicCoverage:
     """Basic tests to enable coverage analysis."""
 
     @pytest.mark.unit
-    def test_basic_imports(self):
+    def test_basic_imports(self) -> None:
         """Test that we can import core modules."""
         # Test basic Python functionality
         assert True
@@ -22,7 +23,7 @@ class TestBasicCoverage:
         assert pytest is not None
 
     @pytest.mark.unit
-    def test_mock_functionality(self):
+    def test_mock_functionality(self) -> None:
         """Test that mocking works for our test infrastructure."""
         mock = Mock()
         mock.test_method.return_value = "test"
@@ -31,7 +32,7 @@ class TestBasicCoverage:
         assert result == "test"
 
     @pytest.mark.unit
-    def test_environment_setup(self):
+    def test_environment_setup(self) -> None:
         """Test that test environment variables are set."""
         import os
 
@@ -44,7 +45,7 @@ class TestSrcModuleImports:
     """Test importing actual source modules to measure coverage."""
 
     @pytest.mark.unit
-    def test_import_main_modules(self):
+    def test_import_main_modules(self) -> None:
         """Test importing main application modules."""
         try:
             import src
@@ -58,7 +59,7 @@ class TestSrcModuleImports:
             pytest.skip(f"Module import failed: {e}")
 
     @pytest.mark.unit
-    def test_import_auth_modules(self):
+    def test_import_auth_modules(self) -> None:
         """Test importing auth modules."""
         try:
             import src.auth
@@ -69,7 +70,7 @@ class TestSrcModuleImports:
             pytest.skip(f"Auth module import failed: {e}")
 
     @pytest.mark.unit
-    def test_import_database_modules(self):
+    def test_import_database_modules(self) -> None:
         """Test importing database modules."""
         try:
             import src.database
@@ -80,7 +81,7 @@ class TestSrcModuleImports:
             pytest.skip(f"Database module import failed: {e}")
 
     @pytest.mark.unit
-    def test_import_api_modules(self):
+    def test_import_api_modules(self) -> None:
         """Test importing API modules."""
         try:
             import src.api
@@ -90,7 +91,7 @@ class TestSrcModuleImports:
             pytest.skip(f"API module import failed: {e}")
 
     @pytest.mark.unit
-    def test_import_core_modules(self):
+    def test_import_core_modules(self) -> None:
         """Test importing core modules."""
         try:
             import src.core
@@ -104,7 +105,7 @@ class TestMockFactories:
     """Test our real factory classes."""
 
     @pytest.mark.unit
-    def test_job_factory_exists(self):
+    def test_job_factory_exists(self) -> None:
         """Test JobFactory is available and functional."""
         from tests.conftest import JobFactory
 
@@ -118,14 +119,14 @@ class TestSecurityFixtures:
     """Test security testing infrastructure."""
 
     @pytest.mark.security
-    def test_security_payloads_fixture(self, security_payloads):
+    def test_security_payloads_fixture(self, security_payloads: dict[str, list[str]]) -> None:
         """Test that security_payloads fixture exists and returns data."""
         # security_payloads fixture exists in conftest.py
         assert security_payloads is not None
         assert isinstance(security_payloads, dict)
 
     @pytest.mark.security
-    def test_security_payloads_structure(self, security_payloads):
+    def test_security_payloads_structure(self, security_payloads: dict[str, list[str]]) -> None:
         """Test security payloads structure."""
         # Verify basic structure
         assert "sql_injection" in security_payloads
@@ -138,7 +139,7 @@ class TestPerformanceFixtures:
     """Test performance testing infrastructure."""
 
     @pytest.mark.performance
-    def test_performance_timer(self, performance_timer):
+    def test_performance_timer(self, performance_timer: Any) -> None:
         """Test performance timer functionality."""
         import time
 

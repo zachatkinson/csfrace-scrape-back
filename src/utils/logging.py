@@ -6,7 +6,7 @@ across the entire application, eliminating duplicate import patterns.
 
 import os
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 
@@ -75,7 +75,7 @@ class LoggerFactory:
         cls._configured = True
 
     @classmethod
-    def get_logger(cls, name: str = None) -> structlog.BoundLogger:
+    def get_logger(cls, name: str | None = None) -> structlog.BoundLogger:
         """Get a configured logger instance.
 
         Args:
@@ -98,10 +98,10 @@ class LoggerFactory:
             else:
                 name = "unknown"
 
-        return structlog.get_logger(name)
+        return cast("structlog.BoundLogger", structlog.get_logger(name))
 
 
-def get_logger(name: str = None) -> structlog.BoundLogger:
+def get_logger(name: str | None = None) -> structlog.BoundLogger:
     """Convenience function to get a logger instance.
 
     This is the main entry point that all modules should use:
@@ -122,7 +122,9 @@ def get_logger(name: str = None) -> structlog.BoundLogger:
 
 
 def configure_logging(
-    log_level: str = None, enable_json: bool | None = None, enable_colors: bool | None = None
+    log_level: str | None = None,
+    enable_json: bool | None = None,
+    enable_colors: bool | None = None,
 ) -> None:
     """Configure application logging from environment variables.
 

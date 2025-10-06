@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 
 from src.core.decorators import database_error_handler
 
@@ -28,7 +29,7 @@ except ImportError:
 
 
 @database_error_handler("initialize database")
-async def init_db(engine=None) -> None:
+async def init_db(engine: Engine | None = None) -> None:
     """Initialize the database using Alembic migrations for production-ready schema management.
 
     Following PostgreSQL and SQLAlchemy best practices:
@@ -113,7 +114,7 @@ async def _run_alembic_migrations() -> None:
 
 
 @database_error_handler("create PostgreSQL enums safely")
-async def _create_enums_safely(engine) -> None:
+async def _create_enums_safely(engine: Engine) -> None:
     """Create PostgreSQL enum types safely for concurrent test execution.
 
     Uses PostgreSQL's transaction-safe enum creation pattern recommended

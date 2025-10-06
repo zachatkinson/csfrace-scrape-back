@@ -16,6 +16,8 @@ Tests API error factory and global exception handling with comprehensive coverag
 """
 
 import time
+from collections.abc import Awaitable, Callable, MutableMapping
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -43,7 +45,7 @@ class TestAPIErrorFactory:
     """Unit tests for APIErrorFactory following MANDATORY AAA pattern."""
 
     @pytest.mark.unit
-    def test_not_found_creates_correct_error(self):
+    def test_not_found_creates_correct_error(self) -> None:
         """Test not_found creates properly structured 404 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         resource = "Job"
@@ -55,6 +57,7 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_404_NOT_FOUND
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert resource in result.detail["message"]
         assert str(identifier) in result.detail["message"]
@@ -62,11 +65,13 @@ class TestAPIErrorFactory:
         assert "timestamp" in result.detail
 
     @pytest.mark.unit
-    def test_database_error_creates_correct_error(self):
+    def test_database_error_creates_correct_error(self) -> None:
         """Test database_error creates properly structured 500 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "create batch"
-        original_error = OperationalError("Connection failed", None, None)
+        # SQLAlchemy OperationalError requires statement, params, orig (BaseException), and hide_parameters
+        base_exc = Exception("Connection failed")
+        original_error = OperationalError("Connection failed", None, base_exc, False)
 
         # Act - MANDATORY
         result = APIErrorFactory.database_error(operation, original_error)
@@ -74,12 +79,13 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert operation in result.detail["message"]
         assert "error_code" in result.detail
 
     @pytest.mark.unit
-    def test_validation_error_with_field_and_details(self):
+    def test_validation_error_with_field_and_details(self) -> None:
         """Test validation_error with field and details - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Invalid input"
@@ -92,14 +98,16 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert message in result.detail["message"]
         assert "details" in result.detail
+        assert isinstance(result.detail["details"], dict)
         assert result.detail["details"]["field"] == field
         assert "pattern" in result.detail["details"]
 
     @pytest.mark.unit
-    def test_business_logic_error_creates_correct_error(self):
+    def test_business_logic_error_creates_correct_error(self) -> None:
         """Test business_logic_error creates proper 422 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Cannot delete job in progress"
@@ -111,12 +119,13 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_400_BAD_REQUEST
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert message in result.detail["message"]
         assert result.detail["error_code"] == error_code
 
     @pytest.mark.unit
-    def test_internal_server_error_hides_details(self):
+    def test_internal_server_error_hides_details(self) -> None:
         """Test internal_server_error doesn't expose sensitive info - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         sensitive_message = "Database password is invalid"
@@ -128,13 +137,14 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY (security check)
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         # MANDATORY: Sensitive details should not be in message
         assert sensitive_message not in result.detail["message"]
         assert "Internal server error" in result.detail["message"]
 
     @pytest.mark.unit
-    def test_unauthorized_creates_401_error(self):
+    def test_unauthorized_creates_401_error(self) -> None:
         """Test unauthorized creates proper 401 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Token expired"
@@ -145,11 +155,12 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_401_UNAUTHORIZED
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert message in result.detail["message"]
 
     @pytest.mark.unit
-    def test_forbidden_creates_403_error(self):
+    def test_forbidden_creates_403_error(self) -> None:
         """Test forbidden creates proper 403 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Insufficient permissions"
@@ -160,11 +171,12 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_403_FORBIDDEN
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert message in result.detail["message"]
 
     @pytest.mark.unit
-    def test_rate_limit_exceeded_creates_429_error(self):
+    def test_rate_limit_exceeded_creates_429_error(self) -> None:
         """Test rate_limit_exceeded creates proper 429 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Too many requests"
@@ -175,11 +187,12 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert message in result.detail["message"]
 
     @pytest.mark.unit
-    def test_service_unavailable_creates_503_error(self):
+    def test_service_unavailable_creates_503_error(self) -> None:
         """Test service_unavailable creates proper 503 error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = "Database maintenance in progress"
@@ -191,15 +204,18 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert message in result.detail["message"]
 
     @pytest.mark.unit
-    def test_from_sqlalchemy_error_integrity_error(self):
+    def test_from_sqlalchemy_error_integrity_error(self) -> None:
         """Test from_sqlalchemy_error handles IntegrityError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "create user"
-        sql_error = IntegrityError("UNIQUE constraint failed", None, None)
+        # SQLAlchemy IntegrityError requires statement, params, orig (BaseException), and hide_parameters
+        base_exc = Exception("UNIQUE constraint failed")
+        sql_error = IntegrityError("UNIQUE constraint failed", None, base_exc, False)
 
         # Act - MANDATORY
         result = APIErrorFactory.from_sqlalchemy_error(operation, sql_error)
@@ -207,14 +223,17 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
 
     @pytest.mark.unit
-    def test_from_sqlalchemy_error_operational_error(self):
+    def test_from_sqlalchemy_error_operational_error(self) -> None:
         """Test from_sqlalchemy_error handles OperationalError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "fetch jobs"
-        sql_error = OperationalError("Connection timeout", None, None)
+        # SQLAlchemy OperationalError requires statement, params, orig (BaseException), and hide_parameters
+        base_exc = Exception("Connection timeout")
+        sql_error = OperationalError("Connection timeout", None, base_exc, False)
 
         # Act - MANDATORY
         result = APIErrorFactory.from_sqlalchemy_error(operation, sql_error)
@@ -222,10 +241,11 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY
         assert isinstance(result, HTTPException)
         assert result.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
 
     @pytest.mark.unit
-    def test_from_application_error_handles_all_types(self):
+    def test_from_application_error_handles_all_types(self) -> None:
         """Test from_application_error handles all error types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         error_types = [
@@ -247,13 +267,14 @@ class TestAPIErrorFactory:
             # Assert - MANDATORY
             assert isinstance(result, HTTPException)
             assert result.status_code == expected_status
+            assert isinstance(result.detail, dict)
             assert "message" in result.detail
             assert "error_code" in result.detail
             assert "timestamp" in result.detail
 
     @pytest.mark.unit
     @pytest.mark.security
-    def test_error_detail_structure_is_consistent(self):
+    def test_error_detail_structure_is_consistent(self) -> None:
         """MANDATORY security test - error details have consistent structure."""
         # Arrange - MANDATORY
         sensitive_data = "password=secret123&token=abc-def-ghi"
@@ -265,15 +286,14 @@ class TestAPIErrorFactory:
         # Assert - MANDATORY (security check)
         assert isinstance(result, HTTPException)
         assert result.detail is not None
+        assert isinstance(result.detail, dict)
         assert "message" in result.detail
         assert "error_code" in result.detail
         assert "timestamp" in result.detail
-        # MANDATORY: Response is JSON-serializable
-        assert isinstance(result.detail, dict)
 
     @pytest.mark.unit
     @pytest.mark.security
-    def test_debug_mode_disabled_hides_traceback(self):
+    def test_debug_mode_disabled_hides_traceback(self) -> None:
         """MANDATORY security test - debug mode off hides tracebacks."""
         # Arrange - MANDATORY
         with patch.object(APIErrorFactory, "_debug_mode", False):
@@ -284,12 +304,13 @@ class TestAPIErrorFactory:
             result = APIErrorFactory.from_application_error(error)
 
             # Assert - MANDATORY (security check)
+            assert isinstance(result.detail, dict)
             assert "debug" not in result.detail
             assert "traceback" not in str(result.detail).lower()
 
     @pytest.mark.unit
     @pytest.mark.performance
-    def test_error_creation_performance(self):
+    def test_error_creation_performance(self) -> None:
         """MANDATORY performance test - error creation completes quickly."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -313,11 +334,11 @@ class TestGlobalExceptionHandler:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_global_handler_handles_application_errors(self):
+    async def test_global_handler_handles_application_errors(self) -> None:
         """Test global handler processes application errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        handler = create_global_exception_handler()
-        mock_request = Mock()
+        handler: Callable[[Any, Exception], Any] = create_global_exception_handler()
+        mock_request: Mock = Mock()
         mock_request.url.path = "/api/test"
         mock_request.method = "GET"
         test_error = APINotFoundError("Test", 123)
@@ -331,11 +352,11 @@ class TestGlobalExceptionHandler:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_global_handler_handles_unexpected_errors(self):
+    async def test_global_handler_handles_unexpected_errors(self) -> None:
         """Test global handler handles unexpected exceptions - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        handler = create_global_exception_handler()
-        mock_request = Mock()
+        handler: Callable[[Any, Exception], Any] = create_global_exception_handler()
+        mock_request: Mock = Mock()
         mock_request.url.path = "/api/test"
         mock_request.method = "POST"
         unexpected_error = RuntimeError("Unexpected failure")
@@ -353,18 +374,22 @@ class TestUnifiedExceptionMiddleware:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_middleware_handles_http_scope(self):
+    async def test_middleware_handles_http_scope(self) -> None:
         """Test middleware handles HTTP scope correctly - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def normal_app(scope, receive, send):
+        async def normal_app(
+            scope: MutableMapping[str, Any],
+            receive: Callable[[], Awaitable[MutableMapping[str, Any]]],
+            send: Callable[[MutableMapping[str, Any]], Awaitable[None]],
+        ) -> None:
             # Normal app that doesn't raise errors
             pass
 
         middleware = UnifiedExceptionMiddleware(normal_app)
-        scope = {"type": "http"}
-        receive = Mock()
-        send = Mock()
+        scope: MutableMapping[str, Any] = {"type": "http"}
+        receive: Mock = Mock()
+        send: Mock = Mock()
 
         # Act - MANDATORY
         await middleware(scope, receive, send)
@@ -375,19 +400,21 @@ class TestUnifiedExceptionMiddleware:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_middleware_ignores_non_http_requests(self):
+    async def test_middleware_ignores_non_http_requests(self) -> None:
         """Test middleware skips non-HTTP requests - MANDATORY AAA pattern."""
-        # Arrange - MANDATORY
-        mock_app = Mock()
-        mock_app.__call__ = Mock(return_value=None)
 
-        async def passthrough_app(scope, receive, send):
+        # Arrange - MANDATORY
+        async def passthrough_app(
+            scope: MutableMapping[str, Any],
+            receive: Callable[[], Awaitable[MutableMapping[str, Any]]],
+            send: Callable[[MutableMapping[str, Any]], Awaitable[None]],
+        ) -> None:
             return None
 
         middleware = UnifiedExceptionMiddleware(passthrough_app)
-        scope = {"type": "websocket"}
-        receive = Mock()
-        send = Mock()
+        scope: MutableMapping[str, Any] = {"type": "websocket"}
+        receive: Mock = Mock()
+        send: Mock = Mock()
 
         # Act - MANDATORY
         await middleware(scope, receive, send)
@@ -410,7 +437,7 @@ class TestUnifiedExceptionMiddleware:
         "%0d%0aSet-Cookie: malicious=true",  # HTTP response splitting
     ],
 )
-def test_error_messages_handle_malicious_input_safely(malicious_input: str):
+def test_error_messages_handle_malicious_input_safely(malicious_input: str) -> None:
     """MANDATORY security test - error messages handle malicious inputs safely."""
     # Arrange - MANDATORY
     # Try to inject malicious content through error messages
@@ -422,9 +449,8 @@ def test_error_messages_handle_malicious_input_safely(malicious_input: str):
     assert isinstance(result, HTTPException)
     # MANDATORY: Error should be created without crashing
     assert result.detail is not None
+    assert isinstance(result.detail, dict)
     assert "message" in result.detail
     assert "error_code" in result.detail
-    # MANDATORY: Response should be valid JSON-serializable
-    assert isinstance(result.detail, dict)
     # MANDATORY: Timestamp should be present
     assert "timestamp" in result.detail

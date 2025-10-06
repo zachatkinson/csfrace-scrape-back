@@ -10,6 +10,8 @@ MANDATORY COMPLIANCE:
 Tests ErrorHandlers and PerformanceMonitor decorators.
 """
 
+from typing import Any
+
 import asyncio
 import pytest
 from aiohttp import ClientError, ServerTimeoutError
@@ -37,7 +39,7 @@ from src.core.decorators import (
 
 
 @pytest.fixture
-def operation_name():
+def operation_name() -> str:
     """Factory for operation name - DRY principle."""
     return "test_operation"
 
@@ -52,12 +54,12 @@ class TestDatabaseErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_database_async_success(self, operation_name):
+    async def test_database_async_success(self, operation_name: str) -> None:
         """Test async database decorator with successful operation."""
 
         # Arrange
         @database_error_handler(operation_name)
-        async def successful_db_operation():
+        async def successful_db_operation() -> str:
             return "success"
 
         # Act
@@ -68,12 +70,14 @@ class TestDatabaseErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_database_async_sqlalchemy_error_raises_runtime(self, operation_name):
+    async def test_database_async_sqlalchemy_error_raises_runtime(
+        self, operation_name: str
+    ) -> None:
         """Test async database decorator converts SQLAlchemyError to RuntimeError."""
 
         # Arrange
         @database_error_handler(operation_name)
-        async def failing_db_operation():
+        async def failing_db_operation() -> None:
             raise SQLAlchemyError("Database connection failed")
 
         # Act & Assert
@@ -82,12 +86,12 @@ class TestDatabaseErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_database_async_unexpected_error_raises(self, operation_name):
+    async def test_database_async_unexpected_error_raises(self, operation_name: str) -> None:
         """Test async database decorator re-raises unexpected errors."""
 
         # Arrange
         @database_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise ValueError("Unexpected validation error")
 
         # Act & Assert
@@ -95,12 +99,12 @@ class TestDatabaseErrorHandler:
             await unexpected_error_operation()
 
     @pytest.mark.unit
-    def test_database_sync_success(self, operation_name):
+    def test_database_sync_success(self, operation_name: str) -> None:
         """Test sync database decorator with successful operation."""
 
         # Arrange
         @database_error_handler(operation_name)
-        def successful_db_operation():
+        def successful_db_operation() -> str:
             return "sync_success"
 
         # Act
@@ -110,12 +114,12 @@ class TestDatabaseErrorHandler:
         assert result == "sync_success"
 
     @pytest.mark.unit
-    def test_database_sync_sqlalchemy_error_raises_runtime(self, operation_name):
+    def test_database_sync_sqlalchemy_error_raises_runtime(self, operation_name: str) -> None:
         """Test sync database decorator converts SQLAlchemyError to RuntimeError."""
 
         # Arrange
         @database_error_handler(operation_name)
-        def failing_db_operation():
+        def failing_db_operation() -> None:
             raise SQLAlchemyError("Database query failed")
 
         # Act & Assert
@@ -123,12 +127,12 @@ class TestDatabaseErrorHandler:
             failing_db_operation()
 
     @pytest.mark.unit
-    def test_database_sync_unexpected_error_raises(self, operation_name):
+    def test_database_sync_unexpected_error_raises(self, operation_name: str) -> None:
         """Test sync database decorator re-raises unexpected errors."""
 
         # Arrange
         @database_error_handler(operation_name)
-        def unexpected_error_operation():
+        def unexpected_error_operation() -> None:
             raise KeyError("Unexpected key error")
 
         # Act & Assert
@@ -137,24 +141,24 @@ class TestDatabaseErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_database_async_preserves_function_name(self, operation_name):
+    async def test_database_async_preserves_function_name(self, operation_name: str) -> None:
         """Test async database decorator preserves original function name."""
 
         # Arrange
         @database_error_handler(operation_name)
-        async def named_function():
+        async def named_function() -> str:
             return "result"
 
         # Act & Assert
         assert named_function.__name__ == "named_function"
 
     @pytest.mark.unit
-    def test_database_sync_preserves_function_name(self, operation_name):
+    def test_database_sync_preserves_function_name(self, operation_name: str) -> None:
         """Test sync database decorator preserves original function name."""
 
         # Arrange
         @database_error_handler(operation_name)
-        def named_function():
+        def named_function() -> str:
             return "result"
 
         # Act & Assert
@@ -162,12 +166,12 @@ class TestDatabaseErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_database_async_passes_arguments(self, operation_name):
+    async def test_database_async_passes_arguments(self, operation_name: str) -> None:
         """Test async database decorator passes arguments correctly."""
 
         # Arrange
         @database_error_handler(operation_name)
-        async def operation_with_args(x, y):
+        async def operation_with_args(x: int, y: int) -> int:
             return x + y
 
         # Act
@@ -177,12 +181,12 @@ class TestDatabaseErrorHandler:
         assert result == 15
 
     @pytest.mark.unit
-    def test_database_sync_passes_arguments(self, operation_name):
+    def test_database_sync_passes_arguments(self, operation_name: str) -> None:
         """Test sync database decorator passes arguments correctly."""
 
         # Arrange
         @database_error_handler(operation_name)
-        def operation_with_args(x, y):
+        def operation_with_args(x: int, y: int) -> int:
             return x * y
 
         # Act
@@ -202,12 +206,12 @@ class TestCacheErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_cache_async_success(self, operation_name):
+    async def test_cache_async_success(self, operation_name: str) -> None:
         """Test async cache decorator with successful operation."""
 
         # Arrange
         @cache_error_handler(operation_name)
-        async def successful_cache_operation():
+        async def successful_cache_operation() -> dict[str, str]:
             return {"data": "cached"}
 
         # Act
@@ -218,12 +222,12 @@ class TestCacheErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_cache_async_redis_error_returns_none(self, operation_name):
+    async def test_cache_async_redis_error_returns_none(self, operation_name: str) -> None:
         """Test async cache decorator returns None on RedisError."""
 
         # Arrange
         @cache_error_handler(operation_name)
-        async def failing_cache_operation():
+        async def failing_cache_operation() -> Any:
             raise RedisError("Redis connection failed")
 
         # Act
@@ -234,12 +238,12 @@ class TestCacheErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_cache_async_unexpected_error_returns_none(self, operation_name):
+    async def test_cache_async_unexpected_error_returns_none(self, operation_name: str) -> None:
         """Test async cache decorator returns None on unexpected error."""
 
         # Arrange
         @cache_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> Any:
             raise ValueError("Unexpected error")
 
         # Act
@@ -249,12 +253,12 @@ class TestCacheErrorHandler:
         assert result is None
 
     @pytest.mark.unit
-    def test_cache_sync_success(self, operation_name):
+    def test_cache_sync_success(self, operation_name: str) -> None:
         """Test sync cache decorator with successful operation."""
 
         # Arrange
         @cache_error_handler(operation_name)
-        def successful_cache_operation():
+        def successful_cache_operation() -> str:
             return "cached_value"
 
         # Act
@@ -264,12 +268,12 @@ class TestCacheErrorHandler:
         assert result == "cached_value"
 
     @pytest.mark.unit
-    def test_cache_sync_redis_error_returns_none(self, operation_name):
+    def test_cache_sync_redis_error_returns_none(self, operation_name: str) -> None:
         """Test sync cache decorator returns None on RedisError."""
 
         # Arrange
         @cache_error_handler(operation_name)
-        def failing_cache_operation():
+        def failing_cache_operation() -> None:
             raise RedisError("Cache unavailable")
 
         # Act
@@ -279,12 +283,12 @@ class TestCacheErrorHandler:
         assert result is None
 
     @pytest.mark.unit
-    def test_cache_sync_unexpected_error_returns_none(self, operation_name):
+    def test_cache_sync_unexpected_error_returns_none(self, operation_name: str) -> None:
         """Test sync cache decorator returns None on unexpected error."""
 
         # Arrange
         @cache_error_handler(operation_name)
-        def unexpected_error_operation():
+        def unexpected_error_operation() -> None:
             raise Exception("Unexpected exception")
 
         # Act
@@ -304,12 +308,12 @@ class TestNetworkErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_network_success(self, operation_name):
+    async def test_network_success(self, operation_name: str) -> None:
         """Test network decorator with successful operation."""
 
         # Arrange
         @network_error_handler(operation_name, timeout=10)
-        async def successful_network_operation():
+        async def successful_network_operation() -> dict[str, str]:
             return {"response": "ok"}
 
         # Act
@@ -320,12 +324,12 @@ class TestNetworkErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_network_timeout_error_raises_runtime(self, operation_name):
+    async def test_network_timeout_error_raises_runtime(self, operation_name: str) -> None:
         """Test network decorator converts TimeoutError to RuntimeError."""
 
         # Arrange
         @network_error_handler(operation_name, timeout=5)
-        async def timeout_operation():
+        async def timeout_operation() -> None:
             raise TimeoutError("Request timed out")
 
         # Act & Assert
@@ -334,12 +338,12 @@ class TestNetworkErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_network_server_timeout_raises_runtime(self, operation_name):
+    async def test_network_server_timeout_raises_runtime(self, operation_name: str) -> None:
         """Test network decorator converts ServerTimeoutError to RuntimeError."""
 
         # Arrange
         @network_error_handler(operation_name)
-        async def server_timeout_operation():
+        async def server_timeout_operation() -> None:
             raise ServerTimeoutError("Server timeout")
 
         # Act & Assert - ServerTimeoutError inherits from TimeoutError
@@ -348,12 +352,12 @@ class TestNetworkErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_network_client_error_raises_runtime(self, operation_name):
+    async def test_network_client_error_raises_runtime(self, operation_name: str) -> None:
         """Test network decorator converts ClientError to RuntimeError."""
 
         # Arrange
         @network_error_handler(operation_name)
-        async def client_error_operation():
+        async def client_error_operation() -> None:
             raise ClientError("HTTP client error")
 
         # Act & Assert
@@ -362,12 +366,12 @@ class TestNetworkErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_network_unexpected_error_raises(self, operation_name):
+    async def test_network_unexpected_error_raises(self, operation_name: str) -> None:
         """Test network decorator re-raises unexpected errors."""
 
         # Arrange
         @network_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise ValueError("Unexpected network error")
 
         # Act & Assert
@@ -376,12 +380,12 @@ class TestNetworkErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_network_custom_timeout_parameter(self):
+    async def test_network_custom_timeout_parameter(self) -> None:
         """Test network decorator accepts custom timeout parameter."""
 
         # Arrange
         @network_error_handler("custom_operation", timeout=15)
-        async def custom_timeout_operation():
+        async def custom_timeout_operation() -> str:
             return "completed"
 
         # Act
@@ -401,12 +405,12 @@ class TestAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_auth_async_success(self, operation_name):
+    async def test_auth_async_success(self, operation_name: str) -> None:
         """Test async auth decorator with successful operation."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        async def successful_auth_operation():
+        async def successful_auth_operation() -> dict[str, str]:
             return {"user": "authenticated"}
 
         # Act
@@ -417,12 +421,12 @@ class TestAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_auth_async_value_error_preserves_type(self, operation_name):
+    async def test_auth_async_value_error_preserves_type(self, operation_name: str) -> None:
         """Test async auth decorator preserves ValueError with context."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        async def validation_error_operation():
+        async def validation_error_operation() -> None:
             raise ValueError("Invalid credentials")
 
         # Act & Assert
@@ -431,12 +435,12 @@ class TestAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_auth_async_permission_error_preserves_type(self, operation_name):
+    async def test_auth_async_permission_error_preserves_type(self, operation_name: str) -> None:
         """Test async auth decorator preserves PermissionError with context."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        async def permission_error_operation():
+        async def permission_error_operation() -> None:
             raise PermissionError("Access denied")
 
         # Act & Assert
@@ -445,12 +449,12 @@ class TestAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_auth_async_unexpected_error_raises_runtime(self, operation_name):
+    async def test_auth_async_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test async auth decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise KeyError("Unexpected key error")
 
         # Act & Assert
@@ -458,12 +462,12 @@ class TestAuthErrorHandler:
             await unexpected_error_operation()
 
     @pytest.mark.unit
-    def test_auth_sync_success(self, operation_name):
+    def test_auth_sync_success(self, operation_name: str) -> None:
         """Test sync auth decorator with successful operation."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        def successful_auth_operation():
+        def successful_auth_operation() -> str:
             return "authenticated"
 
         # Act
@@ -473,12 +477,12 @@ class TestAuthErrorHandler:
         assert result == "authenticated"
 
     @pytest.mark.unit
-    def test_auth_sync_value_error_preserves_type(self, operation_name):
+    def test_auth_sync_value_error_preserves_type(self, operation_name: str) -> None:
         """Test sync auth decorator preserves ValueError with context."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        def validation_error_operation():
+        def validation_error_operation() -> None:
             raise ValueError("Invalid token")
 
         # Act & Assert
@@ -486,12 +490,12 @@ class TestAuthErrorHandler:
             validation_error_operation()
 
     @pytest.mark.unit
-    def test_auth_sync_permission_error_preserves_type(self, operation_name):
+    def test_auth_sync_permission_error_preserves_type(self, operation_name: str) -> None:
         """Test sync auth decorator preserves PermissionError with context."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        def permission_error_operation():
+        def permission_error_operation() -> None:
             raise PermissionError("Unauthorized")
 
         # Act & Assert
@@ -499,12 +503,12 @@ class TestAuthErrorHandler:
             permission_error_operation()
 
     @pytest.mark.unit
-    def test_auth_sync_unexpected_error_raises_runtime(self, operation_name):
+    def test_auth_sync_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test sync auth decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @auth_error_handler(operation_name)
-        def unexpected_error_operation():
+        def unexpected_error_operation() -> None:
             raise Exception("Unexpected exception")
 
         # Act & Assert
@@ -522,12 +526,12 @@ class TestJobErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_job_async_success(self, operation_name):
+    async def test_job_async_success(self, operation_name: str) -> None:
         """Test async job decorator with successful operation."""
 
         # Arrange
         @job_error_handler(operation_name)
-        async def successful_job_operation():
+        async def successful_job_operation() -> dict[str, str]:
             return {"job": "completed"}
 
         # Act
@@ -538,12 +542,12 @@ class TestJobErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_job_async_value_error_preserves_type(self, operation_name):
+    async def test_job_async_value_error_preserves_type(self, operation_name: str) -> None:
         """Test async job decorator preserves ValueError with context."""
 
         # Arrange
         @job_error_handler(operation_name)
-        async def validation_error_operation():
+        async def validation_error_operation() -> None:
             raise ValueError("Invalid job parameters")
 
         # Act & Assert
@@ -552,12 +556,12 @@ class TestJobErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_job_async_timeout_error_preserves_type(self, operation_name):
+    async def test_job_async_timeout_error_preserves_type(self, operation_name: str) -> None:
         """Test async job decorator preserves TimeoutError with context."""
 
         # Arrange
         @job_error_handler(operation_name)
-        async def timeout_error_operation():
+        async def timeout_error_operation() -> None:
             raise TimeoutError("Job execution timeout")
 
         # Act & Assert
@@ -566,12 +570,12 @@ class TestJobErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_job_async_unexpected_error_raises_runtime(self, operation_name):
+    async def test_job_async_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test async job decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @job_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise KeyError("Unexpected key")
 
         # Act & Assert
@@ -579,12 +583,12 @@ class TestJobErrorHandler:
             await unexpected_error_operation()
 
     @pytest.mark.unit
-    def test_job_sync_success(self, operation_name):
+    def test_job_sync_success(self, operation_name: str) -> None:
         """Test sync job decorator with successful operation."""
 
         # Arrange
         @job_error_handler(operation_name)
-        def successful_job_operation():
+        def successful_job_operation() -> str:
             return "job_done"
 
         # Act
@@ -594,12 +598,12 @@ class TestJobErrorHandler:
         assert result == "job_done"
 
     @pytest.mark.unit
-    def test_job_sync_value_error_preserves_type(self, operation_name):
+    def test_job_sync_value_error_preserves_type(self, operation_name: str) -> None:
         """Test sync job decorator preserves ValueError with context."""
 
         # Arrange
         @job_error_handler(operation_name)
-        def validation_error_operation():
+        def validation_error_operation() -> None:
             raise ValueError("Invalid job ID")
 
         # Act & Assert
@@ -607,12 +611,12 @@ class TestJobErrorHandler:
             validation_error_operation()
 
     @pytest.mark.unit
-    def test_job_sync_timeout_error_preserves_type(self, operation_name):
+    def test_job_sync_timeout_error_preserves_type(self, operation_name: str) -> None:
         """Test sync job decorator preserves TimeoutError with context."""
 
         # Arrange
         @job_error_handler(operation_name)
-        def timeout_error_operation():
+        def timeout_error_operation() -> None:
             raise TimeoutError("Job timed out")
 
         # Act & Assert
@@ -620,12 +624,12 @@ class TestJobErrorHandler:
             timeout_error_operation()
 
     @pytest.mark.unit
-    def test_job_sync_unexpected_error_raises_runtime(self, operation_name):
+    def test_job_sync_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test sync job decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @job_error_handler(operation_name)
-        def unexpected_error_operation():
+        def unexpected_error_operation() -> None:
             raise Exception("Generic exception")
 
         # Act & Assert
@@ -643,12 +647,12 @@ class TestApiErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_api_success(self, operation_name):
+    async def test_api_success(self, operation_name: str) -> None:
         """Test API decorator with successful operation."""
 
         # Arrange
         @api_error_handler(operation_name)
-        async def successful_api_operation():
+        async def successful_api_operation() -> dict[str, str]:
             return {"status": "ok"}
 
         # Act
@@ -659,12 +663,12 @@ class TestApiErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_api_value_error_preserves_type(self, operation_name):
+    async def test_api_value_error_preserves_type(self, operation_name: str) -> None:
         """Test API decorator preserves ValueError with context."""
 
         # Arrange
         @api_error_handler(operation_name)
-        async def validation_error_operation():
+        async def validation_error_operation() -> None:
             raise ValueError("Invalid request body")
 
         # Act & Assert
@@ -673,12 +677,12 @@ class TestApiErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_api_key_error_preserves_type(self, operation_name):
+    async def test_api_key_error_preserves_type(self, operation_name: str) -> None:
         """Test API decorator preserves KeyError with context."""
 
         # Arrange
         @api_error_handler(operation_name)
-        async def key_error_operation():
+        async def key_error_operation() -> None:
             raise KeyError("missing_field")
 
         # Act & Assert
@@ -687,12 +691,12 @@ class TestApiErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_api_unexpected_error_raises_runtime(self, operation_name):
+    async def test_api_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test API decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @api_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise Exception("Unexpected API error")
 
         # Act & Assert
@@ -701,12 +705,12 @@ class TestApiErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_api_preserves_function_name(self, operation_name):
+    async def test_api_preserves_function_name(self, operation_name: str) -> None:
         """Test API decorator preserves original function name."""
 
         # Arrange
         @api_error_handler(operation_name)
-        async def named_api_function():
+        async def named_api_function() -> str:
             return "result"
 
         # Act & Assert
@@ -723,12 +727,12 @@ class TestMonitoringErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_monitoring_async_success(self, operation_name):
+    async def test_monitoring_async_success(self, operation_name: str) -> None:
         """Test async monitoring decorator with successful operation."""
 
         # Arrange
         @monitoring_error_handler(operation_name)
-        async def successful_monitoring_operation():
+        async def successful_monitoring_operation() -> dict[str, str]:
             return {"metrics": "collected"}
 
         # Act
@@ -739,12 +743,12 @@ class TestMonitoringErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_monitoring_async_error_returns_none(self, operation_name):
+    async def test_monitoring_async_error_returns_none(self, operation_name: str) -> None:
         """Test async monitoring decorator returns None on error."""
 
         # Arrange
         @monitoring_error_handler(operation_name)
-        async def failing_monitoring_operation():
+        async def failing_monitoring_operation() -> Any:
             raise Exception("Metrics collection failed")
 
         # Act
@@ -754,12 +758,12 @@ class TestMonitoringErrorHandler:
         assert result is None
 
     @pytest.mark.unit
-    def test_monitoring_sync_success(self, operation_name):
+    def test_monitoring_sync_success(self, operation_name: str) -> None:
         """Test sync monitoring decorator with successful operation."""
 
         # Arrange
         @monitoring_error_handler(operation_name)
-        def successful_monitoring_operation():
+        def successful_monitoring_operation() -> str:
             return "metrics_logged"
 
         # Act
@@ -769,12 +773,12 @@ class TestMonitoringErrorHandler:
         assert result == "metrics_logged"
 
     @pytest.mark.unit
-    def test_monitoring_sync_error_returns_none(self, operation_name):
+    def test_monitoring_sync_error_returns_none(self, operation_name: str) -> None:
         """Test sync monitoring decorator returns None on error."""
 
         # Arrange
         @monitoring_error_handler(operation_name)
-        def failing_monitoring_operation():
+        def failing_monitoring_operation() -> None:
             raise ValueError("Monitoring failed")
 
         # Act
@@ -794,12 +798,12 @@ class TestOAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_oauth_async_success(self, operation_name):
+    async def test_oauth_async_success(self, operation_name: str) -> None:
         """Test async OAuth decorator with successful operation."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        async def successful_oauth_operation():
+        async def successful_oauth_operation() -> dict[str, str]:
             return {"access_token": "token"}
 
         # Act
@@ -810,12 +814,12 @@ class TestOAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_oauth_async_value_error_preserves_type(self, operation_name):
+    async def test_oauth_async_value_error_preserves_type(self, operation_name: str) -> None:
         """Test async OAuth decorator preserves ValueError with context."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        async def validation_error_operation():
+        async def validation_error_operation() -> None:
             raise ValueError("Invalid OAuth state")
 
         # Act & Assert
@@ -824,12 +828,12 @@ class TestOAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_oauth_async_key_error_preserves_type(self, operation_name):
+    async def test_oauth_async_key_error_preserves_type(self, operation_name: str) -> None:
         """Test async OAuth decorator preserves KeyError with context."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        async def key_error_operation():
+        async def key_error_operation() -> None:
             raise KeyError("authorization_code")
 
         # Act & Assert
@@ -838,12 +842,12 @@ class TestOAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_oauth_async_client_error_raises_runtime(self, operation_name):
+    async def test_oauth_async_client_error_raises_runtime(self, operation_name: str) -> None:
         """Test async OAuth decorator converts ClientError to RuntimeError."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        async def client_error_operation():
+        async def client_error_operation() -> None:
             raise ClientError("OAuth provider unreachable")
 
         # Act & Assert
@@ -852,12 +856,12 @@ class TestOAuthErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_oauth_async_unexpected_error_raises_runtime(self, operation_name):
+    async def test_oauth_async_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test async OAuth decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise Exception("Generic OAuth error")
 
         # Act & Assert
@@ -865,12 +869,12 @@ class TestOAuthErrorHandler:
             await unexpected_error_operation()
 
     @pytest.mark.unit
-    def test_oauth_sync_success(self, operation_name):
+    def test_oauth_sync_success(self, operation_name: str) -> None:
         """Test sync OAuth decorator with successful operation."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        def successful_oauth_operation():
+        def successful_oauth_operation() -> str:
             return "oauth_success"
 
         # Act
@@ -880,12 +884,12 @@ class TestOAuthErrorHandler:
         assert result == "oauth_success"
 
     @pytest.mark.unit
-    def test_oauth_sync_value_error_preserves_type(self, operation_name):
+    def test_oauth_sync_value_error_preserves_type(self, operation_name: str) -> None:
         """Test sync OAuth decorator preserves ValueError with context."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        def validation_error_operation():
+        def validation_error_operation() -> None:
             raise ValueError("Invalid provider")
 
         # Act & Assert
@@ -893,12 +897,12 @@ class TestOAuthErrorHandler:
             validation_error_operation()
 
     @pytest.mark.unit
-    def test_oauth_sync_unexpected_error_raises_runtime(self, operation_name):
+    def test_oauth_sync_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test sync OAuth decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @oauth_error_handler(operation_name)
-        def unexpected_error_operation():
+        def unexpected_error_operation() -> None:
             raise Exception("Unexpected OAuth exception")
 
         # Act & Assert
@@ -916,12 +920,12 @@ class TestContentProcessingErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_content_async_success(self, operation_name):
+    async def test_content_async_success(self, operation_name: str) -> None:
         """Test async content processing decorator with successful operation."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        async def successful_content_operation():
+        async def successful_content_operation() -> dict[str, str]:
             return {"content": "processed"}
 
         # Act
@@ -932,12 +936,12 @@ class TestContentProcessingErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_content_async_attribute_error_raises_value(self, operation_name):
+    async def test_content_async_attribute_error_raises_value(self, operation_name: str) -> None:
         """Test async content decorator converts AttributeError to ValueError."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        async def attribute_error_operation():
+        async def attribute_error_operation() -> None:
             raise AttributeError("Missing attribute")
 
         # Act & Assert
@@ -946,12 +950,12 @@ class TestContentProcessingErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_content_async_type_error_raises_value(self, operation_name):
+    async def test_content_async_type_error_raises_value(self, operation_name: str) -> None:
         """Test async content decorator converts TypeError to ValueError."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        async def type_error_operation():
+        async def type_error_operation() -> None:
             raise TypeError("Incorrect type")
 
         # Act & Assert
@@ -960,12 +964,12 @@ class TestContentProcessingErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_content_async_xml_error_raises_runtime(self, operation_name):
+    async def test_content_async_xml_error_raises_runtime(self, operation_name: str) -> None:
         """Test async content decorator handles XMLSyntaxError via Exception handler."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        async def xml_error_operation():
+        async def xml_error_operation() -> None:
             # XMLSyntaxError is caught by Exception handler as RuntimeError
             raise RuntimeError("XML parsing error")
 
@@ -975,12 +979,12 @@ class TestContentProcessingErrorHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_content_async_unexpected_error_raises_runtime(self, operation_name):
+    async def test_content_async_unexpected_error_raises_runtime(self, operation_name: str) -> None:
         """Test async content decorator converts unexpected errors to RuntimeError."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        async def unexpected_error_operation():
+        async def unexpected_error_operation() -> None:
             raise KeyError("Unexpected key")
 
         # Act & Assert
@@ -988,12 +992,12 @@ class TestContentProcessingErrorHandler:
             await unexpected_error_operation()
 
     @pytest.mark.unit
-    def test_content_sync_success(self, operation_name):
+    def test_content_sync_success(self, operation_name: str) -> None:
         """Test sync content processing decorator with successful operation."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        def successful_content_operation():
+        def successful_content_operation() -> str:
             return "content_processed"
 
         # Act
@@ -1003,12 +1007,12 @@ class TestContentProcessingErrorHandler:
         assert result == "content_processed"
 
     @pytest.mark.unit
-    def test_content_sync_attribute_error_raises_value(self, operation_name):
+    def test_content_sync_attribute_error_raises_value(self, operation_name: str) -> None:
         """Test sync content decorator converts AttributeError to ValueError."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        def attribute_error_operation():
+        def attribute_error_operation() -> None:
             raise AttributeError("Missing method")
 
         # Act & Assert
@@ -1016,12 +1020,12 @@ class TestContentProcessingErrorHandler:
             attribute_error_operation()
 
     @pytest.mark.unit
-    def test_content_sync_xml_error_raises_runtime(self, operation_name):
+    def test_content_sync_xml_error_raises_runtime(self, operation_name: str) -> None:
         """Test sync content decorator handles XMLSyntaxError via Exception handler."""
 
         # Arrange
         @content_processing_error_handler(operation_name)
-        def xml_error_operation():
+        def xml_error_operation() -> None:
             # XMLSyntaxError is caught by Exception handler as RuntimeError
             raise RuntimeError("XML parsing error")
 
@@ -1040,12 +1044,12 @@ class TestPerformanceMonitor:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_performance_async_success(self, operation_name):
+    async def test_performance_async_success(self, operation_name: str) -> None:
         """Test async performance monitor with successful operation."""
 
         # Arrange
         @performance_monitor(operation_name, log_threshold_ms=1000)
-        async def fast_operation():
+        async def fast_operation() -> str:
             return "completed"
 
         # Act
@@ -1056,12 +1060,12 @@ class TestPerformanceMonitor:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_performance_async_slow_operation_logs(self, operation_name):
+    async def test_performance_async_slow_operation_logs(self, operation_name: str) -> None:
         """Test async performance monitor logs slow operations."""
 
         # Arrange
         @performance_monitor(operation_name, log_threshold_ms=10)
-        async def slow_operation():
+        async def slow_operation() -> str:
             await asyncio.sleep(0.02)  # 20ms
             return "completed"
 
@@ -1073,12 +1077,12 @@ class TestPerformanceMonitor:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_performance_async_error_logs_execution_time(self, operation_name):
+    async def test_performance_async_error_logs_execution_time(self, operation_name: str) -> None:
         """Test async performance monitor logs execution time on error."""
 
         # Arrange
         @performance_monitor(operation_name, log_threshold_ms=1000)
-        async def failing_operation():
+        async def failing_operation() -> None:
             raise ValueError("Operation failed")
 
         # Act & Assert
@@ -1086,12 +1090,12 @@ class TestPerformanceMonitor:
             await failing_operation()
 
     @pytest.mark.unit
-    def test_performance_sync_success(self, operation_name):
+    def test_performance_sync_success(self, operation_name: str) -> None:
         """Test sync performance monitor with successful operation."""
 
         # Arrange
         @performance_monitor(operation_name, log_threshold_ms=1000)
-        def fast_operation():
+        def fast_operation() -> str:
             return "completed"
 
         # Act
@@ -1101,12 +1105,12 @@ class TestPerformanceMonitor:
         assert result == "completed"
 
     @pytest.mark.unit
-    def test_performance_sync_slow_operation_logs(self, operation_name):
+    def test_performance_sync_slow_operation_logs(self, operation_name: str) -> None:
         """Test sync performance monitor logs slow operations."""
 
         # Arrange
         @performance_monitor(operation_name, log_threshold_ms=5)
-        def slow_operation():
+        def slow_operation() -> str:
             import time
 
             time.sleep(0.01)  # 10ms
@@ -1119,12 +1123,12 @@ class TestPerformanceMonitor:
         assert result == "completed"
 
     @pytest.mark.unit
-    def test_performance_sync_error_logs_execution_time(self, operation_name):
+    def test_performance_sync_error_logs_execution_time(self, operation_name: str) -> None:
         """Test sync performance monitor logs execution time on error."""
 
         # Arrange
         @performance_monitor(operation_name, log_threshold_ms=1000)
-        def failing_operation():
+        def failing_operation() -> None:
             raise KeyError("Key not found")
 
         # Act & Assert
@@ -1141,51 +1145,51 @@ class TestConvenienceAliases:
     """Test convenience aliases - Lines 564-574."""
 
     @pytest.mark.unit
-    def test_database_error_handler_alias(self):
+    def test_database_error_handler_alias(self) -> None:
         """Test database_error_handler is aliased correctly."""
         assert database_error_handler == ErrorHandlers.database_operation
 
     @pytest.mark.unit
-    def test_cache_error_handler_alias(self):
+    def test_cache_error_handler_alias(self) -> None:
         """Test cache_error_handler is aliased correctly."""
         assert cache_error_handler == ErrorHandlers.cache_operation
 
     @pytest.mark.unit
-    def test_network_error_handler_alias(self):
+    def test_network_error_handler_alias(self) -> None:
         """Test network_error_handler is aliased correctly."""
         assert network_error_handler == ErrorHandlers.network_operation
 
     @pytest.mark.unit
-    def test_auth_error_handler_alias(self):
+    def test_auth_error_handler_alias(self) -> None:
         """Test auth_error_handler is aliased correctly."""
         assert auth_error_handler == ErrorHandlers.auth_operation
 
     @pytest.mark.unit
-    def test_job_error_handler_alias(self):
+    def test_job_error_handler_alias(self) -> None:
         """Test job_error_handler is aliased correctly."""
         assert job_error_handler == ErrorHandlers.job_operation
 
     @pytest.mark.unit
-    def test_api_error_handler_alias(self):
+    def test_api_error_handler_alias(self) -> None:
         """Test api_error_handler is aliased correctly."""
         assert api_error_handler == ErrorHandlers.api_operation
 
     @pytest.mark.unit
-    def test_monitoring_error_handler_alias(self):
+    def test_monitoring_error_handler_alias(self) -> None:
         """Test monitoring_error_handler is aliased correctly."""
         assert monitoring_error_handler == ErrorHandlers.monitoring_operation
 
     @pytest.mark.unit
-    def test_oauth_error_handler_alias(self):
+    def test_oauth_error_handler_alias(self) -> None:
         """Test oauth_error_handler is aliased correctly."""
         assert oauth_error_handler == ErrorHandlers.oauth_operation
 
     @pytest.mark.unit
-    def test_content_processing_error_handler_alias(self):
+    def test_content_processing_error_handler_alias(self) -> None:
         """Test content_processing_error_handler is aliased correctly."""
         assert content_processing_error_handler == ErrorHandlers.content_processing_operation
 
     @pytest.mark.unit
-    def test_performance_monitor_alias(self):
+    def test_performance_monitor_alias(self) -> None:
         """Test performance_monitor is aliased correctly."""
         assert performance_monitor == PerformanceMonitor.measure_execution_time

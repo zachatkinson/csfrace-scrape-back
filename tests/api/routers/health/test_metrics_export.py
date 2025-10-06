@@ -16,10 +16,12 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import APIRouter
+from fastapi.routing import APIRoute
 
 from src.api.routers.health.metrics_export import (
     _get_cache_backend_type_safe,
@@ -37,7 +39,7 @@ from src.api.routers.health.metrics_export import (
 
 
 @pytest.fixture
-def sample_metrics_snapshot():
+def sample_metrics_snapshot() -> dict[str, Any]:
     """Factory for sample metrics snapshot - DRY principle."""
     return {
         "system_metrics": {
@@ -59,7 +61,7 @@ def sample_metrics_snapshot():
 
 
 @pytest.fixture
-def sample_performance_summary():
+def sample_performance_summary() -> dict[str, Any]:
     """Factory for sample performance summary - DRY principle."""
     return {
         "avg_response_time": 125.5,
@@ -70,7 +72,7 @@ def sample_performance_summary():
 
 
 @pytest.fixture
-def sample_cache_status():
+def sample_cache_status() -> dict[str, str]:
     """Factory for sample cache status - DRY principle."""
     return {
         "status": "healthy",
@@ -79,7 +81,7 @@ def sample_cache_status():
 
 
 @pytest.fixture
-def sample_prometheus_data():
+def sample_prometheus_data() -> bytes:
     """Factory for sample Prometheus metrics - DRY principle."""
     return b"""# HELP http_requests_total Total HTTP requests
 # TYPE http_requests_total counter
@@ -97,7 +99,7 @@ http_requests_total{method="POST",status="201"} 567
 class TestMetricsExportRouter:
     """Tests for metrics export router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that metrics export router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -105,38 +107,46 @@ class TestMetricsExportRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_metrics_endpoint(self):
+    def test_router_has_metrics_endpoint(self) -> None:
         """Test router has /metrics endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/metrics" in routes
 
-    def test_router_has_prometheus_endpoint(self):
+    def test_router_has_prometheus_endpoint(self) -> None:
         """Test router has /prometheus endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/prometheus" in routes
 
-    def test_metrics_endpoint_uses_get_method(self):
+    def test_metrics_endpoint_uses_get_method(self) -> None:
         """Test metrics endpoint uses GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        metrics_route = next(route for route in router.routes if route.path == "/metrics")
+        metrics_route = next(
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path == "/metrics"
+        )
 
         # Assert - MANDATORY
         assert "GET" in metrics_route.methods
 
-    def test_prometheus_endpoint_uses_get_method(self):
+    def test_prometheus_endpoint_uses_get_method(self) -> None:
         """Test prometheus endpoint uses GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        prometheus_route = next(route for route in router.routes if route.path == "/prometheus")
+        prometheus_route = next(
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path == "/prometheus"
+        )
 
         # Assert - MANDATORY
         assert "GET" in prometheus_route.methods
@@ -153,8 +163,11 @@ class TestGetMetricsEndpoint:
     """Tests for GET /metrics endpoint."""
 
     async def test_get_metrics_returns_metrics_response(
-        self, sample_metrics_snapshot, sample_performance_summary, sample_cache_status
-    ):
+        self,
+        sample_metrics_snapshot: dict[str, Any],
+        sample_performance_summary: dict[str, Any],
+        sample_cache_status: dict[str, str],
+    ) -> None:
         """Test get_metrics returns MetricsResponse - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -179,7 +192,9 @@ class TestGetMetricsEndpoint:
                     assert hasattr(result, "application_metrics")
                     assert hasattr(result, "database_metrics")
 
-    async def test_get_metrics_calls_metrics_collector(self, sample_metrics_snapshot):
+    async def test_get_metrics_calls_metrics_collector(
+        self, sample_metrics_snapshot: dict[str, Any]
+    ) -> None:
         """Test get_metrics calls metrics_collector - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -199,7 +214,9 @@ class TestGetMetricsEndpoint:
                     # Assert - MANDATORY
                     mock_collector.get_metrics_snapshot.assert_called_once()
 
-    async def test_get_metrics_includes_system_metrics(self, sample_metrics_snapshot):
+    async def test_get_metrics_includes_system_metrics(
+        self, sample_metrics_snapshot: dict[str, Any]
+    ) -> None:
         """Test get_metrics includes system metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -219,7 +236,9 @@ class TestGetMetricsEndpoint:
                     # Assert - MANDATORY
                     assert result.system_metrics == sample_metrics_snapshot["system_metrics"]
 
-    async def test_get_metrics_includes_application_metrics(self, sample_metrics_snapshot):
+    async def test_get_metrics_includes_application_metrics(
+        self, sample_metrics_snapshot: dict[str, Any]
+    ) -> None:
         """Test get_metrics includes application metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -239,7 +258,9 @@ class TestGetMetricsEndpoint:
                     # Assert - MANDATORY
                     assert "requests_total" in result.application_metrics
 
-    async def test_get_metrics_includes_database_metrics(self, sample_metrics_snapshot):
+    async def test_get_metrics_includes_database_metrics(
+        self, sample_metrics_snapshot: dict[str, Any]
+    ) -> None:
         """Test get_metrics includes database metrics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -260,8 +281,10 @@ class TestGetMetricsEndpoint:
                     assert result.database_metrics == sample_metrics_snapshot["database_metrics"]
 
     async def test_get_metrics_merges_performance_summary(
-        self, sample_metrics_snapshot, sample_performance_summary
-    ):
+        self,
+        sample_metrics_snapshot: dict[str, Any],
+        sample_performance_summary: dict[str, Any],
+    ) -> None:
         """Test get_metrics merges performance summary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -294,7 +317,7 @@ class TestGetMetricsEndpoint:
 class TestPrometheusMetricsEndpoint:
     """Tests for GET /prometheus endpoint."""
 
-    async def test_prometheus_metrics_returns_string(self, sample_prometheus_data):
+    async def test_prometheus_metrics_returns_string(self, sample_prometheus_data: bytes) -> None:
         """Test prometheus_metrics returns string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -307,7 +330,7 @@ class TestPrometheusMetricsEndpoint:
             # Assert - MANDATORY
             assert isinstance(result, str)
 
-    async def test_prometheus_metrics_calls_exporter(self, sample_prometheus_data):
+    async def test_prometheus_metrics_calls_exporter(self, sample_prometheus_data: bytes) -> None:
         """Test prometheus_metrics calls exporter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -320,7 +343,7 @@ class TestPrometheusMetricsEndpoint:
             # Assert - MANDATORY
             mock_collector.export_prometheus_metrics.assert_called_once()
 
-    async def test_prometheus_metrics_decodes_utf8(self, sample_prometheus_data):
+    async def test_prometheus_metrics_decodes_utf8(self, sample_prometheus_data: bytes) -> None:
         """Test prometheus_metrics decodes UTF-8 - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -345,7 +368,7 @@ class TestPrometheusMetricsEndpoint:
 class TestCacheStatusHelpers:
     """Tests for cache status helper functions."""
 
-    async def test_get_cache_status_returns_dict(self):
+    async def test_get_cache_status_returns_dict(self) -> None:
         """Test _get_cache_status returns dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_manager = MagicMock()
@@ -360,7 +383,7 @@ class TestCacheStatusHelpers:
                 # Assert - MANDATORY
                 assert isinstance(result, dict)
 
-    async def test_get_cache_status_when_manager_is_none(self):
+    async def test_get_cache_status_when_manager_is_none(self) -> None:
         """Test _get_cache_status when manager is None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.api.routers.health.metrics_export.cache_manager", None):
@@ -370,7 +393,7 @@ class TestCacheStatusHelpers:
             # Assert - MANDATORY
             assert result == {"status": "not_configured"}
 
-    async def test_get_cache_status_safe_initializes_manager(self):
+    async def test_get_cache_status_safe_initializes_manager(self) -> None:
         """Test _get_cache_status_safe initializes manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_manager = MagicMock()
@@ -388,7 +411,7 @@ class TestCacheStatusHelpers:
                 # Assert - MANDATORY
                 mock_manager.initialize.assert_called_once()
 
-    async def test_get_cache_status_safe_returns_backend_type(self):
+    async def test_get_cache_status_safe_returns_backend_type(self) -> None:
         """Test _get_cache_status_safe returns backend type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_manager = MagicMock()
@@ -408,7 +431,7 @@ class TestCacheStatusHelpers:
                 assert result["backend"] == "redis"
                 assert result["status"] == "healthy"
 
-    async def test_get_cache_backend_type_safe_calls_manager(self):
+    async def test_get_cache_backend_type_safe_calls_manager(self) -> None:
         """Test _get_cache_backend_type_safe calls manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_manager = MagicMock()
@@ -432,7 +455,9 @@ class TestCacheStatusHelpers:
 class TestPerformanceSummaryHelpers:
     """Tests for performance summary helper functions."""
 
-    def test_get_performance_summary_returns_dict(self, sample_performance_summary):
+    def test_get_performance_summary_returns_dict(
+        self, sample_performance_summary: dict[str, Any]
+    ) -> None:
         """Test _get_performance_summary returns dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_monitor = MagicMock()
@@ -448,7 +473,7 @@ class TestPerformanceSummaryHelpers:
                 # Assert - MANDATORY
                 assert isinstance(result, dict)
 
-    def test_get_performance_summary_when_monitor_is_none(self):
+    def test_get_performance_summary_when_monitor_is_none(self) -> None:
         """Test _get_performance_summary when monitor is None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch("src.api.routers.health.metrics_export.performance_monitor", None):
@@ -458,7 +483,9 @@ class TestPerformanceSummaryHelpers:
             # Assert - MANDATORY
             assert result == {}
 
-    def test_get_performance_summary_with_mock_safe_func(self, sample_performance_summary):
+    def test_get_performance_summary_with_mock_safe_func(
+        self, sample_performance_summary: dict[str, Any]
+    ) -> None:
         """Test _get_performance_summary with mocked safe function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_monitor = MagicMock()
@@ -476,7 +503,7 @@ class TestPerformanceSummaryHelpers:
                 mock_safe.assert_called_once()
                 assert result == sample_performance_summary
 
-    def test_get_performance_summary_handles_safe_error(self):
+    def test_get_performance_summary_handles_safe_error(self) -> None:
         """Test _get_performance_summary handles error from safe function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_monitor = MagicMock()
@@ -503,7 +530,7 @@ class TestPerformanceSummaryHelpers:
 class TestMetricsExportErrorHandling:
     """Tests for error handling in metrics export endpoints."""
 
-    async def test_get_cache_status_handles_safe_error(self):
+    async def test_get_cache_status_handles_safe_error(self) -> None:
         """Test _get_cache_status handles error from safe function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_manager = MagicMock()
@@ -530,8 +557,11 @@ class TestMetricsExportIntegration:
     """Integration tests for metrics export endpoints."""
 
     async def test_get_metrics_combines_all_sources(
-        self, sample_metrics_snapshot, sample_performance_summary, sample_cache_status
-    ):
+        self,
+        sample_metrics_snapshot: dict[str, Any],
+        sample_performance_summary: dict[str, Any],
+        sample_cache_status: dict[str, str],
+    ) -> None:
         """Test get_metrics combines all metric sources - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -573,7 +603,7 @@ class TestMetricsExportIntegration:
 class TestMetricsExportPerformance:
     """MANDATORY performance tests for metrics export endpoints."""
 
-    async def test_get_metrics_performance(self, sample_metrics_snapshot):
+    async def test_get_metrics_performance(self, sample_metrics_snapshot: dict[str, Any]) -> None:
         """MANDATORY performance test - get_metrics speed."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -602,7 +632,7 @@ class TestMetricsExportPerformance:
                     assert avg_time < 0.01  # <10ms per call
                     assert execution_time < 1.0  # Total <1s for 100 calls
 
-    async def test_prometheus_metrics_performance(self, sample_prometheus_data):
+    async def test_prometheus_metrics_performance(self, sample_prometheus_data: bytes) -> None:
         """MANDATORY performance test - prometheus_metrics speed."""
         # Arrange - MANDATORY
         mock_collector = MagicMock()
@@ -624,7 +654,7 @@ class TestMetricsExportPerformance:
             assert avg_time < 0.005  # <5ms per call
             assert execution_time < 0.5  # Total <500ms for 100 calls
 
-    async def test_cache_status_check_performance(self):
+    async def test_cache_status_check_performance(self) -> None:
         """MANDATORY performance test - cache status check speed."""
         # Arrange - MANDATORY
         mock_manager = MagicMock()

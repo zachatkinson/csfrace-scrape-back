@@ -17,6 +17,7 @@ import time
 
 import pytest
 from fastapi import APIRouter
+from fastapi.routing import APIRoute
 
 from src.api.routers.health.streaming import (
     health_stream_test,
@@ -32,7 +33,7 @@ from src.api.routers.health.streaming import (
 class TestHealthStreamingRouter:
     """Tests for health streaming router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that health streaming router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -40,22 +41,30 @@ class TestHealthStreamingRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_stream_test_endpoint(self):
+    def test_router_has_stream_test_endpoint(self) -> None:
         """Test router has /stream-test endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/stream-test" in routes
 
-    def test_stream_test_endpoint_uses_get_method(self):
+    def test_stream_test_endpoint_uses_get_method(self) -> None:
         """Test stream-test endpoint uses GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        stream_test_route = next(route for route in router.routes if route.path == "/stream-test")
+        stream_test_route = next(
+            (
+                route
+                for route in router.routes
+                if isinstance(route, APIRoute) and route.path == "/stream-test"
+            ),
+            None,
+        )
 
         # Assert - MANDATORY
+        assert stream_test_route is not None
         assert "GET" in stream_test_route.methods
 
 
@@ -69,7 +78,7 @@ class TestHealthStreamingRouter:
 class TestHealthStreamTestEndpoint:
     """Tests for GET /stream-test endpoint."""
 
-    async def test_health_stream_test_returns_dict(self):
+    async def test_health_stream_test_returns_dict(self) -> None:
         """Test health_stream_test returns dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -78,7 +87,7 @@ class TestHealthStreamTestEndpoint:
         # Assert - MANDATORY
         assert isinstance(result, dict)
 
-    async def test_health_stream_test_has_message(self):
+    async def test_health_stream_test_has_message(self) -> None:
         """Test health_stream_test has message field - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -88,7 +97,7 @@ class TestHealthStreamTestEndpoint:
         assert "message" in result
         assert result["message"] == "SSE endpoint test"
 
-    async def test_health_stream_test_has_status(self):
+    async def test_health_stream_test_has_status(self) -> None:
         """Test health_stream_test has status field - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -110,7 +119,7 @@ class TestHealthStreamTestEndpoint:
 class TestHealthStreamingPerformance:
     """MANDATORY performance tests for health streaming endpoints."""
 
-    async def test_stream_test_endpoint_performance(self):
+    async def test_stream_test_endpoint_performance(self) -> None:
         """MANDATORY performance test - stream test endpoint speed."""
         # Arrange - MANDATORY
         iterations = 100

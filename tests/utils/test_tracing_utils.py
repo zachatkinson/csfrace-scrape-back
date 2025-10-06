@@ -37,7 +37,7 @@ from src.utils.tracing_utils import (
 
 
 @pytest.fixture
-def mock_distributed_tracer():
+def mock_distributed_tracer() -> MagicMock:
     """Factory for mock distributed tracer - DRY principle."""
     return MagicMock()
 
@@ -58,7 +58,7 @@ class TestTraceDecorator:
     """Tests for trace decorator function."""
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_decorator_with_sync_function(self, mock_tracer):
+    def test_trace_decorator_with_sync_function(self, mock_tracer: MagicMock) -> None:
         """Test trace decorator with sync function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
@@ -76,7 +76,7 @@ class TestTraceDecorator:
 
     @pytest.mark.asyncio
     @patch("src.utils.tracing_utils.distributed_tracer")
-    async def test_trace_decorator_with_async_function(self, mock_tracer):
+    async def test_trace_decorator_with_async_function(self, mock_tracer: MagicMock) -> None:
         """Test trace decorator with async function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_context = MagicMock()
@@ -96,7 +96,7 @@ class TestTraceDecorator:
         mock_tracer.trace_operation.assert_called_once()
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_decorator_with_default_operation_name(self, mock_tracer):
+    def test_trace_decorator_with_default_operation_name(self, mock_tracer: MagicMock) -> None:
         """Test trace decorator uses function name as default - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
@@ -113,7 +113,7 @@ class TestTraceDecorator:
         mock_tracer.trace_function.assert_called_once()
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_decorator_with_custom_attributes(self, mock_tracer):
+    def test_trace_decorator_with_custom_attributes(self, mock_tracer: MagicMock) -> None:
         """Test trace decorator with custom attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_attrs = {"component": "parser", "version": "1.0"}
@@ -132,7 +132,7 @@ class TestTraceDecorator:
 
     @pytest.mark.asyncio
     @patch("src.utils.tracing_utils.distributed_tracer")
-    async def test_trace_decorator_async_with_attributes(self, mock_tracer):
+    async def test_trace_decorator_async_with_attributes(self, mock_tracer: MagicMock) -> None:
         """Test trace decorator async function with attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_context = MagicMock()
@@ -140,10 +140,10 @@ class TestTraceDecorator:
         mock_context.__aexit__ = AsyncMock(return_value=None)
         mock_tracer.trace_operation.return_value = mock_context
 
-        custom_attrs = {"service": "scraper"}
+        custom_attrs: dict[str, str] = {"service": "scraper"}
 
         @trace("scrape_page", attributes=custom_attrs)
-        async def scrape_async(url: str) -> dict:
+        async def scrape_async(url: str) -> dict[str, str]:
             return {"url": url, "status": "success"}
 
         # Act - MANDATORY
@@ -155,7 +155,7 @@ class TestTraceDecorator:
         mock_tracer.trace_operation.assert_called_once()
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_decorator_preserves_function_metadata(self, mock_tracer):
+    def test_trace_decorator_preserves_function_metadata(self, mock_tracer: MagicMock) -> None:
         """Test trace decorator preserves function metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
@@ -171,7 +171,7 @@ class TestTraceDecorator:
 
         # Assert - MANDATORY
         assert func_name == "documented_function"
-        assert "This function has documentation" in func_doc
+        assert func_doc is not None and "This function has documentation" in func_doc
 
 
 # ============================================================================
@@ -184,7 +184,7 @@ class TestAddTraceEvent:
     """Tests for add_trace_event function."""
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_add_trace_event_with_name_only(self, mock_tracer):
+    def test_add_trace_event_with_name_only(self, mock_tracer: MagicMock) -> None:
         """Test add_trace_event with event name only - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         event_name = "cache_miss"
@@ -196,11 +196,11 @@ class TestAddTraceEvent:
         mock_tracer.add_event.assert_called_once_with(event_name, None)
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_add_trace_event_with_attributes(self, mock_tracer):
+    def test_add_trace_event_with_attributes(self, mock_tracer: MagicMock) -> None:
         """Test add_trace_event with attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         event_name = "validation_passed"
-        attributes = {"user_id": "123", "action": "login"}
+        attributes: dict[str, str] = {"user_id": "123", "action": "login"}
 
         # Act - MANDATORY
         add_trace_event(event_name, attributes)
@@ -209,11 +209,11 @@ class TestAddTraceEvent:
         mock_tracer.add_event.assert_called_once_with(event_name, attributes)
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_add_trace_event_with_empty_attributes(self, mock_tracer):
+    def test_add_trace_event_with_empty_attributes(self, mock_tracer: MagicMock) -> None:
         """Test add_trace_event with empty attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         event_name = "request_started"
-        attributes = {}
+        attributes: dict[str, str] = {}
 
         # Act - MANDATORY
         add_trace_event(event_name, attributes)
@@ -232,7 +232,7 @@ class TestSetTraceAttribute:
     """Tests for set_trace_attribute function."""
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_set_trace_attribute_string_value(self, mock_tracer):
+    def test_set_trace_attribute_string_value(self, mock_tracer: MagicMock) -> None:
         """Test set_trace_attribute with string value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "user.id"
@@ -245,7 +245,7 @@ class TestSetTraceAttribute:
         mock_tracer.set_attribute.assert_called_once_with(key, value)
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_set_trace_attribute_integer_value(self, mock_tracer):
+    def test_set_trace_attribute_integer_value(self, mock_tracer: MagicMock) -> None:
         """Test set_trace_attribute with integer value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "database.query_count"
@@ -258,7 +258,7 @@ class TestSetTraceAttribute:
         mock_tracer.set_attribute.assert_called_once_with(key, value)
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_set_trace_attribute_boolean_value(self, mock_tracer):
+    def test_set_trace_attribute_boolean_value(self, mock_tracer: MagicMock) -> None:
         """Test set_trace_attribute with boolean value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "cache.hit"
@@ -271,7 +271,7 @@ class TestSetTraceAttribute:
         mock_tracer.set_attribute.assert_called_once_with(key, value)
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_set_trace_attribute_float_value(self, mock_tracer):
+    def test_set_trace_attribute_float_value(self, mock_tracer: MagicMock) -> None:
         """Test set_trace_attribute with float value - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         key = "response.time_ms"
@@ -294,7 +294,7 @@ class TestGetCurrentTraceContext:
     """Tests for get_current_trace_context function."""
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_get_current_trace_context_with_active_trace(self, mock_tracer):
+    def test_get_current_trace_context_with_active_trace(self, mock_tracer: MagicMock) -> None:
         """Test get_current_trace_context with active trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.get_current_trace_id.return_value = "trace-123"
@@ -310,7 +310,7 @@ class TestGetCurrentTraceContext:
         mock_tracer.get_current_span_id.assert_called_once()
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_get_current_trace_context_without_active_trace(self, mock_tracer):
+    def test_get_current_trace_context_without_active_trace(self, mock_tracer: MagicMock) -> None:
         """Test get_current_trace_context without active trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.get_current_trace_id.return_value = None
@@ -324,7 +324,7 @@ class TestGetCurrentTraceContext:
         assert context["span_id"] is None
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_get_current_trace_context_returns_dict(self, mock_tracer):
+    def test_get_current_trace_context_returns_dict(self, mock_tracer: MagicMock) -> None:
         """Test get_current_trace_context returns dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.get_current_trace_id.return_value = "trace-abc"
@@ -349,13 +349,13 @@ class TestConvenienceDecorators:
     """Tests for convenience decorator functions."""
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_database_operation_decorator(self, mock_tracer):
+    def test_trace_database_operation_decorator(self, mock_tracer: MagicMock) -> None:
         """Test trace_database_operation decorator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
 
         @trace_database_operation("users", "select")
-        def query_users() -> list:
+        def query_users() -> list[dict[str, str | int]]:
             return [{"id": 1, "name": "User 1"}]
 
         # Act - MANDATORY
@@ -367,7 +367,7 @@ class TestConvenienceDecorators:
         mock_tracer.trace_function.assert_called_once()
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_cache_operation_decorator(self, mock_tracer):
+    def test_trace_cache_operation_decorator(self, mock_tracer: MagicMock) -> None:
         """Test trace_cache_operation decorator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
@@ -384,13 +384,13 @@ class TestConvenienceDecorators:
         mock_tracer.trace_function.assert_called_once()
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_http_request_decorator(self, mock_tracer):
+    def test_trace_http_request_decorator(self, mock_tracer: MagicMock) -> None:
         """Test trace_http_request decorator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
 
         @trace_http_request("GET", "https://api.example.com")
-        def make_request() -> dict:
+        def make_request() -> dict[str, str | int]:
             return {"status": 200, "data": "success"}
 
         # Act - MANDATORY
@@ -413,7 +413,7 @@ class TestTracingUtilsPerformance:
     """MANDATORY performance tests for tracing utilities."""
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_trace_decorator_overhead_sync(self, mock_tracer):
+    def test_trace_decorator_overhead_sync(self, mock_tracer: MagicMock) -> None:
         """MANDATORY performance test - sync trace decorator overhead."""
         # Arrange - MANDATORY
         mock_tracer.trace_function.return_value = lambda func: func
@@ -439,7 +439,7 @@ class TestTracingUtilsPerformance:
         assert execution_time < 1.0  # Total <1s for 10000 calls
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_add_trace_event_performance(self, mock_tracer):
+    def test_add_trace_event_performance(self, mock_tracer: MagicMock) -> None:
         """MANDATORY performance test - add_trace_event speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -459,7 +459,7 @@ class TestTracingUtilsPerformance:
         assert execution_time < 1.0  # Total <1s for 10000 events
 
     @patch("src.utils.tracing_utils.distributed_tracer")
-    def test_set_trace_attribute_performance(self, mock_tracer):
+    def test_set_trace_attribute_performance(self, mock_tracer: MagicMock) -> None:
         """MANDATORY performance test - set_trace_attribute speed."""
         # Arrange - MANDATORY
         iterations = 10000

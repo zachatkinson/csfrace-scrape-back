@@ -4,9 +4,11 @@ Test coverage: 192 statements, 71% → 85%+
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from collections.abc import Generator
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from pytest_mock import MockerFixture
 
 from src.core.logging_hierarchy import (
     APILoggingMixin,
@@ -38,7 +40,7 @@ from src.core.logging_hierarchy import (
 
 
 @pytest.fixture
-def reset_logger_hierarchy():
+def reset_logger_hierarchy() -> Generator[None]:
     """Reset LoggerHierarchy state between tests - DRY principle."""
     LoggerHierarchy._loggers = {}
     LoggerHierarchy._configured = False
@@ -48,7 +50,7 @@ def reset_logger_hierarchy():
 
 
 @pytest.fixture
-def mock_logger(mocker):
+def mock_logger(mocker: MockerFixture) -> MagicMock:
     """Factory for mock logger - DRY principle."""
     mock = MagicMock()
     mocker.patch("src.utils.logging.get_logger", return_value=mock)
@@ -65,7 +67,7 @@ def mock_logger(mocker):
 class TestLogLevel:
     """Test LogLevel enum."""
 
-    def test_log_level_values(self):
+    def test_log_level_values(self) -> None:
         """Test LogLevel has correct numeric values."""
         # Assert
         assert LogLevel.DEBUG.value == 10
@@ -74,7 +76,7 @@ class TestLogLevel:
         assert LogLevel.ERROR.value == 40
         assert LogLevel.CRITICAL.value == 50
 
-    def test_log_level_ordering(self):
+    def test_log_level_ordering(self) -> None:
         """Test LogLevel ordering."""
         # Assert
         assert LogLevel.DEBUG.value < LogLevel.INFO.value
@@ -92,7 +94,7 @@ class TestLogLevel:
 class TestServiceType:
     """Test ServiceType enum."""
 
-    def test_service_type_values(self):
+    def test_service_type_values(self) -> None:
         """Test ServiceType has correct string values."""
         # Assert
         assert ServiceType.DATABASE.value == "database"
@@ -114,7 +116,7 @@ class TestServiceType:
 class TestServiceLogger:
     """Test ServiceLogger functionality."""
 
-    def test_service_logger_init(self, mock_logger):
+    def test_service_logger_init(self, mock_logger: MagicMock) -> None:
         """Test ServiceLogger initialization."""
         # Arrange & Act
         logger = ServiceLogger("test.module", ServiceType.DATABASE)
@@ -124,7 +126,7 @@ class TestServiceLogger:
         assert logger.service_type == ServiceType.DATABASE
         assert logger._logger is not None
 
-    def test_service_logger_creates_with_context(self, mock_logger):
+    def test_service_logger_creates_with_context(self, mock_logger: MagicMock) -> None:
         """Test ServiceLogger creates logger with service context."""
         # Arrange & Act
         logger = ServiceLogger("test.module", ServiceType.AUTH)
@@ -138,7 +140,7 @@ class TestServiceLogger:
         assert call_kwargs["service_type"] == "auth"
         assert call_kwargs["logger_name"] == "test.module"
 
-    def test_service_logger_get_default_level_database(self, mock_logger):
+    def test_service_logger_get_default_level_database(self, mock_logger: MagicMock) -> None:
         """Test get_default_level for database service."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.DATABASE)
@@ -149,7 +151,7 @@ class TestServiceLogger:
         # Assert
         assert level == LogLevel.INFO
 
-    def test_service_logger_get_default_level_auth(self, mock_logger):
+    def test_service_logger_get_default_level_auth(self, mock_logger: MagicMock) -> None:
         """Test get_default_level for auth service (WARNING)."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.AUTH)
@@ -160,7 +162,7 @@ class TestServiceLogger:
         # Assert
         assert level == LogLevel.WARNING
 
-    def test_service_logger_get_default_level_monitoring(self, mock_logger):
+    def test_service_logger_get_default_level_monitoring(self, mock_logger: MagicMock) -> None:
         """Test get_default_level for monitoring service (DEBUG)."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.MONITORING)
@@ -171,7 +173,7 @@ class TestServiceLogger:
         # Assert
         assert level == LogLevel.DEBUG
 
-    def test_service_logger_debug(self, mock_logger):
+    def test_service_logger_debug(self, mock_logger: MagicMock) -> None:
         """Test debug logging method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -183,7 +185,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.debug.assert_called_once_with("Test debug message", key="value")
 
-    def test_service_logger_info(self, mock_logger):
+    def test_service_logger_info(self, mock_logger: MagicMock) -> None:
         """Test info logging method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -195,7 +197,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.info.assert_called_once_with("Test info message", key="value")
 
-    def test_service_logger_warning(self, mock_logger):
+    def test_service_logger_warning(self, mock_logger: MagicMock) -> None:
         """Test warning logging method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -207,7 +209,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.warning.assert_called_once_with("Test warning message", key="value")
 
-    def test_service_logger_error(self, mock_logger):
+    def test_service_logger_error(self, mock_logger: MagicMock) -> None:
         """Test error logging method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -219,7 +221,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.error.assert_called_once_with("Test error message", key="value")
 
-    def test_service_logger_critical(self, mock_logger):
+    def test_service_logger_critical(self, mock_logger: MagicMock) -> None:
         """Test critical logging method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -231,7 +233,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.critical.assert_called_once_with("Test critical message", key="value")
 
-    def test_service_logger_bind(self, mock_logger):
+    def test_service_logger_bind(self, mock_logger: MagicMock) -> None:
         """Test bind method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -243,7 +245,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.bind.assert_called_once_with(request_id="123")
 
-    def test_service_logger_exception(self, mock_logger):
+    def test_service_logger_exception(self, mock_logger: MagicMock) -> None:
         """Test exception logging method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -255,7 +257,7 @@ class TestServiceLogger:
         # Assert
         bound_logger.exception.assert_called_once_with("Test exception message", key="value")
 
-    def test_service_logger_with_context(self, mock_logger):
+    def test_service_logger_with_context(self, mock_logger: MagicMock) -> None:
         """Test with_context method."""
         # Arrange
         logger = ServiceLogger("test.module", ServiceType.GENERAL)
@@ -277,7 +279,9 @@ class TestServiceLogger:
 class TestLoggerHierarchy:
     """Test LoggerHierarchy functionality."""
 
-    def test_logger_hierarchy_configure(self, reset_logger_hierarchy, mocker):
+    def test_logger_hierarchy_configure(
+        self, reset_logger_hierarchy: None, mocker: MockerFixture
+    ) -> None:
         """Test LoggerHierarchy configuration."""
         # Arrange
         mock_configure = mocker.patch("src.utils.logging.configure_logging")
@@ -289,7 +293,9 @@ class TestLoggerHierarchy:
         mock_configure.assert_called_once_with("DEBUG")
         assert LoggerHierarchy._configured is True
 
-    def test_logger_hierarchy_configure_idempotent(self, reset_logger_hierarchy, mocker):
+    def test_logger_hierarchy_configure_idempotent(
+        self, reset_logger_hierarchy: None, mocker: MockerFixture
+    ) -> None:
         """Test configure is idempotent (doesn't reconfigure)."""
         # Arrange
         mock_configure = mocker.patch("src.utils.logging.configure_logging")
@@ -302,8 +308,8 @@ class TestLoggerHierarchy:
         assert mock_configure.call_count == 1
 
     def test_logger_hierarchy_get_service_logger_creates_new(
-        self, reset_logger_hierarchy, mock_logger
-    ):
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_service_logger creates new logger."""
         # Act
         logger = LoggerHierarchy.get_service_logger("test.module", ServiceType.DATABASE)
@@ -315,8 +321,8 @@ class TestLoggerHierarchy:
         assert "database:test.module" in LoggerHierarchy._loggers
 
     def test_logger_hierarchy_get_service_logger_returns_cached(
-        self, reset_logger_hierarchy, mock_logger
-    ):
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_service_logger returns cached logger."""
         # Arrange
         logger1 = LoggerHierarchy.get_service_logger("test.module", ServiceType.DATABASE)
@@ -327,7 +333,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger1 is logger2
 
-    def test_logger_hierarchy_get_database_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_database_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_database_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_database_logger("test.module")
@@ -335,7 +343,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.DATABASE
 
-    def test_logger_hierarchy_get_auth_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_auth_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_auth_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_auth_logger("test.module")
@@ -343,7 +353,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.AUTH
 
-    def test_logger_hierarchy_get_cache_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_cache_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_cache_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_cache_logger("test.module")
@@ -351,7 +363,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.CACHE
 
-    def test_logger_hierarchy_get_monitoring_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_monitoring_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_monitoring_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_monitoring_logger("test.module")
@@ -359,7 +373,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.MONITORING
 
-    def test_logger_hierarchy_get_api_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_api_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_api_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_api_logger("test.module")
@@ -367,7 +383,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.API
 
-    def test_logger_hierarchy_get_job_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_job_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_job_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_job_logger("test.module")
@@ -375,7 +393,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.JOB
 
-    def test_logger_hierarchy_get_scraping_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_scraping_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_scraping_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_scraping_logger("test.module")
@@ -383,7 +403,9 @@ class TestLoggerHierarchy:
         # Assert
         assert logger.service_type == ServiceType.SCRAPING
 
-    def test_logger_hierarchy_get_general_logger(self, reset_logger_hierarchy, mock_logger):
+    def test_logger_hierarchy_get_general_logger(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_general_logger convenience method."""
         # Act
         logger = LoggerHierarchy.get_general_logger("test.module")
@@ -401,7 +423,9 @@ class TestLoggerHierarchy:
 class TestConvenienceFunctions:
     """Test module-level convenience functions."""
 
-    def test_get_database_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_database_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_database_logger with explicit name."""
         # Act
         logger = get_database_logger("test.module")
@@ -411,7 +435,9 @@ class TestConvenienceFunctions:
         assert logger.service_type == ServiceType.DATABASE
         assert logger.name == "test.module"
 
-    def test_get_database_logger_auto_detect(self, reset_logger_hierarchy, mock_logger):
+    def test_get_database_logger_auto_detect(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_database_logger with name auto-detection."""
         # Act
         logger = get_database_logger()
@@ -420,7 +446,9 @@ class TestConvenienceFunctions:
         assert isinstance(logger, ServiceLogger)
         assert logger.service_type == ServiceType.DATABASE
 
-    def test_get_auth_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_auth_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_auth_logger with explicit name."""
         # Act
         logger = get_auth_logger("test.module")
@@ -428,7 +456,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.AUTH
 
-    def test_get_cache_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_cache_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_cache_logger with explicit name."""
         # Act
         logger = get_cache_logger("test.module")
@@ -436,7 +466,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.CACHE
 
-    def test_get_monitoring_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_monitoring_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_monitoring_logger with explicit name."""
         # Act
         logger = get_monitoring_logger("test.module")
@@ -444,7 +476,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.MONITORING
 
-    def test_get_api_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_api_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_api_logger with explicit name."""
         # Act
         logger = get_api_logger("test.module")
@@ -452,7 +486,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.API
 
-    def test_get_job_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_job_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_job_logger with explicit name."""
         # Act
         logger = get_job_logger("test.module")
@@ -460,7 +496,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.JOB
 
-    def test_get_scraping_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_scraping_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_scraping_logger with explicit name."""
         # Act
         logger = get_scraping_logger("test.module")
@@ -468,7 +506,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.SCRAPING
 
-    def test_get_general_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_general_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_general_logger with explicit name."""
         # Act
         logger = get_general_logger("test.module")
@@ -476,7 +516,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.GENERAL
 
-    def test_get_core_logger_with_name(self, reset_logger_hierarchy, mock_logger):
+    def test_get_core_logger_with_name(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test get_core_logger with explicit name."""
         # Act
         logger = get_core_logger("test.module")
@@ -484,7 +526,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.service_type == ServiceType.GENERAL
 
-    def test_get_database_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_database_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_database_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -495,7 +539,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_auth_logger_no_back_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_auth_logger_no_back_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_auth_logger when f_back is None."""
         # Arrange
         mock_frame = Mock()
@@ -508,7 +554,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_cache_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_cache_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_cache_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -519,7 +567,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_monitoring_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_monitoring_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_monitoring_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -530,7 +580,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_api_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_api_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_api_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -541,7 +593,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_job_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_job_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_job_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -552,7 +606,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_scraping_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_scraping_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_scraping_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -563,7 +619,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_general_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_general_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_general_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -574,7 +632,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_core_logger_no_frame(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_core_logger_no_frame(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_core_logger when currentframe returns None."""
         # Arrange
         mocker.patch("inspect.currentframe", return_value=None)
@@ -585,7 +645,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_auth_logger_no_name_in_globals(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_auth_logger_no_name_in_globals(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_auth_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -599,7 +661,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_cache_logger_no_name_in_globals(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_cache_logger_no_name_in_globals(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_cache_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -614,8 +678,8 @@ class TestConvenienceFunctions:
         assert logger.name == "unknown"
 
     def test_get_monitoring_logger_no_name_in_globals(
-        self, reset_logger_hierarchy, mock_logger, mocker
-    ):
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_monitoring_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -629,7 +693,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_api_logger_no_name_in_globals(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_api_logger_no_name_in_globals(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_api_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -643,7 +709,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_job_logger_no_name_in_globals(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_job_logger_no_name_in_globals(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_job_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -658,8 +726,8 @@ class TestConvenienceFunctions:
         assert logger.name == "unknown"
 
     def test_get_scraping_logger_no_name_in_globals(
-        self, reset_logger_hierarchy, mock_logger, mocker
-    ):
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_scraping_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -674,8 +742,8 @@ class TestConvenienceFunctions:
         assert logger.name == "unknown"
 
     def test_get_general_logger_no_name_in_globals(
-        self, reset_logger_hierarchy, mock_logger, mocker
-    ):
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_general_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -689,7 +757,9 @@ class TestConvenienceFunctions:
         # Assert
         assert logger.name == "unknown"
 
-    def test_get_core_logger_no_name_in_globals(self, reset_logger_hierarchy, mock_logger, mocker):
+    def test_get_core_logger_no_name_in_globals(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock, mocker: MockerFixture
+    ) -> None:
         """Test get_core_logger when __name__ not in f_globals."""
         # Arrange
         mock_frame = Mock()
@@ -713,7 +783,9 @@ class TestConvenienceFunctions:
 class TestServiceLoggingMixin:
     """Test ServiceLoggingMixin functionality."""
 
-    def test_service_logging_mixin_logger_property(self, reset_logger_hierarchy, mock_logger):
+    def test_service_logging_mixin_logger_property(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test ServiceLoggingMixin logger property."""
 
         # Arrange
@@ -729,7 +801,9 @@ class TestServiceLoggingMixin:
         assert isinstance(logger, ServiceLogger)
         assert logger.service_type == ServiceType.GENERAL
 
-    def test_service_logging_mixin_log_with_context(self, reset_logger_hierarchy, mock_logger):
+    def test_service_logging_mixin_log_with_context(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test ServiceLoggingMixin log_with_context method."""
 
         # Arrange
@@ -758,7 +832,9 @@ class TestServiceLoggingMixin:
 class TestDatabaseLoggingMixin:
     """Test DatabaseLoggingMixin."""
 
-    def test_database_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_database_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test DatabaseLoggingMixin has correct service type."""
 
         # Arrange
@@ -778,7 +854,9 @@ class TestDatabaseLoggingMixin:
 class TestAuthLoggingMixin:
     """Test AuthLoggingMixin."""
 
-    def test_auth_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_auth_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test AuthLoggingMixin has correct service type."""
 
         # Arrange
@@ -798,7 +876,9 @@ class TestAuthLoggingMixin:
 class TestCacheLoggingMixin:
     """Test CacheLoggingMixin."""
 
-    def test_cache_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_cache_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test CacheLoggingMixin has correct service type."""
 
         # Arrange
@@ -818,7 +898,9 @@ class TestCacheLoggingMixin:
 class TestMonitoringLoggingMixin:
     """Test MonitoringLoggingMixin."""
 
-    def test_monitoring_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_monitoring_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test MonitoringLoggingMixin has correct service type."""
 
         # Arrange
@@ -838,7 +920,9 @@ class TestMonitoringLoggingMixin:
 class TestAPILoggingMixin:
     """Test APILoggingMixin."""
 
-    def test_api_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_api_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test APILoggingMixin has correct service type."""
 
         # Arrange
@@ -858,7 +942,9 @@ class TestAPILoggingMixin:
 class TestJobLoggingMixin:
     """Test JobLoggingMixin."""
 
-    def test_job_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_job_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test JobLoggingMixin has correct service type."""
 
         # Arrange
@@ -878,7 +964,9 @@ class TestJobLoggingMixin:
 class TestScrapingLoggingMixin:
     """Test ScrapingLoggingMixin."""
 
-    def test_scraping_logging_mixin_service_type(self, reset_logger_hierarchy, mock_logger):
+    def test_scraping_logging_mixin_service_type(
+        self, reset_logger_hierarchy: None, mock_logger: MagicMock
+    ) -> None:
         """Test ScrapingLoggingMixin has correct service type."""
 
         # Arrange

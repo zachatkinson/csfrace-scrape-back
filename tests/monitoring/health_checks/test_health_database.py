@@ -16,6 +16,8 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 """
 
 import time
+from collections.abc import AsyncGenerator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -29,7 +31,7 @@ from src.monitoring.health_checks.database import DatabaseHealthCheck, DatabaseT
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Factory for mock database session - DRY principle."""
     session = AsyncMock()
     session.execute = AsyncMock()
@@ -37,10 +39,10 @@ def mock_db_session():
 
 
 @pytest.fixture
-def mock_get_db_session(mock_db_session):
+def mock_get_db_session(mock_db_session: AsyncMock) -> Any:
     """Factory for mock get_db_session generator - DRY principle."""
 
-    async def mock_generator():
+    async def mock_generator() -> AsyncGenerator[AsyncMock]:
         yield mock_db_session
 
     return mock_generator
@@ -55,7 +57,7 @@ def mock_get_db_session(mock_db_session):
 class TestDatabaseHealthCheck:
     """Tests for DatabaseHealthCheck class."""
 
-    def test_database_health_check_initialization_defaults(self):
+    def test_database_health_check_initialization_defaults(self) -> None:
         """Test DatabaseHealthCheck initialization with defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -66,7 +68,7 @@ class TestDatabaseHealthCheck:
         assert health_check.timeout_seconds == 5.0
         assert health_check._session is None
 
-    def test_database_health_check_initialization_custom_name(self):
+    def test_database_health_check_initialization_custom_name(self) -> None:
         """Test DatabaseHealthCheck with custom name - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_name = "postgres_db"
@@ -77,7 +79,7 @@ class TestDatabaseHealthCheck:
         # Assert - MANDATORY
         assert health_check.name == custom_name
 
-    def test_database_health_check_initialization_custom_timeout(self):
+    def test_database_health_check_initialization_custom_timeout(self) -> None:
         """Test DatabaseHealthCheck with custom timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_timeout = 10.0
@@ -90,7 +92,9 @@ class TestDatabaseHealthCheck:
 
     @pytest.mark.asyncio
     @patch("src.monitoring.health_checks.database.get_db_session")
-    async def test_check_successful_database_connection(self, mock_get_db, mock_db_session):
+    async def test_check_successful_database_connection(
+        self, mock_get_db: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test check() with successful database connection - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -99,7 +103,7 @@ class TestDatabaseHealthCheck:
         mock_result.fetchone.return_value = mock_row
         mock_db_session.execute.return_value = mock_result
 
-        async def mock_generator():
+        async def mock_generator() -> AsyncGenerator[AsyncMock]:
             yield mock_db_session
 
         mock_get_db.return_value = mock_generator()
@@ -117,7 +121,9 @@ class TestDatabaseHealthCheck:
 
     @pytest.mark.asyncio
     @patch("src.monitoring.health_checks.database.get_db_session")
-    async def test_check_database_query_unexpected_result(self, mock_get_db, mock_db_session):
+    async def test_check_database_query_unexpected_result(
+        self, mock_get_db: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test check() with unexpected query result - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
@@ -126,7 +132,7 @@ class TestDatabaseHealthCheck:
         mock_result.fetchone.return_value = mock_row
         mock_db_session.execute.return_value = mock_result
 
-        async def mock_generator():
+        async def mock_generator() -> AsyncGenerator[AsyncMock]:
             yield mock_db_session
 
         mock_get_db.return_value = mock_generator()
@@ -144,14 +150,16 @@ class TestDatabaseHealthCheck:
 
     @pytest.mark.asyncio
     @patch("src.monitoring.health_checks.database.get_db_session")
-    async def test_check_database_no_row_returned(self, mock_get_db, mock_db_session):
+    async def test_check_database_no_row_returned(
+        self, mock_get_db: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test check() when query returns no rows - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_result = MagicMock()
         mock_result.fetchone.return_value = None
         mock_db_session.execute.return_value = mock_result
 
-        async def mock_generator():
+        async def mock_generator() -> AsyncGenerator[AsyncMock]:
             yield mock_db_session
 
         mock_get_db.return_value = mock_generator()
@@ -167,11 +175,11 @@ class TestDatabaseHealthCheck:
 
     @pytest.mark.asyncio
     @patch("src.monitoring.health_checks.database.get_db_session")
-    async def test_check_no_database_session_available(self, mock_get_db):
+    async def test_check_no_database_session_available(self, mock_get_db: Any) -> None:
         """Test check() when no database session is available - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def empty_generator():
+        async def empty_generator() -> AsyncGenerator[None]:
             return
             yield  # Make it a generator but yield nothing
 
@@ -197,7 +205,7 @@ class TestDatabaseHealthCheck:
 class TestDatabaseTableHealthCheck:
     """Tests for DatabaseTableHealthCheck class."""
 
-    def test_database_table_health_check_initialization_defaults(self):
+    def test_database_table_health_check_initialization_defaults(self) -> None:
         """Test DatabaseTableHealthCheck initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         table_name = "users"
@@ -210,7 +218,7 @@ class TestDatabaseTableHealthCheck:
         assert health_check.table_name == "users"
         assert health_check.timeout_seconds == 5.0
 
-    def test_database_table_health_check_initialization_custom_name(self):
+    def test_database_table_health_check_initialization_custom_name(self) -> None:
         """Test DatabaseTableHealthCheck with custom name - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         table_name = "orders"
@@ -223,7 +231,7 @@ class TestDatabaseTableHealthCheck:
         assert health_check.name == custom_name
         assert health_check.table_name == table_name
 
-    def test_database_table_health_check_initialization_custom_timeout(self):
+    def test_database_table_health_check_initialization_custom_timeout(self) -> None:
         """Test DatabaseTableHealthCheck with custom timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         table_name = "products"
@@ -239,13 +247,15 @@ class TestDatabaseTableHealthCheck:
 
     @pytest.mark.asyncio
     @patch("src.monitoring.health_checks.database.get_db_session")
-    async def test_check_table_accessible_successfully(self, mock_get_db, mock_db_session):
+    async def test_check_table_accessible_successfully(
+        self, mock_get_db: Any, mock_db_session: AsyncMock
+    ) -> None:
         """Test check() with accessible table - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         table_name = "users"
         mock_db_session.execute.return_value = None  # Query succeeds
 
-        async def mock_generator():
+        async def mock_generator() -> AsyncGenerator[AsyncMock]:
             yield mock_db_session
 
         mock_get_db.return_value = mock_generator()
@@ -265,12 +275,12 @@ class TestDatabaseTableHealthCheck:
 
     @pytest.mark.asyncio
     @patch("src.monitoring.health_checks.database.get_db_session")
-    async def test_check_no_session_available_for_table(self, mock_get_db):
+    async def test_check_no_session_available_for_table(self, mock_get_db: Any) -> None:
         """Test check() when no session available for table check - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         table_name = "orders"
 
-        async def empty_generator():
+        async def empty_generator() -> AsyncGenerator[None]:
             return
             yield  # Make it a generator but yield nothing
 
@@ -298,7 +308,7 @@ class TestDatabaseTableHealthCheck:
 class TestDatabaseHealthCheckPerformance:
     """MANDATORY performance tests for database health check operations."""
 
-    def test_database_health_check_creation_performance(self):
+    def test_database_health_check_creation_performance(self) -> None:
         """MANDATORY performance test - DatabaseHealthCheck creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -317,7 +327,7 @@ class TestDatabaseHealthCheckPerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_database_table_health_check_creation_performance(self):
+    def test_database_table_health_check_creation_performance(self) -> None:
         """MANDATORY performance test - DatabaseTableHealthCheck creation speed."""
         # Arrange - MANDATORY
         iterations = 10000

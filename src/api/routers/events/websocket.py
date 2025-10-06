@@ -41,23 +41,23 @@ class ConnectionManager:
     Following Single Responsibility Principle - only manages WS connections.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize connection manager."""
         self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket) -> None:
         """Accept and register new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
         logger.info("websocket_connected", total_connections=len(self.active_connections))
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket) -> None:
         """Remove WebSocket connection."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
         logger.info("websocket_disconnected", total_connections=len(self.active_connections))
 
-    async def send_message(self, websocket: WebSocket, message: dict[str, Any]):
+    async def send_message(self, websocket: WebSocket, message: dict[str, Any]) -> None:
         """Send JSON message to specific WebSocket."""
         try:
             await websocket.send_json(message)
@@ -71,7 +71,7 @@ manager = ConnectionManager()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     """
     WebSocket endpoint for bidirectional real-time communication.
 
@@ -129,7 +129,7 @@ async def websocket_endpoint(websocket: WebSocket):
         )
 
         # Create tasks for receiving and sending
-        async def receive_messages():
+        async def receive_messages() -> None:
             """Receive and handle client messages."""
             while True:
                 try:
@@ -186,7 +186,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 except WebSocketDisconnect:
                     break
 
-        async def send_events():
+        async def send_events() -> None:
             """Send events from queue to WebSocket."""
             while True:
                 try:

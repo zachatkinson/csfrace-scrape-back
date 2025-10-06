@@ -18,7 +18,7 @@ from src.database.services.base import BaseService
 
 
 @pytest.fixture
-def mock_engine():
+def mock_engine() -> Mock:
     """Factory for mock SQLAlchemy engine - DRY principle."""
     engine = Mock(spec=Engine)
     engine.connect = MagicMock()
@@ -26,7 +26,7 @@ def mock_engine():
 
 
 @pytest.fixture
-def base_service_instance(mock_engine):
+def base_service_instance(mock_engine: Mock) -> BaseService:
     """Factory for BaseService instance - DRY principle."""
     with patch("src.database.services.base.create_database_engine", return_value=mock_engine):
         service = BaseService(echo=False)
@@ -34,7 +34,7 @@ def base_service_instance(mock_engine):
 
 
 @pytest.fixture
-def mock_session():
+def mock_session() -> Mock:
     """Factory for mock SQLAlchemy session - DRY principle."""
     session = Mock(spec=Session)
     session.commit = Mock()
@@ -44,7 +44,7 @@ def mock_session():
 
 
 @pytest.fixture
-def sample_urls():
+def sample_urls() -> dict[str, str]:
     """Factory for sample URL test data - DRY principle."""
     return {
         "simple": "https://example.com/page",
@@ -65,7 +65,7 @@ def sample_urls():
 class TestBaseServiceInit:
     """Test BaseService initialization."""
 
-    def test_init_creates_engine(self):
+    def test_init_creates_engine(self) -> None:
         """Test __init__ creates database engine."""
         # Arrange & Act
         with patch("src.database.services.base.create_database_engine") as mock_create:
@@ -77,7 +77,7 @@ class TestBaseServiceInit:
         assert service.engine is not None
         assert service.Session is not None
 
-    def test_init_with_echo_disabled(self):
+    def test_init_with_echo_disabled(self) -> None:
         """Test __init__ with echo disabled."""
         # Arrange & Act
         with patch("src.database.services.base.create_database_engine") as mock_create:
@@ -88,7 +88,7 @@ class TestBaseServiceInit:
         mock_create.assert_called_once_with(echo=False)
         assert service.echo is False
 
-    def test_create_with_engine(self, mock_engine):
+    def test_create_with_engine(self, mock_engine: Mock) -> None:
         """Test _create_with_engine class method."""
         # Act
         service = BaseService._create_with_engine(mock_engine)
@@ -108,15 +108,16 @@ class TestBaseServiceInit:
 class TestBaseServiceDatabaseInit:
     """Test BaseService database initialization."""
 
-    def test_initialize_database_creates_enums(self, base_service_instance):
+    def test_initialize_database_creates_enums(self, base_service_instance: BaseService) -> None:
         """Test initialize_database creates PostgreSQL enums."""
         # Arrange
         mock_connection = Mock()
-        base_service_instance.engine.connect = MagicMock(
+        mock_connect = MagicMock(
             return_value=MagicMock(__enter__=Mock(return_value=mock_connection))
         )
 
         with (
+            patch.object(base_service_instance.engine, "connect", mock_connect),
             patch("src.database.services.base.Base.metadata.create_all") as mock_create_all,
             patch("src.database.services.base.get_standard_enum_definitions") as mock_enum_defs,
             patch("src.database.services.base.create_postgresql_enums") as mock_create_enums,
@@ -126,21 +127,22 @@ class TestBaseServiceDatabaseInit:
             # Act
             base_service_instance.initialize_database()
 
-        # Assert
-        mock_enum_defs.assert_called_once()
-        mock_create_enums.assert_called_once()
-        mock_create_all.assert_called_once_with(base_service_instance.engine)
-        mock_connection.commit.assert_called_once()
+            # Assert
+            mock_enum_defs.assert_called_once()
+            mock_create_enums.assert_called_once()
+            mock_create_all.assert_called_once_with(base_service_instance.engine)
+            mock_connection.commit.assert_called_once()
 
-    def test_initialize_database_creates_tables(self, base_service_instance):
+    def test_initialize_database_creates_tables(self, base_service_instance: BaseService) -> None:
         """Test initialize_database creates all tables."""
         # Arrange
         mock_connection = Mock()
-        base_service_instance.engine.connect = MagicMock(
+        mock_connect = MagicMock(
             return_value=MagicMock(__enter__=Mock(return_value=mock_connection))
         )
 
         with (
+            patch.object(base_service_instance.engine, "connect", mock_connect),
             patch("src.database.services.base.Base.metadata.create_all") as mock_create_all,
             patch("src.database.services.base.get_standard_enum_definitions") as mock_enum_defs,
             patch("src.database.services.base.create_postgresql_enums"),
@@ -150,18 +152,21 @@ class TestBaseServiceDatabaseInit:
             # Act
             base_service_instance.initialize_database()
 
-        # Assert
-        mock_create_all.assert_called_once_with(base_service_instance.engine)
+            # Assert
+            mock_create_all.assert_called_once_with(base_service_instance.engine)
 
-    def test_create_enums_safely_calls_utility_functions(self, base_service_instance):
+    def test_create_enums_safely_calls_utility_functions(
+        self, base_service_instance: BaseService
+    ) -> None:
         """Test _create_enums_safely uses utility functions correctly."""
         # Arrange
         mock_connection = Mock()
-        base_service_instance.engine.connect = MagicMock(
+        mock_connect = MagicMock(
             return_value=MagicMock(__enter__=Mock(return_value=mock_connection))
         )
 
         with (
+            patch.object(base_service_instance.engine, "connect", mock_connect),
             patch("src.database.services.base.get_standard_enum_definitions") as mock_enum_defs,
             patch("src.database.services.base.create_postgresql_enums") as mock_create_enums,
         ):
@@ -186,7 +191,9 @@ class TestBaseServiceDatabaseInit:
 class TestBaseServiceSessionManagement:
     """Test BaseService session management."""
 
-    def test_get_session_yields_session(self, base_service_instance, mock_session):
+    def test_get_session_yields_session(
+        self, base_service_instance: BaseService, mock_session: Mock
+    ) -> None:
         """Test get_session yields a database session."""
         # Arrange
         base_service_instance.Session = Mock(return_value=mock_session)
@@ -200,7 +207,9 @@ class TestBaseServiceSessionManagement:
         mock_session.commit.assert_called_once()
         mock_session.close.assert_called_once()
 
-    def test_get_session_commits_on_success(self, base_service_instance, mock_session):
+    def test_get_session_commits_on_success(
+        self, base_service_instance: BaseService, mock_session: Mock
+    ) -> None:
         """Test get_session commits transaction on success."""
         # Arrange
         base_service_instance.Session = Mock(return_value=mock_session)
@@ -213,7 +222,9 @@ class TestBaseServiceSessionManagement:
         mock_session.commit.assert_called_once()
         mock_session.rollback.assert_not_called()
 
-    def test_get_session_rollback_on_exception(self, base_service_instance, mock_session):
+    def test_get_session_rollback_on_exception(
+        self, base_service_instance: BaseService, mock_session: Mock
+    ) -> None:
         """Test get_session rolls back on exception."""
         # Arrange
         base_service_instance.Session = Mock(return_value=mock_session)
@@ -227,7 +238,9 @@ class TestBaseServiceSessionManagement:
         mock_session.commit.assert_not_called()
         mock_session.close.assert_called_once()
 
-    def test_get_session_always_closes(self, base_service_instance, mock_session):
+    def test_get_session_always_closes(
+        self, base_service_instance: BaseService, mock_session: Mock
+    ) -> None:
         """Test get_session always closes session."""
         # Arrange
         base_service_instance.Session = Mock(return_value=mock_session)
@@ -252,7 +265,7 @@ class TestBaseServiceSessionManagement:
 class TestBaseServiceSlugExtraction:
     """Test BaseService URL slug extraction."""
 
-    def test_extract_slug_simple_path(self, base_service_instance):
+    def test_extract_slug_simple_path(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url with simple path."""
         # Arrange
         url = "https://example.com/my-page"
@@ -263,7 +276,7 @@ class TestBaseServiceSlugExtraction:
         # Assert
         assert slug == "my-page"
 
-    def test_extract_slug_nested_path(self, base_service_instance):
+    def test_extract_slug_nested_path(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url with nested path."""
         # Arrange
         url = "https://example.com/blog/2023/post-title"
@@ -274,7 +287,7 @@ class TestBaseServiceSlugExtraction:
         # Assert
         assert slug == "post-title"
 
-    def test_extract_slug_with_trailing_slash(self, base_service_instance):
+    def test_extract_slug_with_trailing_slash(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url with trailing slash."""
         # Arrange
         url = "https://example.com/page/"
@@ -285,7 +298,7 @@ class TestBaseServiceSlugExtraction:
         # Assert
         assert slug == "page"
 
-    def test_extract_slug_root_url(self, base_service_instance):
+    def test_extract_slug_root_url(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url with root URL."""
         # Arrange
         url = "https://example.com/"
@@ -296,7 +309,7 @@ class TestBaseServiceSlugExtraction:
         # Assert
         assert slug == "index"
 
-    def test_extract_slug_with_query_params(self, base_service_instance):
+    def test_extract_slug_with_query_params(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url ignores query parameters."""
         # Arrange
         url = "https://example.com/page?id=123&ref=source"
@@ -307,7 +320,7 @@ class TestBaseServiceSlugExtraction:
         # Assert
         assert slug == "page"
 
-    def test_extract_slug_sanitizes_special_chars(self, base_service_instance):
+    def test_extract_slug_sanitizes_special_chars(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url sanitizes special characters."""
         # Arrange
         url = "https://example.com/test@#$%page"
@@ -321,7 +334,7 @@ class TestBaseServiceSlugExtraction:
         assert "$" not in slug
         assert "%" not in slug
 
-    def test_extract_slug_limits_length(self, base_service_instance):
+    def test_extract_slug_limits_length(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url limits slug length."""
         # Arrange
         long_slug = "a" * 100
@@ -333,7 +346,7 @@ class TestBaseServiceSlugExtraction:
         # Assert
         assert len(slug) <= 50
 
-    def test_extract_slug_preserves_valid_chars(self, base_service_instance):
+    def test_extract_slug_preserves_valid_chars(self, base_service_instance: BaseService) -> None:
         """Test _extract_slug_from_url preserves valid characters."""
         # Arrange
         url = "https://example.com/test_page-2024.html"
@@ -354,7 +367,7 @@ class TestBaseServiceSlugExtraction:
 class TestBaseServicePriorityNormalization:
     """Test BaseService priority normalization."""
 
-    def test_normalize_priority_enum_object(self, base_service_instance):
+    def test_normalize_priority_enum_object(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with enum object."""
         # Arrange
         mock_priority = Mock()
@@ -366,7 +379,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 7
 
-    def test_normalize_priority_string_low(self, base_service_instance):
+    def test_normalize_priority_string_low(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with 'low' string."""
         # Act
         result = base_service_instance._normalize_priority("low")
@@ -374,7 +387,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 1
 
-    def test_normalize_priority_string_normal(self, base_service_instance):
+    def test_normalize_priority_string_normal(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with 'normal' string."""
         # Act
         result = base_service_instance._normalize_priority("normal")
@@ -382,7 +395,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 5
 
-    def test_normalize_priority_string_high(self, base_service_instance):
+    def test_normalize_priority_string_high(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with 'high' string."""
         # Act
         result = base_service_instance._normalize_priority("high")
@@ -390,7 +403,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 8
 
-    def test_normalize_priority_string_urgent(self, base_service_instance):
+    def test_normalize_priority_string_urgent(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with 'urgent' string."""
         # Act
         result = base_service_instance._normalize_priority("urgent")
@@ -398,7 +411,9 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 10
 
-    def test_normalize_priority_string_case_insensitive(self, base_service_instance):
+    def test_normalize_priority_string_case_insensitive(
+        self, base_service_instance: BaseService
+    ) -> None:
         """Test _normalize_priority is case insensitive."""
         # Act
         result1 = base_service_instance._normalize_priority("HIGH")
@@ -408,7 +423,7 @@ class TestBaseServicePriorityNormalization:
         assert result1 == 8
         assert result2 == 8
 
-    def test_normalize_priority_integer(self, base_service_instance):
+    def test_normalize_priority_integer(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with integer."""
         # Act
         result = base_service_instance._normalize_priority(6)
@@ -416,7 +431,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 6
 
-    def test_normalize_priority_float(self, base_service_instance):
+    def test_normalize_priority_float(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority with float."""
         # Act
         result = base_service_instance._normalize_priority(7.5)
@@ -424,7 +439,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 7
 
-    def test_normalize_priority_clamps_low(self, base_service_instance):
+    def test_normalize_priority_clamps_low(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority clamps values below 1."""
         # Act
         result = base_service_instance._normalize_priority(-5)
@@ -432,7 +447,7 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 1
 
-    def test_normalize_priority_clamps_high(self, base_service_instance):
+    def test_normalize_priority_clamps_high(self, base_service_instance: BaseService) -> None:
         """Test _normalize_priority clamps values above 10."""
         # Act
         result = base_service_instance._normalize_priority(15)
@@ -440,7 +455,9 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 10
 
-    def test_normalize_priority_unknown_string_defaults(self, base_service_instance):
+    def test_normalize_priority_unknown_string_defaults(
+        self, base_service_instance: BaseService
+    ) -> None:
         """Test _normalize_priority defaults unknown strings."""
         # Act
         result = base_service_instance._normalize_priority("unknown")
@@ -448,7 +465,9 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 5  # Default priority
 
-    def test_normalize_priority_invalid_type_defaults(self, base_service_instance):
+    def test_normalize_priority_invalid_type_defaults(
+        self, base_service_instance: BaseService
+    ) -> None:
         """Test _normalize_priority handles invalid types."""
         # Act
         result = base_service_instance._normalize_priority(None)
@@ -456,7 +475,9 @@ class TestBaseServicePriorityNormalization:
         # Assert
         assert result == 5  # Default priority
 
-    def test_normalize_priority_string_convertible(self, base_service_instance):
+    def test_normalize_priority_string_convertible(
+        self, base_service_instance: BaseService
+    ) -> None:
         """Test _normalize_priority converts string numbers."""
         # Act
         result = base_service_instance._normalize_priority("8")

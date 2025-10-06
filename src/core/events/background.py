@@ -22,12 +22,12 @@ class BackgroundEventPublisher:
     Following Single Responsibility Principle - only publishes events on schedule.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize background publisher."""
-        self._tasks: list[asyncio.Task] = []
+        self._tasks: list[asyncio.Task[None]] = []
         self._running = False
 
-    async def start(self):
+    async def start(self) -> None:
         """Start all background publishing tasks."""
         if self._running:
             logger.warning("background_publisher_already_running")
@@ -41,7 +41,7 @@ class BackgroundEventPublisher:
 
         logger.info("background_publisher_started", task_count=len(self._tasks))
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop all background publishing tasks."""
         if not self._running:
             return
@@ -59,7 +59,7 @@ class BackgroundEventPublisher:
         self._tasks.clear()
         logger.info("background_publisher_stopped")
 
-    async def _publish_health_events(self):
+    async def _publish_health_events(self) -> None:
         """Periodically publish health events."""
         event_bus = get_event_bus()
 
@@ -100,7 +100,7 @@ class BackgroundEventPublisher:
 _publisher: BackgroundEventPublisher | None = None
 
 
-async def start_event_publishing():
+async def start_event_publishing() -> None:
     """Start background event publishing."""
     global _publisher
     if _publisher is None:
@@ -108,7 +108,7 @@ async def start_event_publishing():
     await _publisher.start()
 
 
-async def stop_event_publishing():
+async def stop_event_publishing() -> None:
     """Stop background event publishing."""
     global _publisher
     if _publisher is not None:

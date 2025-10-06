@@ -4,7 +4,11 @@ Test coverage: 86 statements, 60% → 80%+
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from collections.abc import Generator
+from pathlib import Path
+
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from pydantic import ValidationError
 
 from src.config.auth import AuthConfig
@@ -14,7 +18,7 @@ from src.config.settings import AppConfig, ConfigManager, get_settings
 
 
 @pytest.fixture(autouse=True)
-def clear_settings_env_vars(monkeypatch):
+def clear_settings_env_vars(monkeypatch: MonkeyPatch) -> None:
     """Clear settings-related environment variables for consistent tests."""
     env_vars = [
         "ENVIRONMENT",
@@ -26,7 +30,7 @@ def clear_settings_env_vars(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def set_required_env_vars(monkeypatch):
+def set_required_env_vars(monkeypatch: MonkeyPatch) -> None:
     """Set required environment variables for nested configs."""
     # Required for nested configs (auth, database, converter)
     monkeypatch.setenv("SECRET_KEY", "a" * 32)
@@ -34,7 +38,7 @@ def set_required_env_vars(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def reset_config_manager():
+def reset_config_manager() -> Generator[None]:
     """Reset ConfigManager singleton state before each test."""
     ConfigManager._instance = None
     ConfigManager._loaded = False
@@ -53,7 +57,7 @@ def reset_config_manager():
 class TestAppConfigInitialization:
     """Test AppConfig initialization and defaults."""
 
-    def test_initialization_with_default_values(self):
+    def test_initialization_with_default_values(self) -> None:
         """Test initialization with default values.
 
         Note: API_HOST may be overridden by .env file in development.
@@ -76,7 +80,7 @@ class TestAppConfigInitialization:
         assert config.HEALTH_CHECK_TIMEOUT == 5
         assert config.METRICS_ENABLED is True
 
-    def test_initialization_with_custom_values(self):
+    def test_initialization_with_custom_values(self) -> None:
         """Test initialization with custom values."""
         # Arrange & Act
         config = AppConfig(
@@ -98,7 +102,7 @@ class TestAppConfigInitialization:
         assert config.HEALTH_CHECK_TIMEOUT == 10
         assert config.METRICS_ENABLED is False
 
-    def test_initialization_creates_nested_configs(self):
+    def test_initialization_creates_nested_configs(self) -> None:
         """Test nested domain configs are properly initialized."""
         # Arrange & Act
         config = AppConfig()
@@ -118,19 +122,19 @@ class TestAppConfigInitialization:
 class TestAppConfigFieldConstraints:
     """Test Pydantic field constraints are enforced."""
 
-    def test_api_port_enforces_minimum(self):
+    def test_api_port_enforces_minimum(self) -> None:
         """Test API_PORT enforces minimum value of 1."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             AppConfig(API_PORT=0)
 
-    def test_api_port_enforces_maximum(self):
+    def test_api_port_enforces_maximum(self) -> None:
         """Test API_PORT enforces maximum value of 65535."""
         # Arrange & Act & Assert
         with pytest.raises(ValidationError):
             AppConfig(API_PORT=65536)
 
-    def test_health_check_timeout_enforces_range(self):
+    def test_health_check_timeout_enforces_range(self) -> None:
         """Test HEALTH_CHECK_TIMEOUT enforces range 1-60."""
         # Arrange & Act & Assert - Too low
         with pytest.raises(ValidationError):
@@ -150,47 +154,62 @@ class TestAppConfigFieldConstraints:
 class TestAppConfigComputedFields:
     """Test AppConfig computed field properties."""
 
-    def test_is_production_returns_true_for_production(self):
+    def test_is_production_returns_true_for_production(self) -> None:
         """Test is_production returns True for production environment."""
         # Arrange
         config = AppConfig(ENVIRONMENT="production")
 
-        # Act & Assert
-        assert config.is_production is True
+        # Act
+        result: bool = config.is_production  # type: ignore[assignment]
 
-    def test_is_production_returns_false_for_development(self):
+        # Assert
+        assert result is True
+
+    def test_is_production_returns_false_for_development(self) -> None:
         """Test is_production returns False for development environment."""
         # Arrange
         config = AppConfig(ENVIRONMENT="development")
 
-        # Act & Assert
-        assert config.is_production is False
+        # Act
+        result: bool = config.is_production  # type: ignore[assignment]
 
-    def test_is_production_case_insensitive(self):
+        # Assert
+        assert result is False
+
+    def test_is_production_case_insensitive(self) -> None:
         """Test is_production is case insensitive."""
         # Arrange
         config = AppConfig(ENVIRONMENT="PRODUCTION")
 
-        # Act & Assert
-        assert config.is_production is True
+        # Act
+        result: bool = config.is_production  # type: ignore[assignment]
 
-    def test_is_development_returns_true_for_development(self):
+        # Assert
+        assert result is True
+
+    def test_is_development_returns_true_for_development(self) -> None:
         """Test is_development returns True for development environment."""
         # Arrange
         config = AppConfig(ENVIRONMENT="development")
 
-        # Act & Assert
-        assert config.is_development is True
+        # Act
+        result: bool = config.is_development  # type: ignore[assignment]
 
-    def test_is_development_returns_false_for_production(self):
+        # Assert
+        assert result is True
+
+    def test_is_development_returns_false_for_production(self) -> None:
         """Test is_development returns False for production environment."""
         # Arrange
         config = AppConfig(ENVIRONMENT="production")
 
-        # Act & Assert
-        assert config.is_development is False
+        # Act
+        result: bool = config.is_development  # type: ignore[assignment]
 
-    def test_api_base_url_uses_https_for_production(self):
+        # Assert
+        assert result is False
+
+    def test_api_base_url_uses_https_for_production(self) -> None:
         """Test api_base_url uses https protocol for production."""
         # Arrange
         config = AppConfig(
@@ -201,13 +220,13 @@ class TestAppConfigComputedFields:
         )
 
         # Act
-        url = config.api_base_url
+        url: str = config.api_base_url  # type: ignore[assignment]
 
         # Assert
         assert url == "https://api.example.com:443/api/v1"
         assert url.startswith("https://")
 
-    def test_api_base_url_uses_http_for_development(self):
+    def test_api_base_url_uses_http_for_development(self) -> None:
         """Test api_base_url uses http protocol for development."""
         # Arrange
         config = AppConfig(
@@ -218,7 +237,7 @@ class TestAppConfigComputedFields:
         )
 
         # Act
-        url = config.api_base_url
+        url: str = config.api_base_url  # type: ignore[assignment]
 
         # Assert
         assert url == "http://localhost:8000/api/v1"
@@ -234,7 +253,9 @@ class TestAppConfigComputedFields:
 class TestAppConfigValidateEnvironment:
     """Test AppConfig.validate_environment() method."""
 
-    def test_validate_environment_passes_for_valid_development(self, tmp_path, monkeypatch):
+    def test_validate_environment_passes_for_valid_development(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test validation passes for valid development config."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -245,7 +266,9 @@ class TestAppConfigValidateEnvironment:
 
         # Assert - implicit success
 
-    def test_validate_environment_raises_for_insecure_production(self, tmp_path, monkeypatch):
+    def test_validate_environment_raises_for_insecure_production(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test validation raises error for insecure production config."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -256,7 +279,9 @@ class TestAppConfigValidateEnvironment:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             config.validate_environment()
 
-    def test_validate_environment_calls_nested_validations(self, tmp_path, monkeypatch):
+    def test_validate_environment_calls_nested_validations(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test calls validation methods on nested configs."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -277,7 +302,7 @@ class TestAppConfigValidateEnvironment:
 class TestAppConfigGetCorsConfig:
     """Test AppConfig.get_cors_config() method."""
 
-    def test_get_cors_config_returns_correct_structure(self):
+    def test_get_cors_config_returns_correct_structure(self) -> None:
         """Test returns dictionary with correct CORS settings."""
         # Arrange
         config = AppConfig(CORS_ORIGINS=["http://localhost:3000", "http://example.com"])
@@ -302,7 +327,7 @@ class TestAppConfigGetCorsConfig:
 class TestAppConfigGetLoggingConfig:
     """Test AppConfig.get_logging_config() method."""
 
-    def test_get_logging_config_uses_debug_level_when_debug_enabled(self):
+    def test_get_logging_config_uses_debug_level_when_debug_enabled(self) -> None:
         """Test uses DEBUG level when DEBUG is True."""
         # Arrange
         config = AppConfig(DEBUG=True)
@@ -314,7 +339,9 @@ class TestAppConfigGetLoggingConfig:
         assert logging_config["handlers"]["console"]["level"] == "DEBUG"
         assert logging_config["root"]["level"] == "DEBUG"
 
-    def test_get_logging_config_uses_converter_level_when_debug_disabled(self, monkeypatch):
+    def test_get_logging_config_uses_converter_level_when_debug_disabled(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test uses converter log_level when DEBUG is False."""
         # Arrange
         monkeypatch.setenv("LOG_LEVEL", "WARNING")
@@ -327,7 +354,7 @@ class TestAppConfigGetLoggingConfig:
         assert logging_config["handlers"]["console"]["level"] == "WARNING"
         assert logging_config["root"]["level"] == "WARNING"
 
-    def test_get_logging_config_uses_json_formatter_for_production(self):
+    def test_get_logging_config_uses_json_formatter_for_production(self) -> None:
         """Test uses JSON formatter for production environment."""
         # Arrange
         config = AppConfig(ENVIRONMENT="production")
@@ -338,7 +365,7 @@ class TestAppConfigGetLoggingConfig:
         # Assert
         assert logging_config["handlers"]["console"]["formatter"] == "json"
 
-    def test_get_logging_config_uses_default_formatter_for_development(self):
+    def test_get_logging_config_uses_default_formatter_for_development(self) -> None:
         """Test uses default formatter for development environment."""
         # Arrange
         config = AppConfig(ENVIRONMENT="development")
@@ -359,7 +386,9 @@ class TestAppConfigGetLoggingConfig:
 class TestConfigManagerLoadConfig:
     """Test ConfigManager.load_config() method."""
 
-    def test_load_config_creates_singleton_instance(self, tmp_path, monkeypatch):
+    def test_load_config_creates_singleton_instance(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test creates singleton instance on first call."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -373,7 +402,9 @@ class TestConfigManagerLoadConfig:
         assert ConfigManager._loaded is True
         assert ConfigManager._instance is config
 
-    def test_load_config_returns_same_instance_without_overrides(self, tmp_path, monkeypatch):
+    def test_load_config_returns_same_instance_without_overrides(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test returns same instance when called without overrides."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -385,7 +416,9 @@ class TestConfigManagerLoadConfig:
         # Assert
         assert config1 is config2  # Same instance
 
-    def test_load_config_creates_new_instance_with_overrides(self, tmp_path, monkeypatch):
+    def test_load_config_creates_new_instance_with_overrides(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test creates new instance when called with overrides."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -408,7 +441,9 @@ class TestConfigManagerLoadConfig:
 class TestConfigManagerGetConfig:
     """Test ConfigManager.get_config() method."""
 
-    def test_get_config_returns_loaded_instance(self, tmp_path, monkeypatch):
+    def test_get_config_returns_loaded_instance(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test returns loaded configuration instance."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -420,7 +455,7 @@ class TestConfigManagerGetConfig:
         # Assert
         assert config is loaded_config
 
-    def test_get_config_raises_when_not_loaded(self):
+    def test_get_config_raises_when_not_loaded(self) -> None:
         """Test raises RuntimeError when config not loaded."""
         # Arrange - ConfigManager not loaded (reset in fixture)
 
@@ -438,7 +473,9 @@ class TestConfigManagerGetConfig:
 class TestConfigManagerReloadConfig:
     """Test ConfigManager.reload_config() method."""
 
-    def test_reload_config_clears_existing_instance(self, tmp_path, monkeypatch):
+    def test_reload_config_clears_existing_instance(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test clears existing instance before reloading."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -462,7 +499,9 @@ class TestConfigManagerReloadConfig:
 class TestGetSettings:
     """Test get_settings() convenience function."""
 
-    def test_get_settings_returns_singleton_without_overrides(self, tmp_path, monkeypatch):
+    def test_get_settings_returns_singleton_without_overrides(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
         """Test returns singleton instance when no overrides provided."""
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -474,7 +513,7 @@ class TestGetSettings:
         # Assert
         assert settings is ConfigManager._instance
 
-    def test_get_settings_creates_temporary_instance_with_overrides(self):
+    def test_get_settings_creates_temporary_instance_with_overrides(self) -> None:
         """Test creates temporary instance for testing when overrides provided."""
         # Arrange & Act
         settings = get_settings(ENVIRONMENT="testing")

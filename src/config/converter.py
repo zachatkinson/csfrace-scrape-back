@@ -149,17 +149,17 @@ class ConverterConfig(BaseConfig):
     """
 
     # Sub-configurations
-    http: HttpConfig = Field(default_factory=lambda: HttpConfig(), description="HTTP configuration")  # type: ignore[call-arg]
+    http: HttpConfig = Field(default_factory=lambda: HttpConfig(), description="HTTP configuration")
     output: OutputConfig = Field(
-        default_factory=lambda: OutputConfig(),  # type: ignore[call-arg]
+        default_factory=lambda: OutputConfig(),
         description="Output configuration",
     )
     robots: RobotsConfig = Field(
-        default_factory=lambda: RobotsConfig(),  # type: ignore[call-arg]
+        default_factory=lambda: RobotsConfig(),
         description="Robots.txt configuration",
     )
     shopify: ShopifyConfig = Field(
-        default_factory=lambda: ShopifyConfig(),  # type: ignore[call-arg]
+        default_factory=lambda: ShopifyConfig(),
         description="Shopify configuration",
     )
 

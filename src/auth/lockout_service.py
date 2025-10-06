@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,7 @@ logger = get_auth_logger()
 class AccountLockoutConfig:
     """Configuration for account lockout behavior - SOLID Single Responsibility."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Failed attempt thresholds
         self.max_failed_attempts = EnvironmentLoader.get_int("LOCKOUT_MAX_FAILED_ATTEMPTS", 5)
         self.lockout_duration_minutes = EnvironmentLoader.get_int("LOCKOUT_DURATION_MINUTES", 15)
@@ -290,7 +291,7 @@ class AccountLockoutService:
                 await db.close()
 
     @database_error_handler("get lockout statistics")
-    async def get_lockout_stats(self, user_id: str | None = None) -> dict:
+    async def get_lockout_stats(self, user_id: str | None = None) -> dict[str, Any]:
         """Get lockout statistics for monitoring - SOLID Single Responsibility.
 
         Args:
@@ -449,7 +450,9 @@ class AccountLockoutService:
             1 for lockout in lockouts if lockout.is_locked and not lockout.is_lockout_expired
         )
 
-    def _count_by_field(self, lockouts: Sequence[AccountLockout], field_name: str) -> dict:
+    def _count_by_field(
+        self, lockouts: Sequence[AccountLockout], field_name: str
+    ) -> dict[str, int]:
         """Count lockouts by a specific field - DRY principle helper method."""
         counts: dict[str, int] = {}
         for lockout in lockouts:

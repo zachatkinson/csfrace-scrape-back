@@ -21,7 +21,7 @@ import json
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -103,7 +103,7 @@ class Another_MockPlugin(BasePlugin):
 class TestRegistryInitialization:
     """Tests for PluginRegistry initialization."""
 
-    def test_registry_initialization(self):
+    def test_registry_initialization(self) -> None:
         """Test registry initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no setup needed)
@@ -117,7 +117,9 @@ class TestRegistryInitialization:
         assert registry._search_paths == []
         assert registry._initialized is False
 
-    def test_add_search_path_adds_valid_path(self, registry: PluginRegistry, plugin_dir: Path):
+    def test_add_search_path_adds_valid_path(
+        self, registry: PluginRegistry, plugin_dir: Path
+    ) -> None:
         """Test add_search_path adds valid directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (plugin_dir from fixture)
@@ -129,7 +131,9 @@ class TestRegistryInitialization:
         assert plugin_dir in registry._search_paths
 
     @patch("src.plugins.registry.logger")
-    def test_add_search_path_warns_on_invalid_path(self, mock_logger, registry: PluginRegistry):
+    def test_add_search_path_warns_on_invalid_path(
+        self, mock_logger: MagicMock, registry: PluginRegistry
+    ) -> None:
         """Test add_search_path warns on invalid path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         invalid_path = Path("/nonexistent/path")
@@ -140,7 +144,9 @@ class TestRegistryInitialization:
         # Assert - MANDATORY
         assert invalid_path not in registry._search_paths
 
-    def test_add_search_path_resolves_path(self, registry: PluginRegistry, plugin_dir: Path):
+    def test_add_search_path_resolves_path(
+        self, registry: PluginRegistry, plugin_dir: Path
+    ) -> None:
         """Test add_search_path resolves path to absolute - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (plugin_dir from fixture)
@@ -161,7 +167,7 @@ class TestRegistryInitialization:
 class _MockPluginRegistration:
     """Tests for plugin registration."""
 
-    def test_register_plugin_registers_class(self, registry: PluginRegistry):
+    def test_register_plugin_registers_class(self, registry: PluginRegistry) -> None:
         """Test register_plugin registers plugin class - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -176,7 +182,7 @@ class _MockPluginRegistration:
         assert registry._plugins["test_plugin"] == _MockPlugin
         assert registry._plugin_configs["test_plugin"] == config
 
-    def test_register_plugin_creates_default_config(self, registry: PluginRegistry):
+    def test_register_plugin_creates_default_config(self, registry: PluginRegistry) -> None:
         """Test register_plugin creates default config if not provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no config provided)
@@ -190,7 +196,7 @@ class _MockPluginRegistration:
         assert config.name == "test_plugin"
         assert config.version == "1.0.0"
 
-    def test_register_plugin_raises_error_for_invalid_class(self, registry: PluginRegistry):
+    def test_register_plugin_raises_error_for_invalid_class(self, registry: PluginRegistry) -> None:
         """Test register_plugin raises error for non-BasePlugin class - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
@@ -201,7 +207,7 @@ class _MockPluginRegistration:
         with pytest.raises(ValueError, match="must inherit from BasePlugin"):
             registry.register_plugin(NotAPlugin)  # type: ignore
 
-    def test_unregister_plugin_removes_plugin(self, registry: PluginRegistry):
+    def test_unregister_plugin_removes_plugin(self, registry: PluginRegistry) -> None:
         """Test unregister_plugin removes plugin - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register_plugin(_MockPlugin)
@@ -214,7 +220,9 @@ class _MockPluginRegistration:
         assert "test_plugin" not in registry._plugin_configs
 
     @patch("src.plugins.registry.logger")
-    def test_unregister_plugin_warns_on_missing(self, mock_logger, registry: PluginRegistry):
+    def test_unregister_plugin_warns_on_missing(
+        self, mock_logger: MagicMock, registry: PluginRegistry
+    ) -> None:
         """Test unregister_plugin warns if plugin not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no plugin registered)
@@ -235,7 +243,7 @@ class _MockPluginRegistration:
 class _MockPluginRetrieval:
     """Tests for plugin retrieval."""
 
-    def test_get_plugin_class_returns_class(self, registry: PluginRegistry):
+    def test_get_plugin_class_returns_class(self, registry: PluginRegistry) -> None:
         """Test get_plugin_class returns registered class - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register_plugin(_MockPlugin)
@@ -246,7 +254,7 @@ class _MockPluginRetrieval:
         # Assert - MANDATORY
         assert result == _MockPlugin
 
-    def test_get_plugin_class_returns_none_if_not_found(self, registry: PluginRegistry):
+    def test_get_plugin_class_returns_none_if_not_found(self, registry: PluginRegistry) -> None:
         """Test get_plugin_class returns None if not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no plugin registered)
@@ -257,7 +265,7 @@ class _MockPluginRetrieval:
         # Assert - MANDATORY
         assert result is None
 
-    def test_get_plugin_config_returns_config(self, registry: PluginRegistry):
+    def test_get_plugin_config_returns_config(self, registry: PluginRegistry) -> None:
         """Test get_plugin_config returns configuration - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -271,7 +279,7 @@ class _MockPluginRetrieval:
         # Assert - MANDATORY
         assert result == config
 
-    def test_get_plugin_config_returns_none_if_not_found(self, registry: PluginRegistry):
+    def test_get_plugin_config_returns_none_if_not_found(self, registry: PluginRegistry) -> None:
         """Test get_plugin_config returns None if not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no plugin registered)
@@ -292,7 +300,7 @@ class _MockPluginRetrieval:
 class _MockPluginListing:
     """Tests for plugin listing."""
 
-    def test_list_plugins_returns_all_plugins(self, registry: PluginRegistry):
+    def test_list_plugins_returns_all_plugins(self, registry: PluginRegistry) -> None:
         """Test list_plugins returns all registered plugins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register_plugin(_MockPlugin)
@@ -306,7 +314,7 @@ class _MockPluginListing:
         assert "another_plugin" in result
         assert len(result) == 2
 
-    def test_list_plugins_filters_by_type(self, registry: PluginRegistry):
+    def test_list_plugins_filters_by_type(self, registry: PluginRegistry) -> None:
         """Test list_plugins filters by plugin type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.register_plugin(_MockPlugin)  # HTML_PROCESSOR
@@ -319,7 +327,7 @@ class _MockPluginListing:
         assert "test_plugin" in result
         assert "another_plugin" not in result
 
-    def test_list_plugins_filters_enabled_only(self, registry: PluginRegistry):
+    def test_list_plugins_filters_enabled_only(self, registry: PluginRegistry) -> None:
         """Test list_plugins filters enabled plugins only - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config1 = PluginConfig(
@@ -341,7 +349,7 @@ class _MockPluginListing:
         assert "test_plugin" in result
         assert "another_plugin" not in result
 
-    def test_list_plugins_sorts_by_priority(self, registry: PluginRegistry):
+    def test_list_plugins_sorts_by_priority(self, registry: PluginRegistry) -> None:
         """Test list_plugins sorts by priority - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config1 = PluginConfig(
@@ -376,7 +384,9 @@ class _MockPluginListing:
 class _MockPluginDiscovery:
     """Tests for plugin discovery."""
 
-    def test_discover_plugins_returns_count(self, registry: PluginRegistry, plugin_dir: Path):
+    def test_discover_plugins_returns_count(
+        self, registry: PluginRegistry, plugin_dir: Path
+    ) -> None:
         """Test discover_plugins returns count of discovered plugins - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.add_search_path(plugin_dir)
@@ -407,7 +417,9 @@ class DiscoveredPlugin(BasePlugin):
         # Assert - MANDATORY
         assert count >= 0  # May be 0 if discovery fails due to import issues
 
-    def test_discover_plugins_skips_dunder_files(self, registry: PluginRegistry, plugin_dir: Path):
+    def test_discover_plugins_skips_dunder_files(
+        self, registry: PluginRegistry, plugin_dir: Path
+    ) -> None:
         """Test discover_plugins skips __init__.py files - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.add_search_path(plugin_dir)
@@ -423,7 +435,9 @@ class DiscoveredPlugin(BasePlugin):
         # Should not discover anything from __init__ file
         assert count == 0
 
-    def test_discover_plugins_from_manifest(self, registry: PluginRegistry, plugin_dir: Path):
+    def test_discover_plugins_from_manifest(
+        self, registry: PluginRegistry, plugin_dir: Path
+    ) -> None:
         """Test discover_plugins loads from plugin.json manifest - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         registry.add_search_path(plugin_dir)
@@ -476,7 +490,7 @@ class ManifestPlugin(BasePlugin):
 class TestConfigurationPersistence:
     """Tests for configuration save/load."""
 
-    def test_save_config_creates_file(self, registry: PluginRegistry, tmp_path: Path):
+    def test_save_config_creates_file(self, registry: PluginRegistry, tmp_path: Path) -> None:
         """Test save_config creates configuration file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -491,7 +505,9 @@ class TestConfigurationPersistence:
         # Assert - MANDATORY
         assert config_file.exists()
 
-    def test_save_config_includes_all_settings(self, registry: PluginRegistry, tmp_path: Path):
+    def test_save_config_includes_all_settings(
+        self, registry: PluginRegistry, tmp_path: Path
+    ) -> None:
         """Test save_config includes all plugin settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -518,7 +534,7 @@ class TestConfigurationPersistence:
         assert saved_data["test_plugin"]["priority"] == 50
         assert saved_data["test_plugin"]["settings"] == {"key": "value"}
 
-    def test_load_config_restores_settings(self, registry: PluginRegistry, tmp_path: Path):
+    def test_load_config_restores_settings(self, registry: PluginRegistry, tmp_path: Path) -> None:
         """Test load_config restores plugin settings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PluginConfig(
@@ -543,14 +559,18 @@ class TestConfigurationPersistence:
         # Act - MANDATORY
         registry.load_config(config_file)
 
-        # Assert - MANDATORY
+        # Assert - MANDATORY with type narrowing
         loaded_config = registry.get_plugin_config("test_plugin")
+        assert loaded_config is not None
         assert loaded_config.enabled is False
         assert loaded_config.priority == 50
+        assert loaded_config.settings is not None
         assert loaded_config.settings["restored"] == "value"
 
     @patch("src.plugins.registry.logger")
-    def test_load_config_warns_on_missing_file(self, mock_logger, registry: PluginRegistry):
+    def test_load_config_warns_on_missing_file(
+        self, mock_logger: MagicMock, registry: PluginRegistry
+    ) -> None:
         """Test load_config warns if file not found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         missing_file = Path("/nonexistent/config.json")
@@ -572,7 +592,7 @@ class TestConfigurationPersistence:
 class TestRegistrySecurity:
     """MANDATORY security tests for plugin registry."""
 
-    def test_plugin_name_sanitization(self, registry: PluginRegistry):
+    def test_plugin_name_sanitization(self, registry: PluginRegistry) -> None:
         """MANDATORY security test - plugin names with malicious characters."""
         # Arrange - MANDATORY
         # Note: Registry uses plugin_info name, which is "test_plugin" for _MockPlugin
@@ -597,7 +617,7 @@ class TestRegistrySecurity:
             # Clean up for next iteration
             registry.unregister_plugin("test_plugin")
 
-    def test_config_file_path_traversal(self, registry: PluginRegistry, tmp_path: Path):
+    def test_config_file_path_traversal(self, registry: PluginRegistry, tmp_path: Path) -> None:
         """MANDATORY security test - path traversal in config file paths."""
         # Arrange - MANDATORY
         # Create fake config files with JSON content to test path handling
@@ -620,7 +640,9 @@ class TestRegistrySecurity:
             registry.load_config(path)
             # Should not raise error or cause security issues
 
-    def test_manifest_injection_prevention(self, registry: PluginRegistry, plugin_dir: Path):
+    def test_manifest_injection_prevention(
+        self, registry: PluginRegistry, plugin_dir: Path
+    ) -> None:
         """MANDATORY security test - malicious manifest data injection."""
         # Arrange - MANDATORY
         registry.add_search_path(plugin_dir)
@@ -654,7 +676,7 @@ class TestRegistrySecurity:
 class TestRegistryPerformance:
     """MANDATORY performance tests for plugin registry."""
 
-    def test_plugin_registration_performance(self, registry: PluginRegistry):
+    def test_plugin_registration_performance(self, registry: PluginRegistry) -> None:
         """MANDATORY performance test - plugin registration speed."""
         # Arrange - MANDATORY
         iterations = 100
@@ -676,7 +698,7 @@ class TestRegistryPerformance:
         assert avg_time < 0.001  # <1ms per registration
         assert execution_time < 0.1  # Total <100ms for 100 registrations
 
-    def test_plugin_lookup_performance(self, registry: PluginRegistry):
+    def test_plugin_lookup_performance(self, registry: PluginRegistry) -> None:
         """MANDATORY performance test - plugin lookup speed."""
         # Arrange - MANDATORY
         # Register plugins
@@ -702,7 +724,7 @@ class TestRegistryPerformance:
         assert avg_time < 0.00001  # <10μs per lookup
         assert execution_time < 0.1  # Total <100ms for 10000 lookups
 
-    def test_plugin_listing_performance(self, registry: PluginRegistry):
+    def test_plugin_listing_performance(self, registry: PluginRegistry) -> None:
         """MANDATORY performance test - plugin listing speed."""
         # Arrange - MANDATORY
         # Register plugins

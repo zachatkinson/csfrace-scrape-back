@@ -35,7 +35,7 @@ def trace(
         if hasattr(func, "__code__") and func.__code__.co_flags & 0x80:  # Check if coroutine
 
             @wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 span_name = operation_name or f"{func.__module__}.{func.__name__}"
                 span_attributes = {
                     "function.name": func.__name__,
@@ -49,7 +49,7 @@ def trace(
             return cast("F", async_wrapper)
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             span_name = operation_name or f"{func.__module__}.{func.__name__}"
             return distributed_tracer.trace_function(span_name, attributes)(func)(*args, **kwargs)
 
@@ -113,7 +113,7 @@ def get_current_trace_context() -> dict[str, str | None]:
 
 
 # Convenience functions for common tracing scenarios
-def trace_database_operation(table: str, operation: str):
+def trace_database_operation(table: str, operation: str) -> Callable[[F], F]:
     """Decorator for database operations.
 
     Args:
@@ -126,7 +126,7 @@ def trace_database_operation(table: str, operation: str):
     )
 
 
-def trace_cache_operation(cache_type: str, operation: str):
+def trace_cache_operation(cache_type: str, operation: str) -> Callable[[F], F]:
     """Decorator for cache operations.
 
     Args:
@@ -139,7 +139,7 @@ def trace_cache_operation(cache_type: str, operation: str):
     )
 
 
-def trace_http_request(method: str, url: str):
+def trace_http_request(method: str, url: str) -> Callable[[F], F]:
     """Decorator for HTTP requests.
 
     Args:

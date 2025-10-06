@@ -14,6 +14,9 @@ from src.batch.processor import BatchConfig
 from src.config.converter import ConverterConfig
 from src.config.loader import ConfigLoader, load_config_from_file
 
+# Type aliases for clarity
+ConfigDict = dict[str, dict[str, int | str | bool | float | list[str] | dict[str, str]]]
+
 # =============================================================================
 # TEST ConfigLoader - load_config Method
 # =============================================================================
@@ -23,11 +26,11 @@ from src.config.loader import ConfigLoader, load_config_from_file
 class TestConfigLoaderLoadConfig:
     """Test ConfigLoader.load_config() static method."""
 
-    def test_load_config_loads_yaml_file(self, tmp_path):
+    def test_load_config_loads_yaml_file(self, tmp_path: Path) -> None:
         """Test loads YAML configuration file successfully."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {"converter": {"timeout": 60}, "batch": {"max_concurrent": 5}}
+        config_data: ConfigDict = {"converter": {"timeout": 60}, "batch": {"max_concurrent": 5}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -39,11 +42,11 @@ class TestConfigLoaderLoadConfig:
         assert result["converter"]["timeout"] == 60
         assert result["batch"]["max_concurrent"] == 5
 
-    def test_load_config_loads_yml_extension(self, tmp_path):
+    def test_load_config_loads_yml_extension(self, tmp_path: Path) -> None:
         """Test loads .yml extension files."""
         # Arrange
         config_file = tmp_path / "config.yml"
-        config_data = {"converter": {"timeout": 30}}
+        config_data: ConfigDict = {"converter": {"timeout": 30}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -53,11 +56,11 @@ class TestConfigLoaderLoadConfig:
         # Assert
         assert result == config_data
 
-    def test_load_config_loads_json_file(self, tmp_path):
+    def test_load_config_loads_json_file(self, tmp_path: Path) -> None:
         """Test loads JSON configuration file successfully."""
         # Arrange
         config_file = tmp_path / "config.json"
-        config_data = {"converter": {"timeout": 45}, "batch": {"max_concurrent": 10}}
+        config_data: ConfigDict = {"converter": {"timeout": 45}, "batch": {"max_concurrent": 10}}
         with open(config_file, "w") as f:
             json.dump(config_data, f)
 
@@ -69,11 +72,11 @@ class TestConfigLoaderLoadConfig:
         assert result["converter"]["timeout"] == 45
         assert result["batch"]["max_concurrent"] == 10
 
-    def test_load_config_accepts_path_object(self, tmp_path):
+    def test_load_config_accepts_path_object(self, tmp_path: Path) -> None:
         """Test accepts Path object as input."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {"converter": {}}
+        config_data: dict[str, dict[str, int]] = {"converter": {}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -83,11 +86,11 @@ class TestConfigLoaderLoadConfig:
         # Assert
         assert isinstance(result, dict)
 
-    def test_load_config_accepts_string_path(self, tmp_path):
+    def test_load_config_accepts_string_path(self, tmp_path: Path) -> None:
         """Test accepts string path as input."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {"converter": {}}
+        config_data: dict[str, dict[str, int]] = {"converter": {}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -97,7 +100,7 @@ class TestConfigLoaderLoadConfig:
         # Assert
         assert isinstance(result, dict)
 
-    def test_load_config_raises_file_not_found_error(self, tmp_path):
+    def test_load_config_raises_file_not_found_error(self, tmp_path: Path) -> None:
         """Test raises FileNotFoundError for non-existent file."""
         # Arrange
         config_file = tmp_path / "nonexistent.yaml"
@@ -106,7 +109,7 @@ class TestConfigLoaderLoadConfig:
         with pytest.raises(FileNotFoundError, match="Configuration file not found"):
             ConfigLoader.load_config(config_file)
 
-    def test_load_config_raises_value_error_for_unsupported_format(self, tmp_path):
+    def test_load_config_raises_value_error_for_unsupported_format(self, tmp_path: Path) -> None:
         """Test raises ValueError for unsupported file format."""
         # Arrange
         config_file = tmp_path / "config.txt"
@@ -116,11 +119,11 @@ class TestConfigLoaderLoadConfig:
         with pytest.raises(ValueError, match="Unsupported config format: txt"):
             ConfigLoader.load_config(config_file)
 
-    def test_load_config_with_explicit_type_override(self, tmp_path):
+    def test_load_config_with_explicit_type_override(self, tmp_path: Path) -> None:
         """Test config_type parameter overrides file extension."""
         # Arrange - .txt file with YAML content
         config_file = tmp_path / "config.txt"
-        config_data = {"converter": {"timeout": 20}}
+        config_data: ConfigDict = {"converter": {"timeout": 20}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -130,7 +133,7 @@ class TestConfigLoaderLoadConfig:
         # Assert
         assert result == config_data
 
-    def test_load_config_handles_empty_yaml_file(self, tmp_path):
+    def test_load_config_handles_empty_yaml_file(self, tmp_path: Path) -> None:
         """Test handles empty YAML file gracefully."""
         # Arrange
         config_file = tmp_path / "empty.yaml"
@@ -152,11 +155,11 @@ class TestConfigLoaderLoadConfig:
 class TestConfigLoaderCreateConverterConfig:
     """Test ConfigLoader.create_converter_config() static method."""
 
-    def test_create_converter_config_with_default_base(self):
+    def test_create_converter_config_with_default_base(self) -> None:
         """Test creates ConverterConfig with default base config."""
         # Arrange
         # Note: Code prioritizes "default_timeout" alias over "timeout"
-        config_dict = {"converter": {"default_timeout": 60, "max_concurrent": 20}}
+        config_dict: ConfigDict = {"converter": {"default_timeout": 60, "max_concurrent": 20}}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -166,12 +169,12 @@ class TestConfigLoaderCreateConverterConfig:
         assert result.http.timeout == 60
         assert result.http.max_concurrent == 20
 
-    def test_create_converter_config_with_custom_base(self):
+    def test_create_converter_config_with_custom_base(self) -> None:
         """Test creates ConverterConfig extending custom base config."""
         # Arrange
         base_config = ConverterConfig(debug_mode=True, log_level="DEBUG", enable_metrics=False)
         base_config.http.timeout = 100
-        config_dict = {"converter": {"max_concurrent": 15}}
+        config_dict: ConfigDict = {"converter": {"max_concurrent": 15}}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict, base_config)
@@ -182,11 +185,11 @@ class TestConfigLoaderCreateConverterConfig:
         # Base timeout is used in merge
         assert result.http.timeout in [100, 30]  # May use base or override
 
-    def test_create_converter_config_updates_http_settings(self):
+    def test_create_converter_config_updates_http_settings(self) -> None:
         """Test updates HTTP settings from config dict."""
         # Arrange
         # Note: Code prioritizes "default_timeout" alias over "timeout"
-        config_dict = {
+        config_dict: ConfigDict = {
             "converter": {
                 "default_timeout": 45,  # Use alias instead of "timeout"
                 "max_concurrent": 8,
@@ -208,10 +211,10 @@ class TestConfigLoaderCreateConverterConfig:
         assert result.http.backoff_factor == 3.0
         assert result.http.user_agent == "CustomBot/1.0"
 
-    def test_create_converter_config_updates_output_settings(self):
+    def test_create_converter_config_updates_output_settings(self) -> None:
         """Test updates output settings from config dict."""
         # Arrange
-        config_dict = {
+        config_dict: ConfigDict = {
             "converter": {
                 "default_dir": "custom_output",
                 "images_subdir": "imgs",
@@ -231,10 +234,12 @@ class TestConfigLoaderCreateConverterConfig:
         assert result.output.html_file == "content.html"
         assert result.output.shopify_file == "shopify.html"
 
-    def test_create_converter_config_updates_robots_settings(self):
+    def test_create_converter_config_updates_robots_settings(self) -> None:
         """Test updates robots settings from config dict."""
         # Arrange
-        config_dict = {"converter": {"respect_robots_txt": False, "robots_cache_duration": 7200}}
+        config_dict: ConfigDict = {
+            "converter": {"respect_robots_txt": False, "robots_cache_duration": 7200}
+        }
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -243,10 +248,10 @@ class TestConfigLoaderCreateConverterConfig:
         assert result.robots.respect_robots_txt is False
         assert result.robots.cache_duration == 7200
 
-    def test_create_converter_config_handles_preserve_classes(self):
+    def test_create_converter_config_handles_preserve_classes(self) -> None:
         """Test handles preserve_classes list specially."""
         # Arrange
-        config_dict = {"converter": {"preserve_classes": ["custom-class", "button"]}}
+        config_dict: ConfigDict = {"converter": {"preserve_classes": ["custom-class", "button"]}}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -255,10 +260,10 @@ class TestConfigLoaderCreateConverterConfig:
         # preserve_classes is a set, not a list
         assert result.shopify.preserve_classes == {"custom-class", "button"}
 
-    def test_create_converter_config_handles_content_type_extensions(self):
+    def test_create_converter_config_handles_content_type_extensions(self) -> None:
         """Test handles content_type_extensions dict."""
         # Arrange
-        config_dict = {"converter": {"content_type_extensions": {"video/mp4": ".mp4"}}}
+        config_dict: ConfigDict = {"converter": {"content_type_extensions": {"video/mp4": ".mp4"}}}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -266,10 +271,10 @@ class TestConfigLoaderCreateConverterConfig:
         # Assert
         assert result.shopify.content_type_extensions == {"video/mp4": ".mp4"}
 
-    def test_create_converter_config_uses_default_timeout_alias(self):
+    def test_create_converter_config_uses_default_timeout_alias(self) -> None:
         """Test uses 'default_timeout' as alias for 'timeout'."""
         # Arrange
-        config_dict = {"converter": {"default_timeout": 75}}
+        config_dict: ConfigDict = {"converter": {"default_timeout": 75}}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -277,10 +282,10 @@ class TestConfigLoaderCreateConverterConfig:
         # Assert
         assert result.http.timeout == 75
 
-    def test_create_converter_config_uses_max_concurrent_downloads_alias(self):
+    def test_create_converter_config_uses_max_concurrent_downloads_alias(self) -> None:
         """Test uses 'max_concurrent_downloads' as alias for 'max_concurrent'."""
         # Arrange
-        config_dict = {"converter": {"max_concurrent_downloads": 12}}
+        config_dict: ConfigDict = {"converter": {"max_concurrent_downloads": 12}}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -288,10 +293,10 @@ class TestConfigLoaderCreateConverterConfig:
         # Assert
         assert result.http.max_concurrent == 12
 
-    def test_create_converter_config_handles_empty_converter_section(self):
+    def test_create_converter_config_handles_empty_converter_section(self) -> None:
         """Test handles missing or empty converter section."""
         # Arrange
-        config_dict = {}
+        config_dict: dict[str, dict[str, int]] = {}
 
         # Act
         result = ConfigLoader.create_converter_config(config_dict)
@@ -311,10 +316,10 @@ class TestConfigLoaderCreateConverterConfig:
 class TestConfigLoaderCreateBatchConfig:
     """Test ConfigLoader.create_batch_config() static method."""
 
-    def test_create_batch_config_with_default_base(self):
+    def test_create_batch_config_with_default_base(self) -> None:
         """Test creates BatchConfig with default base config."""
         # Arrange
-        config_dict = {"batch": {"max_concurrent": 5, "continue_on_error": False}}
+        config_dict: ConfigDict = {"batch": {"max_concurrent": 5, "continue_on_error": False}}
 
         # Act
         result = ConfigLoader.create_batch_config(config_dict)
@@ -324,11 +329,11 @@ class TestConfigLoaderCreateBatchConfig:
         assert result.max_concurrent == 5
         assert result.continue_on_error is False
 
-    def test_create_batch_config_with_custom_base(self):
+    def test_create_batch_config_with_custom_base(self) -> None:
         """Test creates BatchConfig extending custom base config."""
         # Arrange
         base_config = BatchConfig(max_concurrent=10)
-        config_dict = {"batch": {"continue_on_error": True}}
+        config_dict: ConfigDict = {"batch": {"continue_on_error": True}}
 
         # Act
         result = ConfigLoader.create_batch_config(config_dict, base_config)
@@ -337,10 +342,10 @@ class TestConfigLoaderCreateBatchConfig:
         assert isinstance(result, BatchConfig)
         assert result.continue_on_error is True
 
-    def test_create_batch_config_updates_all_settings(self):
+    def test_create_batch_config_updates_all_settings(self) -> None:
         """Test updates all batch settings from config dict."""
         # Arrange
-        config_dict = {
+        config_dict: ConfigDict = {
             "batch": {
                 "max_concurrent": 8,
                 "continue_on_error": False,
@@ -372,10 +377,10 @@ class TestConfigLoaderCreateBatchConfig:
         assert result.archive_format == "tar.gz"
         assert result.cleanup_after_archive is True
 
-    def test_create_batch_config_converts_output_base_dir_to_path(self):
+    def test_create_batch_config_converts_output_base_dir_to_path(self) -> None:
         """Test converts output_base_dir string to Path object."""
         # Arrange
-        config_dict = {"batch": {"output_base_dir": "custom/path"}}
+        config_dict: ConfigDict = {"batch": {"output_base_dir": "custom/path"}}
 
         # Act
         result = ConfigLoader.create_batch_config(config_dict)
@@ -384,10 +389,10 @@ class TestConfigLoaderCreateBatchConfig:
         assert isinstance(result.output_base_dir, Path)
         assert result.output_base_dir == Path("custom/path")
 
-    def test_create_batch_config_handles_empty_batch_section(self):
+    def test_create_batch_config_handles_empty_batch_section(self) -> None:
         """Test handles missing or empty batch section."""
         # Arrange
-        config_dict = {}
+        config_dict: dict[str, dict[str, int]] = {}
 
         # Act
         result = ConfigLoader.create_batch_config(config_dict)
@@ -407,7 +412,7 @@ class TestConfigLoaderCreateBatchConfig:
 class TestConfigLoaderSaveExampleConfig:
     """Test ConfigLoader.save_example_config() static method."""
 
-    def test_save_example_config_creates_yaml_file(self, tmp_path):
+    def test_save_example_config_creates_yaml_file(self, tmp_path: Path) -> None:
         """Test creates YAML example config file."""
         # Arrange
         output_file = tmp_path / "example.yaml"
@@ -422,7 +427,7 @@ class TestConfigLoaderSaveExampleConfig:
         assert "converter" in content
         assert "batch" in content
 
-    def test_save_example_config_creates_json_file(self, tmp_path):
+    def test_save_example_config_creates_json_file(self, tmp_path: Path) -> None:
         """Test creates JSON example config file."""
         # Arrange
         output_file = tmp_path / "example.json"
@@ -437,7 +442,7 @@ class TestConfigLoaderSaveExampleConfig:
         assert "converter" in content
         assert "batch" in content
 
-    def test_save_example_config_includes_converter_settings(self, tmp_path):
+    def test_save_example_config_includes_converter_settings(self, tmp_path: Path) -> None:
         """Test example config includes converter settings."""
         # Arrange
         output_file = tmp_path / "example.yaml"
@@ -454,7 +459,7 @@ class TestConfigLoaderSaveExampleConfig:
         assert "user_agent" in converter
         assert "preserve_classes" in converter
 
-    def test_save_example_config_includes_batch_settings(self, tmp_path):
+    def test_save_example_config_includes_batch_settings(self, tmp_path: Path) -> None:
         """Test example config includes batch settings."""
         # Arrange
         output_file = tmp_path / "example.yaml"
@@ -470,7 +475,7 @@ class TestConfigLoaderSaveExampleConfig:
         assert "continue_on_error" in batch
         assert "output_base_dir" in batch
 
-    def test_save_example_config_accepts_path_object(self, tmp_path):
+    def test_save_example_config_accepts_path_object(self, tmp_path: Path) -> None:
         """Test accepts Path object as output path."""
         # Arrange
         output_file = tmp_path / "example.yaml"
@@ -481,7 +486,7 @@ class TestConfigLoaderSaveExampleConfig:
         # Assert
         assert output_file.exists()
 
-    def test_save_example_config_accepts_string_path(self, tmp_path):
+    def test_save_example_config_accepts_string_path(self, tmp_path: Path) -> None:
         """Test accepts string path as output path."""
         # Arrange
         output_file = tmp_path / "example.yaml"
@@ -492,7 +497,9 @@ class TestConfigLoaderSaveExampleConfig:
         # Assert
         assert output_file.exists()
 
-    def test_save_example_config_raises_value_error_for_invalid_format(self, tmp_path):
+    def test_save_example_config_raises_value_error_for_invalid_format(
+        self, tmp_path: Path
+    ) -> None:
         """Test raises ValueError for unsupported format."""
         # Arrange
         output_file = tmp_path / "example.txt"
@@ -501,7 +508,7 @@ class TestConfigLoaderSaveExampleConfig:
         with pytest.raises(ValueError, match="Unsupported format: txt"):
             ConfigLoader.save_example_config(output_file, file_format="txt")
 
-    def test_save_example_config_default_format_is_yaml(self, tmp_path):
+    def test_save_example_config_default_format_is_yaml(self, tmp_path: Path) -> None:
         """Test default format is YAML when not specified."""
         # Arrange
         output_file = tmp_path / "example.yaml"
@@ -525,11 +532,11 @@ class TestConfigLoaderSaveExampleConfig:
 class TestLoadConfigFromFile:
     """Test load_config_from_file() convenience function."""
 
-    def test_load_config_from_file_returns_both_configs(self, tmp_path):
+    def test_load_config_from_file_returns_both_configs(self, tmp_path: Path) -> None:
         """Test returns tuple of (converter_config, batch_config)."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {
+        config_data: ConfigDict = {
             "converter": {"timeout": 50},
             "batch": {"max_concurrent": 7},
         }
@@ -543,12 +550,12 @@ class TestLoadConfigFromFile:
         assert isinstance(converter_config, ConverterConfig)
         assert isinstance(batch_config, BatchConfig)
 
-    def test_load_config_from_file_applies_converter_settings(self, tmp_path):
+    def test_load_config_from_file_applies_converter_settings(self, tmp_path: Path) -> None:
         """Test applies converter settings from file."""
         # Arrange
         config_file = tmp_path / "config.yaml"
         # Note: Code prioritizes "default_timeout" alias over "timeout"
-        config_data = {"converter": {"default_timeout": 90, "max_concurrent": 25}}
+        config_data: ConfigDict = {"converter": {"default_timeout": 90, "max_concurrent": 25}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -559,11 +566,11 @@ class TestLoadConfigFromFile:
         assert converter_config.http.timeout == 90
         assert converter_config.http.max_concurrent == 25
 
-    def test_load_config_from_file_applies_batch_settings(self, tmp_path):
+    def test_load_config_from_file_applies_batch_settings(self, tmp_path: Path) -> None:
         """Test applies batch settings from file."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {"batch": {"max_concurrent": 6, "continue_on_error": False}}
+        config_data: ConfigDict = {"batch": {"max_concurrent": 6, "continue_on_error": False}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -574,11 +581,11 @@ class TestLoadConfigFromFile:
         assert batch_config.max_concurrent == 6
         assert batch_config.continue_on_error is False
 
-    def test_load_config_from_file_accepts_path_object(self, tmp_path):
+    def test_load_config_from_file_accepts_path_object(self, tmp_path: Path) -> None:
         """Test accepts Path object as input."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {"converter": {}, "batch": {}}
+        config_data: dict[str, dict[str, int]] = {"converter": {}, "batch": {}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 
@@ -589,11 +596,11 @@ class TestLoadConfigFromFile:
         assert isinstance(converter_config, ConverterConfig)
         assert isinstance(batch_config, BatchConfig)
 
-    def test_load_config_from_file_accepts_string_path(self, tmp_path):
+    def test_load_config_from_file_accepts_string_path(self, tmp_path: Path) -> None:
         """Test accepts string path as input."""
         # Arrange
         config_file = tmp_path / "config.yaml"
-        config_data = {"converter": {}, "batch": {}}
+        config_data: dict[str, dict[str, int]] = {"converter": {}, "batch": {}}
         with open(config_file, "w") as f:
             yaml.dump(config_data, f)
 

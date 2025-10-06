@@ -40,7 +40,7 @@ from src.caching.keys import (
 class TestCacheNamespaces:
     """Unit tests for CacheNamespaces constants - MANDATORY AAA pattern."""
 
-    def test_core_entity_namespaces_defined(self):
+    def test_core_entity_namespaces_defined(self) -> None:
         """Test core entity namespaces are defined - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_namespaces = ["JOB", "USER", "SESSION", "AUTH", "OAUTH"]
@@ -60,7 +60,7 @@ class TestCacheNamespaces:
             assert isinstance(namespace, str)
             assert len(namespace) > 0
 
-    def test_feature_namespaces_defined(self):
+    def test_feature_namespaces_defined(self) -> None:
         """Test feature namespaces are defined - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_namespaces = ["RATE_LIMIT", "HEALTH", "METRICS", "QUEUE", "LOCK"]
@@ -79,7 +79,7 @@ class TestCacheNamespaces:
         for namespace in actual_namespaces:
             assert isinstance(namespace, str)
 
-    def test_external_api_namespaces_defined(self):
+    def test_external_api_namespaces_defined(self) -> None:
         """Test external API namespaces are defined - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_namespaces = ["EXTERNAL_API", "WEBHOOK"]
@@ -92,7 +92,7 @@ class TestCacheNamespaces:
         for namespace in actual_namespaces:
             assert isinstance(namespace, str)
 
-    def test_temporary_data_namespaces_defined(self):
+    def test_temporary_data_namespaces_defined(self) -> None:
         """Test temporary data namespaces are defined - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (namespaces defined at module level)
@@ -117,7 +117,7 @@ class TestCacheNamespaces:
 class TestCacheKeysInternalMethods:
     """Unit tests for CacheKeys internal methods - MANDATORY AAA pattern."""
 
-    def test_build_key_with_valid_parts(self):
+    def test_build_key_with_valid_parts(self) -> None:
         """Test _build_key with valid parts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         parts = ["user", "profile", "test-user-123"]
@@ -131,20 +131,20 @@ class TestCacheKeysInternalMethods:
         assert "profile" in result
         assert CacheKeys.SEPARATOR in result
 
-    def test_build_key_filters_empty_parts(self):
+    def test_build_key_filters_empty_parts(self) -> None:
         """Test _build_key filters empty parts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         parts = ["user", "", None, "test-user"]
 
         # Act - MANDATORY
-        result = CacheKeys._build_key(*parts)
+        result = CacheKeys._build_key(*parts)  # type: ignore[arg-type]
 
         # Assert - MANDATORY
         # Should only contain non-empty parts
         assert result.count(CacheKeys.SEPARATOR) == 1  # 2 parts = 1 separator
         assert "user" in result
 
-    def test_build_key_url_encodes_special_chars(self):
+    def test_build_key_url_encodes_special_chars(self) -> None:
         """Test _build_key URL-encodes special characters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         parts = ["user", "test@example.com"]
@@ -157,16 +157,16 @@ class TestCacheKeysInternalMethods:
         assert expected_encoded in result
         assert "@" not in result  # Should be encoded
 
-    def test_build_key_raises_on_all_empty_parts(self):
+    def test_build_key_raises_on_all_empty_parts(self) -> None:
         """Test _build_key raises ValueError for all empty parts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         parts = ["", None, "", ""]
 
         # Act & Assert - MANDATORY
         with pytest.raises(ValueError, match="Cannot build cache key from empty parts"):
-            CacheKeys._build_key(*parts)
+            CacheKeys._build_key(*parts)  # type: ignore[arg-type]
 
-    def test_hash_long_key_preserves_short_keys(self):
+    def test_hash_long_key_preserves_short_keys(self) -> None:
         """Test _hash_long_key preserves short keys - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         short_key = "user:profile:test-123"
@@ -177,7 +177,7 @@ class TestCacheKeysInternalMethods:
         # Assert - MANDATORY
         assert result == short_key  # Should be unchanged
 
-    def test_hash_long_key_hashes_long_keys(self):
+    def test_hash_long_key_hashes_long_keys(self) -> None:
         """Test _hash_long_key hashes long keys - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         long_key = "a" * 300  # Exceeds max_length
@@ -189,7 +189,7 @@ class TestCacheKeysInternalMethods:
         assert len(result) < len(long_key)
         assert "hash_" in result or "h_" in result
 
-    def test_hash_long_key_preserves_prefix_when_possible(self):
+    def test_hash_long_key_preserves_prefix_when_possible(self) -> None:
         """Test _hash_long_key preserves prefix - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         long_key = f"user{CacheKeys.SEPARATOR}profile{CacheKeys.SEPARATOR}{'a' * 300}"
@@ -212,7 +212,7 @@ class TestCacheKeysInternalMethods:
 class TestUserCacheKeys:
     """Unit tests for user-related cache keys - MANDATORY AAA pattern."""
 
-    def test_user_key_generation(self):
+    def test_user_key_generation(self) -> None:
         """Test user cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "test-user-123"
@@ -225,7 +225,7 @@ class TestUserCacheKeys:
         assert CacheNamespaces.USER in result
         assert user_id in result or quote(user_id, safe="") in result
 
-    def test_user_profile_key_generation(self):
+    def test_user_profile_key_generation(self) -> None:
         """Test user profile cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "test-user-123"
@@ -238,7 +238,7 @@ class TestUserCacheKeys:
         assert "profile" in result
         assert CacheKeys.SEPARATOR in result
 
-    def test_user_settings_key_generation(self):
+    def test_user_settings_key_generation(self) -> None:
         """Test user settings cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "test-user-456"
@@ -250,7 +250,7 @@ class TestUserCacheKeys:
         assert CacheNamespaces.USER in result
         assert "settings" in result
 
-    def test_user_sessions_key_generation(self):
+    def test_user_sessions_key_generation(self) -> None:
         """Test user sessions cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "test-user-789"
@@ -262,7 +262,7 @@ class TestUserCacheKeys:
         assert CacheNamespaces.USER in result
         assert "sessions" in result
 
-    def test_user_credentials_key_generation(self):
+    def test_user_credentials_key_generation(self) -> None:
         """Test user credentials cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "test-user-101"
@@ -284,7 +284,7 @@ class TestUserCacheKeys:
 class TestSessionCacheKeys:
     """Unit tests for session-related cache keys - MANDATORY AAA pattern."""
 
-    def test_session_key_generation(self):
+    def test_session_key_generation(self) -> None:
         """Test session cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_id = "session-abc-123"
@@ -296,7 +296,7 @@ class TestSessionCacheKeys:
         assert CacheNamespaces.SESSION in result
         assert session_id in result or quote(session_id, safe="") in result
 
-    def test_user_session_key_generation(self):
+    def test_user_session_key_generation(self) -> None:
         """Test user session cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-123"
@@ -310,7 +310,7 @@ class TestSessionCacheKeys:
         # Both IDs should be in key (URL-encoded)
         assert result.count(CacheKeys.SEPARATOR) >= 2
 
-    def test_session_data_key_generation(self):
+    def test_session_data_key_generation(self) -> None:
         """Test session data cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_id = "session-789"
@@ -333,7 +333,7 @@ class TestSessionCacheKeys:
 class TestJobCacheKeys:
     """Unit tests for job-related cache keys - MANDATORY AAA pattern."""
 
-    def test_job_key_generation(self):
+    def test_job_key_generation(self) -> None:
         """Test job cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = "job-abc-123"
@@ -345,7 +345,7 @@ class TestJobCacheKeys:
         assert CacheNamespaces.JOB in result
         assert job_id in result or quote(job_id, safe="") in result
 
-    def test_job_status_key_generation(self):
+    def test_job_status_key_generation(self) -> None:
         """Test job status cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = "job-def-456"
@@ -357,7 +357,7 @@ class TestJobCacheKeys:
         assert CacheNamespaces.JOB in result
         assert "status" in result
 
-    def test_job_result_key_generation(self):
+    def test_job_result_key_generation(self) -> None:
         """Test job result cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = "job-ghi-789"
@@ -369,7 +369,7 @@ class TestJobCacheKeys:
         assert CacheNamespaces.JOB in result
         assert "result" in result
 
-    def test_job_metadata_key_generation(self):
+    def test_job_metadata_key_generation(self) -> None:
         """Test job metadata cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = "job-jkl-101"
@@ -381,7 +381,7 @@ class TestJobCacheKeys:
         assert CacheNamespaces.JOB in result
         assert "metadata" in result
 
-    def test_user_jobs_key_without_status(self):
+    def test_user_jobs_key_without_status(self) -> None:
         """Test user jobs cache key without status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-123"
@@ -393,7 +393,7 @@ class TestJobCacheKeys:
         assert CacheNamespaces.JOB in result
         assert "user" in result
 
-    def test_user_jobs_key_with_status(self):
+    def test_user_jobs_key_with_status(self) -> None:
         """Test user jobs cache key with status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-456"
@@ -407,7 +407,7 @@ class TestJobCacheKeys:
         assert "user" in result
         assert status in result or quote(status, safe="") in result
 
-    def test_job_queue_key_generation(self):
+    def test_job_queue_key_generation(self) -> None:
         """Test job queue cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         priority = "high"
@@ -430,7 +430,7 @@ class TestJobCacheKeys:
 class TestRateLimitCacheKeys:
     """Unit tests for rate limiting cache keys - MANDATORY AAA pattern."""
 
-    def test_rate_limit_user_endpoint_key(self):
+    def test_rate_limit_user_endpoint_key(self) -> None:
         """Test user endpoint rate limit key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-123"
@@ -443,7 +443,7 @@ class TestRateLimitCacheKeys:
         assert CacheNamespaces.RATE_LIMIT in result
         assert result.count(CacheKeys.SEPARATOR) >= 2
 
-    def test_rate_limit_global_endpoint_key(self):
+    def test_rate_limit_global_endpoint_key(self) -> None:
         """Test global endpoint rate limit key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         endpoint = "/api/auth/login"
@@ -455,7 +455,7 @@ class TestRateLimitCacheKeys:
         assert CacheNamespaces.RATE_LIMIT in result
         assert "global" in result
 
-    def test_rate_limit_ip_endpoint_key(self):
+    def test_rate_limit_ip_endpoint_key(self) -> None:
         """Test IP endpoint rate limit key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         ip_address = "192.168.1.1"
@@ -478,7 +478,7 @@ class TestRateLimitCacheKeys:
 class TestAuthCacheKeys:
     """Unit tests for authentication cache keys - MANDATORY AAA pattern."""
 
-    def test_auth_token_key_generation(self):
+    def test_auth_token_key_generation(self) -> None:
         """Test auth token cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         token_id = "token-abc-123"
@@ -490,7 +490,7 @@ class TestAuthCacheKeys:
         assert CacheNamespaces.AUTH in result
         assert "token" in result
 
-    def test_revoked_token_key_generation(self):
+    def test_revoked_token_key_generation(self) -> None:
         """Test revoked token cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         jti = "jti-xyz-789"
@@ -502,7 +502,7 @@ class TestAuthCacheKeys:
         assert CacheNamespaces.AUTH in result
         assert "revoked" in result
 
-    def test_user_tokens_key_generation(self):
+    def test_user_tokens_key_generation(self) -> None:
         """Test user tokens cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-456"
@@ -514,7 +514,7 @@ class TestAuthCacheKeys:
         assert CacheNamespaces.AUTH in result
         assert "user_tokens" in result or quote("user_tokens", safe="") in result
 
-    def test_failed_login_attempts_key_generation(self):
+    def test_failed_login_attempts_key_generation(self) -> None:
         """Test failed login attempts cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         identifier = "user@example.com"
@@ -536,7 +536,7 @@ class TestAuthCacheKeys:
 class TestOAuthCacheKeys:
     """Unit tests for OAuth cache keys - MANDATORY AAA pattern."""
 
-    def test_oauth_state_key_generation(self):
+    def test_oauth_state_key_generation(self) -> None:
         """Test OAuth state cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         state = "oauth-state-abc-123"
@@ -548,7 +548,7 @@ class TestOAuthCacheKeys:
         assert CacheNamespaces.OAUTH in result
         assert "state" in result
 
-    def test_oauth_user_info_key_generation(self):
+    def test_oauth_user_info_key_generation(self) -> None:
         """Test OAuth user info cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         provider = "google"
@@ -561,7 +561,7 @@ class TestOAuthCacheKeys:
         assert CacheNamespaces.OAUTH in result
         assert "user_info" in result or quote("user_info", safe="") in result
 
-    def test_oauth_provider_tokens_key_generation(self):
+    def test_oauth_provider_tokens_key_generation(self) -> None:
         """Test OAuth provider tokens cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-123"
@@ -574,7 +574,7 @@ class TestOAuthCacheKeys:
         assert CacheNamespaces.OAUTH in result
         assert "tokens" in result
 
-    def test_oauth_callback_data_key_generation(self):
+    def test_oauth_callback_data_key_generation(self) -> None:
         """Test OAuth callback data cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         state = "callback-state-xyz"
@@ -596,7 +596,7 @@ class TestOAuthCacheKeys:
 class TestWebAuthnCacheKeys:
     """Unit tests for WebAuthn cache keys - MANDATORY AAA pattern."""
 
-    def test_webauthn_challenge_key_generation(self):
+    def test_webauthn_challenge_key_generation(self) -> None:
         """Test WebAuthn challenge cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         challenge_key = "challenge-abc-123"
@@ -608,7 +608,7 @@ class TestWebAuthnCacheKeys:
         assert CacheNamespaces.CHALLENGE in result
         assert "webauthn" in result
 
-    def test_webauthn_registration_key_generation(self):
+    def test_webauthn_registration_key_generation(self) -> None:
         """Test WebAuthn registration cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-123"
@@ -622,7 +622,7 @@ class TestWebAuthnCacheKeys:
         assert "webauthn" in result
         assert "reg" in result
 
-    def test_webauthn_authentication_key_generation(self):
+    def test_webauthn_authentication_key_generation(self) -> None:
         """Test WebAuthn authentication cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         challenge_key = "auth-challenge-789"
@@ -645,7 +645,7 @@ class TestWebAuthnCacheKeys:
 class TestHealthMonitoringCacheKeys:
     """Unit tests for health/monitoring cache keys - MANDATORY AAA pattern."""
 
-    def test_health_status_key_generation(self):
+    def test_health_status_key_generation(self) -> None:
         """Test health status cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         component = "database"
@@ -657,7 +657,7 @@ class TestHealthMonitoringCacheKeys:
         assert CacheNamespaces.HEALTH in result
         assert component in result or quote(component, safe="") in result
 
-    def test_system_health_key_generation(self):
+    def test_system_health_key_generation(self) -> None:
         """Test system health cache key generation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # (no params for system health)
@@ -669,7 +669,7 @@ class TestHealthMonitoringCacheKeys:
         assert CacheNamespaces.HEALTH in result
         assert "system" in result
 
-    def test_component_metrics_key_generation(self):
+    def test_component_metrics_key_generation(self) -> None:
         """Test component metrics cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         component = "api"
@@ -682,7 +682,7 @@ class TestHealthMonitoringCacheKeys:
         assert CacheNamespaces.METRICS in result
         assert component in result or quote(component, safe="") in result
 
-    def test_performance_metrics_key_generation(self):
+    def test_performance_metrics_key_generation(self) -> None:
         """Test performance metrics cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "job_creation"
@@ -705,7 +705,7 @@ class TestHealthMonitoringCacheKeys:
 class TestExternalAPICacheKeys:
     """Unit tests for external API cache keys - MANDATORY AAA pattern."""
 
-    def test_external_api_response_key_generation(self):
+    def test_external_api_response_key_generation(self) -> None:
         """Test external API response cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         api_name = "wordpress"
@@ -721,7 +721,7 @@ class TestExternalAPICacheKeys:
         # Long keys should be hashed
         assert len(result) <= 250
 
-    def test_api_rate_limit_key_generation(self):
+    def test_api_rate_limit_key_generation(self) -> None:
         """Test API rate limit cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         api_name = "shopify"
@@ -733,7 +733,7 @@ class TestExternalAPICacheKeys:
         assert CacheNamespaces.EXTERNAL_API in result
         assert "rate_limit" in result or quote("rate_limit", safe="") in result
 
-    def test_webhook_delivery_key_generation(self):
+    def test_webhook_delivery_key_generation(self) -> None:
         """Test webhook delivery cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         webhook_id = "webhook-123"
@@ -757,7 +757,7 @@ class TestExternalAPICacheKeys:
 class TestLockingCacheKeys:
     """Unit tests for locking cache keys - MANDATORY AAA pattern."""
 
-    def test_operation_lock_key_generation(self):
+    def test_operation_lock_key_generation(self) -> None:
         """Test operation lock cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "job_creation"
@@ -770,7 +770,7 @@ class TestLockingCacheKeys:
         assert CacheNamespaces.LOCK in result
         assert operation in result or quote(operation, safe="") in result
 
-    def test_user_operation_lock_key_generation(self):
+    def test_user_operation_lock_key_generation(self) -> None:
         """Test user operation lock cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-456"
@@ -783,7 +783,7 @@ class TestLockingCacheKeys:
         assert CacheNamespaces.LOCK in result
         assert "user" in result
 
-    def test_global_operation_lock_key_generation(self):
+    def test_global_operation_lock_key_generation(self) -> None:
         """Test global operation lock cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "database_migration"
@@ -805,7 +805,7 @@ class TestLockingCacheKeys:
 class TestTemporaryDataCacheKeys:
     """Unit tests for temporary data cache keys - MANDATORY AAA pattern."""
 
-    def test_temp_data_key_generation(self):
+    def test_temp_data_key_generation(self) -> None:
         """Test temporary data cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data_type = "export"
@@ -818,7 +818,7 @@ class TestTemporaryDataCacheKeys:
         assert CacheNamespaces.TEMP in result
         assert data_type in result or quote(data_type, safe="") in result
 
-    def test_temp_upload_key_generation(self):
+    def test_temp_upload_key_generation(self) -> None:
         """Test temporary upload cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         upload_id = "upload-abc-123"
@@ -830,7 +830,7 @@ class TestTemporaryDataCacheKeys:
         assert CacheNamespaces.TEMP in result
         assert "upload" in result
 
-    def test_temp_export_key_generation(self):
+    def test_temp_export_key_generation(self) -> None:
         """Test temporary export cache key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         export_id = "export-def-456"
@@ -852,7 +852,7 @@ class TestTemporaryDataCacheKeys:
 class TestCacheKeyBuilder:
     """Unit tests for CacheKeyBuilder - MANDATORY AAA pattern."""
 
-    def test_build_query_key_with_simple_filters(self):
+    def test_build_query_key_with_simple_filters(self) -> None:
         """Test query key building with simple filters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "get_jobs"
@@ -866,7 +866,7 @@ class TestCacheKeyBuilder:
         assert operation in result or quote(operation, safe="") in result
         assert CacheKeys.SEPARATOR in result
 
-    def test_build_query_key_filters_none_values(self):
+    def test_build_query_key_filters_none_values(self) -> None:
         """Test query key filters None values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "search"
@@ -880,7 +880,7 @@ class TestCacheKeyBuilder:
         # None values should be filtered out
         assert "None" not in result
 
-    def test_build_query_key_sorts_filters_for_consistency(self):
+    def test_build_query_key_sorts_filters_for_consistency(self) -> None:
         """Test query key sorts filters for consistency - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "list_jobs"
@@ -894,7 +894,7 @@ class TestCacheKeyBuilder:
         # Assert - MANDATORY
         assert result1 == result2  # Should be identical
 
-    def test_build_query_key_handles_list_filters(self):
+    def test_build_query_key_handles_list_filters(self) -> None:
         """Test query key handles list filters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "search"
@@ -907,7 +907,7 @@ class TestCacheKeyBuilder:
         assert isinstance(result, str)
         # Lists should be sorted for consistency
 
-    def test_build_query_key_hashes_long_filter_strings(self):
+    def test_build_query_key_hashes_long_filter_strings(self) -> None:
         """Test query key hashes long filter strings - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "complex_query"
@@ -919,7 +919,7 @@ class TestCacheKeyBuilder:
         # Assert - MANDATORY
         assert "h_" in result  # Should contain hash
 
-    def test_build_aggregation_key_basic(self):
+    def test_build_aggregation_key_basic(self) -> None:
         """Test aggregation key building - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         entity = "jobs"
@@ -934,7 +934,7 @@ class TestCacheKeyBuilder:
         assert entity in result or quote(entity, safe="") in result
         assert aggregation_type in result or quote(aggregation_type, safe="") in result
 
-    def test_build_aggregation_key_with_filters(self):
+    def test_build_aggregation_key_with_filters(self) -> None:
         """Test aggregation key with filters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         entity = "users"
@@ -951,7 +951,7 @@ class TestCacheKeyBuilder:
         assert "agg" in result
         assert "f_" in result  # Filter hash prefix
 
-    def test_build_list_key_basic(self):
+    def test_build_list_key_basic(self) -> None:
         """Test list key building - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         entity = "jobs"
@@ -967,7 +967,7 @@ class TestCacheKeyBuilder:
         assert "p1" in result  # Page 1
         assert "l10" in result  # Limit 10
 
-    def test_build_list_key_with_sort(self):
+    def test_build_list_key_with_sort(self) -> None:
         """Test list key with sort parameter - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         entity = "users"
@@ -984,7 +984,7 @@ class TestCacheKeyBuilder:
         assert "l20" in result
         assert "s_" in result  # Sort prefix
 
-    def test_build_list_key_with_filters(self):
+    def test_build_list_key_with_filters(self) -> None:
         """Test list key with filters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         entity = "jobs"
@@ -1009,7 +1009,7 @@ class TestCacheKeyBuilder:
 class TestConvenienceAliases:
     """Unit tests for convenience aliases - MANDATORY AAA pattern."""
 
-    def test_build_user_key_alias(self):
+    def test_build_user_key_alias(self) -> None:
         """Test build_user_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-123"
@@ -1020,7 +1020,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.user(user_id)
 
-    def test_build_job_key_alias(self):
+    def test_build_job_key_alias(self) -> None:
         """Test build_job_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         job_id = "job-456"
@@ -1031,7 +1031,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.job(job_id)
 
-    def test_build_session_key_alias(self):
+    def test_build_session_key_alias(self) -> None:
         """Test build_session_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         session_id = "session-789"
@@ -1042,7 +1042,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.session(session_id)
 
-    def test_build_rate_limit_key_alias(self):
+    def test_build_rate_limit_key_alias(self) -> None:
         """Test build_rate_limit_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         user_id = "user-101"
@@ -1054,7 +1054,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.rate_limit(user_id, endpoint)
 
-    def test_build_oauth_key_alias(self):
+    def test_build_oauth_key_alias(self) -> None:
         """Test build_oauth_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         state = "oauth-state-abc"
@@ -1065,7 +1065,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.oauth_state(state)
 
-    def test_build_lock_key_alias(self):
+    def test_build_lock_key_alias(self) -> None:
         """Test build_lock_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "test_op"
@@ -1077,7 +1077,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.operation_lock(operation, resource_id)
 
-    def test_build_temp_key_alias(self):
+    def test_build_temp_key_alias(self) -> None:
         """Test build_temp_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data_type = "export"
@@ -1089,7 +1089,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeys.temp_data(data_type, identifier)
 
-    def test_build_query_key_alias(self):
+    def test_build_query_key_alias(self) -> None:
         """Test build_query_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "search"
@@ -1101,7 +1101,7 @@ class TestConvenienceAliases:
         # Assert - MANDATORY
         assert result == CacheKeyBuilder.build_query_key(operation, filters)
 
-    def test_build_list_key_alias(self):
+    def test_build_list_key_alias(self) -> None:
         """Test build_list_key convenience alias - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         entity = "jobs"
@@ -1125,7 +1125,7 @@ class TestConvenienceAliases:
 class TestCacheKeysSecurity:
     """MANDATORY security tests for cache keys."""
 
-    def test_special_characters_url_encoded(self):
+    def test_special_characters_url_encoded(self) -> None:
         """MANDATORY: Test special characters are URL-encoded."""
         # Arrange - MANDATORY
         user_id = "user@example.com"
@@ -1138,7 +1138,7 @@ class TestCacheKeysSecurity:
         assert "@" not in result
         assert quote("@", safe="") in result
 
-    def test_cache_key_injection_prevention(self):
+    def test_cache_key_injection_prevention(self) -> None:
         """MANDATORY: Test cache key injection prevention."""
         # Arrange - MANDATORY
         malicious_id = f"user{CacheKeys.SEPARATOR}admin"
@@ -1161,7 +1161,7 @@ class TestCacheKeysSecurity:
 class TestCacheKeysPerformance:
     """MANDATORY performance tests for cache key generation."""
 
-    def test_key_generation_performance(self):
+    def test_key_generation_performance(self) -> None:
         """MANDATORY: Test cache key generation performance."""
         # Arrange - MANDATORY
         import time
@@ -1184,7 +1184,7 @@ class TestCacheKeysPerformance:
         assert avg_time < 0.001  # <1ms per key generation
         assert execution_time < 3.0  # Total <3s for 3000 keys
 
-    def test_complex_key_building_performance(self):
+    def test_complex_key_building_performance(self) -> None:
         """MANDATORY: Test complex key building performance."""
         # Arrange - MANDATORY
         import time

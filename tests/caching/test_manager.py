@@ -51,7 +51,7 @@ def cache_manager(file_cache_config: CacheConfig) -> CacheManager:
 
 
 @pytest.fixture
-def mock_file_backend():
+def mock_file_backend() -> AsyncMock:
     """Factory for mock file backend - DRY principle."""
     backend = AsyncMock()
     backend.get = AsyncMock(return_value=None)
@@ -79,7 +79,7 @@ def mock_file_backend():
 class TestCacheManagerInit:
     """Test CacheManager initialization following MANDATORY AAA pattern."""
 
-    def test_init_creates_manager_with_default_config(self):
+    def test_init_creates_manager_with_default_config(self) -> None:
         """Test __init__ creates manager with default config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (no setup needed)
 
@@ -92,7 +92,7 @@ class TestCacheManagerInit:
         assert manager.backend is None
         assert manager._initialized is False
 
-    def test_init_creates_manager_with_custom_config(self, file_cache_config: CacheConfig):
+    def test_init_creates_manager_with_custom_config(self, file_cache_config: CacheConfig) -> None:
         """Test __init__ creates manager with custom config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (file_cache_config fixture)
 
@@ -114,7 +114,7 @@ class TestCacheManagerInit:
 class TestCacheManagerBackend:
     """Test CacheManager backend management following MANDATORY AAA pattern."""
 
-    async def test_initialize_creates_file_backend(self, cache_manager: CacheManager):
+    async def test_initialize_creates_file_backend(self, cache_manager: CacheManager) -> None:
         """Test initialize creates file backend - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (cache_manager fixture)
 
@@ -125,7 +125,7 @@ class TestCacheManagerBackend:
         assert cache_manager.backend is not None
         assert cache_manager._initialized is True
 
-    async def test_initialize_idempotent(self, cache_manager: CacheManager):
+    async def test_initialize_idempotent(self, cache_manager: CacheManager) -> None:
         """Test initialize is idempotent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -137,7 +137,7 @@ class TestCacheManagerBackend:
         # Assert - MANDATORY
         assert cache_manager.backend is first_backend  # Same instance
 
-    async def test_initialize_handles_unsupported_backend(self):
+    async def test_initialize_handles_unsupported_backend(self) -> None:
         """Test initialize handles unsupported backend - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = CacheConfig(backend="invalid")  # type: ignore
@@ -150,7 +150,7 @@ class TestCacheManagerBackend:
         # Backend should not be initialized due to error
         assert manager.backend is None
 
-    def test_ensure_backend_raises_if_not_initialized(self, cache_manager: CacheManager):
+    def test_ensure_backend_raises_if_not_initialized(self, cache_manager: CacheManager) -> None:
         """Test _ensure_backend raises if not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (cache_manager not initialized)
 
@@ -169,7 +169,7 @@ class TestCacheManagerBackend:
 class TestCacheManagerHTML:
     """Test CacheManager HTML caching following MANDATORY AAA pattern."""
 
-    async def test_get_html_returns_none_for_missing(self, cache_manager: CacheManager):
+    async def test_get_html_returns_none_for_missing(self, cache_manager: CacheManager) -> None:
         """Test get_html returns None for missing - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test"
@@ -180,7 +180,7 @@ class TestCacheManagerHTML:
         # Assert - MANDATORY
         assert result is None
 
-    async def test_set_and_get_html(self, cache_manager: CacheManager):
+    async def test_set_and_get_html(self, cache_manager: CacheManager) -> None:
         """Test set and get HTML - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test"
@@ -194,7 +194,7 @@ class TestCacheManagerHTML:
         assert set_result is True
         assert get_result == html_content
 
-    async def test_set_html_with_custom_ttl(self, cache_manager: CacheManager):
+    async def test_set_html_with_custom_ttl(self, cache_manager: CacheManager) -> None:
         """Test set_html with custom TTL - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -220,7 +220,7 @@ class TestCacheManagerHTML:
 class TestCacheManagerImage:
     """Test CacheManager image caching following MANDATORY AAA pattern."""
 
-    async def test_get_image_returns_none_for_missing(self, cache_manager: CacheManager):
+    async def test_get_image_returns_none_for_missing(self, cache_manager: CacheManager) -> None:
         """Test get_image returns None for missing - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         image_url = "https://example.com/image.png"
@@ -231,7 +231,7 @@ class TestCacheManagerImage:
         # Assert - MANDATORY
         assert result is None
 
-    async def test_set_and_get_image(self, cache_manager: CacheManager):
+    async def test_set_and_get_image(self, cache_manager: CacheManager) -> None:
         """Test set and get image - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         image_url = "https://example.com/image.png"
@@ -256,7 +256,7 @@ class TestCacheManagerImage:
 class TestCacheManagerMetadata:
     """Test CacheManager metadata caching following MANDATORY AAA pattern."""
 
-    async def test_get_metadata_returns_none_for_missing(self, cache_manager: CacheManager):
+    async def test_get_metadata_returns_none_for_missing(self, cache_manager: CacheManager) -> None:
         """Test get_metadata returns None for missing - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/page"
@@ -267,7 +267,7 @@ class TestCacheManagerMetadata:
         # Assert - MANDATORY
         assert result is None
 
-    async def test_set_and_get_metadata(self, cache_manager: CacheManager):
+    async def test_set_and_get_metadata(self, cache_manager: CacheManager) -> None:
         """Test set and get metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/page"
@@ -292,7 +292,9 @@ class TestCacheManagerMetadata:
 class TestCacheManagerRobots:
     """Test CacheManager robots.txt caching following MANDATORY AAA pattern."""
 
-    async def test_get_robots_txt_returns_none_for_missing(self, cache_manager: CacheManager):
+    async def test_get_robots_txt_returns_none_for_missing(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test get_robots_txt returns None for missing - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         domain = "example.com"
@@ -303,7 +305,7 @@ class TestCacheManagerRobots:
         # Assert - MANDATORY
         assert result is None
 
-    async def test_set_and_get_robots_txt(self, cache_manager: CacheManager):
+    async def test_set_and_get_robots_txt(self, cache_manager: CacheManager) -> None:
         """Test set and get robots.txt - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         domain = "example.com"
@@ -328,7 +330,9 @@ class TestCacheManagerRobots:
 class TestCacheManagerInvalidation:
     """Test CacheManager cache invalidation following MANDATORY AAA pattern."""
 
-    async def test_invalidate_url_removes_html_and_metadata(self, cache_manager: CacheManager):
+    async def test_invalidate_url_removes_html_and_metadata(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test invalidate_url removes HTML and metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test"
@@ -343,7 +347,9 @@ class TestCacheManagerInvalidation:
         assert await cache_manager.get_html(url) is None
         assert await cache_manager.get_metadata(url) is None
 
-    async def test_invalidate_url_returns_false_for_nonexistent(self, cache_manager: CacheManager):
+    async def test_invalidate_url_returns_false_for_nonexistent(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test invalidate_url returns False for nonexistent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/nonexistent"
@@ -367,7 +373,7 @@ class TestCacheManagerStats:
 
     async def test_get_cache_stats_returns_statistics(
         self, cache_manager: CacheManager, mock_file_backend: AsyncMock
-    ):
+    ) -> None:
         """Test get_cache_stats returns statistics - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -396,7 +402,7 @@ class TestCacheManagerCleanup:
 
     async def test_cleanup_expired_returns_count(
         self, cache_manager: CacheManager, mock_file_backend: AsyncMock
-    ):
+    ) -> None:
         """Test cleanup_expired returns count - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -411,7 +417,7 @@ class TestCacheManagerCleanup:
 
     async def test_clear_cache_clears_all_entries(
         self, cache_manager: CacheManager, mock_file_backend: AsyncMock
-    ):
+    ) -> None:
         """Test clear_cache clears all entries - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -434,7 +440,7 @@ class TestCacheManagerCleanup:
 class TestCacheManagerKeyGeneration:
     """Test CacheManager key generation following MANDATORY AAA pattern."""
 
-    def test_make_html_key_creates_consistent_key(self, cache_manager: CacheManager):
+    def test_make_html_key_creates_consistent_key(self, cache_manager: CacheManager) -> None:
         """Test _make_html_key creates consistent key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test"
@@ -447,7 +453,7 @@ class TestCacheManagerKeyGeneration:
         assert key1 == key2
         assert key1.startswith("html:")
 
-    def test_make_image_key_creates_consistent_key(self, cache_manager: CacheManager):
+    def test_make_image_key_creates_consistent_key(self, cache_manager: CacheManager) -> None:
         """Test _make_image_key creates consistent key - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/image.png"
@@ -460,7 +466,7 @@ class TestCacheManagerKeyGeneration:
         assert key1 == key2
         assert key1.startswith("image:")
 
-    def test_make_robots_key_uses_domain_directly(self, cache_manager: CacheManager):
+    def test_make_robots_key_uses_domain_directly(self, cache_manager: CacheManager) -> None:
         """Test _make_robots_key uses domain directly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         domain = "example.com"
@@ -471,7 +477,7 @@ class TestCacheManagerKeyGeneration:
         # Assert - MANDATORY
         assert key == f"robots:{domain}"
 
-    def test_hash_url_creates_deterministic_hash(self, cache_manager: CacheManager):
+    def test_hash_url_creates_deterministic_hash(self, cache_manager: CacheManager) -> None:
         """Test _hash_url creates deterministic hash - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         url = "https://example.com/test"
@@ -495,7 +501,7 @@ class TestCacheManagerKeyGeneration:
 class TestCacheManagerBackendType:
     """Test CacheManager backend type following MANDATORY AAA pattern."""
 
-    def test_backend_type_returns_not_initialized(self):
+    def test_backend_type_returns_not_initialized(self) -> None:
         """Test backend_type returns not_initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         manager = CacheManager()
@@ -506,7 +512,7 @@ class TestCacheManagerBackendType:
         # Assert - MANDATORY
         assert backend_type == "not_initialized"
 
-    async def test_backend_type_returns_file_after_init(self, cache_manager: CacheManager):
+    async def test_backend_type_returns_file_after_init(self, cache_manager: CacheManager) -> None:
         """Test backend_type returns file after init - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -530,7 +536,7 @@ class TestCacheManagerShutdown:
 
     async def test_shutdown_closes_backend(
         self, cache_manager: CacheManager, mock_file_backend: AsyncMock
-    ):
+    ) -> None:
         """Test shutdown closes backend - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await cache_manager.initialize()
@@ -556,7 +562,9 @@ class TestCacheManagerSecurity:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_set_html_handles_malicious_urls_safely(self, cache_manager: CacheManager):
+    async def test_set_html_handles_malicious_urls_safely(
+        self, cache_manager: CacheManager
+    ) -> None:
         """MANDATORY security test - set_html handles malicious URLs safely."""
         # Arrange - MANDATORY
         malicious_urls = [
@@ -579,7 +587,9 @@ class TestCacheManagerSecurity:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_set_metadata_handles_malicious_values_safely(self, cache_manager: CacheManager):
+    async def test_set_metadata_handles_malicious_values_safely(
+        self, cache_manager: CacheManager
+    ) -> None:
         """MANDATORY security test - set_metadata handles malicious values safely."""
         # Arrange - MANDATORY
         url = "https://example.com/test"
@@ -609,7 +619,7 @@ class TestCacheManagerPerformance:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_set_html_performance_benchmark(self, cache_manager: CacheManager):
+    async def test_set_html_performance_benchmark(self, cache_manager: CacheManager) -> None:
         """MANDATORY performance test - set_html completes quickly."""
         # Arrange - MANDATORY
         iterations = 50
@@ -629,7 +639,7 @@ class TestCacheManagerPerformance:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_get_html_performance_benchmark(self, cache_manager: CacheManager):
+    async def test_get_html_performance_benchmark(self, cache_manager: CacheManager) -> None:
         """MANDATORY performance test - get_html completes quickly."""
         # Arrange - MANDATORY
         iterations = 50

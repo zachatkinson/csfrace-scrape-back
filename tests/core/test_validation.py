@@ -34,25 +34,25 @@ from src.core.validation import (
 
 
 @pytest.fixture
-def valid_uuid():
+def valid_uuid() -> str:
     """Factory for valid UUID - DRY principle."""
     return str(uuid4())
 
 
 @pytest.fixture
-def valid_url():
+def valid_url() -> str:
     """Factory for valid HTTP URL."""
     return "https://example.com/page"
 
 
 @pytest.fixture
-def valid_username():
+def valid_username() -> str:
     """Factory for valid username."""
     return "testuser123"
 
 
 @pytest.fixture
-def valid_email():
+def valid_email() -> str:
     """Factory for valid email."""
     return "test@example.com"
 
@@ -66,7 +66,7 @@ class TestValidateUrl:
     """Test URL validation method - Lines 62-96."""
 
     @pytest.mark.unit
-    def test_url_valid_https(self):
+    def test_url_valid_https(self) -> None:
         """Test url validates HTTPS URL."""
         # Arrange
         url = "https://example.com/page"
@@ -78,7 +78,7 @@ class TestValidateUrl:
         assert result == url
 
     @pytest.mark.unit
-    def test_url_valid_http(self):
+    def test_url_valid_http(self) -> None:
         """Test url validates HTTP URL."""
         # Arrange
         url = "http://example.com/page"
@@ -90,21 +90,21 @@ class TestValidateUrl:
         assert result == url
 
     @pytest.mark.unit
-    def test_url_empty_raises(self):
+    def test_url_empty_raises(self) -> None:
         """Test url raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="url cannot be empty"):
             ValidationEngine.url("")
 
     @pytest.mark.unit
-    def test_url_whitespace_only_raises(self):
+    def test_url_whitespace_only_raises(self) -> None:
         """Test url raises ValidationError for whitespace."""
         # Act & Assert
         with pytest.raises(ValidationError, match="url cannot be empty"):
             ValidationEngine.url("   ")
 
     @pytest.mark.unit
-    def test_url_too_long_raises(self):
+    def test_url_too_long_raises(self) -> None:
         """Test url raises ValidationError when exceeding max length."""
         # Arrange
         long_url = "https://example.com/" + "a" * MAX_URL_LENGTH
@@ -114,35 +114,35 @@ class TestValidateUrl:
             ValidationEngine.url(long_url)
 
     @pytest.mark.unit
-    def test_url_invalid_scheme_raises(self):
+    def test_url_invalid_scheme_raises(self) -> None:
         """Test url raises ValidationError for non-HTTP scheme."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must use HTTP or HTTPS"):
             ValidationEngine.url("ftp://example.com")
 
     @pytest.mark.unit
-    def test_url_no_netloc_raises(self):
+    def test_url_no_netloc_raises(self) -> None:
         """Test url raises ValidationError for URL without netloc."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must be a valid URL"):
             ValidationEngine.url("https://")
 
     @pytest.mark.unit
-    def test_url_localhost_forbidden(self):
+    def test_url_localhost_forbidden(self) -> None:
         """Test url raises ValidationError for localhost."""
         # Act & Assert
         with pytest.raises(ValidationError, match="forbidden patterns"):
             ValidationEngine.url("http://localhost:8000")
 
     @pytest.mark.unit
-    def test_url_127_0_0_1_forbidden(self):
+    def test_url_127_0_0_1_forbidden(self) -> None:
         """Test url raises ValidationError for 127.0.0.1."""
         # Act & Assert
         with pytest.raises(ValidationError, match="forbidden patterns"):
             ValidationEngine.url("http://127.0.0.1/page")
 
     @pytest.mark.unit
-    def test_url_strips_whitespace(self):
+    def test_url_strips_whitespace(self) -> None:
         """Test url strips surrounding whitespace."""
         # Arrange
         url = "  https://example.com  "
@@ -163,7 +163,7 @@ class TestValidatePagination:
     """Test pagination validation method - Lines 98-112."""
 
     @pytest.mark.unit
-    def test_pagination_valid(self):
+    def test_pagination_valid(self) -> None:
         """Test pagination with valid values."""
         # Act
         skip, limit = ValidationEngine.pagination(0, 10)
@@ -173,21 +173,21 @@ class TestValidatePagination:
         assert limit == 10
 
     @pytest.mark.unit
-    def test_pagination_negative_skip_raises(self):
+    def test_pagination_negative_skip_raises(self) -> None:
         """Test pagination raises ValidationError for negative skip."""
         # Act & Assert
         with pytest.raises(ValidationError, match="Skip must be non-negative"):
             ValidationEngine.pagination(-1, 10)
 
     @pytest.mark.unit
-    def test_pagination_zero_limit_raises(self):
+    def test_pagination_zero_limit_raises(self) -> None:
         """Test pagination raises ValidationError for zero limit."""
         # Act & Assert
         with pytest.raises(ValidationError, match="Limit must be positive"):
             ValidationEngine.pagination(0, 0)
 
     @pytest.mark.unit
-    def test_pagination_exceeds_max_raises(self):
+    def test_pagination_exceeds_max_raises(self) -> None:
         """Test pagination raises ValidationError when exceeding max page size."""
         # Act & Assert
         with pytest.raises(ValidationError, match=f"cannot exceed {MAX_PAGE_SIZE}"):
@@ -203,7 +203,7 @@ class TestValidateUserId:
     """Test user_id validation method - Lines 114-129."""
 
     @pytest.mark.unit
-    def test_user_id_valid_uuid(self, valid_uuid):
+    def test_user_id_valid_uuid(self, valid_uuid: str) -> None:
         """Test user_id with valid UUID."""
         # Act
         result = ValidationEngine.user_id(valid_uuid)
@@ -212,21 +212,21 @@ class TestValidateUserId:
         assert result == valid_uuid
 
     @pytest.mark.unit
-    def test_user_id_empty_raises(self):
+    def test_user_id_empty_raises(self) -> None:
         """Test user_id raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="user_id cannot be empty"):
             ValidationEngine.user_id("")
 
     @pytest.mark.unit
-    def test_user_id_invalid_format_raises(self):
+    def test_user_id_invalid_format_raises(self) -> None:
         """Test user_id raises ValidationError for invalid UUID format."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must be a valid UUID"):
             ValidationEngine.user_id("not-a-uuid")
 
     @pytest.mark.unit
-    def test_user_id_strips_whitespace(self, valid_uuid):
+    def test_user_id_strips_whitespace(self, valid_uuid: str) -> None:
         """Test user_id strips surrounding whitespace."""
         # Arrange
         padded_uuid = f"  {valid_uuid}  "
@@ -247,7 +247,7 @@ class TestValidateUsername:
     """Test username validation method - Lines 131-160."""
 
     @pytest.mark.unit
-    def test_username_valid(self, valid_username):
+    def test_username_valid(self, valid_username: str) -> None:
         """Test username with valid format."""
         # Act
         result = ValidationEngine.username(valid_username)
@@ -256,14 +256,14 @@ class TestValidateUsername:
         assert result == valid_username
 
     @pytest.mark.unit
-    def test_username_empty_raises(self):
+    def test_username_empty_raises(self) -> None:
         """Test username raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="username cannot be empty"):
             ValidationEngine.username("")
 
     @pytest.mark.unit
-    def test_username_too_short_raises(self):
+    def test_username_too_short_raises(self) -> None:
         """Test username raises ValidationError when too short."""
         # Arrange
         short_name = "ab"  # Less than MIN_USERNAME_LENGTH
@@ -273,7 +273,7 @@ class TestValidateUsername:
             ValidationEngine.username(short_name)
 
     @pytest.mark.unit
-    def test_username_too_long_raises(self):
+    def test_username_too_long_raises(self) -> None:
         """Test username raises ValidationError when too long."""
         # Arrange
         long_name = "a" * (MAX_USERNAME_LENGTH + 1)
@@ -283,14 +283,14 @@ class TestValidateUsername:
             ValidationEngine.username(long_name)
 
     @pytest.mark.unit
-    def test_username_invalid_characters_raises(self):
+    def test_username_invalid_characters_raises(self) -> None:
         """Test username raises ValidationError for invalid characters."""
         # Act & Assert
         with pytest.raises(ValidationError, match="can only contain"):
             ValidationEngine.username("user@name")
 
     @pytest.mark.unit
-    def test_username_allows_underscores_hyphens(self):
+    def test_username_allows_underscores_hyphens(self) -> None:
         """Test username allows underscores and hyphens."""
         # Arrange
         username = "user_name-123"
@@ -302,7 +302,7 @@ class TestValidateUsername:
         assert result == username
 
     @pytest.mark.unit
-    def test_username_rejects_dots_by_default(self):
+    def test_username_rejects_dots_by_default(self) -> None:
         """Test username rejects dots when allow_dots=False (default)."""
         # Arrange
         username = "user.name"
@@ -314,7 +314,7 @@ class TestValidateUsername:
             ValidationEngine.username(username)
 
     @pytest.mark.unit
-    def test_username_allows_dots_when_enabled(self):
+    def test_username_allows_dots_when_enabled(self) -> None:
         """Test username allows dots when allow_dots=True (OAuth usernames)."""
         # Arrange
         username = "user.name123"
@@ -326,7 +326,7 @@ class TestValidateUsername:
         assert result == username
 
     @pytest.mark.unit
-    def test_username_oauth_with_multiple_dots(self):
+    def test_username_oauth_with_multiple_dots(self) -> None:
         """Test OAuth username with multiple dots (e.g., Google usernames)."""
         # Arrange
         username = "zach.atkinson85"
@@ -338,7 +338,7 @@ class TestValidateUsername:
         assert result == username
 
     @pytest.mark.unit
-    def test_username_oauth_complex_format(self):
+    def test_username_oauth_complex_format(self) -> None:
         """Test OAuth username with dots, underscores, and hyphens."""
         # Arrange
         username = "user.name_test-123"
@@ -359,7 +359,7 @@ class TestValidateEmail:
     """Test email validation method - Lines 162-179."""
 
     @pytest.mark.unit
-    def test_email_valid(self, valid_email):
+    def test_email_valid(self, valid_email: str) -> None:
         """Test email with valid format."""
         # Act
         result = ValidationEngine.email(valid_email)
@@ -368,14 +368,14 @@ class TestValidateEmail:
         assert result == valid_email
 
     @pytest.mark.unit
-    def test_email_empty_raises(self):
+    def test_email_empty_raises(self) -> None:
         """Test email raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="email cannot be empty"):
             ValidationEngine.email("")
 
     @pytest.mark.unit
-    def test_email_too_long_raises(self):
+    def test_email_too_long_raises(self) -> None:
         """Test email raises ValidationError when exceeding max length."""
         # Arrange
         long_email = "a" * MAX_EMAIL_LENGTH + "@example.com"
@@ -385,7 +385,7 @@ class TestValidateEmail:
             ValidationEngine.email(long_email)
 
     @pytest.mark.unit
-    def test_email_strips_whitespace(self, valid_email):
+    def test_email_strips_whitespace(self, valid_email: str) -> None:
         """Test email strips surrounding whitespace."""
         # Arrange
         padded_email = f"  {valid_email}  "
@@ -406,7 +406,7 @@ class TestValidateJobId:
     """Test job_id validation method - Lines 181-196."""
 
     @pytest.mark.unit
-    def test_job_id_valid_uuid(self, valid_uuid):
+    def test_job_id_valid_uuid(self, valid_uuid: str) -> None:
         """Test job_id with valid UUID."""
         # Act
         result = ValidationEngine.job_id(valid_uuid)
@@ -415,14 +415,14 @@ class TestValidateJobId:
         assert result == valid_uuid
 
     @pytest.mark.unit
-    def test_job_id_empty_raises(self):
+    def test_job_id_empty_raises(self) -> None:
         """Test job_id raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="job_id cannot be empty"):
             ValidationEngine.job_id("")
 
     @pytest.mark.unit
-    def test_job_id_invalid_format_raises(self):
+    def test_job_id_invalid_format_raises(self) -> None:
         """Test job_id raises ValidationError for invalid UUID format."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must be a valid UUID"):
@@ -438,7 +438,7 @@ class TestValidatePriority:
     """Test priority validation method - Lines 198-214."""
 
     @pytest.mark.unit
-    def test_priority_valid_values(self):
+    def test_priority_valid_values(self) -> None:
         """Test priority accepts all valid values."""
         # Arrange
         valid_priorities = ["low", "normal", "high", "urgent"]
@@ -449,21 +449,21 @@ class TestValidatePriority:
             assert result == priority
 
     @pytest.mark.unit
-    def test_priority_empty_raises(self):
+    def test_priority_empty_raises(self) -> None:
         """Test priority raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="priority cannot be empty"):
             ValidationEngine.priority("")
 
     @pytest.mark.unit
-    def test_priority_invalid_value_raises(self):
+    def test_priority_invalid_value_raises(self) -> None:
         """Test priority raises ValidationError for invalid value."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must be one of"):
             ValidationEngine.priority("critical")
 
     @pytest.mark.unit
-    def test_priority_case_insensitive(self):
+    def test_priority_case_insensitive(self) -> None:
         """Test priority normalizes to lowercase."""
         # Act
         result = ValidationEngine.priority("HIGH")
@@ -481,7 +481,7 @@ class TestValidateTimeout:
     """Test timeout validation method - Lines 216-233."""
 
     @pytest.mark.unit
-    def test_timeout_valid_value(self):
+    def test_timeout_valid_value(self) -> None:
         """Test timeout with valid value."""
         # Act
         result = ValidationEngine.timeout(30)
@@ -490,21 +490,21 @@ class TestValidateTimeout:
         assert result == 30
 
     @pytest.mark.unit
-    def test_timeout_below_min_raises(self):
+    def test_timeout_below_min_raises(self) -> None:
         """Test timeout raises ValidationError below minimum."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must be at least"):
             ValidationEngine.timeout(0)
 
     @pytest.mark.unit
-    def test_timeout_above_max_raises(self):
+    def test_timeout_above_max_raises(self) -> None:
         """Test timeout raises ValidationError above maximum."""
         # Act & Assert
         with pytest.raises(ValidationError, match="cannot exceed"):
             ValidationEngine.timeout(4000)
 
     @pytest.mark.unit
-    def test_timeout_custom_limits(self):
+    def test_timeout_custom_limits(self) -> None:
         """Test timeout with custom min/max limits."""
         # Act
         result = ValidationEngine.timeout(50, min_timeout=10, max_timeout=100)
@@ -522,7 +522,7 @@ class TestValidateOAuthProvider:
     """Test oauth_provider validation method - Lines 235-251."""
 
     @pytest.mark.unit
-    def test_oauth_provider_valid_values(self):
+    def test_oauth_provider_valid_values(self) -> None:
         """Test oauth_provider accepts all valid providers."""
         # Arrange
         valid_providers = ["google", "github", "microsoft", "facebook", "apple"]
@@ -533,21 +533,21 @@ class TestValidateOAuthProvider:
             assert result == provider
 
     @pytest.mark.unit
-    def test_oauth_provider_empty_raises(self):
+    def test_oauth_provider_empty_raises(self) -> None:
         """Test oauth_provider raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="provider cannot be empty"):
             ValidationEngine.oauth_provider("")
 
     @pytest.mark.unit
-    def test_oauth_provider_invalid_raises(self):
+    def test_oauth_provider_invalid_raises(self) -> None:
         """Test oauth_provider raises ValidationError for invalid provider."""
         # Act & Assert
         with pytest.raises(ValidationError, match="must be one of"):
             ValidationEngine.oauth_provider("twitter")
 
     @pytest.mark.unit
-    def test_oauth_provider_case_insensitive(self):
+    def test_oauth_provider_case_insensitive(self) -> None:
         """Test oauth_provider normalizes to lowercase."""
         # Act
         result = ValidationEngine.oauth_provider("GOOGLE")
@@ -565,7 +565,7 @@ class TestValidateOAuthCode:
     """Test oauth_code validation method - Lines 253-268."""
 
     @pytest.mark.unit
-    def test_oauth_code_valid(self):
+    def test_oauth_code_valid(self) -> None:
         """Test oauth_code with valid code."""
         # Arrange
         code = "authorization_code_12345"
@@ -577,21 +577,21 @@ class TestValidateOAuthCode:
         assert result == code
 
     @pytest.mark.unit
-    def test_oauth_code_empty_raises(self):
+    def test_oauth_code_empty_raises(self) -> None:
         """Test oauth_code raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="code cannot be empty"):
             ValidationEngine.oauth_code("")
 
     @pytest.mark.unit
-    def test_oauth_code_too_short_raises(self):
+    def test_oauth_code_too_short_raises(self) -> None:
         """Test oauth_code raises ValidationError for short code."""
         # Act & Assert
         with pytest.raises(ValidationError, match="too short"):
             ValidationEngine.oauth_code("short")
 
     @pytest.mark.unit
-    def test_oauth_code_too_long_raises(self):
+    def test_oauth_code_too_long_raises(self) -> None:
         """Test oauth_code raises ValidationError for very long code."""
         # Arrange
         long_code = "a" * 1001
@@ -610,7 +610,7 @@ class TestValidateOAuthState:
     """Test oauth_state validation method - Lines 270-287."""
 
     @pytest.mark.unit
-    def test_oauth_state_valid(self):
+    def test_oauth_state_valid(self) -> None:
         """Test oauth_state with valid state."""
         # Arrange
         state = "secure_random_state_12345"
@@ -622,21 +622,21 @@ class TestValidateOAuthState:
         assert result == state
 
     @pytest.mark.unit
-    def test_oauth_state_empty_raises(self):
+    def test_oauth_state_empty_raises(self) -> None:
         """Test oauth_state raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="state cannot be empty"):
             ValidationEngine.oauth_state("")
 
     @pytest.mark.unit
-    def test_oauth_state_too_short_raises(self):
+    def test_oauth_state_too_short_raises(self) -> None:
         """Test oauth_state raises ValidationError for short state."""
         # Act & Assert
         with pytest.raises(ValidationError, match="too short for security"):
             ValidationEngine.oauth_state("short")
 
     @pytest.mark.unit
-    def test_oauth_state_too_long_raises(self):
+    def test_oauth_state_too_long_raises(self) -> None:
         """Test oauth_state raises ValidationError for very long state."""
         # Arrange
         long_state = "a" * 201
@@ -655,7 +655,7 @@ class TestValidateDescription:
     """Test description validation method - Lines 289-307."""
 
     @pytest.mark.unit
-    def test_description_valid(self):
+    def test_description_valid(self) -> None:
         """Test description with valid text."""
         # Arrange
         desc = "This is a valid description"
@@ -667,7 +667,7 @@ class TestValidateDescription:
         assert result == desc
 
     @pytest.mark.unit
-    def test_description_none_returns_none(self):
+    def test_description_none_returns_none(self) -> None:
         """Test description returns None for None input."""
         # Act
         result = ValidationEngine.description(None)
@@ -676,7 +676,7 @@ class TestValidateDescription:
         assert result is None
 
     @pytest.mark.unit
-    def test_description_empty_returns_none(self):
+    def test_description_empty_returns_none(self) -> None:
         """Test description returns None for empty string."""
         # Act
         result = ValidationEngine.description("   ")
@@ -685,7 +685,7 @@ class TestValidateDescription:
         assert result is None
 
     @pytest.mark.unit
-    def test_description_too_long_raises(self):
+    def test_description_too_long_raises(self) -> None:
         """Test description raises ValidationError when too long."""
         # Arrange
         long_desc = "a" * (MAX_DESCRIPTION_LENGTH + 1)
@@ -704,7 +704,7 @@ class TestValidateFilename:
     """Test filename validation method - Lines 309-331."""
 
     @pytest.mark.unit
-    def test_filename_valid(self):
+    def test_filename_valid(self) -> None:
         """Test filename with valid name."""
         # Arrange
         filename = "document.pdf"
@@ -716,14 +716,14 @@ class TestValidateFilename:
         assert result == filename
 
     @pytest.mark.unit
-    def test_filename_empty_raises(self):
+    def test_filename_empty_raises(self) -> None:
         """Test filename raises ValidationError for empty string."""
         # Act & Assert
         with pytest.raises(ValidationError, match="filename cannot be empty"):
             ValidationEngine.filename("")
 
     @pytest.mark.unit
-    def test_filename_too_long_raises(self):
+    def test_filename_too_long_raises(self) -> None:
         """Test filename raises ValidationError when too long."""
         # Arrange
         long_filename = "a" * (MAX_FILENAME_LENGTH + 1) + ".txt"
@@ -733,7 +733,7 @@ class TestValidateFilename:
             ValidationEngine.filename(long_filename)
 
     @pytest.mark.unit
-    def test_filename_dangerous_characters_raises(self):
+    def test_filename_dangerous_characters_raises(self) -> None:
         """Test filename raises ValidationError for dangerous characters."""
         # Arrange
         dangerous_filenames = [
@@ -750,7 +750,7 @@ class TestValidateFilename:
                 ValidationEngine.filename(filename)
 
     @pytest.mark.unit
-    def test_filename_safe_characters(self):
+    def test_filename_safe_characters(self) -> None:
         """Test filename allows safe characters."""
         # Arrange
         safe_filename = "my_document-v2.pdf"
@@ -771,7 +771,7 @@ class TestValidateDatetimeRange:
     """Test datetime_range validation method - Lines 333-348."""
 
     @pytest.mark.unit
-    def test_datetime_range_valid(self):
+    def test_datetime_range_valid(self) -> None:
         """Test datetime_range with valid start before end."""
         # Arrange
         start = datetime.now()
@@ -785,7 +785,7 @@ class TestValidateDatetimeRange:
         assert result_end == end
 
     @pytest.mark.unit
-    def test_datetime_range_none_values(self):
+    def test_datetime_range_none_values(self) -> None:
         """Test datetime_range accepts None values."""
         # Act
         result_start, result_end = ValidationEngine.datetime_range(None, None)
@@ -795,7 +795,7 @@ class TestValidateDatetimeRange:
         assert result_end is None
 
     @pytest.mark.unit
-    def test_datetime_range_start_after_end_raises(self):
+    def test_datetime_range_start_after_end_raises(self) -> None:
         """Test datetime_range raises ValidationError when start >= end."""
         # Arrange
         start = datetime.now()
@@ -815,7 +815,7 @@ class TestValidateJsonData:
     """Test json_data validation method - Lines 350-373."""
 
     @pytest.mark.unit
-    def test_json_data_valid_dict(self):
+    def test_json_data_valid_dict(self) -> None:
         """Test json_data with valid dictionary."""
         # Arrange
         data = {"key": "value", "nested": {"data": [1, 2, 3]}}
@@ -827,7 +827,7 @@ class TestValidateJsonData:
         assert result == data
 
     @pytest.mark.unit
-    def test_json_data_valid_list(self):
+    def test_json_data_valid_list(self) -> None:
         """Test json_data with valid list."""
         # Arrange
         data = [1, 2, {"key": "value"}]
@@ -839,7 +839,7 @@ class TestValidateJsonData:
         assert result == data
 
     @pytest.mark.unit
-    def test_json_data_none_returns_none(self):
+    def test_json_data_none_returns_none(self) -> None:
         """Test json_data returns None for None input."""
         # Act
         result = ValidationEngine.json_data(None)
@@ -848,14 +848,14 @@ class TestValidateJsonData:
         assert result is None
 
     @pytest.mark.unit
-    def test_json_data_too_deep_raises(self):
+    def test_json_data_too_deep_raises(self) -> None:
         """Test json_data raises ValidationError for excessive nesting."""
         # Arrange - Create deeply nested structure
         data = {"level": 1}
         current = data
         for i in range(2, 15):  # Create 14 levels of nesting
-            current["nested"] = {"level": i}
-            current = current["nested"]
+            current["nested"] = {"level": i}  # type: ignore[assignment]
+            current = current["nested"]  # type: ignore[assignment]
 
         # Act & Assert
         with pytest.raises(ValidationError, match="nesting too deep"):
@@ -871,7 +871,7 @@ class TestValidateBulkUserIds:
     """Test validate_user_ids bulk validation - Lines 379-393."""
 
     @pytest.mark.unit
-    def test_bulk_user_ids_valid(self):
+    def test_bulk_user_ids_valid(self) -> None:
         """Test validate_user_ids with valid UUID list."""
         # Arrange
         user_ids = [str(uuid4()) for _ in range(5)]
@@ -884,14 +884,14 @@ class TestValidateBulkUserIds:
         assert len(result) == 5
 
     @pytest.mark.unit
-    def test_bulk_user_ids_empty_list_raises(self):
+    def test_bulk_user_ids_empty_list_raises(self) -> None:
         """Test validate_user_ids raises ValidationError for empty list."""
         # Act & Assert
         with pytest.raises(ValidationError, match="cannot be empty"):
             BulkValidator.validate_user_ids([])
 
     @pytest.mark.unit
-    def test_bulk_user_ids_too_many_raises(self):
+    def test_bulk_user_ids_too_many_raises(self) -> None:
         """Test validate_user_ids raises ValidationError for too many IDs."""
         # Arrange
         user_ids = [str(uuid4()) for _ in range(101)]
@@ -901,7 +901,7 @@ class TestValidateBulkUserIds:
             BulkValidator.validate_user_ids(user_ids)
 
     @pytest.mark.unit
-    def test_bulk_user_ids_invalid_id_raises(self):
+    def test_bulk_user_ids_invalid_id_raises(self) -> None:
         """Test validate_user_ids raises ValidationError for invalid UUID."""
         # Arrange
         user_ids = [str(uuid4()), "invalid-uuid", str(uuid4())]
@@ -920,7 +920,7 @@ class TestValidateBulkUrls:
     """Test validate_urls bulk validation - Lines 395-409."""
 
     @pytest.mark.unit
-    def test_bulk_urls_valid(self):
+    def test_bulk_urls_valid(self) -> None:
         """Test validate_urls with valid URL list."""
         # Arrange
         urls = [
@@ -937,14 +937,14 @@ class TestValidateBulkUrls:
         assert len(result) == 3
 
     @pytest.mark.unit
-    def test_bulk_urls_empty_list_raises(self):
+    def test_bulk_urls_empty_list_raises(self) -> None:
         """Test validate_urls raises ValidationError for empty list."""
         # Act & Assert
         with pytest.raises(ValidationError, match="cannot be empty"):
             BulkValidator.validate_urls([])
 
     @pytest.mark.unit
-    def test_bulk_urls_too_many_raises(self):
+    def test_bulk_urls_too_many_raises(self) -> None:
         """Test validate_urls raises ValidationError for too many URLs."""
         # Arrange
         urls = [f"https://example.com/page{i}" for i in range(51)]
@@ -954,7 +954,7 @@ class TestValidateBulkUrls:
             BulkValidator.validate_urls(urls)
 
     @pytest.mark.unit
-    def test_bulk_urls_invalid_url_raises(self):
+    def test_bulk_urls_invalid_url_raises(self) -> None:
         """Test validate_urls raises ValidationError for invalid URL."""
         # Arrange
         urls = ["https://example.com/valid", "not-a-url", "https://example.com/valid2"]

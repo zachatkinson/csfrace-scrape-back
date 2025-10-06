@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import asyncio
 
@@ -13,6 +13,9 @@ from ..caching.manager import cache_manager
 from .health_events import (
     initialize_health_events,
 )
+
+if TYPE_CHECKING:
+    from ..api.services.health_service import HealthService
 
 logger = get_monitoring_logger()
 
@@ -113,7 +116,7 @@ class BackgroundHealthMonitor:
 
 
 @monitoring_error_handler("perform background health check")
-async def _perform_health_check_safe(health_service) -> None:
+async def _perform_health_check_safe(health_service: HealthService) -> None:
     """Safely perform a health check in the background monitor."""
     # Use the same async session factory as the API dependencies
     from ..api.dependencies import async_session

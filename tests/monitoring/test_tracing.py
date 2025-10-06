@@ -47,7 +47,7 @@ def distributed_tracer(tracing_config: TracingConfig) -> DistributedTracer:
 class TestTracingConfig:
     """Tests for TracingConfig dataclass."""
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test TracingConfig has sensible defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -70,7 +70,7 @@ class TestTracingConfig:
         assert config.correlation_id_header == "X-Correlation-ID"
         assert config.trace_id_header == "X-Trace-ID"
 
-    def test_config_customization(self):
+    def test_config_customization(self) -> None:
         """Test TracingConfig allows customization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -118,7 +118,7 @@ class TestTracingConfig:
 class TestDistributedTracerInitialization:
     """Tests for DistributedTracer initialization."""
 
-    def test_tracer_initializes_with_config(self, tracing_config: TracingConfig):
+    def test_tracer_initializes_with_config(self, tracing_config: TracingConfig) -> None:
         """Test tracer initializes with provided config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -131,7 +131,7 @@ class TestDistributedTracerInitialization:
         assert tracer.tracer_provider is None
         assert tracer.tracer is None
 
-    def test_tracer_uses_default_config(self):
+    def test_tracer_uses_default_config(self) -> None:
         """Test tracer uses default config when none provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -143,7 +143,9 @@ class TestDistributedTracerInitialization:
         assert tracer.config.service_name == "csfrace-scraper"
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_initialize_sets_up_tracer_provider(self, distributed_tracer: DistributedTracer):
+    def test_initialize_sets_up_tracer_provider(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test initialize sets up tracer provider - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -158,7 +160,7 @@ class TestDistributedTracerInitialization:
         # Cleanup
         distributed_tracer.shutdown()
 
-    def test_initialize_when_disabled(self):
+    def test_initialize_when_disabled(self) -> None:
         """Test initialize does nothing when disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(enabled=False)
@@ -171,7 +173,7 @@ class TestDistributedTracerInitialization:
         assert tracer._initialized is False
         assert tracer.tracer_provider is None
 
-    def test_initialize_when_already_initialized(self):
+    def test_initialize_when_already_initialized(self) -> None:
         """Test initialize is idempotent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         if not OPENTELEMETRY_AVAILABLE:
@@ -200,7 +202,7 @@ class TestDistributedTracerInitialization:
 class TestOpenTelemetryAvailability:
     """Tests for OpenTelemetry availability handling."""
 
-    def test_opentelemetry_availability_flag(self):
+    def test_opentelemetry_availability_flag(self) -> None:
         """Test OPENTELEMETRY_AVAILABLE flag reflects actual availability - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -211,7 +213,7 @@ class TestOpenTelemetryAvailability:
         # Should be a boolean
         assert isinstance(OPENTELEMETRY_AVAILABLE, bool)
 
-    def test_tracer_works_without_opentelemetry(self):
+    def test_tracer_works_without_opentelemetry(self) -> None:
         """Test tracer gracefully handles missing OpenTelemetry - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(enabled=True)
@@ -237,7 +239,9 @@ class TestTraceOperation:
     """Tests for trace_operation context manager."""
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    async def test_trace_operation_creates_span(self, distributed_tracer: DistributedTracer):
+    async def test_trace_operation_creates_span(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test trace_operation creates span - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -251,7 +255,9 @@ class TestTraceOperation:
         distributed_tracer.shutdown()
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    async def test_trace_operation_with_attributes(self, distributed_tracer: DistributedTracer):
+    async def test_trace_operation_with_attributes(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test trace_operation accepts attributes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -267,7 +273,7 @@ class TestTraceOperation:
 
     async def test_trace_operation_when_not_initialized(
         self, distributed_tracer: DistributedTracer
-    ):
+    ) -> None:
         """Test trace_operation yields None when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -288,13 +294,13 @@ class TestFunctionDecorators:
     """Tests for function tracing decorators."""
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_trace_function_decorator(self, distributed_tracer: DistributedTracer):
+    def test_trace_function_decorator(self, distributed_tracer: DistributedTracer) -> None:
         """Test trace_function decorator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
 
         @distributed_tracer.trace_function("test_operation")
-        def test_func():
+        def test_func() -> str:
             return "result"
 
         # Act - MANDATORY
@@ -308,13 +314,15 @@ class TestFunctionDecorators:
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
     @pytest.mark.asyncio
-    async def test_trace_async_function_decorator(self, distributed_tracer: DistributedTracer):
+    async def test_trace_async_function_decorator(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test trace_async_function decorator - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
 
         @distributed_tracer.trace_async_function("async_operation")
-        async def async_func():
+        async def async_func() -> str:
             return "async_result"
 
         # Act - MANDATORY
@@ -328,13 +336,13 @@ class TestFunctionDecorators:
 
     def test_trace_function_decorator_when_not_initialized(
         self, distributed_tracer: DistributedTracer
-    ):
+    ) -> None:
         """Test decorator works when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
 
         @distributed_tracer.trace_function("test_op")
-        def test_func():
+        def test_func() -> str:
             return "result"
 
         # Act - MANDATORY
@@ -353,7 +361,9 @@ class TestFunctionDecorators:
 class TestTraceSpanIdRetrieval:
     """Tests for trace and span ID retrieval."""
 
-    def test_get_current_trace_id_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_get_current_trace_id_when_not_initialized(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test get_current_trace_id returns None when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -364,7 +374,9 @@ class TestTraceSpanIdRetrieval:
         # Assert - MANDATORY
         assert trace_id is None
 
-    def test_get_current_span_id_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_get_current_span_id_when_not_initialized(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test get_current_span_id returns None when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -385,7 +397,7 @@ class TestTraceSpanIdRetrieval:
 class TestSpanEventsAndAttributes:
     """Tests for span events and attributes."""
 
-    def test_add_event_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_add_event_when_not_initialized(self, distributed_tracer: DistributedTracer) -> None:
         """Test add_event does nothing when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -397,7 +409,9 @@ class TestSpanEventsAndAttributes:
         # Should not raise errors
         assert True
 
-    def test_set_attribute_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_set_attribute_when_not_initialized(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test set_attribute does nothing when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -411,7 +425,7 @@ class TestSpanEventsAndAttributes:
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
     @pytest.mark.asyncio
-    async def test_add_event_within_trace(self, distributed_tracer: DistributedTracer):
+    async def test_add_event_within_trace(self, distributed_tracer: DistributedTracer) -> None:
         """Test add_event works within active trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -429,7 +443,7 @@ class TestSpanEventsAndAttributes:
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
     @pytest.mark.asyncio
-    async def test_set_attribute_within_trace(self, distributed_tracer: DistributedTracer):
+    async def test_set_attribute_within_trace(self, distributed_tracer: DistributedTracer) -> None:
         """Test set_attribute works within active trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -455,7 +469,9 @@ class TestSpanEventsAndAttributes:
 class TestExceptionRecording:
     """Tests for exception recording in spans."""
 
-    def test_record_exception_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_record_exception_when_not_initialized(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test record_exception does nothing when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -470,7 +486,9 @@ class TestExceptionRecording:
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
     @pytest.mark.asyncio
-    async def test_record_exception_within_trace(self, distributed_tracer: DistributedTracer):
+    async def test_record_exception_within_trace(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test record_exception works within active trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -497,7 +515,7 @@ class TestExceptionRecording:
 class TestTracingStatus:
     """Tests for tracing status retrieval."""
 
-    def test_get_tracing_status_structure(self, distributed_tracer: DistributedTracer):
+    def test_get_tracing_status_structure(self, distributed_tracer: DistributedTracer) -> None:
         """Test get_tracing_status returns correct structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -516,7 +534,9 @@ class TestTracingStatus:
         assert "auto_instrumentation" in status
         assert "exporters" in status
 
-    def test_get_tracing_status_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_get_tracing_status_when_not_initialized(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test tracing status when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -530,7 +550,9 @@ class TestTracingStatus:
         assert status["current_span_id"] is None
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_get_tracing_status_when_initialized(self, distributed_tracer: DistributedTracer):
+    def test_get_tracing_status_when_initialized(
+        self, distributed_tracer: DistributedTracer
+    ) -> None:
         """Test tracing status when initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -558,7 +580,7 @@ class TestTracingStatus:
 class TestShutdown:
     """Tests for tracer shutdown."""
 
-    def test_shutdown_when_not_initialized(self, distributed_tracer: DistributedTracer):
+    def test_shutdown_when_not_initialized(self, distributed_tracer: DistributedTracer) -> None:
         """Test shutdown does nothing when not initialized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Don't initialize
@@ -570,7 +592,7 @@ class TestShutdown:
         assert distributed_tracer._initialized is False
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_shutdown_cleans_up_resources(self, distributed_tracer: DistributedTracer):
+    def test_shutdown_cleans_up_resources(self, distributed_tracer: DistributedTracer) -> None:
         """Test shutdown cleans up tracer resources - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -592,7 +614,7 @@ class TestAutoInstrumentation:
     """Tests for auto-instrumentation setup."""
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_auto_instrumentation_fastapi(self):
+    def test_auto_instrumentation_fastapi(self) -> None:
         """Test FastAPI auto-instrumentation can be enabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(
@@ -610,7 +632,7 @@ class TestAutoInstrumentation:
         tracer.shutdown()
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_auto_instrumentation_aiohttp(self):
+    def test_auto_instrumentation_aiohttp(self) -> None:
         """Test aiohttp auto-instrumentation can be enabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(
@@ -628,7 +650,7 @@ class TestAutoInstrumentation:
         tracer.shutdown()
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_auto_instrumentation_sqlalchemy(self):
+    def test_auto_instrumentation_sqlalchemy(self) -> None:
         """Test SQLAlchemy auto-instrumentation can be enabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(
@@ -656,7 +678,7 @@ class TestExporterConfiguration:
     """Tests for exporter configuration."""
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_console_exporter_configuration(self):
+    def test_console_exporter_configuration(self) -> None:
         """Test console exporter can be configured - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(export_to_console=True)
@@ -674,7 +696,7 @@ class TestExporterConfiguration:
         tracer.shutdown()
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_otlp_exporter_configuration(self):
+    def test_otlp_exporter_configuration(self) -> None:
         """Test OTLP exporter can be configured - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = TracingConfig(export_to_otlp=True, otlp_endpoint="http://localhost:4317")
@@ -702,7 +724,7 @@ class TestExporterConfiguration:
 class TestTracingSecurity:
     """MANDATORY security tests for distributed tracing."""
 
-    def test_span_attributes_sanitization(self, distributed_tracer: DistributedTracer):
+    def test_span_attributes_sanitization(self, distributed_tracer: DistributedTracer) -> None:
         """MANDATORY security test - span attributes with malicious content."""
         # Arrange - MANDATORY
         malicious_attributes = {
@@ -722,7 +744,7 @@ class TestTracingSecurity:
         # Should not raise errors
         assert True
 
-    def test_event_attributes_sanitization(self, distributed_tracer: DistributedTracer):
+    def test_event_attributes_sanitization(self, distributed_tracer: DistributedTracer) -> None:
         """MANDATORY security test - event attributes with malicious content."""
         # Arrange - MANDATORY
         malicious_data = {
@@ -752,7 +774,7 @@ class TestTracingPerformance:
     """MANDATORY performance tests for distributed tracing."""
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_trace_operation_overhead(self, distributed_tracer: DistributedTracer):
+    def test_trace_operation_overhead(self, distributed_tracer: DistributedTracer) -> None:
         """MANDATORY performance test - trace operation overhead."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()
@@ -763,13 +785,12 @@ class TestTracingPerformance:
 
         import asyncio
 
+        async def traced_op(idx: int) -> None:
+            async with distributed_tracer.trace_operation(f"test_op_{idx}") as span:
+                pass
+
         for i in range(iterations):
-
-            async def traced_op(idx=i):
-                async with distributed_tracer.trace_operation(f"test_op_{idx}") as span:
-                    pass
-
-            asyncio.run(traced_op())
+            asyncio.run(traced_op(i))
 
         end_time = time.perf_counter()
         execution_time = end_time - start_time
@@ -783,7 +804,7 @@ class TestTracingPerformance:
         distributed_tracer.shutdown()
 
     @pytest.mark.skipif(not OPENTELEMETRY_AVAILABLE, reason="OpenTelemetry not installed")
-    def test_get_tracing_status_performance(self, distributed_tracer: DistributedTracer):
+    def test_get_tracing_status_performance(self, distributed_tracer: DistributedTracer) -> None:
         """MANDATORY performance test - status retrieval speed."""
         # Arrange - MANDATORY
         distributed_tracer.initialize()

@@ -61,7 +61,7 @@ def test_url() -> str:
 class TestHTTPResponse:
     """Tests for HTTPResponse wrapper class."""
 
-    def test_http_response_initialization_with_success_status(self):
+    def test_http_response_initialization_with_success_status(self) -> None:
         """Test HTTPResponse initializes with success status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 200
@@ -77,7 +77,7 @@ class TestHTTPResponse:
         assert response.headers == headers
         assert response.is_success is True
 
-    def test_http_response_initialization_with_redirect_status(self):
+    def test_http_response_initialization_with_redirect_status(self) -> None:
         """Test HTTPResponse with redirect status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 301
@@ -90,7 +90,7 @@ class TestHTTPResponse:
         assert response.status == 301
         assert response.is_success is False  # 3xx not considered success
 
-    def test_http_response_initialization_with_client_error(self):
+    def test_http_response_initialization_with_client_error(self) -> None:
         """Test HTTPResponse with 4xx client error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 404
@@ -103,7 +103,7 @@ class TestHTTPResponse:
         assert response.status == 404
         assert response.is_success is False
 
-    def test_http_response_initialization_with_server_error(self):
+    def test_http_response_initialization_with_server_error(self) -> None:
         """Test HTTPResponse with 5xx server error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 500
@@ -116,7 +116,7 @@ class TestHTTPResponse:
         assert response.status == 500
         assert response.is_success is False
 
-    def test_http_response_initialization_without_headers(self):
+    def test_http_response_initialization_without_headers(self) -> None:
         """Test HTTPResponse defaults to empty headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 200
@@ -128,7 +128,7 @@ class TestHTTPResponse:
         # Assert - MANDATORY
         assert response.headers == {}
 
-    def test_http_response_is_success_boundary_values(self):
+    def test_http_response_is_success_boundary_values(self) -> None:
         """Test is_success boundary values - MANDATORY AAA pattern."""
         # Arrange & Act & Assert - MANDATORY
         assert HTTPResponse(199, "").is_success is False  # Below 200
@@ -149,7 +149,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_successful_request(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get with successful request - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.return_value = mock_response
@@ -166,7 +166,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_with_custom_timeout(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get with custom timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_timeout = 60
@@ -183,7 +183,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_with_expected_statuses(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get with custom expected statuses - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_response.status = 201
@@ -199,7 +199,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_with_unexpected_status(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get with unexpected status - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_response.status = 404
@@ -214,7 +214,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_handles_timeout_error(
         self, mock_session: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get handles TimeoutError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.side_effect = TimeoutError("Timeout")
@@ -223,7 +223,9 @@ class TestSafeHttpGet:
         with pytest.raises(TimeoutError):
             await safe_http_get(mock_session, test_url)
 
-    async def test_safe_http_get_handles_client_error(self, mock_session: AsyncMock, test_url: str):
+    async def test_safe_http_get_handles_client_error(
+        self, mock_session: AsyncMock, test_url: str
+    ) -> None:
         """Test safe_http_get handles ClientError - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.side_effect = aiohttp.ClientError(
@@ -236,7 +238,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_handles_unexpected_exception(
         self, mock_session: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get handles unexpected exceptions - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.side_effect = ValueError("Unexpected")
@@ -247,7 +249,7 @@ class TestSafeHttpGet:
 
     async def test_safe_http_get_with_log_errors_disabled(
         self, mock_session: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get with logging disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.side_effect = TimeoutError("Timeout")
@@ -269,7 +271,7 @@ class TestSafeHttpGetWithRaise:
 
     async def test_safe_http_get_with_raise_successful_request(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get_with_raise success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.return_value = mock_response
@@ -283,7 +285,7 @@ class TestSafeHttpGetWithRaise:
 
     async def test_safe_http_get_with_raise_handles_http_error(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get_with_raise raises on HTTP error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
@@ -300,7 +302,7 @@ class TestSafeHttpGetWithRaise:
 
     async def test_safe_http_get_with_raise_with_custom_timeout(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get_with_raise with timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         custom_timeout = 45
@@ -314,7 +316,7 @@ class TestSafeHttpGetWithRaise:
 
     async def test_safe_http_get_with_raise_handles_timeout(
         self, mock_session: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """Test safe_http_get_with_raise handles timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.side_effect = TimeoutError()
@@ -333,7 +335,7 @@ class TestSafeHttpGetWithRaise:
 class TestCheckHttpStatus:
     """Tests for check_http_status function."""
 
-    def test_check_http_status_with_200_ok(self, test_url: str):
+    def test_check_http_status_with_200_ok(self, test_url: str) -> None:
         """Test check_http_status with 200 OK - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 200
@@ -344,7 +346,7 @@ class TestCheckHttpStatus:
         # Assert - MANDATORY
         assert result is True
 
-    def test_check_http_status_with_404_not_found(self, test_url: str):
+    def test_check_http_status_with_404_not_found(self, test_url: str) -> None:
         """Test check_http_status with 404 Not Found - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 404
@@ -355,7 +357,7 @@ class TestCheckHttpStatus:
         # Assert - MANDATORY
         assert result is False
 
-    def test_check_http_status_with_500_server_error(self, test_url: str):
+    def test_check_http_status_with_500_server_error(self, test_url: str) -> None:
         """Test check_http_status with 500 server error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 500
@@ -366,7 +368,7 @@ class TestCheckHttpStatus:
         # Assert - MANDATORY
         assert result is False
 
-    def test_check_http_status_with_503_service_unavailable(self, test_url: str):
+    def test_check_http_status_with_503_service_unavailable(self, test_url: str) -> None:
         """Test check_http_status with 503 - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 503
@@ -377,7 +379,7 @@ class TestCheckHttpStatus:
         # Assert - MANDATORY
         assert result is False
 
-    def test_check_http_status_with_301_redirect(self, test_url: str):
+    def test_check_http_status_with_301_redirect(self, test_url: str) -> None:
         """Test check_http_status with 301 redirect - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 301
@@ -388,7 +390,7 @@ class TestCheckHttpStatus:
         # Assert - MANDATORY
         assert result is False
 
-    def test_check_http_status_with_custom_context(self, test_url: str):
+    def test_check_http_status_with_custom_context(self, test_url: str) -> None:
         """Test check_http_status with custom context - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         status = 200
@@ -400,7 +402,7 @@ class TestCheckHttpStatus:
         # Assert - MANDATORY
         assert result is True
 
-    def test_check_http_status_with_4xx_client_error(self, test_url: str):
+    def test_check_http_status_with_4xx_client_error(self, test_url: str) -> None:
         """Test check_http_status with 4xx client errors - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         statuses_to_test = [400, 401, 403, 404, 429]
@@ -421,7 +423,7 @@ class TestCheckHttpStatus:
 class TestHTTPPerformance:
     """MANDATORY performance tests for HTTP utilities."""
 
-    def test_http_response_initialization_performance(self):
+    def test_http_response_initialization_performance(self) -> None:
         """MANDATORY performance test - HTTPResponse initialization speed."""
         # Arrange - MANDATORY
         iterations = 100000
@@ -443,7 +445,7 @@ class TestHTTPPerformance:
         assert avg_time < 0.00001  # <0.01ms per initialization
         assert execution_time < 1.0  # Total <1s for 100000 initializations
 
-    def test_check_http_status_performance(self, test_url: str):
+    def test_check_http_status_performance(self, test_url: str) -> None:
         """MANDATORY performance test - check_http_status speed."""
         # Arrange - MANDATORY
         iterations = 100000
@@ -465,7 +467,7 @@ class TestHTTPPerformance:
     @pytest.mark.asyncio
     async def test_safe_http_get_overhead_performance(
         self, mock_session: AsyncMock, mock_response: AsyncMock, test_url: str
-    ):
+    ) -> None:
         """MANDATORY performance test - safe_http_get overhead."""
         # Arrange - MANDATORY
         mock_session.get.return_value.__aenter__.return_value = mock_response

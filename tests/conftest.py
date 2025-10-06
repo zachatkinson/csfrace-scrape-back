@@ -12,7 +12,7 @@ cleanup, and modular organization following audit_3.md standards.
 import os
 import sys
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -24,7 +24,8 @@ import pytest
 import pytest_asyncio
 from faker import Faker
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Add project root to Python path for imports
@@ -46,7 +47,7 @@ fake.seed_instance(12345)
 # ============================================================================
 
 
-def pytest_configure(config):
+def pytest_configure(config: Any) -> None:
     """Configure pytest with custom markers.
 
     Official pytest hook for registering custom markers.
@@ -68,7 +69,7 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="session")
-def event_loop():
+def event_loop() -> Generator[asyncio.AbstractEventLoop]:
     """Provide event loop for async tests.
 
     Session-scoped for efficiency across all async tests.
@@ -80,7 +81,7 @@ def event_loop():
 
 
 @pytest.fixture(scope="session")
-def faker_instance():
+def faker_instance() -> Faker:
     """Provide faker instance with deterministic seed.
 
     Session-scoped to ensure consistent fake data across tests.
@@ -94,7 +95,7 @@ def faker_instance():
 
 
 @pytest.fixture(scope="module")
-def test_database_engine():
+def test_database_engine() -> Generator[Engine]:
     """Provide PostgreSQL test database engine.
 
     Uses PostgreSQL for database parity with production (MANDATORY per TEST_BUILDING.md).
@@ -154,7 +155,7 @@ def temp_dir() -> Generator[Path]:
 
 
 @pytest.fixture
-def mock_session():
+def mock_session() -> Mock:
     """Provide mock database session for unit tests.
 
     Function-scoped to ensure clean mocks for each test.
@@ -172,7 +173,7 @@ def mock_session():
 
 
 @pytest.fixture
-def test_session(test_database_engine):
+def test_session(test_database_engine: Engine) -> Generator[Session]:
     """Provide real database session for integration tests with nested transaction isolation.
 
     Uses SAVEPOINT (nested transactions) for proper isolation in parallel test execution.
@@ -195,8 +196,12 @@ def test_session(test_database_engine):
 
     # When session.commit() is called, only commit the SAVEPOINT, not the outer transaction
     @event.listens_for(session, "after_transaction_end")
-    def restart_savepoint(session, transaction):
-        if transaction.nested and not transaction._parent.nested:
+    def restart_savepoint(session: Session, transaction: SessionTransaction) -> None:
+        if (
+            transaction.nested
+            and transaction._parent is not None
+            and not transaction._parent.nested
+        ):
             # Restart SAVEPOINT after each commit/rollback
             session.expire_all()
             session.begin_nested()
@@ -217,7 +222,7 @@ def test_session(test_database_engine):
 
 
 @pytest.fixture(autouse=True, scope="session")
-def setup_test_environment():
+def setup_test_environment() -> Generator[None]:
     """Set up test environment variables for all tests.
 
     Autouse + session scope ensures this runs once for entire test suite.
@@ -251,7 +256,7 @@ def setup_test_environment():
 
 
 @pytest.fixture
-def user_factory(faker_instance):
+def user_factory(faker_instance: Faker) -> Callable[..., dict[str, Any]]:
     """Factory for creating test user data.
 
     Returns a factory function following the factory pattern.
@@ -281,7 +286,7 @@ def user_factory(faker_instance):
 
 
 @pytest.fixture
-def job_factory(faker_instance):
+def job_factory(faker_instance: Faker) -> Callable[..., dict[str, Any]]:
     """Factory for creating test job data.
 
     Returns a factory function for creating job test data.
@@ -311,7 +316,7 @@ def job_factory(faker_instance):
 
 
 @pytest.fixture
-def create_job(test_session, faker_instance):
+def create_job(test_session: Session, faker_instance: Faker) -> Callable[..., ScrapingJob]:
     """Factory for creating ScrapingJob database objects.
 
     Following TEST_BUILDING.md Factory Pattern (MANDATORY).
@@ -372,7 +377,7 @@ class JobFactory:
     _faker.seed_instance(12345)
 
     @classmethod
-    def _ensure_user_exists(cls, session, user_id=None):
+    def _ensure_user_exists(cls, session: Session, user_id: str | None = None) -> str:
         """Create a user in database for foreign key constraint.
 
         MANDATORY: Creates fresh user for each call (no caching).
@@ -400,7 +405,7 @@ class JobFactory:
         return new_user_id
 
     @classmethod
-    def create_job_request(cls, session=None, **kwargs):
+    def create_job_request(cls, session: Session | None = None, **kwargs: Any) -> Any:
         """Create JobCreateRequest with sensible defaults.
 
         If session provided, ensures user_id exists in database.
@@ -429,7 +434,7 @@ class JobFactory:
         return JobCreateRequest(**defaults)
 
     @classmethod
-    def create_scraping_job(cls, session, **kwargs):
+    def create_scraping_job(cls, session: Session, **kwargs: Any) -> ScrapingJob:
         """Create and persist a ScrapingJob database object.
 
         MANDATORY: Always creates User if needed to satisfy foreign key constraint.
@@ -478,7 +483,7 @@ class JobFactory:
 
 
 @pytest.fixture(scope="module")
-def security_payloads():
+def security_payloads() -> dict[str, list[str]]:
     """Common security test payloads for injection testing.
 
     Module-scoped since payload data is static and can be shared.
@@ -520,45 +525,48 @@ def security_payloads():
 # ============================================================================
 
 
+class Timer:
+    """Simple performance timer with context manager support."""
+
+    def __init__(self) -> None:
+        self.start_time: float | None = None
+        self.end_time: float | None = None
+
+    def start(self) -> None:
+        """Start timing."""
+        import time
+
+        self.start_time = time.perf_counter()
+
+    def stop(self) -> None:
+        """Stop timing."""
+        import time
+
+        self.end_time = time.perf_counter()
+
+    @property
+    def elapsed(self) -> float:
+        """Get elapsed time in seconds."""
+        if self.start_time and self.end_time:
+            return self.end_time - self.start_time
+        return 0.0
+
+    def __enter__(self) -> "Timer":
+        """Context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Context manager exit."""
+        self.stop()
+
+
 @pytest.fixture
-def performance_timer():
+def performance_timer() -> Timer:
     """Performance timer for benchmarking test operations.
 
     Function-scoped to provide fresh timer for each test.
     """
-    import time
-
-    class Timer:
-        """Simple performance timer with context manager support."""
-
-        def __init__(self):
-            self.start_time = None
-            self.end_time = None
-
-        def start(self):
-            """Start timing."""
-            self.start_time = time.perf_counter()
-
-        def stop(self):
-            """Stop timing."""
-            self.end_time = time.perf_counter()
-
-        @property
-        def elapsed(self) -> float:
-            """Get elapsed time in seconds."""
-            if self.start_time and self.end_time:
-                return self.end_time - self.start_time
-            return 0.0
-
-        def __enter__(self):
-            """Context manager entry."""
-            self.start()
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            """Context manager exit."""
-            self.stop()
-
     return Timer()
 
 
@@ -568,7 +576,7 @@ def performance_timer():
 
 
 @pytest.fixture
-async def async_mock_session():
+async def async_mock_session() -> AsyncMock:
     """Provide async mock database session for async tests.
 
     Function-scoped async fixture for testing async database operations.
@@ -584,14 +592,13 @@ async def async_mock_session():
 
 
 @pytest_asyncio.fixture
-async def async_db_session():
+async def async_db_session() -> AsyncMock:  # type: ignore[misc]
     """Provide real PostgreSQL async database session for integration tests.
 
     Function-scoped async fixture for testing async database operations with PostgreSQL.
     MANDATORY: Uses PostgreSQL for database parity per TEST_BUILDING.md.
     """
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     from src.database.models.base import Base
 
@@ -612,7 +619,7 @@ async def async_db_session():
         await conn.run_sync(Base.metadata.create_all)
 
     # Create async session factory
-    async_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Create and yield session
     async with async_session_factory() as session:
@@ -641,13 +648,14 @@ async def async_db_session():
         {"priority": 10, "expected": "high"},
     ]
 )
-def priority_test_data(request):
+def priority_test_data(request: Any) -> dict[str, str | int]:
     """Parametrized fixture for testing priority handling.
 
     Demonstrates pytest's parametrize capability for data-driven tests.
     Ref: https://docs.pytest.org/en/stable/how-to/parametrize.html
     """
-    return request.param
+    param: dict[str, str | int] = request.param
+    return param
 
 
 # ============================================================================
@@ -656,7 +664,7 @@ def priority_test_data(request):
 
 
 @pytest.fixture
-def redis_available():
+def redis_available() -> bool:
     """Check if Redis is available for testing.
 
     Conditional fixture that skips tests if Redis is unavailable.

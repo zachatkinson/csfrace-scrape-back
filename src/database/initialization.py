@@ -297,7 +297,7 @@ def initialize_database_on_startup() -> bool:
 
 
 @database_error_handler("main CLI database initialization")
-def main():
+def main() -> None:
     """CLI entry point for manual database initialization."""
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

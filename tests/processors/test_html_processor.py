@@ -33,7 +33,7 @@ from src.security.sanitization import HTMLSanitizer
 class TestHTMLProcessorOrchestratorInitialization:
     """Test HTMLProcessorOrchestrator initialization."""
 
-    def test_initialization_with_default_settings(self):
+    def test_initialization_with_default_settings(self) -> None:
         """Test initialization with default settings."""
         # Arrange & Act
         processor = HTMLProcessorOrchestrator()
@@ -43,7 +43,7 @@ class TestHTMLProcessorOrchestratorInitialization:
         assert isinstance(processor.sanitizer, HTMLSanitizer)
         assert len(processor.pipeline) == 6  # 6 default processors
 
-    def test_initialization_with_sanitization_disabled(self):
+    def test_initialization_with_sanitization_disabled(self) -> None:
         """Test initialization with sanitization disabled."""
         # Arrange & Act
         processor = HTMLProcessorOrchestrator(enable_sanitization=False)
@@ -52,7 +52,7 @@ class TestHTMLProcessorOrchestratorInitialization:
         assert processor.sanitizer is None
         assert len(processor.pipeline) == 6
 
-    def test_initialization_with_custom_processors(self):
+    def test_initialization_with_custom_processors(self) -> None:
         """Test initialization with custom processors."""
         # Arrange
         custom_processor = MagicMock(spec=ContentExtractorBase)
@@ -75,7 +75,7 @@ class TestHTMLProcessorOrchestratorInitialization:
 class TestHTMLProcessorOrchestratorPipelineBuilding:
     """Test HTMLProcessorOrchestrator pipeline building."""
 
-    def test_build_default_pipeline_creates_six_processors(self):
+    def test_build_default_pipeline_creates_six_processors(self) -> None:
         """Test default pipeline contains exactly 6 processors."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -92,7 +92,7 @@ class TestHTMLProcessorOrchestratorPipelineBuilding:
         assert isinstance(pipeline[4], ComponentProcessor)
         assert isinstance(pipeline[5], CleanupProcessor)
 
-    def test_pipeline_order_is_correct(self):
+    def test_pipeline_order_is_correct(self) -> None:
         """Test pipeline processors are in correct execution order."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -122,7 +122,7 @@ class TestHTMLProcessorOrchestratorPipelineBuilding:
 class TestHTMLProcessorOrchestratorProcess:
     """Test HTMLProcessorOrchestrator.process() method."""
 
-    async def test_process_runs_through_complete_pipeline(self):
+    async def test_process_runs_through_complete_pipeline(self) -> None:
         """Test process executes all pipeline processors."""
         # Arrange
         html = "<html><body><main><p>Test content</p></main></body></html>"
@@ -137,7 +137,7 @@ class TestHTMLProcessorOrchestratorProcess:
         assert isinstance(result, str)
         assert "Test content" in result
 
-    async def test_process_applies_sanitization_when_enabled(self):
+    async def test_process_applies_sanitization_when_enabled(self) -> None:
         """Test process applies sanitization when enabled."""
         # Arrange
         html = '<html><body><main><script>alert("xss")</script><p>Content</p></main></body></html>'
@@ -151,7 +151,7 @@ class TestHTMLProcessorOrchestratorProcess:
         assert "script" not in result.lower()
         assert "Content" in result
 
-    async def test_process_skips_sanitization_when_disabled(self):
+    async def test_process_skips_sanitization_when_disabled(self) -> None:
         """Test process skips sanitization when disabled."""
         # Arrange
         html = '<html><body><main><script>alert("xss")</script><p>Content</p></main></body></html>'
@@ -165,7 +165,7 @@ class TestHTMLProcessorOrchestratorProcess:
         # Note: CleanupProcessor still removes scripts, testing the orchestration only
         assert result is not None
 
-    async def test_process_handles_empty_html(self):
+    async def test_process_handles_empty_html(self) -> None:
         """Test process handles empty HTML gracefully."""
         # Arrange
         html = "<html><body></body></html>"
@@ -179,7 +179,7 @@ class TestHTMLProcessorOrchestratorProcess:
         assert result is not None
         assert isinstance(result, str)
 
-    async def test_process_handles_complex_html(self):
+    async def test_process_handles_complex_html(self) -> None:
         """Test process handles complex HTML with multiple elements."""
         # Arrange
         html = """
@@ -217,7 +217,7 @@ class TestHTMLProcessorOrchestratorProcess:
 class TestHTMLProcessorOrchestratorProcessSingleStep:
     """Test HTMLProcessorOrchestrator._process_single_step() method."""
 
-    async def test_process_single_step_executes_processor(self):
+    async def test_process_single_step_executes_processor(self) -> None:
         """Test process single step executes given processor."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -244,7 +244,7 @@ class TestHTMLProcessorOrchestratorProcessSingleStep:
 class TestHTMLProcessorOrchestratorAddProcessor:
     """Test HTMLProcessorOrchestrator.add_processor() method."""
 
-    def test_add_processor_appends_to_end_by_default(self):
+    def test_add_processor_appends_to_end_by_default(self) -> None:
         """Test add_processor appends processor to end of pipeline."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -259,7 +259,7 @@ class TestHTMLProcessorOrchestratorAddProcessor:
         assert len(processor.pipeline) == initial_count + 1
         assert processor.pipeline[-1] == custom_processor
 
-    def test_add_processor_inserts_at_specified_position(self):
+    def test_add_processor_inserts_at_specified_position(self) -> None:
         """Test add_processor inserts at specified position."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -272,7 +272,7 @@ class TestHTMLProcessorOrchestratorAddProcessor:
         # Assert
         assert processor.pipeline[2] == custom_processor
 
-    def test_add_processor_logs_addition(self):
+    def test_add_processor_logs_addition(self) -> None:
         """Test add_processor logs the addition."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -295,7 +295,7 @@ class TestHTMLProcessorOrchestratorAddProcessor:
 class TestHTMLProcessorOrchestratorRemoveProcessor:
     """Test HTMLProcessorOrchestrator.remove_processor() method."""
 
-    def test_remove_processor_removes_existing_processor(self):
+    def test_remove_processor_removes_existing_processor(self) -> None:
         """Test remove_processor removes processor by name."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -309,7 +309,7 @@ class TestHTMLProcessorOrchestratorRemoveProcessor:
         assert len(processor.pipeline) == initial_count - 1
         assert all(p.name != "FontProcessor" for p in processor.pipeline)
 
-    def test_remove_processor_returns_false_for_nonexistent(self):
+    def test_remove_processor_returns_false_for_nonexistent(self) -> None:
         """Test remove_processor returns False for non-existent processor."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -332,7 +332,7 @@ class TestHTMLProcessorOrchestratorRemoveProcessor:
 class TestHTMLProcessorOrchestratorGetPipelineInfo:
     """Test HTMLProcessorOrchestrator.get_pipeline_info() method."""
 
-    def test_get_pipeline_info_returns_processor_names(self):
+    def test_get_pipeline_info_returns_processor_names(self) -> None:
         """Test get_pipeline_info returns list of processor names."""
         # Arrange
         processor = HTMLProcessorOrchestrator()
@@ -357,7 +357,7 @@ class TestHTMLProcessorOrchestratorGetPipelineInfo:
 class TestHTMLProcessorFactory:
     """Test HTMLProcessorFactory factory methods."""
 
-    def test_create_default_creates_processor_with_sanitization(self):
+    def test_create_default_creates_processor_with_sanitization(self) -> None:
         """Test create_default creates processor with sanitization enabled."""
         # Arrange & Act
         processor = HTMLProcessorFactory.create_default()
@@ -367,7 +367,7 @@ class TestHTMLProcessorFactory:
         assert processor.sanitizer is not None
         assert len(processor.pipeline) == 6
 
-    def test_create_for_testing_creates_processor_without_sanitization(self):
+    def test_create_for_testing_creates_processor_without_sanitization(self) -> None:
         """Test create_for_testing creates processor without sanitization."""
         # Arrange & Act
         processor = HTMLProcessorFactory.create_for_testing()
@@ -377,7 +377,7 @@ class TestHTMLProcessorFactory:
         assert processor.sanitizer is None
         assert len(processor.pipeline) == 6
 
-    def test_create_minimal_creates_minimal_pipeline(self):
+    def test_create_minimal_creates_minimal_pipeline(self) -> None:
         """Test create_minimal creates processor with minimal pipeline."""
         # Arrange & Act
         processor = HTMLProcessorFactory.create_minimal()
@@ -387,7 +387,7 @@ class TestHTMLProcessorFactory:
         # Should have 2 processors (MainContentExtractor, CleanupProcessor) + 6 default
         assert len(processor.pipeline) >= 2
 
-    def test_create_custom_creates_processor_with_custom_config(self):
+    def test_create_custom_creates_processor_with_custom_config(self) -> None:
         """Test create_custom creates processor with custom configuration."""
         # Arrange
         custom_processors = [
@@ -414,7 +414,7 @@ class TestHTMLProcessorFactory:
 class TestHTMLProcessorOrchestratorIntegration:
     """Integration tests for HTMLProcessorOrchestrator."""
 
-    async def test_full_pipeline_wordpress_to_shopify_conversion(self):
+    async def test_full_pipeline_wordpress_to_shopify_conversion(self) -> None:
         """Test complete pipeline converts WordPress HTML to Shopify format."""
         # Arrange
         wordpress_html = """
@@ -448,7 +448,7 @@ class TestHTMLProcessorOrchestratorIntegration:
         # Scripts should be removed
         # Note: SanitizationProcessor may or may not remove script tags
 
-    async def test_custom_processor_integration(self):
+    async def test_custom_processor_integration(self) -> None:
         """Test custom processors integrate correctly with pipeline."""
         # Arrange
         html = "<html><body><main><p>Test</p></main></body></html>"

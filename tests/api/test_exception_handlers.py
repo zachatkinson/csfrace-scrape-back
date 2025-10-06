@@ -36,7 +36,7 @@ from src.api.exception_handlers import (
 
 
 @pytest.fixture
-def mock_request():
+def mock_request() -> MagicMock:
     """Factory for mock FastAPI request - DRY principle."""
     request = MagicMock(spec=Request)
     request.url.path = "/api/test"
@@ -45,7 +45,7 @@ def mock_request():
 
 
 @pytest.fixture
-def mock_rate_limit_exception():
+def mock_rate_limit_exception() -> MagicMock:
     """Factory for mock RateLimitExceeded exception - DRY principle."""
     # RateLimitExceeded expects rate_limit parameter with detail attribute
     exc = MagicMock(spec=RateLimitExceeded)
@@ -54,13 +54,13 @@ def mock_rate_limit_exception():
 
 
 @pytest.fixture
-def mock_generic_exception():
+def mock_generic_exception() -> Exception:
     """Factory for generic exception - DRY principle."""
     return Exception("Test error message")
 
 
 @pytest.fixture
-def mock_fastapi_app():
+def mock_fastapi_app() -> MagicMock:
     """Factory for mock FastAPI application - DRY principle."""
     app = MagicMock(spec=FastAPI)
     app.add_exception_handler = MagicMock()
@@ -68,7 +68,7 @@ def mock_fastapi_app():
 
 
 @pytest.fixture
-def sample_error_details():
+def sample_error_details() -> dict[str, str]:
     """Factory for sample error details - DRY principle."""
     return {
         "error": "test_error",
@@ -88,8 +88,8 @@ class TestRateLimitHandler:
 
     @pytest.mark.asyncio
     async def test_handle_rate_limit_exceeded_with_rate_limit_exception(
-        self, mock_request, mock_rate_limit_exception
-    ):
+        self, mock_request: MagicMock, mock_rate_limit_exception: MagicMock
+    ) -> None:
         """Test handle_rate_limit_exceeded() with RateLimitExceeded - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -104,8 +104,8 @@ class TestRateLimitHandler:
 
     @pytest.mark.asyncio
     async def test_handle_rate_limit_exceeded_with_generic_exception(
-        self, mock_request, mock_generic_exception
-    ):
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """Test handle_rate_limit_exceeded() with non-RateLimitExceeded - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -120,8 +120,8 @@ class TestRateLimitHandler:
 
     @pytest.mark.asyncio
     async def test_handle_rate_limit_exceeded_logging(
-        self, mock_request, mock_rate_limit_exception
-    ):
+        self, mock_request: MagicMock, mock_rate_limit_exception: MagicMock
+    ) -> None:
         """Test that rate limit handler logs warning - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -137,8 +137,8 @@ class TestRateLimitHandler:
 
     @pytest.mark.asyncio
     async def test_handle_rate_limit_exceeded_uses_api_error_factory(
-        self, mock_request, mock_rate_limit_exception
-    ):
+        self, mock_request: MagicMock, mock_rate_limit_exception: MagicMock
+    ) -> None:
         """Test that handler uses APIErrorFactory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -157,8 +157,8 @@ class TestRateLimitHandler:
 
     @pytest.mark.asyncio
     async def test_handle_rate_limit_exceeded_response_format(
-        self, mock_request, mock_rate_limit_exception
-    ):
+        self, mock_request: MagicMock, mock_rate_limit_exception: MagicMock
+    ) -> None:
         """Test response format structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -183,7 +183,9 @@ class TestGlobalExceptionHandler:
     """Tests for GlobalExceptionHandler class."""
 
     @pytest.mark.asyncio
-    async def test_handle_global_exception_basic(self, mock_request, mock_generic_exception):
+    async def test_handle_global_exception_basic(
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """Test handle_global_exception() basic functionality - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -196,7 +198,9 @@ class TestGlobalExceptionHandler:
         assert response.status_code == 500
 
     @pytest.mark.asyncio
-    async def test_handle_global_exception_logging(self, mock_request, mock_generic_exception):
+    async def test_handle_global_exception_logging(
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """Test that global handler logs error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -215,8 +219,8 @@ class TestGlobalExceptionHandler:
 
     @pytest.mark.asyncio
     async def test_handle_global_exception_includes_request_path(
-        self, mock_request, mock_generic_exception
-    ):
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """Test that error details include request path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -240,8 +244,8 @@ class TestGlobalExceptionHandler:
 
     @pytest.mark.asyncio
     async def test_handle_global_exception_uses_api_error_factory(
-        self, mock_request, mock_generic_exception
-    ):
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """Test that handler uses APIErrorFactory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -260,7 +264,9 @@ class TestGlobalExceptionHandler:
             assert "original_error" in call_args[1]
 
     @pytest.mark.asyncio
-    async def test_handle_global_exception_with_custom_exception_types(self, mock_request):
+    async def test_handle_global_exception_with_custom_exception_types(
+        self, mock_request: MagicMock
+    ) -> None:
         """Test handling different exception types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -281,8 +287,8 @@ class TestGlobalExceptionHandler:
 
     @pytest.mark.asyncio
     async def test_handle_global_exception_detail_not_dict(
-        self, mock_request, mock_generic_exception
-    ):
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """Test handling when detail is not a dict - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -314,7 +320,9 @@ class TestGlobalExceptionHandler:
 class TestSetupExceptionHandlers:
     """Tests for setup_exception_handlers() function."""
 
-    def test_setup_exception_handlers_registers_rate_limit_handler(self, mock_fastapi_app):
+    def test_setup_exception_handlers_registers_rate_limit_handler(
+        self, mock_fastapi_app: MagicMock
+    ) -> None:
         """Test that rate limit handler is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -330,7 +338,9 @@ class TestSetupExceptionHandlers:
         assert rate_limit_call is not None
         assert rate_limit_call[0][1] == RateLimitHandler.handle_rate_limit_exceeded
 
-    def test_setup_exception_handlers_registers_global_handler(self, mock_fastapi_app):
+    def test_setup_exception_handlers_registers_global_handler(
+        self, mock_fastapi_app: MagicMock
+    ) -> None:
         """Test that global handler is registered - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -346,7 +356,7 @@ class TestSetupExceptionHandlers:
         assert global_handler_call is not None
         assert global_handler_call[0][1] == GlobalExceptionHandler.handle_global_exception
 
-    def test_setup_exception_handlers_logging(self, mock_fastapi_app):
+    def test_setup_exception_handlers_logging(self, mock_fastapi_app: MagicMock) -> None:
         """Test that setup logs messages - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -359,7 +369,7 @@ class TestSetupExceptionHandlers:
             assert "Setting up application exception handlers" in calls
             assert "Application exception handlers setup completed" in calls
 
-    def test_setup_exception_handlers_order(self, mock_fastapi_app):
+    def test_setup_exception_handlers_order(self, mock_fastapi_app: MagicMock) -> None:
         """Test that handlers are registered in correct order - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -398,8 +408,8 @@ class TestExceptionHandlersSecurity:
 
     @pytest.mark.asyncio
     async def test_rate_limit_handler_response_structure(
-        self, mock_request, mock_rate_limit_exception
-    ):
+        self, mock_request: MagicMock, mock_rate_limit_exception: MagicMock
+    ) -> None:
         """Test rate limit handler response structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -409,7 +419,8 @@ class TestExceptionHandlersSecurity:
         response = await handler.handle_rate_limit_exceeded(mock_request, mock_rate_limit_exception)
 
         # Assert - MANDATORY
-        response_body = response.body.decode("utf-8")
+        body = response.body
+        response_body = body.decode("utf-8") if isinstance(body, bytes) else str(body)
         assert "Rate limit exceeded" in response_body
         assert response.status_code == 429
 
@@ -418,7 +429,9 @@ class TestExceptionHandlersSecurity:
         reason="SECURITY VULNERABILITY: Current implementation leaks sensitive data in errors. "
         "Tracked in security backlog. This test documents expected secure behavior."
     )
-    async def test_global_handler_should_not_leak_stack_traces(self, mock_request):
+    async def test_global_handler_should_not_leak_stack_traces(
+        self, mock_request: MagicMock
+    ) -> None:
         """SECURITY TEST: Global handler SHOULD NOT leak stack traces (currently fails)."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -428,7 +441,8 @@ class TestExceptionHandlersSecurity:
         response = await handler.handle_global_exception(mock_request, exc)
 
         # Assert - MANDATORY (Expected secure behavior - currently fails)
-        response_body = response.body.decode("utf-8")
+        body = response.body
+        response_body = body.decode("utf-8") if isinstance(body, bytes) else str(body)
         # SHOULD NOT leak connection strings with passwords
         assert "password" not in response_body
         assert "postgresql://" not in response_body
@@ -438,7 +452,9 @@ class TestExceptionHandlersSecurity:
         reason="SECURITY VULNERABILITY: Current implementation leaks sensitive data in errors. "
         "Tracked in security backlog. This test documents expected secure behavior."
     )
-    async def test_global_handler_should_sanitize_error_messages(self, mock_request):
+    async def test_global_handler_should_sanitize_error_messages(
+        self, mock_request: MagicMock
+    ) -> None:
         """SECURITY TEST: Error messages SHOULD be sanitized (currently fails)."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -448,13 +464,16 @@ class TestExceptionHandlersSecurity:
         response = await handler.handle_global_exception(mock_request, exc)
 
         # Assert - MANDATORY (Expected secure behavior - currently fails)
-        response_body = response.body.decode("utf-8")
+        body = response.body
+        response_body = body.decode("utf-8") if isinstance(body, bytes) else str(body)
         # SHOULD NOT leak API keys
         assert "sk_live_" not in response_body
         assert "API_KEY" not in response_body
 
     @pytest.mark.asyncio
-    async def test_global_handler_current_behavior_includes_error_details(self, mock_request):
+    async def test_global_handler_current_behavior_includes_error_details(
+        self, mock_request: MagicMock
+    ) -> None:
         """Document CURRENT behavior - error details are included (insecure)."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -465,7 +484,8 @@ class TestExceptionHandlersSecurity:
 
         # Assert - MANDATORY
         # Current behavior includes original_error in response
-        response_body = response.body.decode("utf-8")
+        body = response.body
+        response_body = body.decode("utf-8") if isinstance(body, bytes) else str(body)
         assert "original_error" in response_body
         assert response.status_code == 500
 
@@ -481,7 +501,9 @@ class TestExceptionHandlersPerformance:
     """MANDATORY performance tests for exception handler operations."""
 
     @pytest.mark.asyncio
-    async def test_rate_limit_handler_performance(self, mock_request, mock_rate_limit_exception):
+    async def test_rate_limit_handler_performance(
+        self, mock_request: MagicMock, mock_rate_limit_exception: MagicMock
+    ) -> None:
         """MANDATORY performance test - rate limit handler speed."""
         # Arrange - MANDATORY
         handler = RateLimitHandler()
@@ -502,7 +524,9 @@ class TestExceptionHandlersPerformance:
         assert execution_time < 1.0  # Total <1s for 100 executions
 
     @pytest.mark.asyncio
-    async def test_global_handler_performance(self, mock_request, mock_generic_exception):
+    async def test_global_handler_performance(
+        self, mock_request: MagicMock, mock_generic_exception: Exception
+    ) -> None:
         """MANDATORY performance test - global handler speed."""
         # Arrange - MANDATORY
         handler = GlobalExceptionHandler()
@@ -522,7 +546,7 @@ class TestExceptionHandlersPerformance:
         assert avg_time < 0.01  # <10ms per handler execution
         assert execution_time < 1.0  # Total <1s for 100 executions
 
-    def test_setup_exception_handlers_performance(self, mock_fastapi_app):
+    def test_setup_exception_handlers_performance(self, mock_fastapi_app: MagicMock) -> None:
         """MANDATORY performance test - setup speed."""
         # Arrange - MANDATORY
         iterations = 100

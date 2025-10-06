@@ -194,7 +194,8 @@ class BaseOAuthProvider(OAuthProviderInterface):
 
     def _extract_access_token(self, token_response: dict[str, Any]) -> str:
         """Extract access token from provider response."""
-        return token_response["access_token"]
+        access_token: str = token_response["access_token"]
+        return access_token
 
     async def _fetch_user_data(
         self, client: httpx.AsyncClient, headers: dict[str, str]
@@ -202,7 +203,8 @@ class BaseOAuthProvider(OAuthProviderInterface):
         """Default user data fetching - single request."""
         response = await client.get(self._get_user_info_url(), headers=headers)
         response.raise_for_status()
-        return response.json()
+        user_data: dict[str, Any] = response.json()
+        return user_data
 
 
 class GoogleOAuthProvider(BaseOAuthProvider):
@@ -295,12 +297,12 @@ class GitHubOAuthProvider(BaseOAuthProvider):
         # Get user profile
         user_response = await client.get(self._get_user_info_url(), headers=headers)
         user_response.raise_for_status()
-        user_data = user_response.json()
+        user_data: dict[str, Any] = user_response.json()
 
         # Get primary email (GitHub doesn't always include email in user endpoint)
         emails_response = await client.get(self.user_emails_url, headers=headers)
         emails_response.raise_for_status()
-        emails = emails_response.json()
+        emails: list[dict[str, Any]] = emails_response.json()
 
         primary_email = next(
             (email["email"] for email in emails if email["primary"]), user_data.get("email")
@@ -308,7 +310,8 @@ class GitHubOAuthProvider(BaseOAuthProvider):
 
         # Add email to user data for mapping
         user_data["primary_email"] = primary_email
-        return user_data
+        result: dict[str, Any] = user_data
+        return result
 
     def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
         """Map GitHub user data to standardized format."""
@@ -407,7 +410,8 @@ class FacebookOAuthProvider(BaseOAuthProvider):
         }
         response = await client.get(self._get_user_info_url(), params=params)
         response.raise_for_status()
-        return response.json()
+        user_data: dict[str, Any] = response.json()
+        return user_data
 
     def _map_user_info(self, user_data: dict[str, Any]) -> OAuthUserInfo:
         """Map Facebook user data to standardized format."""
@@ -566,7 +570,8 @@ class OAuthProviderRegistry:
         )
 
         logger.info("OAuth provider instance created successfully", provider=provider.value)
-        return instance
+        provider_instance: OAuthProviderInterface = instance
+        return provider_instance
         # Enhanced decorator handles exceptions
 
     @classmethod
@@ -648,7 +653,9 @@ class OAuthService:
         self.auth_service = auth_service or AuthService(db_session)
         self.merge_service = merge_service or AccountMergeService(db_session, self.auth_service)
         self.provider_registry = OAuthProviderRegistry
-        self._oauth_state_cache: dict[str, dict] = {}  # In-memory state cache (temporary)
+        self._oauth_state_cache: dict[
+            str, dict[str, str | float | OAuthProvider]
+        ] = {}  # In-memory state cache (temporary)
         self._cached_oauth_user_info: OAuthUserInfo | None = None  # Temporary cache
 
     def initiate_oauth_login(
@@ -911,7 +918,10 @@ class OAuthService:
             raise ValueError("State parameter provider mismatch")
 
         # Check expiration (states should expire after 10 minutes)
-        state_created = cached_state.get("created_at", 0)
+        state_created_raw = cached_state.get("created_at", 0)
+        state_created: float = (
+            state_created_raw if isinstance(state_created_raw, (int, float)) else 0
+        )
         if time.time() - state_created > 600:  # 10 minutes
             logger.warning(
                 "Expired OAuth state parameter",
@@ -948,11 +958,13 @@ class OAuthService:
 
         # Clean up old states (simple cleanup - in production, use Redis with TTL)
         current_time = time.time()
-        expired_states = [
-            s
-            for s, data in self._oauth_state_cache.items()
-            if current_time - data.get("created_at", 0) > 600  # 10 minutes
-        ]
+        expired_states = []
+        for s, data in self._oauth_state_cache.items():
+            created_at_raw = data.get("created_at", 0)
+            if isinstance(created_at_raw, (int, float)):
+                created_at: float = float(created_at_raw)
+                if current_time - created_at > 600:  # 10 minutes
+                    expired_states.append(s)
         for expired_state in expired_states:
             self._oauth_state_cache.pop(expired_state, None)
 
@@ -984,7 +996,7 @@ class OAuthService:
         """Create JWT-based OAuth state token - Stateless and CSRF-secure."""
         from ..auth.security import security_manager
 
-        state_data = {
+        state_data: dict[str, str | bool | datetime | list[str]] = {
             "provider": get_oauth_provider_value(provider),
             "redirect_uri": redirect_uri,
             "purpose": "oauth_state",
@@ -1020,11 +1032,12 @@ class OAuthService:
             raise ValueError("Provider mismatch in state token")
 
         # Extract and return original redirect URI
-        redirect_uri = state_data.get("redirect_uri")
-        if not redirect_uri:
-            logger.warning("Missing redirect_uri in OAuth state token")
-            raise ValueError("Missing redirect_uri in state token")
+        redirect_uri_raw = state_data.get("redirect_uri")
+        if not redirect_uri_raw or not isinstance(redirect_uri_raw, str):
+            logger.warning("Missing or invalid redirect_uri in OAuth state token")
+            raise ValueError("Missing or invalid redirect_uri in state token")
 
+        redirect_uri: str = redirect_uri_raw
         logger.debug("JWT OAuth state validated successfully", provider=expected_provider)
         return redirect_uri
 

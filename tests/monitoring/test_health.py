@@ -74,7 +74,7 @@ def health_check_result() -> HealthCheckResult:
 class TestHealthStatus:
     """Tests for HealthStatus enum - MANDATORY AAA pattern."""
 
-    def test_all_status_levels_exist(self):
+    def test_all_status_levels_exist(self) -> None:
         """Test all health status levels exist - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -90,7 +90,7 @@ class TestHealthStatus:
         assert len(statuses) == 4
         assert all(isinstance(s, HealthStatus) for s in statuses)
 
-    def test_status_values_correct(self):
+    def test_status_values_correct(self) -> None:
         """Test health status enum values - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -118,7 +118,9 @@ class TestHealthStatus:
 class TestHealthCheckResult:
     """Tests for HealthCheckResult dataclass - MANDATORY AAA pattern."""
 
-    def test_result_creation_with_required_fields(self, health_check_result: HealthCheckResult):
+    def test_result_creation_with_required_fields(
+        self, health_check_result: HealthCheckResult
+    ) -> None:
         """Test health check result creation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (fixture provides result)
 
@@ -132,7 +134,7 @@ class TestHealthCheckResult:
         assert isinstance(health_check_result.timestamp, datetime)
         assert health_check_result.details == {"test_key": "test_value"}
 
-    def test_result_supports_all_statuses(self):
+    def test_result_supports_all_statuses(self) -> None:
         """Test health check result supports all status types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         statuses = [
@@ -153,7 +155,7 @@ class TestHealthCheckResult:
             )
             assert result.status == status
 
-    def test_result_details_optional(self):
+    def test_result_details_optional(self) -> None:
         """Test health check result details are optional - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -179,7 +181,7 @@ class TestHealthCheckResult:
 class TestHealthConfig:
     """Tests for HealthConfig configuration - MANDATORY AAA pattern."""
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test health config has sensible defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -195,7 +197,7 @@ class TestHealthConfig:
         assert config.endpoint_path == "/health"
         assert config.detailed_endpoint_path == "/health/detailed"
 
-    def test_config_customization(self):
+    def test_config_customization(self) -> None:
         """Test health config can be customized - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -227,7 +229,7 @@ class TestHealthConfig:
 class TestHealthCheckerInitialization:
     """Tests for HealthChecker initialization - MANDATORY AAA pattern."""
 
-    def test_checker_initializes_with_config(self, health_config: HealthConfig):
+    def test_checker_initializes_with_config(self, health_config: HealthConfig) -> None:
         """Test health checker initializes with config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -240,7 +242,7 @@ class TestHealthCheckerInitialization:
         assert isinstance(checker._results, dict)
         assert checker._checking is False
 
-    def test_checker_registers_builtin_checks(self):
+    def test_checker_registers_builtin_checks(self) -> None:
         """Test health checker registers built-in checks - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -264,11 +266,11 @@ class TestHealthCheckerInitialization:
 class TestCheckRegistration:
     """Tests for health check registration - MANDATORY AAA pattern."""
 
-    def test_register_custom_check(self, health_checker: HealthChecker):
+    def test_register_custom_check(self, health_checker: HealthChecker) -> None:
         """Test registering a custom health check - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def custom_check():
+        async def custom_check() -> bool:
             return True
 
         # Act - MANDATORY
@@ -278,11 +280,11 @@ class TestCheckRegistration:
         assert "custom_check" in health_checker._checks
         assert health_checker._checks["custom_check"] == custom_check
 
-    def test_unregister_check(self, health_checker: HealthChecker):
+    def test_unregister_check(self, health_checker: HealthChecker) -> None:
         """Test unregistering a health check - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def custom_check():
+        async def custom_check() -> bool:
             return True
 
         health_checker.register_check("custom_check", custom_check)
@@ -294,7 +296,7 @@ class TestCheckRegistration:
         assert result is True
         assert "custom_check" not in health_checker._checks
 
-    def test_unregister_nonexistent_check(self, health_checker: HealthChecker):
+    def test_unregister_nonexistent_check(self, health_checker: HealthChecker) -> None:
         """Test unregistering nonexistent check returns False - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -314,7 +316,7 @@ class TestCheckRegistration:
 class TestOverallStatusDetermination:
     """Tests for overall health status determination - MANDATORY AAA pattern."""
 
-    def test_overall_status_unknown_when_no_results(self, health_checker: HealthChecker):
+    def test_overall_status_unknown_when_no_results(self, health_checker: HealthChecker) -> None:
         """Test overall status is unknown when no results - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -324,7 +326,7 @@ class TestOverallStatusDetermination:
         # Assert - MANDATORY
         assert status == HealthStatus.UNKNOWN
 
-    def test_overall_status_healthy_when_all_healthy(self, health_checker: HealthChecker):
+    def test_overall_status_healthy_when_all_healthy(self, health_checker: HealthChecker) -> None:
         """Test overall status is healthy when all checks healthy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_checker._results = {
@@ -342,7 +344,7 @@ class TestOverallStatusDetermination:
         # Assert - MANDATORY
         assert status == HealthStatus.HEALTHY
 
-    def test_overall_status_degraded_when_any_degraded(self, health_checker: HealthChecker):
+    def test_overall_status_degraded_when_any_degraded(self, health_checker: HealthChecker) -> None:
         """Test overall status is degraded when any check degraded - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_checker._results = {
@@ -360,7 +362,9 @@ class TestOverallStatusDetermination:
         # Assert - MANDATORY
         assert status == HealthStatus.DEGRADED
 
-    def test_overall_status_unhealthy_when_any_unhealthy(self, health_checker: HealthChecker):
+    def test_overall_status_unhealthy_when_any_unhealthy(
+        self, health_checker: HealthChecker
+    ) -> None:
         """Test overall status is unhealthy when any check unhealthy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_checker._results = {
@@ -378,7 +382,7 @@ class TestOverallStatusDetermination:
         # Assert - MANDATORY
         assert status == HealthStatus.UNHEALTHY
 
-    def test_overall_status_unhealthy_when_critical_check_fails(self):
+    def test_overall_status_unhealthy_when_critical_check_fails(self) -> None:
         """Test overall status is unhealthy when critical check fails - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = HealthConfig(critical_checks=["database_connection"])
@@ -405,7 +409,7 @@ class TestOverallStatusDetermination:
 class TestHealthSummary:
     """Tests for health summary generation - MANDATORY AAA pattern."""
 
-    def test_get_health_summary_structure(self, health_checker: HealthChecker):
+    def test_get_health_summary_structure(self, health_checker: HealthChecker) -> None:
         """Test health summary has correct structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_checker._results = {
@@ -426,7 +430,7 @@ class TestHealthSummary:
         assert "unhealthy" in summary["summary"]
         assert "unknown" in summary["summary"]
 
-    def test_get_detailed_health_includes_details(self, health_checker: HealthChecker):
+    def test_get_detailed_health_includes_details(self, health_checker: HealthChecker) -> None:
         """Test detailed health includes check details - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         health_checker._results = {
@@ -460,7 +464,7 @@ class TestHealthSummary:
 class TestHealthCheckerAsyncOperations:
     """Tests for async health checker operations - MANDATORY AAA pattern."""
 
-    async def test_start_monitoring(self, health_checker: HealthChecker):
+    async def test_start_monitoring(self, health_checker: HealthChecker) -> None:
         """Test starting health monitoring - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -474,7 +478,7 @@ class TestHealthCheckerAsyncOperations:
         # Cleanup
         await health_checker.stop_monitoring()
 
-    async def test_stop_monitoring(self, health_checker: HealthChecker):
+    async def test_stop_monitoring(self, health_checker: HealthChecker) -> None:
         """Test stopping health monitoring - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await health_checker.start_monitoring()
@@ -485,7 +489,7 @@ class TestHealthCheckerAsyncOperations:
         # Assert - MANDATORY
         assert health_checker._checking is False
 
-    async def test_shutdown_stops_monitoring(self, health_checker: HealthChecker):
+    async def test_shutdown_stops_monitoring(self, health_checker: HealthChecker) -> None:
         """Test shutdown stops monitoring - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         await health_checker.start_monitoring()
@@ -496,11 +500,13 @@ class TestHealthCheckerAsyncOperations:
         # Assert - MANDATORY
         assert health_checker._checking is False
 
-    async def test_run_all_checks_executes_registered_checks(self, health_checker: HealthChecker):
+    async def test_run_all_checks_executes_registered_checks(
+        self, health_checker: HealthChecker
+    ) -> None:
         """Test run_all_checks executes all registered checks - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def custom_check():
+        async def custom_check() -> bool:
             return True
 
         health_checker.register_check("custom", custom_check)
@@ -512,11 +518,13 @@ class TestHealthCheckerAsyncOperations:
         assert "custom" in results
         assert isinstance(results["custom"], HealthCheckResult)
 
-    async def test_run_single_check_with_boolean_return(self, health_checker: HealthChecker):
+    async def test_run_single_check_with_boolean_return(
+        self, health_checker: HealthChecker
+    ) -> None:
         """Test single check with boolean return - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def bool_check():
+        async def bool_check() -> bool:
             return True
 
         # Act - MANDATORY
@@ -527,11 +535,11 @@ class TestHealthCheckerAsyncOperations:
         assert result.status == HealthStatus.HEALTHY
         assert result.message == "OK"
 
-    async def test_run_single_check_with_false_return(self, health_checker: HealthChecker):
+    async def test_run_single_check_with_false_return(self, health_checker: HealthChecker) -> None:
         """Test single check with False return - MANDATORY AAA pattern."""
 
         # Arrange - MANDATORY
-        async def failing_check():
+        async def failing_check() -> bool:
             return False
 
         # Act - MANDATORY
@@ -553,7 +561,7 @@ class TestHealthCheckerAsyncOperations:
 class TestBuiltinHealthChecks:
     """Tests for built-in health checks - MANDATORY AAA pattern."""
 
-    async def test_check_system_resources_healthy(self):
+    async def test_check_system_resources_healthy(self) -> None:
         """Test system resources check when healthy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         checker = HealthChecker()
@@ -573,7 +581,7 @@ class TestBuiltinHealthChecks:
             assert "cpu_percent" in result.details
             assert "memory_percent" in result.details
 
-    async def test_check_system_resources_degraded(self):
+    async def test_check_system_resources_degraded(self) -> None:
         """Test system resources check when degraded - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         checker = HealthChecker()
@@ -591,7 +599,7 @@ class TestBuiltinHealthChecks:
             # Assert - MANDATORY
             assert result.status == HealthStatus.DEGRADED
 
-    async def test_check_system_resources_unhealthy(self):
+    async def test_check_system_resources_unhealthy(self) -> None:
         """Test system resources check when unhealthy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         checker = HealthChecker()
@@ -620,7 +628,7 @@ class TestBuiltinHealthChecks:
 class TestHealthSecurity:
     """MANDATORY security tests for health check system."""
 
-    def test_check_name_sanitization(self, health_checker: HealthChecker):
+    def test_check_name_sanitization(self, health_checker: HealthChecker) -> None:
         """MANDATORY security test - check names with malicious characters."""
         # Arrange - MANDATORY
         malicious_names = [
@@ -633,13 +641,13 @@ class TestHealthSecurity:
         # Act & Assert - MANDATORY
         for name in malicious_names:
 
-            async def test_check():
+            async def test_check() -> bool:
                 return True
 
             health_checker.register_check(name, test_check)
             assert name in health_checker._checks
 
-    def test_health_message_prevents_injection(self):
+    def test_health_message_prevents_injection(self) -> None:
         """MANDATORY security test - health messages prevent injection."""
         # Arrange - MANDATORY
         malicious_message = "Check failed <script>alert('xss')</script>"
@@ -667,7 +675,7 @@ class TestHealthSecurity:
 class TestHealthPerformance:
     """MANDATORY performance tests for health check system."""
 
-    def test_overall_status_calculation_performance(self, health_checker: HealthChecker):
+    def test_overall_status_calculation_performance(self, health_checker: HealthChecker) -> None:
         """MANDATORY performance test - status calculation speed."""
         # Arrange - MANDATORY
         # Add many check results
@@ -691,7 +699,7 @@ class TestHealthPerformance:
         assert avg_time < 0.001  # <1ms per status calculation
         assert execution_time < 1.0  # Total <1s for 1000 calculations
 
-    def test_health_summary_generation_performance(self, health_checker: HealthChecker):
+    def test_health_summary_generation_performance(self, health_checker: HealthChecker) -> None:
         """MANDATORY performance test - summary generation speed."""
         # Arrange - MANDATORY
         for i in range(50):

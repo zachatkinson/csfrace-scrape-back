@@ -35,7 +35,7 @@ from src.utils.session.authentication_service import (
 # ============================================================================
 
 
-def _create_async_context_manager(response):
+def _create_async_context_manager(response: AsyncMock) -> MagicMock:
     """Helper to create proper async context manager for aiohttp responses."""
     mock_cm = MagicMock()
     mock_cm.__aenter__ = AsyncMock(return_value=response)
@@ -44,7 +44,7 @@ def _create_async_context_manager(response):
 
 
 @pytest.fixture
-def mock_session():
+def mock_session() -> AsyncMock:
     """Factory for mock aiohttp session - DRY principle."""
     session = AsyncMock(spec=aiohttp.ClientSession)
     session.headers = {}
@@ -52,7 +52,7 @@ def mock_session():
 
 
 @pytest.fixture
-def wordpress_login_html():
+def wordpress_login_html() -> str:
     """Factory for WordPress login HTML - DRY principle."""
     return """
     <html>
@@ -70,7 +70,7 @@ def wordpress_login_html():
 
 
 @pytest.fixture
-def successful_login_response():
+def successful_login_response() -> AsyncMock:
     """Factory for successful login response - DRY principle."""
     response = AsyncMock(spec=aiohttp.ClientResponse)
     response.status = 200
@@ -80,7 +80,7 @@ def successful_login_response():
 
 
 @pytest.fixture
-def failed_login_response():
+def failed_login_response() -> AsyncMock:
     """Factory for failed login response - DRY principle."""
     response = AsyncMock(spec=aiohttp.ClientResponse)
     response.status = 200
@@ -98,7 +98,7 @@ def failed_login_response():
 class TestBasicAuthStrategy:
     """Tests for BasicAuthStrategy class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test BasicAuthStrategy initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         username = "test_user"
@@ -113,8 +113,11 @@ class TestBasicAuthStrategy:
 
     @pytest.mark.asyncio
     async def test_authenticate_wordpress_form_success(
-        self, mock_session, wordpress_login_html, successful_login_response
-    ):
+        self,
+        mock_session: AsyncMock,
+        wordpress_login_html: str,
+        successful_login_response: AsyncMock,
+    ) -> None:
         """Test authenticate() with WordPress form success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")
@@ -142,7 +145,7 @@ class TestBasicAuthStrategy:
         mock_session.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_authenticate_http_basic_auth_fallback(self, mock_session):
+    async def test_authenticate_http_basic_auth_fallback(self, mock_session: AsyncMock) -> None:
         """Test authenticate() HTTP basic auth fallback - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")
@@ -170,7 +173,7 @@ class TestBasicAuthStrategy:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_extract_login_form_data(self, wordpress_login_html):
+    async def test_extract_login_form_data(self, wordpress_login_html: str) -> None:
         """Test _extract_login_form_data() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("testuser", "testpass")
@@ -189,7 +192,7 @@ class TestBasicAuthStrategy:
         assert form_data["testcookie"] == "1"
 
     @pytest.mark.asyncio
-    async def test_extract_login_form_data_no_form(self):
+    async def test_extract_login_form_data_no_form(self) -> None:
         """Test _extract_login_form_data() with no form - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")
@@ -202,7 +205,7 @@ class TestBasicAuthStrategy:
         assert form_data is None
 
     @pytest.mark.asyncio
-    async def test_try_wordpress_form_login_network_error(self, mock_session):
+    async def test_try_wordpress_form_login_network_error(self, mock_session: AsyncMock) -> None:
         """Test _try_wordpress_form_login() with network error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")
@@ -220,7 +223,7 @@ class TestBasicAuthStrategy:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_try_http_basic_auth_success(self, mock_session):
+    async def test_try_http_basic_auth_success(self, mock_session: AsyncMock) -> None:
         """Test _try_http_basic_auth() success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")
@@ -235,7 +238,7 @@ class TestBasicAuthStrategy:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_try_http_basic_auth_failure(self, mock_session):
+    async def test_try_http_basic_auth_failure(self, mock_session: AsyncMock) -> None:
         """Test _try_http_basic_auth() failure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")
@@ -259,7 +262,7 @@ class TestBasicAuthStrategy:
 class TestBearerTokenStrategy:
     """Tests for BearerTokenStrategy class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test BearerTokenStrategy initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         token = "test_bearer_token"
@@ -271,7 +274,7 @@ class TestBearerTokenStrategy:
         assert strategy.token == token
 
     @pytest.mark.asyncio
-    async def test_authenticate_success(self, mock_session):
+    async def test_authenticate_success(self, mock_session: AsyncMock) -> None:
         """Test authenticate() success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BearerTokenStrategy("valid_token")
@@ -287,7 +290,7 @@ class TestBearerTokenStrategy:
         assert mock_session.headers["Authorization"] == "Bearer valid_token"
 
     @pytest.mark.asyncio
-    async def test_authenticate_unauthorized(self, mock_session):
+    async def test_authenticate_unauthorized(self, mock_session: AsyncMock) -> None:
         """Test authenticate() with 401 response - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BearerTokenStrategy("invalid_token")
@@ -301,7 +304,7 @@ class TestBearerTokenStrategy:
             await strategy.authenticate(mock_session, "http://example.com")
 
     @pytest.mark.asyncio
-    async def test_authenticate_other_error(self, mock_session):
+    async def test_authenticate_other_error(self, mock_session: AsyncMock) -> None:
         """Test authenticate() with other HTTP error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BearerTokenStrategy("token")
@@ -315,7 +318,7 @@ class TestBearerTokenStrategy:
             await strategy.authenticate(mock_session, "http://example.com")
 
     @pytest.mark.asyncio
-    async def test_authenticate_network_error(self, mock_session):
+    async def test_authenticate_network_error(self, mock_session: AsyncMock) -> None:
         """Test authenticate() with network error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         strategy = BearerTokenStrategy("token")
@@ -342,7 +345,7 @@ class TestBearerTokenStrategy:
 class TestAuthenticationService:
     """Tests for AuthenticationService class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test AuthenticationService initialization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -353,7 +356,7 @@ class TestAuthenticationService:
         assert service._is_authenticated is False
         assert service._auth_validated is False
 
-    def test_set_basic_auth(self):
+    def test_set_basic_auth(self) -> None:
         """Test set_basic_auth() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -366,7 +369,7 @@ class TestAuthenticationService:
         assert isinstance(service._strategy, BasicAuthStrategy)
         assert service._is_authenticated is False
 
-    def test_set_bearer_auth(self):
+    def test_set_bearer_auth(self) -> None:
         """Test set_bearer_auth() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -379,7 +382,7 @@ class TestAuthenticationService:
         assert isinstance(service._strategy, BearerTokenStrategy)
         assert service._is_authenticated is False
 
-    def test_reset_auth_state_on_strategy_change(self):
+    def test_reset_auth_state_on_strategy_change(self) -> None:
         """Test auth state resets when strategy changes - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -394,7 +397,7 @@ class TestAuthenticationService:
         assert service._auth_validated is False
 
     @pytest.mark.asyncio
-    async def test_authenticate_no_strategy(self, mock_session):
+    async def test_authenticate_no_strategy(self, mock_session: AsyncMock) -> None:
         """Test authenticate() with no strategy - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -404,7 +407,7 @@ class TestAuthenticationService:
             await service.authenticate(mock_session, "http://example.com")
 
     @pytest.mark.asyncio
-    async def test_authenticate_success(self, mock_session):
+    async def test_authenticate_success(self, mock_session: AsyncMock) -> None:
         """Test authenticate() success - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -420,7 +423,7 @@ class TestAuthenticationService:
             assert service._is_authenticated is True
 
     @pytest.mark.asyncio
-    async def test_authenticate_failure(self, mock_session):
+    async def test_authenticate_failure(self, mock_session: AsyncMock) -> None:
         """Test authenticate() failure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -436,7 +439,7 @@ class TestAuthenticationService:
             assert service._is_authenticated is False
 
     @pytest.mark.asyncio
-    async def test_validate_authentication_not_authenticated(self, mock_session):
+    async def test_validate_authentication_not_authenticated(self, mock_session: AsyncMock) -> None:
         """Test validate_authentication() when not authenticated - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -448,7 +451,7 @@ class TestAuthenticationService:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_validate_authentication_already_validated(self, mock_session):
+    async def test_validate_authentication_already_validated(self, mock_session: AsyncMock) -> None:
         """Test validate_authentication() when already validated - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -462,7 +465,9 @@ class TestAuthenticationService:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_validate_authentication_performs_validation(self, mock_session):
+    async def test_validate_authentication_performs_validation(
+        self, mock_session: AsyncMock
+    ) -> None:
         """Test validate_authentication() performs validation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -484,7 +489,7 @@ class TestAuthenticationService:
         assert service._auth_validated is True
 
     @pytest.mark.asyncio
-    async def test_test_protected_url_redirect_to_login(self, mock_session):
+    async def test_test_protected_url_redirect_to_login(self, mock_session: AsyncMock) -> None:
         """Test _test_protected_url() with redirect to login - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -500,7 +505,7 @@ class TestAuthenticationService:
         assert result is False  # Redirect to login indicates not authenticated
 
     @pytest.mark.asyncio
-    async def test_check_response_content_authenticated(self):
+    async def test_check_response_content_authenticated(self) -> None:
         """Test _check_response_content() with authenticated content - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -515,7 +520,7 @@ class TestAuthenticationService:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_check_response_content_unauthenticated(self):
+    async def test_check_response_content_unauthenticated(self) -> None:
         """Test _check_response_content() with login page - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -529,7 +534,7 @@ class TestAuthenticationService:
         # Assert - MANDATORY
         assert result is False
 
-    def test_is_authenticated_property(self):
+    def test_is_authenticated_property(self) -> None:
         """Test is_authenticated property - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -540,7 +545,7 @@ class TestAuthenticationService:
         service._is_authenticated = True
         assert service.is_authenticated is True
 
-    def test_has_strategy_property(self):
+    def test_has_strategy_property(self) -> None:
         """Test has_strategy property - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         service = AuthenticationService()
@@ -562,7 +567,7 @@ class TestAuthenticationService:
 class TestAuthenticationServicePerformance:
     """MANDATORY performance tests for authentication service operations."""
 
-    def test_service_initialization_performance(self):
+    def test_service_initialization_performance(self) -> None:
         """MANDATORY performance test - service creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -581,7 +586,7 @@ class TestAuthenticationServicePerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_strategy_initialization_performance(self):
+    def test_strategy_initialization_performance(self) -> None:
         """MANDATORY performance test - strategy creation speed."""
         # Arrange - MANDATORY
         iterations = 10000
@@ -600,7 +605,7 @@ class TestAuthenticationServicePerformance:
         assert avg_time < 0.0001  # <0.1ms per creation
         assert execution_time < 1.0  # Total <1s for 10000 creations
 
-    def test_extract_form_data_performance(self, wordpress_login_html):
+    def test_extract_form_data_performance(self, wordpress_login_html: str) -> None:
         """MANDATORY performance test - form data extraction speed."""
         # Arrange - MANDATORY
         strategy = BasicAuthStrategy("user", "pass")

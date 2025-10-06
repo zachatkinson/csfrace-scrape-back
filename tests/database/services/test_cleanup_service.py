@@ -5,6 +5,7 @@ following AAA pattern and SOLID testing principles.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -23,19 +24,19 @@ class TestCleanupService:
     """Test suite for CleanupService following AAA pattern."""
 
     @pytest.fixture
-    def cleanup_service(self, test_session):
+    def cleanup_service(self, test_session: Any) -> CleanupService:
         """Create CleanupService instance with test database session."""
         return CleanupService(session=test_session)
 
     @pytest.fixture
-    def old_job(self, test_session, create_job):
+    def old_job(self, test_session: Any, create_job: Any) -> Any:
         """Create an old job for cleanup testing."""
         old_date = datetime.now(UTC) - timedelta(days=10)
         job = create_job(status=JobStatus.COMPLETED, created_at=old_date)
         return job
 
     @pytest.fixture
-    def recent_job(self, test_session, create_job):
+    def recent_job(self, test_session: Any, create_job: Any) -> Any:
         """Create a recent job that shouldn't be cleaned up.
 
         Creates a job that's 12 hours old, which is recent enough to avoid
@@ -46,7 +47,7 @@ class TestCleanupService:
         return job
 
     @pytest.fixture
-    def failed_job(self, test_session, create_job):
+    def failed_job(self, test_session: Any, create_job: Any) -> Any:
         """Create a failed job for cleanup testing."""
         old_date = datetime.now(UTC) - timedelta(days=5)
         job = create_job(status=JobStatus.FAILED, created_at=old_date)
@@ -54,7 +55,7 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_success(self, cleanup_service, test_session):
+    def test_cleanup_jobs_success(self, cleanup_service: CleanupService, test_session: Any) -> None:
         """Test successful cleanup of old jobs."""
         # Arrange
         # Rollback any pending work and cleanup for isolation
@@ -136,7 +137,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_default_days(self, cleanup_service, test_session):
+    def test_cleanup_jobs_default_days(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test cleanup with default 7 days retention."""
         # Arrange
         # Manually create job to avoid fixture issues
@@ -174,7 +177,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_no_old_jobs(self, cleanup_service, test_session, recent_job):
+    def test_cleanup_jobs_no_old_jobs(
+        self, cleanup_service: CleanupService, test_session: Any, recent_job: Any
+    ) -> None:
         """Test cleanup when no jobs are old enough."""
         # Arrange - only recent job exists
 
@@ -188,7 +193,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_failed_jobs_success(self, cleanup_service, test_session, failed_job):
+    def test_cleanup_failed_jobs_success(
+        self, cleanup_service: CleanupService, test_session: Any, failed_job: Any
+    ) -> None:
         """Test successful cleanup of old failed jobs."""
         # Arrange
         days_to_keep = 3
@@ -208,7 +215,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_failed_jobs_default_days(self, cleanup_service, test_session, create_job):
+    def test_cleanup_failed_jobs_default_days(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup of failed jobs with default 3 days retention."""
         # Arrange
         # Create job with explicit old date (5 days ago)
@@ -223,7 +232,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_failed_jobs_preserves_recent(self, cleanup_service, test_session):
+    def test_cleanup_failed_jobs_preserves_recent(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test that recent failed jobs are preserved."""
         # Arrange
         # Manually create job to avoid ObjectDeletedError
@@ -267,8 +278,8 @@ class TestCleanupService:
     @pytest.mark.unit
     @pytest.mark.database
     def test_cleanup_failed_jobs_only_failed_status(
-        self, cleanup_service, test_session, create_job
-    ):
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test that only failed jobs are cleaned up, not other statuses."""
         # Arrange
         old_completed_job = create_job(status=JobStatus.COMPLETED)
@@ -286,7 +297,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_orphaned_content_success(self, cleanup_service, test_session, create_job):
+    def test_cleanup_orphaned_content_success(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup of orphaned content records.
 
         NOTE: In production, CASCADE DELETE at the database level (line 163 in jobs.py)
@@ -379,7 +392,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_orphaned_content_no_orphans(self, cleanup_service, test_session, create_job):
+    def test_cleanup_orphaned_content_no_orphans(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup when no orphaned content exists."""
         # Arrange
         job = create_job()
@@ -404,7 +419,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_orphaned_logs_success(self, cleanup_service, test_session, create_job):
+    def test_cleanup_orphaned_logs_success(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup of orphaned log records.
 
         NOTE: In production, CASCADE DELETE at the database level (line 231 in jobs.py)
@@ -468,7 +485,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_orphaned_logs_no_orphans(self, cleanup_service, test_session, create_job):
+    def test_cleanup_orphaned_logs_no_orphans(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup when no orphaned logs exist."""
         # Arrange
         job = create_job()
@@ -497,7 +516,9 @@ class TestCleanupService:
         reason="VACUUM requires AUTOCOMMIT which conflicts with SAVEPOINT fixtures. "
         "Tested in production deployments only."
     )
-    def test_vacuum_database_success(self, cleanup_service, test_session, create_job):
+    def test_vacuum_database_success(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test database vacuum operation.
 
         VACUUM requires autocommit mode in PostgreSQL. The CleanupService
@@ -516,7 +537,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_all_comprehensive(self, cleanup_service, test_session, create_job):
+    def test_cleanup_all_comprehensive(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test comprehensive cleanup operation."""
         # Arrange
         # Create various test data
@@ -548,7 +571,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_all_default_parameters(self, cleanup_service, test_session):
+    def test_cleanup_all_default_parameters(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test cleanup_all with default parameters."""
         # Arrange - Act
         results = cleanup_service.cleanup_all()
@@ -568,7 +593,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_all_vacuum_failure_graceful(self, cleanup_service, test_session):
+    def test_cleanup_all_vacuum_failure_graceful(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test that vacuum failure doesn't break cleanup_all."""
         # Arrange
         with patch.object(
@@ -585,7 +612,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_get_database_size_success(self, cleanup_service, test_session):
+    def test_get_database_size_success(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test database size information retrieval."""
         # Arrange - Act
         size_info = cleanup_service.get_database_size()
@@ -599,7 +628,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_get_database_size_no_result(self, cleanup_service, test_session):
+    def test_get_database_size_no_result(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test database size when query returns no result."""
         # Arrange
         with patch.object(test_session, "execute") as mock_execute:
@@ -615,7 +646,9 @@ class TestCleanupService:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_get_table_sizes_success(self, cleanup_service, test_session):
+    def test_get_table_sizes_success(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test table size information retrieval."""
         # Arrange - Act
         table_sizes = cleanup_service.get_table_sizes()
@@ -635,13 +668,15 @@ class TestCleanupServiceEdgeCases:
     """Edge cases and error scenarios for CleanupService."""
 
     @pytest.fixture
-    def cleanup_service(self, test_session):
+    def cleanup_service(self, test_session: Any) -> CleanupService:
         """Create CleanupService instance with test database session."""
         return CleanupService(session=test_session)
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_zero_days(self, cleanup_service, test_session, create_job):
+    def test_cleanup_jobs_zero_days(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup with zero days retention."""
         # Arrange
         job = create_job()
@@ -657,7 +692,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_jobs_negative_days(self, cleanup_service, test_session, create_job):
+    def test_cleanup_jobs_negative_days(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup with negative days (edge case)."""
         # Arrange
         job = create_job()
@@ -671,7 +708,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_empty_database(self, cleanup_service, test_session, create_job):
+    def test_cleanup_empty_database(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup operations on empty database."""
         # Arrange - empty database
 
@@ -689,7 +728,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_with_large_dataset(self, cleanup_service, test_session, create_job):
+    def test_cleanup_with_large_dataset(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup performance with larger dataset."""
         # Arrange
         # Create multiple old jobs
@@ -709,7 +750,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_concurrent_cleanup_operations(self, cleanup_service, test_session, create_job):
+    def test_concurrent_cleanup_operations(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test that cleanup operations can be run concurrently."""
         # This is a simplified test for concurrent operations
 
@@ -730,7 +773,7 @@ class TestCleanupServiceEdgeCases:
         assert isinstance(results3, int)
 
     @pytest.mark.unit
-    def test_session_handling(self, test_session):
+    def test_session_handling(self, test_session: Any) -> None:
         """Test proper session handling in CleanupService."""
         # Arrange
         service = CleanupService(session=test_session)
@@ -740,7 +783,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_orphaned_content_with_actual_orphans(self, cleanup_service, test_session):
+    def test_cleanup_orphaned_content_with_actual_orphans(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test cleanup of actual orphaned content records by temporarily disabling FK constraints.
 
         Lines 111-113 in cleanup_service.py are defensive code that handle orphaned records.
@@ -813,7 +858,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_orphaned_logs_with_actual_orphans(self, cleanup_service, test_session):
+    def test_cleanup_orphaned_logs_with_actual_orphans(
+        self, cleanup_service: CleanupService, test_session: Any
+    ) -> None:
         """Test cleanup of actual orphaned log records by temporarily disabling FK constraints.
 
         Lines 139-141 in cleanup_service.py are defensive code that handle orphaned logs.
@@ -882,7 +929,9 @@ class TestCleanupServiceEdgeCases:
 
     @pytest.mark.unit
     @pytest.mark.database
-    def test_cleanup_with_foreign_key_constraints(self, cleanup_service, test_session, create_job):
+    def test_cleanup_with_foreign_key_constraints(
+        self, cleanup_service: CleanupService, test_session: Any, create_job: Any
+    ) -> None:
         """Test cleanup respects foreign key constraints."""
         # Arrange
         job = create_job()

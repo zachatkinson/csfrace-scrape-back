@@ -9,7 +9,7 @@ import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TextIO, TypedDict
 from urllib.parse import urlparse
 
 import asyncio
@@ -326,7 +326,7 @@ class BatchProcessor:
                 return self._process_simple_csv(f)
 
     @network_error_handler("add structured CSV job")
-    def _add_structured_csv_job_safe(self, url: str, row: dict, row_num: int) -> bool:
+    def _add_structured_csv_job_safe(self, url: str, row: dict[str, Any], row_num: int) -> bool:
         """Add structured CSV job with error handling."""
         # Extract optional fields
         custom_slug = row.get("slug", "").strip() or None
@@ -370,7 +370,7 @@ class BatchProcessor:
         logger.info("Loaded jobs from CSV file", file_path=str(file_path), jobs_added=added)
         return added
 
-    def _process_structured_csv(self, file_handle) -> int:
+    def _process_structured_csv(self, file_handle: TextIO) -> int:
         """Process structured CSV with columns."""
         added = 0
 
@@ -396,7 +396,7 @@ class BatchProcessor:
 
         return added
 
-    def _process_simple_csv(self, file_handle) -> int:
+    def _process_simple_csv(self, file_handle: TextIO) -> int:
         """Process simple CSV/list of URLs."""
         added = 0
         file_handle.seek(0)
@@ -542,7 +542,7 @@ class BatchProcessor:
                 # Create converter and process
                 converter = AsyncWordPressConverter(job.url, job.output_dir)
 
-                def job_progress_callback(p: int):
+                def job_progress_callback(p: int) -> None:
                     if job.progress_task:
                         progress.update(job.progress_task, completed=p)
                     if progress_callback:

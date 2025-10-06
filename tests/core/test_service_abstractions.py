@@ -4,6 +4,8 @@ Test coverage: 99 statements, 0% → 85%+
 Following TEST_BUILDING.md MANDATORY standards with ZERO TOLERANCE.
 """
 
+from typing import Any
+
 import pytest
 
 from src.core.service_abstractions import BaseService, ServiceRegistry, service_registry
@@ -14,11 +16,11 @@ from src.core.service_abstractions import BaseService, ServiceRegistry, service_
 
 
 @pytest.fixture
-def concrete_service():
+def concrete_service() -> type[BaseService]:
     """Factory for concrete service implementation - DRY principle."""
 
     class ConcreteService(BaseService):
-        def __init__(self, config=None):
+        def __init__(self, config: dict[str, Any] | None = None) -> None:
             super().__init__(config)
             self.initialize_called = False
             self.shutdown_called = False
@@ -34,7 +36,7 @@ def concrete_service():
             self._mark_shutdown()
             return True
 
-        async def health_check(self) -> dict:
+        async def health_check(self) -> dict[str, Any]:
             self.health_check_called = True
             return {"status": "healthy", "message": "Service is operational"}
 
@@ -42,7 +44,7 @@ def concrete_service():
 
 
 @pytest.fixture
-def failing_service():
+def failing_service() -> type[BaseService]:
     """Factory for service that fails operations - DRY principle."""
 
     class FailingService(BaseService):
@@ -52,20 +54,20 @@ def failing_service():
         async def shutdown(self) -> bool:
             raise RuntimeError("Shutdown failed")
 
-        async def health_check(self) -> dict:
+        async def health_check(self) -> dict[str, Any]:
             raise RuntimeError("Health check failed")
 
     return FailingService
 
 
 @pytest.fixture
-def service_registry_instance():
+def service_registry_instance() -> ServiceRegistry:
     """Factory for fresh ServiceRegistry instance - DRY principle."""
     return ServiceRegistry()
 
 
 @pytest.fixture
-def sample_config():
+def sample_config() -> dict[str, Any]:
     """Factory for sample configuration - DRY principle."""
     return {"setting1": "value1", "setting2": 42, "enabled": True}
 
@@ -79,7 +81,9 @@ def sample_config():
 class TestBaseServiceInit:
     """Test BaseService initialization."""
 
-    def test_base_service_init_with_config(self, concrete_service, sample_config):
+    def test_base_service_init_with_config(
+        self, concrete_service: type[BaseService], sample_config: dict[str, Any]
+    ) -> None:
         """Test BaseService initialization with configuration."""
         # Act
         service = concrete_service(config=sample_config)
@@ -90,7 +94,7 @@ class TestBaseServiceInit:
         assert service._healthy is False
         assert service.logger is not None
 
-    def test_base_service_init_without_config(self, concrete_service):
+    def test_base_service_init_without_config(self, concrete_service: type[BaseService]) -> None:
         """Test BaseService initialization without configuration."""
         # Act
         service = concrete_service()
@@ -108,7 +112,7 @@ class TestBaseServiceInit:
 class TestBaseServiceProperties:
     """Test BaseService properties."""
 
-    def test_is_initialized_false_initially(self, concrete_service):
+    def test_is_initialized_false_initially(self, concrete_service: type[BaseService]) -> None:
         """Test is_initialized is False initially."""
         # Arrange
         service = concrete_service()
@@ -116,7 +120,7 @@ class TestBaseServiceProperties:
         # Assert
         assert service.is_initialized is False
 
-    def test_is_healthy_false_initially(self, concrete_service):
+    def test_is_healthy_false_initially(self, concrete_service: type[BaseService]) -> None:
         """Test is_healthy is False initially."""
         # Arrange
         service = concrete_service()
@@ -135,7 +139,9 @@ class TestBaseServiceProperties:
 class TestBaseServiceLifecycle:
     """Test BaseService lifecycle management."""
 
-    async def test_initialize_calls_implementation(self, concrete_service):
+    async def test_initialize_calls_implementation(
+        self, concrete_service: type[BaseService]
+    ) -> None:
         """Test initialize calls concrete implementation."""
         # Arrange
         service = concrete_service()
@@ -145,9 +151,11 @@ class TestBaseServiceLifecycle:
 
         # Assert
         assert result is True
+        # Type narrowing: concrete_service() returns ConcreteService with these attributes
+        assert hasattr(service, "initialize_called")
         assert service.initialize_called is True
 
-    async def test_shutdown_calls_implementation(self, concrete_service):
+    async def test_shutdown_calls_implementation(self, concrete_service: type[BaseService]) -> None:
         """Test shutdown calls concrete implementation."""
         # Arrange
         service = concrete_service()
@@ -158,9 +166,13 @@ class TestBaseServiceLifecycle:
 
         # Assert
         assert result is True
+        # Type narrowing: concrete_service() returns ConcreteService with these attributes
+        assert hasattr(service, "shutdown_called")
         assert service.shutdown_called is True
 
-    async def test_health_check_calls_implementation(self, concrete_service):
+    async def test_health_check_calls_implementation(
+        self, concrete_service: type[BaseService]
+    ) -> None:
         """Test health_check calls concrete implementation."""
         # Arrange
         service = concrete_service()
@@ -170,6 +182,8 @@ class TestBaseServiceLifecycle:
 
         # Assert
         assert result["status"] == "healthy"
+        # Type narrowing: concrete_service() returns ConcreteService with these attributes
+        assert hasattr(service, "health_check_called")
         assert service.health_check_called is True
 
 
@@ -183,7 +197,7 @@ class TestBaseServiceLifecycle:
 class TestBaseServiceStateManagement:
     """Test BaseService state management."""
 
-    async def test_mark_initialized_sets_flags(self, concrete_service):
+    async def test_mark_initialized_sets_flags(self, concrete_service: type[BaseService]) -> None:
         """Test _mark_initialized sets initialization and health flags."""
         # Arrange
         service = concrete_service()
@@ -197,7 +211,7 @@ class TestBaseServiceStateManagement:
         assert service.is_initialized is True
         assert service.is_healthy is True
 
-    async def test_mark_unhealthy_sets_flag(self, concrete_service):
+    async def test_mark_unhealthy_sets_flag(self, concrete_service: type[BaseService]) -> None:
         """Test _mark_unhealthy sets health flag."""
         # Arrange
         service = concrete_service()
@@ -211,7 +225,7 @@ class TestBaseServiceStateManagement:
         assert service.is_healthy is False
         assert service._initialized is True  # Still initialized
 
-    async def test_mark_shutdown_clears_flags(self, concrete_service):
+    async def test_mark_shutdown_clears_flags(self, concrete_service: type[BaseService]) -> None:
         """Test _mark_shutdown clears all flags."""
         # Arrange
         service = concrete_service()
@@ -236,7 +250,7 @@ class TestBaseServiceStateManagement:
 class TestServiceRegistryInit:
     """Test ServiceRegistry initialization."""
 
-    def test_service_registry_init(self):
+    def test_service_registry_init(self) -> None:
         """Test ServiceRegistry initialization."""
         # Act
         registry = ServiceRegistry()
@@ -256,7 +270,9 @@ class TestServiceRegistryInit:
 class TestServiceRegistryRegistration:
     """Test ServiceRegistry service registration."""
 
-    def test_register_service_without_config(self, service_registry_instance, concrete_service):
+    def test_register_service_without_config(
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test register_service without configuration."""
         # Arrange
         service = concrete_service()
@@ -270,8 +286,11 @@ class TestServiceRegistryRegistration:
         assert service_registry_instance._service_configs[concrete_service] == {}
 
     def test_register_service_with_config(
-        self, service_registry_instance, concrete_service, sample_config
-    ):
+        self,
+        service_registry_instance: ServiceRegistry,
+        concrete_service: type[BaseService],
+        sample_config: dict[str, Any],
+    ) -> None:
         """Test register_service with configuration."""
         # Arrange
         service = concrete_service(config=sample_config)
@@ -292,7 +311,9 @@ class TestServiceRegistryRegistration:
 class TestServiceRegistryRetrieval:
     """Test ServiceRegistry service retrieval."""
 
-    def test_get_service_returns_service(self, service_registry_instance, concrete_service):
+    def test_get_service_returns_service(
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test get_service returns registered service."""
         # Arrange
         service = concrete_service()
@@ -304,7 +325,9 @@ class TestServiceRegistryRetrieval:
         # Assert
         assert result is service
 
-    def test_get_service_returns_none_if_not_registered(self, service_registry_instance):
+    def test_get_service_returns_none_if_not_registered(
+        self, service_registry_instance: ServiceRegistry
+    ) -> None:
         """Test get_service returns None if service not registered."""
 
         # Arrange
@@ -318,8 +341,8 @@ class TestServiceRegistryRetrieval:
         assert result is None
 
     def test_get_required_service_returns_service(
-        self, service_registry_instance, concrete_service
-    ):
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test get_required_service returns registered service."""
         # Arrange
         service = concrete_service()
@@ -331,7 +354,9 @@ class TestServiceRegistryRetrieval:
         # Assert
         assert result is service
 
-    def test_get_required_service_raises_if_not_registered(self, service_registry_instance):
+    def test_get_required_service_raises_if_not_registered(
+        self, service_registry_instance: ServiceRegistry
+    ) -> None:
         """Test get_required_service raises ValueError if not registered."""
 
         # Arrange
@@ -352,7 +377,9 @@ class TestServiceRegistryRetrieval:
 class TestServiceRegistryUnregistration:
     """Test ServiceRegistry service unregistration."""
 
-    def test_unregister_service_removes_service(self, service_registry_instance, concrete_service):
+    def test_unregister_service_removes_service(
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test unregister_service removes registered service."""
         # Arrange
         service = concrete_service()
@@ -366,7 +393,9 @@ class TestServiceRegistryUnregistration:
         assert concrete_service not in service_registry_instance._services
         assert concrete_service not in service_registry_instance._service_configs
 
-    def test_unregister_service_returns_false_if_not_registered(self, service_registry_instance):
+    def test_unregister_service_returns_false_if_not_registered(
+        self, service_registry_instance: ServiceRegistry
+    ) -> None:
         """Test unregister_service returns False if service not registered."""
 
         # Arrange
@@ -389,7 +418,7 @@ class TestServiceRegistryUnregistration:
 class TestServiceRegistryListing:
     """Test ServiceRegistry service listing."""
 
-    def test_list_services_empty(self, service_registry_instance):
+    def test_list_services_empty(self, service_registry_instance: ServiceRegistry) -> None:
         """Test list_services returns empty dict when no services."""
         # Act
         result = service_registry_instance.list_services()
@@ -398,8 +427,8 @@ class TestServiceRegistryListing:
         assert result == {}
 
     def test_list_services_with_registered_services(
-        self, service_registry_instance, concrete_service
-    ):
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test list_services returns service information."""
         # Arrange
         service = concrete_service()
@@ -424,8 +453,8 @@ class TestServiceRegistryBulkOperations:
     """Test ServiceRegistry bulk operations."""
 
     async def test_initialize_all_calls_initialize_on_services(
-        self, service_registry_instance, concrete_service
-    ):
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test initialize_all calls initialize on all services."""
         # Arrange
         service = concrete_service()
@@ -436,11 +465,13 @@ class TestServiceRegistryBulkOperations:
 
         # Assert
         assert result is True
+        # Type narrowing: concrete_service() returns ConcreteService with these attributes
+        assert hasattr(service, "initialize_called")
         assert service.initialize_called is True
 
     async def test_initialize_all_returns_false_if_any_fails(
-        self, service_registry_instance, failing_service
-    ):
+        self, service_registry_instance: ServiceRegistry, failing_service: type[BaseService]
+    ) -> None:
         """Test initialize_all returns False if any service fails."""
         # Arrange
         service = failing_service()
@@ -452,8 +483,8 @@ class TestServiceRegistryBulkOperations:
             result = await service_registry_instance.initialize_all()
 
     async def test_initialize_all_handles_service_without_initialize(
-        self, service_registry_instance
-    ):
+        self, service_registry_instance: ServiceRegistry
+    ) -> None:
         """Test initialize_all handles service without initialize method."""
 
         # Arrange
@@ -470,8 +501,8 @@ class TestServiceRegistryBulkOperations:
         assert result is True
 
     async def test_shutdown_all_calls_shutdown_on_services(
-        self, service_registry_instance, concrete_service
-    ):
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test shutdown_all calls shutdown on all services."""
         # Arrange
         service = concrete_service()
@@ -483,11 +514,13 @@ class TestServiceRegistryBulkOperations:
 
         # Assert
         assert result is True
+        # Type narrowing: concrete_service() returns ConcreteService with these attributes
+        assert hasattr(service, "shutdown_called")
         assert service.shutdown_called is True
 
     async def test_shutdown_all_returns_false_if_any_fails(
-        self, service_registry_instance, failing_service
-    ):
+        self, service_registry_instance: ServiceRegistry, failing_service: type[BaseService]
+    ) -> None:
         """Test shutdown_all returns False if any service fails."""
         # Arrange
         service = failing_service()
@@ -498,7 +531,9 @@ class TestServiceRegistryBulkOperations:
         with pytest.raises(RuntimeError, match="Content processing operation failed"):
             result = await service_registry_instance.shutdown_all()
 
-    async def test_shutdown_all_handles_service_without_shutdown(self, service_registry_instance):
+    async def test_shutdown_all_handles_service_without_shutdown(
+        self, service_registry_instance: ServiceRegistry
+    ) -> None:
         """Test shutdown_all handles service without shutdown method."""
 
         # Arrange
@@ -515,8 +550,8 @@ class TestServiceRegistryBulkOperations:
         assert result is True
 
     async def test_health_check_all_calls_health_check_on_services(
-        self, service_registry_instance, concrete_service
-    ):
+        self, service_registry_instance: ServiceRegistry, concrete_service: type[BaseService]
+    ) -> None:
         """Test health_check_all calls health_check on all services."""
         # Arrange
         service = concrete_service()
@@ -528,11 +563,13 @@ class TestServiceRegistryBulkOperations:
         # Assert
         assert "ConcreteService" in result
         assert result["ConcreteService"]["status"] == "healthy"
+        # Type narrowing: concrete_service() returns ConcreteService with these attributes
+        assert hasattr(service, "health_check_called")
         assert service.health_check_called is True
 
     async def test_health_check_all_handles_service_without_health_check(
-        self, service_registry_instance
-    ):
+        self, service_registry_instance: ServiceRegistry
+    ) -> None:
         """Test health_check_all handles service without health_check method."""
 
         # Arrange
@@ -551,8 +588,8 @@ class TestServiceRegistryBulkOperations:
         assert "No health check available" in result["SimpleService"]["details"]["message"]
 
     async def test_health_check_all_handles_failing_service(
-        self, service_registry_instance, failing_service
-    ):
+        self, service_registry_instance: ServiceRegistry, failing_service: type[BaseService]
+    ) -> None:
         """Test health_check_all handles service that raises exception."""
         # Arrange
         service = failing_service()
@@ -573,7 +610,7 @@ class TestServiceRegistryBulkOperations:
 class TestGlobalServiceRegistry:
     """Test global service_registry instance."""
 
-    def test_global_service_registry_exists(self):
+    def test_global_service_registry_exists(self) -> None:
         """Test global service_registry instance exists."""
         # Assert
         assert service_registry is not None

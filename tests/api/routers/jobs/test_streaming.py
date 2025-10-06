@@ -18,14 +18,17 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import json
 import time
+from collections.abc import AsyncGenerator
 from contextlib import suppress
 from datetime import datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncio
 import pytest
 from fastapi import Request
 from fastapi.responses import StreamingResponse
+from fastapi.routing import APIRoute
 
 from src.api.routers.jobs.streaming import (
     _format_job_update_event_safe,
@@ -48,7 +51,7 @@ from src.api.routers.jobs.streaming import (
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> MagicMock:
     """Factory for mock database session - DRY principle."""
     db = MagicMock()
     db.execute = AsyncMock()
@@ -59,7 +62,7 @@ def mock_db_session():
 
 
 @pytest.fixture
-def mock_request():
+def mock_request() -> MagicMock:
     """Factory for mock FastAPI request - DRY principle."""
     request = MagicMock(spec=Request)
     request.is_disconnected = AsyncMock(return_value=False)
@@ -69,7 +72,7 @@ def mock_request():
 
 
 @pytest.fixture
-def mock_disconnected_request():
+def mock_disconnected_request() -> MagicMock:
     """Factory for mock disconnected request - DRY principle."""
     request = MagicMock(spec=Request)
     request.is_disconnected = AsyncMock(return_value=True)
@@ -77,7 +80,7 @@ def mock_disconnected_request():
 
 
 @pytest.fixture
-def sample_job():
+def sample_job() -> MagicMock:
     """Factory for sample job model - DRY principle."""
     job = MagicMock()
     job.id = "job-123"
@@ -92,7 +95,7 @@ def sample_job():
 
 
 @pytest.fixture
-def sample_job_event():
+def sample_job_event() -> dict[str, Any]:
     """Factory for sample job event data - DRY principle."""
     return {
         "job_id": "job-456",
@@ -105,7 +108,7 @@ def sample_job_event():
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_redis_client() -> MagicMock:
     """Factory for mock Redis client - DRY principle."""
     redis_client = MagicMock()
     redis_client.pubsub = MagicMock()
@@ -115,7 +118,7 @@ def mock_redis_client():
     pubsub.subscribe = AsyncMock()
 
     # Mock async generator for listen()
-    async def mock_listen():
+    async def mock_listen() -> AsyncGenerator[dict[str, Any]]:
         yield {
             "type": "message",
             "data": b'{"job_id": "test", "event_type": "created", "status": "pending", "timestamp": "2023-01-01T00:00:00Z", "data": {}}',
@@ -128,9 +131,9 @@ def mock_redis_client():
 
 
 @pytest.fixture
-def mock_event_queue():
+def mock_event_queue() -> asyncio.Queue[dict[str, Any]]:
     """Factory for mock event queue - DRY principle."""
-    queue = asyncio.Queue()
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     return queue
 
 
@@ -143,46 +146,50 @@ def mock_event_queue():
 class TestJobStreamingRouter:
     """Tests for job streaming router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that streaming router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert router is not None
 
-    def test_router_has_stream_endpoint(self):
+    def test_router_has_stream_endpoint(self) -> None:
         """Test router has /stream endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/stream" in routes
 
-    def test_router_has_trigger_event_endpoint(self):
+    def test_router_has_trigger_event_endpoint(self) -> None:
         """Test router has /trigger-event endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/trigger-event" in routes
 
-    def test_stream_endpoint_is_get(self):
+    def test_stream_endpoint_is_get(self) -> None:
         """Test /stream endpoint uses GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        stream_route = next(r for r in router.routes if r.path == "/stream")
+        stream_route = next(
+            r for r in router.routes if isinstance(r, APIRoute) and r.path == "/stream"
+        )
         methods = stream_route.methods
 
         # Assert - MANDATORY
         assert "GET" in methods
 
-    def test_trigger_event_endpoint_is_post(self):
+    def test_trigger_event_endpoint_is_post(self) -> None:
         """Test /trigger-event endpoint uses POST method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        trigger_route = next(r for r in router.routes if r.path == "/trigger-event")
+        trigger_route = next(
+            r for r in router.routes if isinstance(r, APIRoute) and r.path == "/trigger-event"
+        )
         methods = trigger_route.methods
 
         # Assert - MANDATORY
@@ -198,7 +205,7 @@ class TestJobStreamingRouter:
 class TestSafeJsonDumps:
     """Tests for safe JSON serialization."""
 
-    def test_safe_json_dumps_handles_dict(self):
+    def test_safe_json_dumps_handles_dict(self) -> None:
         """Test safe_json_dumps handles dictionaries - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = {"key": "value", "number": 123}
@@ -211,7 +218,7 @@ class TestSafeJsonDumps:
         assert "key" in result
         assert "value" in result
 
-    def test_safe_json_dumps_handles_datetime(self):
+    def test_safe_json_dumps_handles_datetime(self) -> None:
         """Test safe_json_dumps handles datetime objects - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = {"timestamp": datetime(2023, 1, 1, 0, 0, 0)}
@@ -223,7 +230,7 @@ class TestSafeJsonDumps:
         assert isinstance(result, str)
         assert "2023-01-01" in result
 
-    def test_safe_json_dumps_handles_nested_datetime(self):
+    def test_safe_json_dumps_handles_nested_datetime(self) -> None:
         """Test safe_json_dumps handles nested datetime - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = {
@@ -241,7 +248,7 @@ class TestSafeJsonDumps:
         assert "job" in parsed
         assert "2023-01-01" in parsed["job"]["created_at"]
 
-    def test_safe_json_dumps_handles_list(self):
+    def test_safe_json_dumps_handles_list(self) -> None:
         """Test safe_json_dumps handles lists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         data = [{"id": 1}, {"id": 2}]
@@ -265,7 +272,9 @@ class TestJobStreamEndpoint:
     """Tests for /stream SSE endpoint."""
 
     @pytest.mark.asyncio
-    async def test_job_stream_returns_streaming_response(self, mock_request, mock_db_session):
+    async def test_job_stream_returns_streaming_response(
+        self, mock_request: MagicMock, mock_db_session: MagicMock
+    ) -> None:
         """Test job_stream returns StreamingResponse - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch(
@@ -281,7 +290,9 @@ class TestJobStreamEndpoint:
             assert isinstance(response, StreamingResponse)
 
     @pytest.mark.asyncio
-    async def test_job_stream_sets_correct_headers(self, mock_request, mock_db_session):
+    async def test_job_stream_sets_correct_headers(
+        self, mock_request: MagicMock, mock_db_session: MagicMock
+    ) -> None:
         """Test job_stream sets SSE headers - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch(
@@ -299,7 +310,9 @@ class TestJobStreamEndpoint:
             assert response.headers["Access-Control-Allow-Origin"] == "*"
 
     @pytest.mark.asyncio
-    async def test_job_stream_media_type_is_event_stream(self, mock_request, mock_db_session):
+    async def test_job_stream_media_type_is_event_stream(
+        self, mock_request: MagicMock, mock_db_session: MagicMock
+    ) -> None:
         """Test job_stream has correct media type - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch(
@@ -325,7 +338,7 @@ class TestTriggerJobEvent:
     """Tests for /trigger-event endpoint."""
 
     @pytest.mark.asyncio
-    async def test_trigger_job_event_calls_trigger_safe(self, mock_db_session):
+    async def test_trigger_job_event_calls_trigger_safe(self, mock_db_session: MagicMock) -> None:
         """Test trigger_job_event calls internal function - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_result = {"message": "Test event triggered"}
@@ -344,7 +357,7 @@ class TestTriggerJobEvent:
             mock_trigger.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_trigger_job_event_returns_dict(self, mock_db_session):
+    async def test_trigger_job_event_returns_dict(self, mock_db_session: MagicMock) -> None:
         """Test trigger_job_event returns dictionary - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch(
@@ -370,7 +383,7 @@ class TestInitializeJobEventSystem:
     """Tests for job event system initialization."""
 
     @pytest.mark.asyncio
-    async def test_initialize_job_event_system_initializes_publisher(self):
+    async def test_initialize_job_event_system_initializes_publisher(self) -> None:
         """Test initialization initializes publisher - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_publisher = MagicMock()
@@ -392,7 +405,7 @@ class TestInitializeJobEventSystem:
             mock_publisher.initialize.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_initialize_job_event_system_returns_redis_client(self):
+    async def test_initialize_job_event_system_returns_redis_client(self) -> None:
         """Test initialization returns Redis client - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_redis_client = MagicMock()
@@ -425,7 +438,9 @@ class TestSendInitialJobData:
     """Tests for sending initial job data."""
 
     @pytest.mark.asyncio
-    async def test_send_initial_job_data_queries_crud(self, mock_db_session, sample_job):
+    async def test_send_initial_job_data_queries_crud(
+        self, mock_db_session: MagicMock, sample_job: MagicMock
+    ) -> None:
         """Test send initial data queries JobCRUD - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_crud = MagicMock()
@@ -440,7 +455,9 @@ class TestSendInitialJobData:
             assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_initial_job_data_formats_sse_event(self, mock_db_session, sample_job):
+    async def test_send_initial_job_data_formats_sse_event(
+        self, mock_db_session: MagicMock, sample_job: MagicMock
+    ) -> None:
         """Test send initial data formats SSE event - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_crud = MagicMock()
@@ -451,12 +468,15 @@ class TestSendInitialJobData:
             result = await _send_initial_job_data_safe(mock_db_session)
 
             # Assert - MANDATORY
+            assert result is not None
             assert result.startswith("event: initial-data\n")
             assert "data: " in result
             assert result.endswith("\n\n")
 
     @pytest.mark.asyncio
-    async def test_send_initial_job_data_includes_job_details(self, mock_db_session, sample_job):
+    async def test_send_initial_job_data_includes_job_details(
+        self, mock_db_session: MagicMock, sample_job: MagicMock
+    ) -> None:
         """Test send initial data includes job details - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mock_crud = MagicMock()
@@ -467,6 +487,7 @@ class TestSendInitialJobData:
             result = await _send_initial_job_data_safe(mock_db_session)
 
             # Assert - MANDATORY
+            assert result is not None
             assert "job-123" in result
             assert "https://example.com/page" in result
             assert "completed" in result
@@ -482,13 +503,15 @@ class TestListenToRedisJobEvents:
     """Tests for Redis job event listener."""
 
     @pytest.mark.asyncio
-    async def test_listen_to_redis_subscribes_to_channel(self, mock_redis_client):
+    async def test_listen_to_redis_subscribes_to_channel(
+        self, mock_redis_client: MagicMock
+    ) -> None:
         """Test listener subscribes to job_events - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         # Mock async iteration to stop after one iteration
-        async def mock_listen():
+        async def mock_listen() -> AsyncGenerator[dict[str, Any]]:
             yield {"type": "subscribe", "channel": "job_events"}
 
         pubsub = mock_redis_client.pubsub.return_value
@@ -512,14 +535,16 @@ class TestListenToRedisJobEvents:
             pubsub.subscribe.assert_called_once_with("job_events")
 
     @pytest.mark.asyncio
-    async def test_listen_to_redis_processes_message_events(self, mock_redis_client):
+    async def test_listen_to_redis_processes_message_events(
+        self, mock_redis_client: MagicMock
+    ) -> None:
         """Test listener processes message events - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         mock_job_data = {"job_id": "test", "event_type": "created"}
 
         # Mock async iteration
-        async def mock_listen():
+        async def mock_listen() -> AsyncGenerator[dict[str, Any]]:
             yield {
                 "type": "message",
                 "data": json.dumps(mock_job_data).encode("utf-8"),
@@ -558,7 +583,7 @@ class TestProcessJobEventMessage:
     """Tests for job event message processing."""
 
     @pytest.mark.asyncio
-    async def test_process_job_event_message_parses_json(self):
+    async def test_process_job_event_message_parses_json(self) -> None:
         """Test process message parses JSON - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = {
@@ -583,7 +608,7 @@ class TestProcessJobEventMessage:
         assert result["event_type"] == "status_update"
 
     @pytest.mark.asyncio
-    async def test_process_job_event_message_formats_for_sse(self):
+    async def test_process_job_event_message_formats_for_sse(self) -> None:
         """Test process message formats for SSE - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         message = {
@@ -602,6 +627,7 @@ class TestProcessJobEventMessage:
         result = await _process_job_event_message_safe(message)
 
         # Assert - MANDATORY
+        assert result is not None
         assert "job_id" in result
         assert "event_type" in result
         assert "status" in result
@@ -618,7 +644,9 @@ class TestProcessJobEventMessage:
 class TestFormatJobUpdateEvent:
     """Tests for job update event formatting."""
 
-    def test_format_job_update_event_creates_sse_format(self, sample_job_event):
+    def test_format_job_update_event_creates_sse_format(
+        self, sample_job_event: dict[str, Any]
+    ) -> None:
         """Test format creates SSE format - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -629,7 +657,7 @@ class TestFormatJobUpdateEvent:
         assert "\ndata: " in result
         assert result.endswith("\n\n")
 
-    def test_format_job_update_event_maps_event_names(self):
+    def test_format_job_update_event_maps_event_names(self) -> None:
         """Test format maps event types to names - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         created_event = {
@@ -664,7 +692,9 @@ class TestFormatJobUpdateEvent:
         assert "event: job-status-update\n" in status_result
         assert "event: job-deleted\n" in deleted_result
 
-    def test_format_job_update_event_includes_job_data(self, sample_job_event):
+    def test_format_job_update_event_includes_job_data(
+        self, sample_job_event: dict[str, Any]
+    ) -> None:
         """Test format includes job data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -686,7 +716,7 @@ class TestTriggerTestJobEvent:
     """Tests for test job event triggering."""
 
     @pytest.mark.asyncio
-    async def test_trigger_test_job_event_publishes_event(self):
+    async def test_trigger_test_job_event_publishes_event(self) -> None:
         """Test trigger publishes test event - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch(
@@ -703,7 +733,7 @@ class TestTriggerTestJobEvent:
             assert result["message"] == "Test job event triggered successfully"
 
     @pytest.mark.asyncio
-    async def test_trigger_test_job_event_handles_failure(self):
+    async def test_trigger_test_job_event_handles_failure(self) -> None:
         """Test trigger handles publication failure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         with patch(
@@ -730,10 +760,10 @@ class TestStreamJobEvents:
     """Tests for job event streaming."""
 
     @pytest.mark.asyncio
-    async def test_stream_job_events_yields_events(self, mock_request):
+    async def test_stream_job_events_yields_events(self, mock_request: MagicMock) -> None:
         """Test stream yields events from queue - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         test_event = {
             "job_id": "job-999",
             "event_type": "created",
@@ -756,10 +786,10 @@ class TestStreamJobEvents:
         assert "job-999" in events[0]
 
     @pytest.mark.asyncio
-    async def test_stream_job_events_sends_keepalive(self, mock_request):
+    async def test_stream_job_events_sends_keepalive(self, mock_request: MagicMock) -> None:
         """Test stream sends keepalive on timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         # Mock timeout behavior
         with patch(
@@ -778,10 +808,12 @@ class TestStreamJobEvents:
             assert any("keepalive" in event for event in events)
 
     @pytest.mark.asyncio
-    async def test_stream_job_events_detects_disconnect(self, mock_disconnected_request):
+    async def test_stream_job_events_detects_disconnect(
+        self, mock_disconnected_request: MagicMock
+    ) -> None:
         """Test stream detects client disconnect - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         # Act - MANDATORY
         events = []
@@ -803,10 +835,10 @@ class TestWaitForJobEvent:
     """Tests for job event waiting."""
 
     @pytest.mark.asyncio
-    async def test_wait_for_job_event_returns_event(self):
+    async def test_wait_for_job_event_returns_event(self) -> None:
         """Test wait returns event from queue - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         test_event = {"job_id": "test", "event_type": "created"}
         await event_queue.put(test_event)
 
@@ -817,10 +849,10 @@ class TestWaitForJobEvent:
         assert result == test_event
 
     @pytest.mark.asyncio
-    async def test_wait_for_job_event_returns_timeout(self):
+    async def test_wait_for_job_event_returns_timeout(self) -> None:
         """Test wait returns 'timeout' on timeout - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         # Act - MANDATORY
         result = await _wait_for_job_event_safe(event_queue)
@@ -829,10 +861,10 @@ class TestWaitForJobEvent:
         assert result == "timeout"
 
     @pytest.mark.asyncio
-    async def test_wait_for_job_event_handles_cancellation(self):
+    async def test_wait_for_job_event_handles_cancellation(self) -> None:
         """Test wait handles cancellation - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
         # Create task and cancel it
         task = asyncio.create_task(_wait_for_job_event_safe(event_queue))
@@ -859,7 +891,7 @@ class TestWaitForJobEvent:
 class TestJobStreamingPerformance:
     """MANDATORY performance tests for job streaming."""
 
-    def test_safe_json_dumps_performance(self):
+    def test_safe_json_dumps_performance(self) -> None:
         """MANDATORY performance test - JSON serialization speed."""
         # Arrange - MANDATORY
         data = {
@@ -888,7 +920,7 @@ class TestJobStreamingPerformance:
         assert avg_time < 0.010  # <10ms per serialization
         assert execution_time < 1.0  # Total <1s for 100 serializations
 
-    def test_format_job_update_event_performance(self, sample_job_event):
+    def test_format_job_update_event_performance(self, sample_job_event: dict[str, Any]) -> None:
         """MANDATORY performance test - event formatting speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -908,10 +940,10 @@ class TestJobStreamingPerformance:
         assert execution_time < 1.0  # Total <1s for 1000 formats
 
     @pytest.mark.asyncio
-    async def test_event_queue_throughput_performance(self):
+    async def test_event_queue_throughput_performance(self) -> None:
         """MANDATORY performance test - event queue throughput."""
         # Arrange - MANDATORY
-        event_queue = asyncio.Queue()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         num_events = 1000
 
         # Act - MANDATORY

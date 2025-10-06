@@ -18,6 +18,7 @@ ALL tests follow MANDATORY TEST_BUILDING.md patterns:
 
 import tempfile
 import time
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -47,7 +48,7 @@ from src.utils.path_utils import (
 
 
 @pytest.fixture
-def temp_test_dir():
+def temp_test_dir() -> Generator[Path]:
     """Factory for temporary test directory - DRY principle."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
@@ -78,7 +79,7 @@ def nested_dir_structure(temp_test_dir: Path) -> Path:
 class TestNormalizePathSeparators:
     """Tests for normalize_path_separators function."""
 
-    def test_normalize_windows_separators(self):
+    def test_normalize_windows_separators(self) -> None:
         """Test normalize_path_separators with Windows paths - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         windows_path = "C:\\Users\\test\\Documents\\file.txt"
@@ -90,7 +91,7 @@ class TestNormalizePathSeparators:
         assert result == "C:/Users/test/Documents/file.txt"
         assert "\\" not in result
 
-    def test_normalize_unix_separators(self):
+    def test_normalize_unix_separators(self) -> None:
         """Test normalize_path_separators with Unix paths - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         unix_path = "/home/user/documents/file.txt"
@@ -101,7 +102,7 @@ class TestNormalizePathSeparators:
         # Assert - MANDATORY
         assert result == "/home/user/documents/file.txt"
 
-    def test_normalize_mixed_separators(self):
+    def test_normalize_mixed_separators(self) -> None:
         """Test normalize_path_separators with mixed separators - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         mixed_path = "C:/Users\\test/Documents\\file.txt"
@@ -113,7 +114,7 @@ class TestNormalizePathSeparators:
         assert result == "C:/Users/test/Documents/file.txt"
         assert "\\" not in result
 
-    def test_normalize_path_object(self):
+    def test_normalize_path_object(self) -> None:
         """Test normalize_path_separators with Path object - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path_obj = Path("test") / "dir" / "file.txt"
@@ -135,7 +136,7 @@ class TestNormalizePathSeparators:
 class TestGetPathParts:
     """Tests for get_path_parts function."""
 
-    def test_get_path_parts_simple_path(self):
+    def test_get_path_parts_simple_path(self) -> None:
         """Test get_path_parts with simple path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "dir1/dir2/file.txt"
@@ -146,7 +147,7 @@ class TestGetPathParts:
         # Assert - MANDATORY
         assert result == ["dir1", "dir2", "file.txt"]
 
-    def test_get_path_parts_absolute_unix(self):
+    def test_get_path_parts_absolute_unix(self) -> None:
         """Test get_path_parts with absolute Unix path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/documents"
@@ -159,7 +160,7 @@ class TestGetPathParts:
         assert "user" in result
         assert "documents" in result
 
-    def test_get_path_parts_empty_path(self):
+    def test_get_path_parts_empty_path(self) -> None:
         """Test get_path_parts with empty path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = ""
@@ -170,7 +171,7 @@ class TestGetPathParts:
         # Assert - MANDATORY
         assert result == ["."]
 
-    def test_get_path_parts_single_component(self):
+    def test_get_path_parts_single_component(self) -> None:
         """Test get_path_parts with single component - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "filename.txt"
@@ -191,7 +192,7 @@ class TestGetPathParts:
 class TestJoinPathParts:
     """Tests for join_path_parts function."""
 
-    def test_join_path_parts_multiple_components(self):
+    def test_join_path_parts_multiple_components(self) -> None:
         """Test join_path_parts with multiple components - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         parts = ("dir1", "dir2", "file.txt")
@@ -204,7 +205,7 @@ class TestJoinPathParts:
         expected = str(Path("dir1") / "dir2" / "file.txt")
         assert result == expected
 
-    def test_join_path_parts_single_component(self):
+    def test_join_path_parts_single_component(self) -> None:
         """Test join_path_parts with single component - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         part = "filename.txt"
@@ -215,7 +216,7 @@ class TestJoinPathParts:
         # Assert - MANDATORY
         assert result == "filename.txt"
 
-    def test_join_path_parts_empty_parts(self):
+    def test_join_path_parts_empty_parts(self) -> None:
         """Test join_path_parts with some empty parts - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         parts = ("dir1", "", "dir2", "file.txt")
@@ -238,7 +239,7 @@ class TestJoinPathParts:
 class TestGetDirectoryName:
     """Tests for get_directory_name function."""
 
-    def test_get_directory_name_from_path(self):
+    def test_get_directory_name_from_path(self) -> None:
         """Test get_directory_name from full path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/documents/report.pdf"
@@ -249,7 +250,7 @@ class TestGetDirectoryName:
         # Assert - MANDATORY
         assert result == "report.pdf"
 
-    def test_get_directory_name_from_directory(self):
+    def test_get_directory_name_from_directory(self) -> None:
         """Test get_directory_name from directory path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/documents"
@@ -260,7 +261,7 @@ class TestGetDirectoryName:
         # Assert - MANDATORY
         assert result == "documents"
 
-    def test_get_directory_name_empty_string(self):
+    def test_get_directory_name_empty_string(self) -> None:
         """Test get_directory_name with empty string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = ""
@@ -271,7 +272,7 @@ class TestGetDirectoryName:
         # Assert - MANDATORY
         assert result == ""
 
-    def test_get_directory_name_current_directory(self):
+    def test_get_directory_name_current_directory(self) -> None:
         """Test get_directory_name with current directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "."
@@ -292,7 +293,7 @@ class TestGetDirectoryName:
 class TestSplitDirectoryPath:
     """Tests for split_directory_path function."""
 
-    def test_split_directory_path_full_path(self):
+    def test_split_directory_path_full_path(self) -> None:
         """Test split_directory_path with full path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/documents/file.txt"
@@ -304,7 +305,7 @@ class TestSplitDirectoryPath:
         assert name == "file.txt"
         assert "documents" in parent
 
-    def test_split_directory_path_single_component(self):
+    def test_split_directory_path_single_component(self) -> None:
         """Test split_directory_path with single component - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "file.txt"
@@ -326,7 +327,7 @@ class TestSplitDirectoryPath:
 class TestEnsurePathExists:
     """Tests for ensure_path_exists function."""
 
-    def test_ensure_path_exists_creates_directory(self, temp_test_dir: Path):
+    def test_ensure_path_exists_creates_directory(self, temp_test_dir: Path) -> None:
         """Test ensure_path_exists creates directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         new_dir = temp_test_dir / "new_directory"
@@ -339,7 +340,7 @@ class TestEnsurePathExists:
         assert result.exists()
         assert result.is_dir()
 
-    def test_ensure_path_exists_nested_directories(self, temp_test_dir: Path):
+    def test_ensure_path_exists_nested_directories(self, temp_test_dir: Path) -> None:
         """Test ensure_path_exists creates nested directories - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         nested = temp_test_dir / "level1" / "level2" / "level3"
@@ -352,7 +353,7 @@ class TestEnsurePathExists:
         assert result.exists()
         assert result.is_dir()
 
-    def test_ensure_path_exists_already_exists(self, temp_test_dir: Path):
+    def test_ensure_path_exists_already_exists(self, temp_test_dir: Path) -> None:
         """Test ensure_path_exists with existing directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         existing_dir = temp_test_dir / "existing"
@@ -375,7 +376,7 @@ class TestEnsurePathExists:
 class TestIsAbsolutePath:
     """Tests for is_absolute_path function."""
 
-    def test_is_absolute_path_unix_absolute(self):
+    def test_is_absolute_path_unix_absolute(self) -> None:
         """Test is_absolute_path with Unix absolute path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/documents"
@@ -386,7 +387,7 @@ class TestIsAbsolutePath:
         # Assert - MANDATORY
         assert result is True
 
-    def test_is_absolute_path_relative(self):
+    def test_is_absolute_path_relative(self) -> None:
         """Test is_absolute_path with relative path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "documents/file.txt"
@@ -397,7 +398,7 @@ class TestIsAbsolutePath:
         # Assert - MANDATORY
         assert result is False
 
-    def test_is_absolute_path_current_directory(self):
+    def test_is_absolute_path_current_directory(self) -> None:
         """Test is_absolute_path with current directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "."
@@ -418,7 +419,7 @@ class TestIsAbsolutePath:
 class TestMakeRelativeTo:
     """Tests for make_relative_to function."""
 
-    def test_make_relative_to_subdirectory(self, temp_test_dir: Path):
+    def test_make_relative_to_subdirectory(self, temp_test_dir: Path) -> None:
         """Test make_relative_to with subdirectory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         subdir = temp_test_dir / "sub" / "nested" / "file.txt"
@@ -441,7 +442,7 @@ class TestMakeRelativeTo:
 class TestResolvePath:
     """Tests for resolve_path function."""
 
-    def test_resolve_path_current_directory(self):
+    def test_resolve_path_current_directory(self) -> None:
         """Test resolve_path with current directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "."
@@ -452,7 +453,7 @@ class TestResolvePath:
         # Assert - MANDATORY
         assert Path(result).is_absolute()
 
-    def test_resolve_path_relative(self):
+    def test_resolve_path_relative(self) -> None:
         """Test resolve_path with relative path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "test/file.txt"
@@ -474,7 +475,7 @@ class TestResolvePath:
 class TestPathChecks:
     """Tests for path existence and type checking functions."""
 
-    def test_path_exists_existing_file(self, sample_file_path: Path):
+    def test_path_exists_existing_file(self, sample_file_path: Path) -> None:
         """Test path_exists with existing file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -484,7 +485,7 @@ class TestPathChecks:
         # Assert - MANDATORY
         assert result is True
 
-    def test_path_exists_nonexistent(self, temp_test_dir: Path):
+    def test_path_exists_nonexistent(self, temp_test_dir: Path) -> None:
         """Test path_exists with nonexistent path - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         nonexistent = temp_test_dir / "does_not_exist.txt"
@@ -495,7 +496,7 @@ class TestPathChecks:
         # Assert - MANDATORY
         assert result is False
 
-    def test_is_directory_with_directory(self, temp_test_dir: Path):
+    def test_is_directory_with_directory(self, temp_test_dir: Path) -> None:
         """Test is_directory with directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -505,7 +506,7 @@ class TestPathChecks:
         # Assert - MANDATORY
         assert result is True
 
-    def test_is_directory_with_file(self, sample_file_path: Path):
+    def test_is_directory_with_file(self, sample_file_path: Path) -> None:
         """Test is_directory with file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -515,7 +516,7 @@ class TestPathChecks:
         # Assert - MANDATORY
         assert result is False
 
-    def test_is_file_with_file(self, sample_file_path: Path):
+    def test_is_file_with_file(self, sample_file_path: Path) -> None:
         """Test is_file with file - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -525,7 +526,7 @@ class TestPathChecks:
         # Assert - MANDATORY
         assert result is True
 
-    def test_is_file_with_directory(self, temp_test_dir: Path):
+    def test_is_file_with_directory(self, temp_test_dir: Path) -> None:
         """Test is_file with directory - MANDATORY AAA pattern."""
         # Arrange - MANDATORY (done by fixture)
 
@@ -545,7 +546,7 @@ class TestPathChecks:
 class TestGetFileExtension:
     """Tests for get_file_extension function."""
 
-    def test_get_file_extension_with_extension(self):
+    def test_get_file_extension_with_extension(self) -> None:
         """Test get_file_extension with extension - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/document.pdf"
@@ -556,7 +557,7 @@ class TestGetFileExtension:
         # Assert - MANDATORY
         assert result == ".pdf"
 
-    def test_get_file_extension_multiple_dots(self):
+    def test_get_file_extension_multiple_dots(self) -> None:
         """Test get_file_extension with multiple dots - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "archive.tar.gz"
@@ -567,7 +568,7 @@ class TestGetFileExtension:
         # Assert - MANDATORY
         assert result == ".gz"
 
-    def test_get_file_extension_no_extension(self):
+    def test_get_file_extension_no_extension(self) -> None:
         """Test get_file_extension without extension - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/README"
@@ -588,7 +589,7 @@ class TestGetFileExtension:
 class TestGetFilenameWithoutExtension:
     """Tests for get_filename_without_extension function."""
 
-    def test_get_filename_without_extension_simple(self):
+    def test_get_filename_without_extension_simple(self) -> None:
         """Test get_filename_without_extension simple case - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "/home/user/document.pdf"
@@ -599,7 +600,7 @@ class TestGetFilenameWithoutExtension:
         # Assert - MANDATORY
         assert result == "document"
 
-    def test_get_filename_without_extension_multiple_dots(self):
+    def test_get_filename_without_extension_multiple_dots(self) -> None:
         """Test get_filename_without_extension with multiple dots - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "archive.tar.gz"
@@ -610,7 +611,7 @@ class TestGetFilenameWithoutExtension:
         # Assert - MANDATORY
         assert result == "archive.tar"
 
-    def test_get_filename_without_extension_no_extension(self):
+    def test_get_filename_without_extension_no_extension(self) -> None:
         """Test get_filename_without_extension no extension - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         path = "README"
@@ -631,7 +632,7 @@ class TestGetFilenameWithoutExtension:
 class TestSafeFilename:
     """Tests for safe_filename function."""
 
-    def test_safe_filename_removes_unsafe_characters(self):
+    def test_safe_filename_removes_unsafe_characters(self) -> None:
         """Test safe_filename removes unsafe characters - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         filename = 'file<name>:with"unsafe|chars?.txt'
@@ -645,7 +646,7 @@ class TestSafeFilename:
         assert ">" not in result
         assert ":" not in result
 
-    def test_safe_filename_removes_multiple_consecutive_replacements(self):
+    def test_safe_filename_removes_multiple_consecutive_replacements(self) -> None:
         """Test safe_filename removes consecutive replacements - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         filename = "file<<>>name.txt"
@@ -657,7 +658,7 @@ class TestSafeFilename:
         assert "__" not in result
         assert result == "file_name.txt"
 
-    def test_safe_filename_strips_edge_replacements(self):
+    def test_safe_filename_strips_edge_replacements(self) -> None:
         """Test safe_filename strips edge replacements - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         filename = "<filename>.txt"
@@ -669,7 +670,7 @@ class TestSafeFilename:
         assert not result.startswith("_")
         assert result == "filename_.txt"  # > replaced by _, then . preserved
 
-    def test_safe_filename_custom_replacement(self):
+    def test_safe_filename_custom_replacement(self) -> None:
         """Test safe_filename with custom replacement - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         filename = "file:name.txt"
@@ -680,7 +681,7 @@ class TestSafeFilename:
         # Assert - MANDATORY
         assert result == "file-name.txt"
 
-    def test_safe_filename_include_dots(self):
+    def test_safe_filename_include_dots(self) -> None:
         """Test safe_filename including dots as unsafe - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         filename = "file.name.txt"
@@ -692,7 +693,7 @@ class TestSafeFilename:
         assert "." not in result
         assert result == "file_name_txt"
 
-    def test_safe_filename_already_safe(self):
+    def test_safe_filename_already_safe(self) -> None:
         """Test safe_filename with already safe filename - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         filename = "safe_filename.txt"
@@ -713,7 +714,7 @@ class TestSafeFilename:
 class TestTruncatePathComponent:
     """Tests for truncate_path_component function."""
 
-    def test_truncate_path_component_short_component(self):
+    def test_truncate_path_component_short_component(self) -> None:
         """Test truncate_path_component with short component - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         component = "short_name"
@@ -724,7 +725,7 @@ class TestTruncatePathComponent:
         # Assert - MANDATORY
         assert result == "short_name"
 
-    def test_truncate_path_component_long_component(self):
+    def test_truncate_path_component_long_component(self) -> None:
         """Test truncate_path_component with long component - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         component = "a" * 100
@@ -738,7 +739,7 @@ class TestTruncatePathComponent:
         assert result.startswith("a" * 25)
         assert result.endswith("a" * 21)
 
-    def test_truncate_path_component_exact_length(self):
+    def test_truncate_path_component_exact_length(self) -> None:
         """Test truncate_path_component at exact max length - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         component = "a" * 50
@@ -749,7 +750,7 @@ class TestTruncatePathComponent:
         # Assert - MANDATORY
         assert result == component
 
-    def test_truncate_path_component_very_short_max(self):
+    def test_truncate_path_component_very_short_max(self) -> None:
         """Test truncate_path_component with very short max - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         component = "very_long_component_name"
@@ -772,7 +773,7 @@ class TestTruncatePathComponent:
 class TestPathUtilsPerformance:
     """MANDATORY performance tests for path utilities."""
 
-    def test_normalize_path_separators_performance(self):
+    def test_normalize_path_separators_performance(self) -> None:
         """MANDATORY performance test - path normalization speed."""
         # Arrange - MANDATORY
         test_path = "C:\\Users\\test\\very\\long\\path\\to\\some\\file.txt"
@@ -792,7 +793,7 @@ class TestPathUtilsPerformance:
         assert avg_time < 0.00001  # <0.01ms per normalization
         assert execution_time < 1.0  # Total <1s for 100000 normalizations
 
-    def test_safe_filename_performance(self):
+    def test_safe_filename_performance(self) -> None:
         """MANDATORY performance test - safe filename generation speed."""
         # Arrange - MANDATORY
         unsafe_filename = 'test<file>:name"with|unsafe?.txt'
@@ -812,7 +813,7 @@ class TestPathUtilsPerformance:
         assert avg_time < 0.00002  # <0.02ms per safe filename
         assert execution_time < 1.0  # Total <1s for 50000 generations
 
-    def test_path_operations_batch_performance(self):
+    def test_path_operations_batch_performance(self) -> None:
         """MANDATORY performance test - batch path operations."""
         # Arrange - MANDATORY
         test_paths = [f"/home/user/dir{i}/file{i}.txt" for i in range(1000)]

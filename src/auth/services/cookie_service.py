@@ -16,7 +16,7 @@ logger = get_auth_logger()
 class CookieService:
     """Service for secure HTTP-only cookie management - SOLID Single Responsibility."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize cookie service with environment-aware settings."""
         self.environment = os.getenv("ENVIRONMENT", "development").lower()
         self.is_production = self.environment == "production"

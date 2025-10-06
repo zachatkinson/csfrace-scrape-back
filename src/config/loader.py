@@ -106,7 +106,10 @@ class ConfigLoader:
     def _load_json(config_path: Path) -> ConfigDict:
         """Load JSON configuration file."""
         with open(config_path, encoding="utf-8") as f:
-            loaded_config = json.load(f)
+            loaded_config_raw = json.load(f)
+            loaded_config: ConfigDict = (
+                loaded_config_raw if isinstance(loaded_config_raw, dict) else {}
+            )
             logger.info(
                 "Loaded JSON config", path=str(config_path), keys=list(loaded_config.keys())
             )

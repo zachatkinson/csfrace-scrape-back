@@ -56,7 +56,7 @@ def performance_tracer(performance_monitor: PerformanceMonitor) -> PerformanceTr
 class TestPerformanceConfig:
     """Tests for PerformanceConfig dataclass."""
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test PerformanceConfig has sensible defaults - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -72,7 +72,7 @@ class TestPerformanceConfig:
         assert config.detailed_metrics is True
         assert config.max_trace_history == 1000
 
-    def test_config_customization(self):
+    def test_config_customization(self) -> None:
         """Test PerformanceConfig allows customization - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -106,7 +106,7 @@ class TestPerformanceConfig:
 class TestRequestTrace:
     """Tests for RequestTrace dataclass."""
 
-    def test_request_trace_creation(self):
+    def test_request_trace_creation(self) -> None:
         """Test RequestTrace creation with required fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = "test-trace-123"
@@ -128,7 +128,7 @@ class TestRequestTrace:
         assert trace.error is None
         assert trace.correlation_id is None
 
-    def test_request_trace_duration_property(self):
+    def test_request_trace_duration_property(self) -> None:
         """Test RequestTrace duration property converts ms to seconds - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace = RequestTrace(
@@ -141,7 +141,7 @@ class TestRequestTrace:
         # Assert - MANDATORY
         assert duration_seconds == 5.0  # 5000ms = 5s
 
-    def test_request_trace_duration_none(self):
+    def test_request_trace_duration_none(self) -> None:
         """Test RequestTrace duration property when duration_ms is None - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace = RequestTrace(trace_id="test", operation="op", start_time=datetime.now(UTC))
@@ -162,7 +162,7 @@ class TestRequestTrace:
 class TestSpan:
     """Tests for Span dataclass."""
 
-    def test_span_creation(self):
+    def test_span_creation(self) -> None:
         """Test Span creation with required fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         span_id = "span-123"
@@ -189,7 +189,7 @@ class TestSpan:
         assert span.tags == {}
         assert span.logs == []
 
-    def test_span_duration_property(self):
+    def test_span_duration_property(self) -> None:
         """Test Span duration property converts ms to seconds - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         span = Span(
@@ -216,7 +216,7 @@ class TestSpan:
 class TestPerformanceMonitorInitialization:
     """Tests for PerformanceMonitor initialization."""
 
-    def test_monitor_initializes_with_config(self, performance_config: PerformanceConfig):
+    def test_monitor_initializes_with_config(self, performance_config: PerformanceConfig) -> None:
         """Test monitor initializes with provided config - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -232,7 +232,7 @@ class TestPerformanceMonitorInitialization:
         assert monitor.request_durations == {}
         assert monitor.slow_requests == []
 
-    def test_monitor_uses_default_config(self):
+    def test_monitor_uses_default_config(self) -> None:
         """Test monitor uses default config when none provided - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -253,7 +253,7 @@ class TestPerformanceMonitorInitialization:
 class TestTraceManagement:
     """Tests for trace start/finish operations."""
 
-    def test_start_trace_returns_trace_id(self, performance_monitor: PerformanceMonitor):
+    def test_start_trace_returns_trace_id(self, performance_monitor: PerformanceMonitor) -> None:
         """Test start_trace creates trace and returns ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "test_operation"
@@ -266,7 +266,7 @@ class TestTraceManagement:
         assert trace_id in performance_monitor.active_traces
         assert performance_monitor.active_traces[trace_id].operation == operation
 
-    def test_start_trace_with_metadata(self, performance_monitor: PerformanceMonitor):
+    def test_start_trace_with_metadata(self, performance_monitor: PerformanceMonitor) -> None:
         """Test start_trace includes metadata - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         operation = "test_op"
@@ -279,7 +279,7 @@ class TestTraceManagement:
         assert trace_id is not None
         assert performance_monitor.active_traces[trace_id].metadata == metadata
 
-    def test_start_trace_disabled_returns_none(self):
+    def test_start_trace_disabled_returns_none(self) -> None:
         """Test start_trace returns None when disabled - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PerformanceConfig(enabled=False)
@@ -291,10 +291,13 @@ class TestTraceManagement:
         # Assert - MANDATORY
         assert trace_id is None
 
-    def test_finish_trace_calculates_duration(self, performance_monitor: PerformanceMonitor):
+    def test_finish_trace_calculates_duration(
+        self, performance_monitor: PerformanceMonitor
+    ) -> None:
         """Test finish_trace calculates duration correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         time.sleep(0.1)  # Small delay
@@ -302,14 +305,16 @@ class TestTraceManagement:
 
         # Assert - MANDATORY
         assert trace is not None
+        assert trace.duration_ms is not None
         assert trace.duration_ms >= 100  # At least 100ms
         assert trace.end_time is not None
         assert trace.status == "success"
 
-    def test_finish_trace_moves_to_completed(self, performance_monitor: PerformanceMonitor):
+    def test_finish_trace_moves_to_completed(self, performance_monitor: PerformanceMonitor) -> None:
         """Test finish_trace moves trace to completed - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         performance_monitor.finish_trace(trace_id)
@@ -319,19 +324,21 @@ class TestTraceManagement:
         assert len(performance_monitor.completed_traces) == 1
         assert performance_monitor.completed_traces[0].trace_id == trace_id
 
-    def test_finish_trace_with_error(self, performance_monitor: PerformanceMonitor):
+    def test_finish_trace_with_error(self, performance_monitor: PerformanceMonitor) -> None:
         """Test finish_trace records error - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         trace = performance_monitor.finish_trace(trace_id, status="error", error="Test error")
 
         # Assert - MANDATORY
+        assert trace is not None
         assert trace.status == "error"
         assert trace.error == "Test error"
 
-    def test_finish_trace_maintains_history_limit(self):
+    def test_finish_trace_maintains_history_limit(self) -> None:
         """Test finish_trace maintains max_trace_history limit - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PerformanceConfig(max_trace_history=5)
@@ -340,6 +347,7 @@ class TestTraceManagement:
         # Create 10 traces
         for i in range(10):
             trace_id = monitor.start_trace(f"op_{i}")
+            assert trace_id is not None
             monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -357,13 +365,14 @@ class TestTraceManagement:
 class TestSlowRequestDetection:
     """Tests for slow request detection."""
 
-    def test_slow_request_threshold_detection(self):
+    def test_slow_request_threshold_detection(self) -> None:
         """Test slow requests are detected based on threshold - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PerformanceConfig(slow_request_threshold=0.05)  # 50ms
         monitor = PerformanceMonitor(config=config)
 
         trace_id = monitor.start_trace("slow_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         time.sleep(0.1)  # 100ms - exceeds threshold
@@ -373,7 +382,7 @@ class TestSlowRequestDetection:
         assert len(monitor.slow_requests) == 1
         assert monitor.slow_requests[0].trace_id == trace_id
 
-    def test_slow_requests_maintain_limit(self):
+    def test_slow_requests_maintain_limit(self) -> None:
         """Test slow_requests list maintains max 50 items - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PerformanceConfig(slow_request_threshold=0.0)  # All requests are slow
@@ -382,6 +391,7 @@ class TestSlowRequestDetection:
         # Create 60 slow requests
         for i in range(60):
             trace_id = monitor.start_trace(f"slow_op_{i}")
+            assert trace_id is not None
             monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -399,10 +409,11 @@ class TestSlowRequestDetection:
 class TestSpanManagement:
     """Tests for span start/finish operations."""
 
-    def test_start_span_creates_span(self, performance_monitor: PerformanceMonitor):
+    def test_start_span_creates_span(self, performance_monitor: PerformanceMonitor) -> None:
         """Test start_span creates span and returns ID - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         span_id = performance_monitor.start_span(trace_id, "database_query")
@@ -412,10 +423,11 @@ class TestSpanManagement:
         assert span_id in performance_monitor.active_spans
         assert performance_monitor.active_spans[span_id].operation_name == "database_query"
 
-    def test_start_span_adds_to_trace(self, performance_monitor: PerformanceMonitor):
+    def test_start_span_adds_to_trace(self, performance_monitor: PerformanceMonitor) -> None:
         """Test start_span adds span to trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         span_id = performance_monitor.start_span(trace_id, "database_query")
@@ -424,11 +436,13 @@ class TestSpanManagement:
         assert len(performance_monitor.active_traces[trace_id].spans) == 1
         assert performance_monitor.active_traces[trace_id].spans[0].span_id == span_id
 
-    def test_finish_span_calculates_duration(self, performance_monitor: PerformanceMonitor):
+    def test_finish_span_calculates_duration(self, performance_monitor: PerformanceMonitor) -> None:
         """Test finish_span calculates duration - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         span_id = performance_monitor.start_span(trace_id, "db_query")
+        assert span_id is not None
 
         # Act - MANDATORY
         time.sleep(0.05)  # 50ms delay
@@ -438,13 +452,16 @@ class TestSpanManagement:
         assert span_id not in performance_monitor.active_spans
         # Span is still in trace
         span = performance_monitor.active_traces[trace_id].spans[0]
+        assert span.duration_ms is not None
         assert span.duration_ms >= 50
 
-    def test_finish_span_with_tags(self, performance_monitor: PerformanceMonitor):
+    def test_finish_span_with_tags(self, performance_monitor: PerformanceMonitor) -> None:
         """Test finish_span accepts tags - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         span_id = performance_monitor.start_span(trace_id, "db_query")
+        assert span_id is not None
 
         # Act - MANDATORY
         tags = {"rows_affected": 10}
@@ -454,11 +471,13 @@ class TestSpanManagement:
         span = performance_monitor.active_traces[trace_id].spans[0]
         assert span.tags["rows_affected"] == 10
 
-    def test_add_span_log(self, performance_monitor: PerformanceMonitor):
+    def test_add_span_log(self, performance_monitor: PerformanceMonitor) -> None:
         """Test add_span_log adds log entry to span - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         span_id = performance_monitor.start_span(trace_id, "db_query")
+        assert span_id is not None
 
         # Act - MANDATORY
         performance_monitor.add_span_log(span_id, "Query executed", {"rows": 100})
@@ -479,10 +498,13 @@ class TestSpanManagement:
 class TestPerformanceSummary:
     """Tests for performance summary generation."""
 
-    def test_get_performance_summary_structure(self, performance_monitor: PerformanceMonitor):
+    def test_get_performance_summary_structure(
+        self, performance_monitor: PerformanceMonitor
+    ) -> None:
         """Test performance summary has correct structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         performance_monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -502,12 +524,13 @@ class TestPerformanceSummary:
 
     def test_get_performance_summary_calculates_metrics(
         self, performance_monitor: PerformanceMonitor
-    ):
+    ) -> None:
         """Test performance summary calculates metrics correctly - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Create multiple traces
         for i in range(5):
             trace_id = performance_monitor.start_trace("test_op")
+            assert trace_id is not None
             performance_monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -528,10 +551,11 @@ class TestPerformanceSummary:
 class TestTraceDetails:
     """Tests for trace detail retrieval."""
 
-    def test_get_trace_details_active_trace(self, performance_monitor: PerformanceMonitor):
+    def test_get_trace_details_active_trace(self, performance_monitor: PerformanceMonitor) -> None:
         """Test get_trace_details returns active trace info - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op", {"key": "value"})
+        assert trace_id is not None
 
         # Act - MANDATORY
         details = performance_monitor.get_trace_details(trace_id)
@@ -542,10 +566,13 @@ class TestTraceDetails:
         assert details["operation"] == "test_op"
         assert details["metadata"]["key"] == "value"
 
-    def test_get_trace_details_completed_trace(self, performance_monitor: PerformanceMonitor):
+    def test_get_trace_details_completed_trace(
+        self, performance_monitor: PerformanceMonitor
+    ) -> None:
         """Test get_trace_details returns completed trace info - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         performance_monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -556,7 +583,7 @@ class TestTraceDetails:
         assert details["trace_id"] == trace_id
         assert details["duration_ms"] is not None
 
-    def test_get_trace_details_nonexistent(self, performance_monitor: PerformanceMonitor):
+    def test_get_trace_details_nonexistent(self, performance_monitor: PerformanceMonitor) -> None:
         """Test get_trace_details returns None for nonexistent trace - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -576,10 +603,11 @@ class TestTraceDetails:
 class TestBottleneckIdentification:
     """Tests for bottleneck identification."""
 
-    def test_identify_bottlenecks_structure(self, performance_monitor: PerformanceMonitor):
+    def test_identify_bottlenecks_structure(self, performance_monitor: PerformanceMonitor) -> None:
         """Test identify_bottlenecks returns correct structure - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         performance_monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -592,7 +620,7 @@ class TestBottleneckIdentification:
         assert "frequent_errors" in bottlenecks
         assert "recommendations" in bottlenecks
 
-    def test_identify_bottlenecks_detects_slow_operations(self):
+    def test_identify_bottlenecks_detects_slow_operations(self) -> None:
         """Test bottleneck detection identifies slow operations - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         config = PerformanceConfig(slow_request_threshold=0.01)  # 10ms threshold
@@ -600,6 +628,7 @@ class TestBottleneckIdentification:
 
         # Create slow operation
         trace_id = monitor.start_trace("slow_op")
+        assert trace_id is not None
         time.sleep(0.05)  # 50ms - exceeds threshold
         monitor.finish_trace(trace_id)
 
@@ -620,7 +649,7 @@ class TestBottleneckIdentification:
 class TestTraceCleanup:
     """Tests for trace cleanup operations."""
 
-    def test_cleanup_old_traces(self, performance_monitor: PerformanceMonitor):
+    def test_cleanup_old_traces(self, performance_monitor: PerformanceMonitor) -> None:
         """Test cleanup removes old traces - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Create old trace
@@ -633,6 +662,7 @@ class TestTraceCleanup:
 
         # Create recent trace
         trace_id = performance_monitor.start_trace("recent_op")
+        assert trace_id is not None
         performance_monitor.finish_trace(trace_id)
 
         # Act - MANDATORY
@@ -653,7 +683,9 @@ class TestTraceCleanup:
 class TestAsyncContextManagers:
     """Tests for async context managers."""
 
-    async def test_trace_request_context_manager(self, performance_monitor: PerformanceMonitor):
+    async def test_trace_request_context_manager(
+        self, performance_monitor: PerformanceMonitor
+    ) -> None:
         """Test trace_request context manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -667,10 +699,11 @@ class TestAsyncContextManagers:
         assert trace_id not in performance_monitor.active_traces
         assert len(performance_monitor.completed_traces) == 1
 
-    async def test_trace_span_context_manager(self, performance_tracer: PerformanceTracer):
+    async def test_trace_span_context_manager(self, performance_tracer: PerformanceTracer) -> None:
         """Test trace_span context manager - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_tracer.monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         async with performance_tracer.trace_span(trace_id, "db_query") as span_id:
@@ -692,10 +725,13 @@ class TestAsyncContextManagers:
 class TestShutdown:
     """Tests for performance monitor shutdown."""
 
-    async def test_shutdown_finishes_active_traces(self, performance_monitor: PerformanceMonitor):
+    async def test_shutdown_finishes_active_traces(
+        self, performance_monitor: PerformanceMonitor
+    ) -> None:
         """Test shutdown finishes active traces - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
 
         # Act - MANDATORY
         await performance_monitor.shutdown()
@@ -716,7 +752,7 @@ class TestShutdown:
 class TestPerformanceSecurity:
     """MANDATORY security tests for performance monitoring."""
 
-    def test_trace_metadata_sanitization(self, performance_monitor: PerformanceMonitor):
+    def test_trace_metadata_sanitization(self, performance_monitor: PerformanceMonitor) -> None:
         """MANDATORY security test - trace metadata with malicious content."""
         # Arrange - MANDATORY
         malicious_metadata = {
@@ -734,10 +770,11 @@ class TestPerformanceSecurity:
         trace = performance_monitor.active_traces[trace_id]
         assert trace.metadata == malicious_metadata
 
-    def test_span_tags_sanitization(self, performance_monitor: PerformanceMonitor):
+    def test_span_tags_sanitization(self, performance_monitor: PerformanceMonitor) -> None:
         """MANDATORY security test - span tags with malicious content."""
         # Arrange - MANDATORY
         trace_id = performance_monitor.start_trace("test_op")
+        assert trace_id is not None
         malicious_tags = {
             "query": "SELECT * FROM users WHERE id = '1' OR '1'='1'",
             "filename": "../../../../etc/shadow",
@@ -762,7 +799,7 @@ class TestPerformanceSecurity:
 class TestPerformancePerformance:
     """MANDATORY performance tests for performance monitoring system."""
 
-    def test_start_trace_performance(self, performance_monitor: PerformanceMonitor):
+    def test_start_trace_performance(self, performance_monitor: PerformanceMonitor) -> None:
         """MANDATORY performance test - trace start speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -781,7 +818,7 @@ class TestPerformancePerformance:
         assert avg_time < 0.001  # <1ms per trace start
         assert execution_time < 1.0  # Total <1s for 1000 traces
 
-    def test_finish_trace_performance(self, performance_monitor: PerformanceMonitor):
+    def test_finish_trace_performance(self, performance_monitor: PerformanceMonitor) -> None:
         """MANDATORY performance test - trace finish speed."""
         # Arrange - MANDATORY
         iterations = 1000
@@ -789,7 +826,8 @@ class TestPerformancePerformance:
 
         for i in range(iterations):
             trace_id = performance_monitor.start_trace(f"test_op_{i}")
-            trace_ids.append(trace_id)
+            if trace_id is not None:
+                trace_ids.append(trace_id)
 
         # Act - MANDATORY
         start_time = time.perf_counter()
@@ -805,12 +843,15 @@ class TestPerformancePerformance:
         assert avg_time < 0.001  # <1ms per trace finish
         assert execution_time < 1.0  # Total <1s for 1000 traces
 
-    def test_identify_bottlenecks_performance(self, performance_monitor: PerformanceMonitor):
+    def test_identify_bottlenecks_performance(
+        self, performance_monitor: PerformanceMonitor
+    ) -> None:
         """MANDATORY performance test - bottleneck identification speed."""
         # Arrange - MANDATORY
         # Create sample data
         for i in range(100):
             trace_id = performance_monitor.start_trace(f"op_{i % 5}")
+            assert trace_id is not None
             performance_monitor.finish_trace(trace_id)
 
         iterations = 100

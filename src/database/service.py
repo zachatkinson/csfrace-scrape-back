@@ -6,11 +6,13 @@ with proper error handling, transaction management, and connection pooling.
 Refactored to follow Single Responsibility Principle by delegating to focused services.
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.decorators import database_error_handler
 from src.core.logging_hierarchy import get_database_logger
@@ -89,7 +91,7 @@ class DatabaseService:
         )
 
     @classmethod
-    def _create_with_engine(cls, engine):
+    def _create_with_engine(cls, engine: Engine) -> "DatabaseService":
         """Create DatabaseService with existing engine (for testcontainers).
 
         Args:
@@ -141,7 +143,7 @@ class DatabaseService:
             conn.commit()
 
     @contextmanager
-    def get_session(self):
+    def get_session(self) -> Generator[Session]:
         """Context manager for database sessions with automatic cleanup.
 
         Yields:
@@ -285,7 +287,7 @@ class DatabaseService:
     # Batch Operations - Delegate to JobService
 
     @database_error_handler("create batch jobs")
-    def create_jobs(self, urls: list[str], **job_config) -> list[ScrapingJob]:
+    def create_jobs(self, urls: list[str], **job_config: Any) -> list[ScrapingJob]:
         """Create jobs from URL array with automatic batch detection.
 
         Elegant approach:
@@ -340,7 +342,7 @@ class DatabaseService:
         html_content: str | None = None,
         metadata: dict[str, Any] | None = None,
         file_paths: dict[str, str] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ContentResult:
         """Save converted content and metadata for a job.
 

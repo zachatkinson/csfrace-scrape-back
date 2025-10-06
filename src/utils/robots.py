@@ -26,7 +26,7 @@ logger = get_scraping_logger()
 class RobotsChecker:
     """Handles robots.txt compliance and crawl delay enforcement."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize robots checker with cache."""
         self._cache: dict[str, RobotFileParser | None] = {}
         self._last_request: dict[str, float] = {}
@@ -84,8 +84,11 @@ class RobotsChecker:
                         rp = RobotFileParser()
                         rp.set_url(robots_url)
 
-                        # Parse the content line by line - decode bytes to string
-                        text_content = robots_content.decode("utf-8", errors="ignore")
+                        # Parse the content line by line - decode bytes to string if needed
+                        if isinstance(robots_content, bytes):
+                            text_content = robots_content.decode("utf-8", errors="ignore")
+                        else:
+                            text_content = str(robots_content)
                         lines = text_content.splitlines()
                         rp.parse(lines)
 

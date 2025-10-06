@@ -178,7 +178,7 @@ class DIContainer(ServiceProvider):
         self,
         service_type: type,
         implementation_type: type | None,
-        factory: Callable | None,
+        factory: Callable[..., Any] | None,
         instance: Any,
         lifetime: ServiceLifetime,
         configuration: dict[str, Any],
@@ -298,7 +298,7 @@ class DIContainer(ServiceProvider):
         self._instances[service_type] = instance
 
         logger.debug(f"Created singleton instance of {service_type.__name__}")
-        return cast("T", instance)
+        return instance
 
     async def _get_scoped(self, service_type: type[T], descriptor: ServiceDescriptor) -> T:
         """Get or create scoped instance."""
@@ -310,7 +310,7 @@ class DIContainer(ServiceProvider):
         self._scoped_instances[service_type] = instance
 
         logger.debug(f"Created scoped instance of {service_type.__name__}")
-        return cast("T", instance)
+        return instance
 
     @api_error_handler("create service instance")
     async def _create_instance(self, service_type: type[T], descriptor: ServiceDescriptor) -> T:
@@ -362,7 +362,7 @@ class DIContainer(ServiceProvider):
 
         return cast("T", instance)
 
-    async def _invoke_factory(self, factory: Callable, dependencies: list[type]) -> Any:
+    async def _invoke_factory(self, factory: Callable[..., Any], dependencies: list[type]) -> Any:
         """Invoke factory function with dependency injection."""
         # Resolve dependencies for factory
         resolved_dependencies = []

@@ -1,7 +1,7 @@
 """WebAuthn and Passkey authentication Pydantic models following SOLID principles."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -28,7 +28,7 @@ class PasskeyRegistrationRequest(BaseModel):
 class PasskeyRegistrationResponse(BaseModel):
     """Passkey registration response - Interface Segregation."""
 
-    public_key: dict
+    public_key: dict[str, Any]
     challenge_key: str
     device_name: str
 
@@ -42,7 +42,7 @@ class PasskeyAuthenticationRequest(BaseModel):
 class PasskeyAuthenticationResponse(BaseModel):
     """Passkey authentication response - Consistent interface."""
 
-    public_key: dict
+    public_key: dict[str, Any]
     challenge_key: str
 
 
@@ -50,7 +50,7 @@ class PasskeyCredentialRequest(BaseModel):
     """Passkey credential operation request - DRY validation."""
 
     challenge_key: str
-    credential_response: dict
+    credential_response: dict[str, Any]
     device_name: str | None = None
 
     @field_validator("challenge_key")
@@ -63,7 +63,7 @@ class PasskeyCredentialRequest(BaseModel):
 
     @field_validator("credential_response")
     @classmethod
-    def validate_credential_response(cls, v: dict) -> dict:
+    def validate_credential_response(cls, v: dict[str, Any]) -> dict[str, Any]:
         """DRY: Validate credential response structure."""
         required_fields = ["id", "type", "response"]
         if not all(field in v for field in required_fields):
@@ -77,7 +77,7 @@ class PasskeySummary(BaseModel):
     total_passkeys: int
     active_passkeys: int
     last_used: datetime | None = None
-    devices: list[dict]
+    devices: list[dict[str, Any]]
 
 
 class PasskeyDevice(BaseModel):
@@ -108,7 +108,7 @@ class WebAuthnRegistrationComplete(BaseModel):
     """WebAuthn registration completion request model - Interface Segregation."""
 
     challengeKey: str = Field(min_length=1, max_length=200)
-    credential: dict
+    credential: dict[str, Any]
     deviceName: str | None = Field(default="Default Device", max_length=255)
 
 
@@ -130,7 +130,7 @@ class WebAuthnAuthenticationComplete(BaseModel):
     """WebAuthn authentication completion request model - Interface Segregation."""
 
     challengeKey: str = Field(min_length=1, max_length=200)
-    credential: dict
+    credential: dict[str, Any]
 
 
 class WebAuthnCredentialResponse(BaseModel):

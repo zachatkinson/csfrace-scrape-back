@@ -19,11 +19,13 @@ import platform
 import sys
 import time
 from datetime import datetime
+from typing import Any
 from unittest.mock import patch
 
 import asyncio
 import pytest
 from fastapi import APIRouter
+from fastapi.routing import APIRoute
 
 from src.api.routers.health.system_info import (
     SystemInfoResponse,
@@ -38,7 +40,7 @@ from src.api.routers.health.system_info import (
 
 
 @pytest.fixture
-def sample_system_info():
+def sample_system_info() -> dict[str, Any]:
     """Factory for sample system info - DRY principle."""
     return {
         "platform": "Darwin",
@@ -63,7 +65,7 @@ def sample_system_info():
 class TestSystemInfoRouter:
     """Tests for system info router configuration."""
 
-    def test_router_exists(self):
+    def test_router_exists(self) -> None:
         """Test that system info router exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -71,20 +73,24 @@ class TestSystemInfoRouter:
         assert router is not None
         assert isinstance(router, APIRouter)
 
-    def test_router_has_system_endpoint(self):
+    def test_router_has_system_endpoint(self) -> None:
         """Test router has /system endpoint - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        routes = [route.path for route in router.routes]
+        routes = [route.path for route in router.routes if isinstance(route, APIRoute)]
 
         # Assert - MANDATORY
         assert "/system" in routes
 
-    def test_system_endpoint_uses_get_method(self):
+    def test_system_endpoint_uses_get_method(self) -> None:
         """Test system endpoint uses GET method - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
-        system_route = next(route for route in router.routes if route.path == "/system")
+        system_route = next(
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path == "/system"
+        )
 
         # Assert - MANDATORY
         assert "GET" in system_route.methods
@@ -99,14 +105,16 @@ class TestSystemInfoRouter:
 class TestSystemInfoResponseModel:
     """Tests for SystemInfoResponse model."""
 
-    def test_system_info_response_model_exists(self):
+    def test_system_info_response_model_exists(self) -> None:
         """Test SystemInfoResponse model exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert SystemInfoResponse is not None
 
-    def test_system_info_response_has_required_fields(self, sample_system_info):
+    def test_system_info_response_has_required_fields(
+        self, sample_system_info: dict[str, Any]
+    ) -> None:
         """Test SystemInfoResponse has all required fields - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -124,7 +132,7 @@ class TestSystemInfoResponseModel:
         assert hasattr(response, "uptime_seconds")
         assert hasattr(response, "startup_time")
 
-    def test_system_info_response_validates_types(self, sample_system_info):
+    def test_system_info_response_validates_types(self, sample_system_info: dict[str, Any]) -> None:
         """Test SystemInfoResponse validates field types - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -152,14 +160,14 @@ class TestSystemInfoResponseModel:
 class TestApplicationVersion:
     """Tests for application version detection."""
 
-    def test_get_application_version_exists(self):
+    def test_get_application_version_exists(self) -> None:
         """Test _get_application_version function exists - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
         # Assert - MANDATORY
         assert callable(_get_application_version)
 
-    def test_get_application_version_returns_string(self):
+    def test_get_application_version_returns_string(self) -> None:
         """Test _get_application_version returns string - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -169,7 +177,7 @@ class TestApplicationVersion:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    def test_get_application_version_handles_exception(self):
+    def test_get_application_version_handles_exception(self) -> None:
         """Test _get_application_version returns fallback on exception - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
 
@@ -191,7 +199,7 @@ class TestApplicationVersion:
 class TestSystemInfoEndpoint:
     """Tests for GET /system endpoint."""
 
-    async def test_system_info_returns_system_info_response(self):
+    async def test_system_info_returns_system_info_response(self) -> None:
         """Test system_info returns SystemInfoResponse - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -200,7 +208,7 @@ class TestSystemInfoEndpoint:
         # Assert - MANDATORY
         assert isinstance(result, SystemInfoResponse)
 
-    async def test_system_info_includes_platform(self):
+    async def test_system_info_includes_platform(self) -> None:
         """Test system_info includes platform - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -211,7 +219,7 @@ class TestSystemInfoEndpoint:
         assert isinstance(result.platform, str)
         assert len(result.platform) > 0
 
-    async def test_system_info_includes_python_version(self):
+    async def test_system_info_includes_python_version(self) -> None:
         """Test system_info includes python version - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -222,7 +230,7 @@ class TestSystemInfoEndpoint:
         assert isinstance(result.python_version, str)
         assert len(result.python_version) > 0
 
-    async def test_system_info_includes_app_version(self):
+    async def test_system_info_includes_app_version(self) -> None:
         """Test system_info includes app version - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -234,7 +242,7 @@ class TestSystemInfoEndpoint:
         # Should be either detected version or fallback "1.0.0"
         assert len(result.app_version) > 0
 
-    async def test_system_info_includes_uptime(self):
+    async def test_system_info_includes_uptime(self) -> None:
         """Test system_info includes uptime - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -245,7 +253,7 @@ class TestSystemInfoEndpoint:
         assert isinstance(result.uptime_seconds, int)
         assert result.uptime_seconds >= 0
 
-    async def test_system_info_includes_startup_time(self):
+    async def test_system_info_includes_startup_time(self) -> None:
         """Test system_info includes startup time - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -255,7 +263,7 @@ class TestSystemInfoEndpoint:
         assert result.startup_time is not None
         assert isinstance(result.startup_time, datetime)
 
-    async def test_system_info_platform_matches_system(self):
+    async def test_system_info_platform_matches_system(self) -> None:
         """Test system_info platform matches platform.system() - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_platform = platform.system()
@@ -266,7 +274,7 @@ class TestSystemInfoEndpoint:
         # Assert - MANDATORY
         assert result.platform == expected_platform
 
-    async def test_system_info_python_version_matches_sys(self):
+    async def test_system_info_python_version_matches_sys(self) -> None:
         """Test system_info python version matches sys.version - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         expected_version = sys.version
@@ -277,7 +285,7 @@ class TestSystemInfoEndpoint:
         # Assert - MANDATORY
         assert result.python_version == expected_version
 
-    async def test_system_info_architecture_is_valid(self):
+    async def test_system_info_architecture_is_valid(self) -> None:
         """Test system_info architecture is valid - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -302,7 +310,7 @@ class TestSystemInfoEndpoint:
 class TestUptimeTracking:
     """Tests for uptime tracking functionality."""
 
-    async def test_uptime_increases_over_time(self):
+    async def test_uptime_increases_over_time(self) -> None:
         """Test uptime increases between calls - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -319,7 +327,7 @@ class TestUptimeTracking:
         # Uptime should be the same or slightly higher (within 1 second tolerance)
         assert uptime2 >= uptime1
 
-    async def test_startup_time_is_consistent(self):
+    async def test_startup_time_is_consistent(self) -> None:
         """Test startup time remains consistent - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -344,7 +352,7 @@ class TestUptimeTracking:
 class TestSystemInfoIntegration:
     """Integration tests for system info endpoints."""
 
-    async def test_system_info_endpoint_accessible(self):
+    async def test_system_info_endpoint_accessible(self) -> None:
         """Test system info endpoint is accessible - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -354,7 +362,7 @@ class TestSystemInfoIntegration:
         assert result is not None
         assert isinstance(result, SystemInfoResponse)
 
-    async def test_system_info_provides_complete_data(self):
+    async def test_system_info_provides_complete_data(self) -> None:
         """Test system info provides all required data - MANDATORY AAA pattern."""
         # Arrange - MANDATORY
         # Act - MANDATORY
@@ -385,7 +393,7 @@ class TestSystemInfoIntegration:
 class TestSystemInfoPerformance:
     """MANDATORY performance tests for system info endpoints."""
 
-    async def test_system_info_endpoint_performance(self):
+    async def test_system_info_endpoint_performance(self) -> None:
         """MANDATORY performance test - system info endpoint speed."""
         # Arrange - MANDATORY
         iterations = 100
@@ -404,7 +412,7 @@ class TestSystemInfoPerformance:
         assert avg_time < 0.01  # <10ms per call
         assert execution_time < 1.0  # Total <1s for 100 calls
 
-    async def test_system_info_data_collection_performance(self):
+    async def test_system_info_data_collection_performance(self) -> None:
         """MANDATORY performance test - system data collection speed."""
         # Arrange - MANDATORY
         iterations = 100

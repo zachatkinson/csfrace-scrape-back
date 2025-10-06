@@ -6,6 +6,7 @@ import inspect
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from src.core.decorators import database_error_handler
 from src.core.logging_hierarchy import get_general_logger
@@ -18,7 +19,7 @@ logger = get_general_logger()
 class PluginRegistry:
     """Registry for managing plugin discovery and registration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the plugin registry."""
         self._plugins: dict[str, type[BasePlugin]] = {}
         self._plugin_configs: dict[str, PluginConfig] = {}
@@ -278,7 +279,7 @@ class PluginRegistry:
     @database_error_handler("get plugin info")
     def _get_plugin_info_safe(
         self, plugin_class: type[BasePlugin], config: PluginConfig | None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Get plugin info with error handling."""
         temp_config = config or PluginConfig(
             name=plugin_class.__name__, version="1.0.0", plugin_type=PluginType.HTML_PROCESSOR

@@ -274,7 +274,7 @@ class DistributedTokenBucket:
         return
 
     @monitoring_error_handler("check Redis health")
-    async def _check_redis_health(self, health: dict) -> None:
+    async def _check_redis_health(self, health: dict[str, str | bool | int]) -> None:
         """Check Redis health with error handling."""
         if self.redis_client is None:
             health["redis_available"] = False

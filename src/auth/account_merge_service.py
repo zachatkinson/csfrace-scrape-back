@@ -14,6 +14,7 @@ SOLID Principles Applied:
 import secrets
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import jwt
 from sqlalchemy.orm import Session
@@ -54,7 +55,7 @@ class IMergeValidator(ABC):
     """Interface Segregation: Separate interface for merge validation."""
 
     @abstractmethod
-    def validate_merge_token(self, merge_token: str) -> dict:
+    def validate_merge_token(self, merge_token: str) -> dict[str, Any]:
         """Validate and decode merge token."""
 
     @abstractmethod
@@ -103,10 +104,12 @@ class MergeTokenGenerator:
         return token
 
     @staticmethod
-    def validate_merge_token(merge_token: str) -> dict:
+    def validate_merge_token(merge_token: str) -> dict[str, Any]:
         """Validate and decode merge token."""
         try:
-            payload = jwt.decode(merge_token, MERGE_TOKEN_SECRET, algorithms=["HS256"])
+            payload: dict[str, Any] = jwt.decode(
+                merge_token, MERGE_TOKEN_SECRET, algorithms=["HS256"]
+            )
             logger.debug("Merge token validated successfully", jti=payload.get("jti"))
             return payload
         except jwt.ExpiredSignatureError:
@@ -173,7 +176,7 @@ class MergeValidator(IMergeValidator):
     def __init__(self, db_session: Session):
         self.db_session = db_session
 
-    def validate_merge_token(self, merge_token: str) -> dict:
+    def validate_merge_token(self, merge_token: str) -> dict[str, Any]:
         """Delegate to token generator for validation."""
         return MergeTokenGenerator.validate_merge_token(merge_token)
 

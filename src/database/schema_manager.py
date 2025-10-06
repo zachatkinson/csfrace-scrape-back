@@ -15,7 +15,7 @@ from pathlib import Path
 from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from alembic import command
 from src.core.decorators import database_error_handler
@@ -148,7 +148,7 @@ class SchemaManager:
 
             logger.info("Critical schema elements ensured successfully")
 
-    async def _create_indexes(self, conn) -> None:
+    async def _create_indexes(self, conn: AsyncConnection) -> None:
         """Create indexes if they don't exist."""
         indexes = [
             ("idx_jobs_user_id", "jobs", "user_id"),
@@ -195,7 +195,7 @@ class SchemaManager:
 
     @database_error_handler("create database index")
     async def _create_single_index_safe(
-        self, conn, index_name: str, table_name: str, column_name: str
+        self, conn: AsyncConnection, index_name: str, table_name: str, column_name: str
     ) -> None:
         """Create a single index with error handling.
 
