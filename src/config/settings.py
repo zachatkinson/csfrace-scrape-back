@@ -41,15 +41,15 @@ class AppConfig(BaseConfig):
 
     # Domain configurations - loaded from environment variables
     auth: AuthConfig = Field(
-        default_factory=lambda: AuthConfig(),
+        default_factory=AuthConfig,
         description="Authentication configuration",
     )
     database: DatabaseConfig = Field(
-        default_factory=lambda: DatabaseConfig(),
+        default_factory=DatabaseConfig,
         description="Database configuration",
     )
     converter: ConverterConfig = Field(
-        default_factory=lambda: ConverterConfig(),
+        default_factory=ConverterConfig,
         description="Converter configuration",
     )
 

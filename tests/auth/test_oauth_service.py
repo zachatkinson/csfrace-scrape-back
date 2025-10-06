@@ -177,7 +177,9 @@ class TestOAuthServiceInitiateLogin:
         assert "mock_jwt_state" in result.state
         assert result.authorization_url is not None
         if IMPORTS_AVAILABLE:
-            assert "accounts.google.com" in result.authorization_url
+            from urllib.parse import urlparse
+            parsed_url = urlparse(result.authorization_url)
+            assert parsed_url.netloc == "accounts.google.com"
 
     @pytest.mark.unit
     def test_initiate_oauth_login_github_success(self, oauth_service: Any) -> None:
@@ -416,7 +418,9 @@ class TestGoogleOAuthProvider:
 
         # Assert
         if IMPORTS_AVAILABLE:
-            assert "accounts.google.com" in url
+            from urllib.parse import urlparse
+            parsed_url = urlparse(url)
+            assert parsed_url.netloc == "accounts.google.com"
             assert "client_id=mock_google_client_id" in url
             assert f"state={state}" in url
             assert "redirect_uri" in url
@@ -482,7 +486,9 @@ class TestGitHubOAuthProvider:
 
         # Assert
         if IMPORTS_AVAILABLE:
-            assert "github.com" in url
+            from urllib.parse import urlparse
+            parsed_url = urlparse(url)
+            assert parsed_url.netloc == "github.com"
             assert "client_id=mock_github_client_id" in url
             assert f"state={state}" in url
         else:

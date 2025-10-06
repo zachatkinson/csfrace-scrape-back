@@ -296,7 +296,11 @@ class MediaProcessor(ContentExtractorBase):
             src_str = (
                 src if isinstance(src, str) else " ".join(src) if isinstance(src, list) else ""
             )
-            if "youtube.com" in src_str or "youtu.be" in src_str:
+            # Secure URL validation: parse and check actual domain
+            from urllib.parse import urlparse
+            parsed = urlparse(src_str)
+            allowed_domains = {"youtube.com", "www.youtube.com", "youtu.be", "www.youtu.be"}
+            if parsed.netloc in allowed_domains:
                 # Wrap in responsive container (BeautifulSoup returns Any type, but it's actually a Tag)
                 wrapper_tag = content.new_tag("div")  # type: ignore[misc]
                 if isinstance(wrapper_tag, Tag):
