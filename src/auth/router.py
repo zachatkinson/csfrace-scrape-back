@@ -1270,6 +1270,156 @@ async def auth_status_stream(request: Request) -> StreamingResponse:
     )
 
 
+@router.post("/oauth/facebook/data-deletion")
+@oauth_error_handler("Facebook data deletion callback")
+async def facebook_data_deletion_callback(
+    request: Request,
+    db_service: DatabaseService = Depends(get_database_service),
+) -> JSONResponse:
+    """
+    Handle Facebook's data deletion callback.
+
+    This endpoint is required by Facebook's Platform Policy for apps in Live mode.
+    Facebook calls this endpoint when a user requests data deletion through Facebook.
+
+    The signed_request contains:
+    - user_id: Facebook user ID
+    - algorithm: HMAC-SHA256 (verified)
+    - issued_at: Request timestamp
+
+    **Process:**
+    1. Verify HMAC signature from Facebook
+    2. Extract Facebook user ID from signed_request
+    3. Find user in database by provider_id
+    4. Delete all user data
+    5. Return confirmation URL and code
+
+    **Response Format (required by Facebook):**
+    ```json
+    {
+        "url": "https://localhost:3000/privacy/facebook-data-deletion?code=...",
+        "confirmation_code": "fb_12345678_abc123def456..."
+    }
+    ```
+
+    Args:
+        request: FastAPI request containing signed_request form data
+        db_service: Database service for user lookup and deletion
+
+    Returns:
+        JSONResponse with confirmation URL and code
+
+    Raises:
+        HTTPException: If signature invalid or deletion fails
+
+    @see https://developers.facebook.com/docs/development/create-an-app/app-dashboard/data-deletion-callback
+    """
+    from src.auth.facebook_data_deletion import facebook_data_deletion_handler
+    from src.constants.auth import OAUTH_REDIRECT_URI_BASE
+
+    # Get form data from Facebook request
+    form_data = await request.form()
+    signed_request = form_data.get("signed_request")
+
+    if not signed_request:
+        logger.warning("Facebook data deletion request missing signed_request parameter")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing signed_request parameter",
+        )
+
+    # Parse and verify signed request
+    try:
+        data = facebook_data_deletion_handler.parse_signed_request(signed_request)
+
+        if not data:
+            logger.error("Invalid signature in Facebook data deletion request")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid signature",
+            )
+
+        # Extract Facebook user ID
+        facebook_user_id = data.get("user_id")
+        if not facebook_user_id:
+            logger.error("Missing user_id in Facebook signed_request", data=data)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing user_id in request",
+            )
+
+        # Find user by Facebook provider ID
+        provider_id = f"facebook_{facebook_user_id}"
+
+        logger.info(
+            "Processing Facebook data deletion request",
+            facebook_user_id=facebook_user_id,
+            provider_id=provider_id,
+        )
+
+        # Query database for user with this Facebook provider ID
+        with db_service.get_session() as session:
+            user = session.query(User).filter(User.provider_id == provider_id).first()
+
+            if user:
+                # User found - delete their account
+                user_id = user.id
+                user_email = user.email
+
+                # Delete the user
+                session.delete(user)
+                session.commit()
+
+                logger.info(
+                    "Deleted user account via Facebook data deletion callback",
+                    user_id=user_id,
+                    facebook_user_id=facebook_user_id,
+                    email=user_email,
+                )
+
+                deletion_status = "completed"
+            else:
+                # User not found - they may have already deleted their account
+                logger.info(
+                    "User not found for Facebook data deletion",
+                    facebook_user_id=facebook_user_id,
+                    provider_id=provider_id,
+                )
+                deletion_status = "not_found"
+
+        # Generate confirmation code
+        confirmation_code = facebook_data_deletion_handler.generate_confirmation_code(
+            facebook_user_id
+        )
+
+        # Construct confirmation URL (required by Facebook)
+        # User can visit this URL to verify their data deletion
+        confirmation_url = (
+            f"{OAUTH_REDIRECT_URI_BASE}/privacy/"
+            f"facebook-data-deletion?code={confirmation_code}&status={deletion_status}"
+        )
+
+        logger.info(
+            "Facebook data deletion request processed",
+            facebook_user_id=facebook_user_id,
+            confirmation_code=confirmation_code,
+            status=deletion_status,
+        )
+
+        # Return response in format required by Facebook
+        return JSONResponse(
+            status_code=200,
+            content={"url": confirmation_url, "confirmation_code": confirmation_code},
+        )
+
+    except ValueError as e:
+        logger.error("Invalid signed_request format", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid request format: {e}",
+        )
+
+
 @router.delete("/account")
 @auth_error_handler("account deletion")
 async def delete_user_account(
