@@ -7,6 +7,7 @@ This module contains all application middleware including:
 - Helper functions for middleware
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
@@ -15,7 +16,6 @@ from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
 
 if TYPE_CHECKING:
@@ -37,12 +37,15 @@ class SecurityMiddleware:
         )
 
     @staticmethod
-    @api_error_handler("add security headers")
     async def add_security_headers(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """Add comprehensive security headers to all responses."""
-        response: Response = await call_next(request)
+        try:
+            response: Response = await call_next(request)
+        except Exception as e:
+            logger.error("Error in request processing", error=str(e))
+            raise
 
         # X-Frame-Options: Prevent clickjacking attacks
         response.headers["X-Frame-Options"] = "DENY"
@@ -109,7 +112,6 @@ class MetricsMiddleware:
     """Application metrics collection middleware."""
 
     @staticmethod
-    @api_error_handler("collect metrics")
     async def collect_metrics_middleware(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
@@ -125,21 +127,30 @@ class MetricsMiddleware:
             skip_response: Response = await call_next(request)
             return skip_response
 
-        # Increment active requests and connections
-        metrics_collector.increment_active_connections()
-        if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
-            _increment_active_requests_safe(metrics_collector)
+        try:
+            # Increment active requests and connections
+            metrics_collector.increment_active_connections()
+            if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+                _increment_active_requests_safe(metrics_collector)
 
-        response: Response = await _handle_request_with_metrics_safe(
-            call_next, request, metrics_collector, method, path, start_time
-        )
+            response: Response = await _handle_request_with_metrics_safe(
+                call_next, request, metrics_collector, method, path, start_time
+            )
 
-        # Decrement active requests and connections
-        metrics_collector.decrement_active_connections()
-        if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
-            _decrement_active_requests_safe(metrics_collector)
+            # Decrement active requests and connections
+            metrics_collector.decrement_active_connections()
+            if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+                _decrement_active_requests_safe(metrics_collector)
 
-        return response
+            return response
+        except Exception as e:
+            # Decrement on error
+            metrics_collector.decrement_active_connections()
+            if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
+                with contextlib.suppress(Exception):
+                    metrics_collector.metrics["active_requests"].dec()
+            logger.error("Error in metrics collection", error=str(e))
+            raise
 
 
 class CORSConfiguration:
@@ -182,19 +193,22 @@ def setup_middleware(app: "FastAPI", allowed_origins: list[str]) -> None:
     logger.info("Application middleware setup completed")
 
 
-@api_error_handler("increment active requests metric")
 def _increment_active_requests_safe(metrics_collector: Any) -> None:
     """Safely increment active requests metric."""
-    metrics_collector.metrics["active_requests"].inc()
+    try:
+        metrics_collector.metrics["active_requests"].inc()
+    except Exception as e:
+        logger.error("Failed to increment active requests", error=str(e))
 
 
-@api_error_handler("decrement active requests metric")
 def _decrement_active_requests_safe(metrics_collector: Any) -> None:
     """Safely decrement active requests metric."""
-    metrics_collector.metrics["active_requests"].dec()
+    try:
+        metrics_collector.metrics["active_requests"].dec()
+    except Exception as e:
+        logger.error("Failed to decrement active requests", error=str(e))
 
 
-@api_error_handler("handle request with metrics")
 async def _handle_request_with_metrics_safe(
     call_next: Callable[[Request], Awaitable[Response]],
     request: Request,
@@ -210,12 +224,18 @@ async def _handle_request_with_metrics_safe(
 
         # Record successful request
         duration = time.time() - start_time
-        metrics_collector.record_request(method, path, status_code, duration)
+        try:
+            metrics_collector.record_request(method, path, status_code, duration)
+        except Exception as e:
+            logger.error("Failed to record request metrics", error=str(e))
 
         return response
 
     except Exception:
         # Record failed request
         duration = time.time() - start_time
-        metrics_collector.record_request(method, path, 500, duration)
+        try:
+            metrics_collector.record_request(method, path, 500, duration)
+        except Exception as e:
+            logger.error("Failed to record failed request metrics", error=str(e))
         raise

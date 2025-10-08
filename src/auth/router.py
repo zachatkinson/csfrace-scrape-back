@@ -455,12 +455,12 @@ def initiate_oauth_login_redirect(
     return RedirectResponse(url=sso_response.authorization_url, status_code=status.HTTP_302_FOUND)
 
 
-@router.get("/oauth/{provider}/callback", response_model=Token)
+@router.get("/oauth/{provider}/callback", response_model=None)
 @limiter.limit(rate_limits.AUTH_OAUTH)
 @oauth_error_handler("OAuth callback processing")
 async def handle_oauth_callback(
     request: Request,  # Required for SlowAPI rate limiting and query params
-    response: Response,  # Required for setting HTTP-only cookies
+    response: Response,  # Not used but kept for compatibility
     provider: OAuthProvider,
     code: str | None = None,
     state: str | None = None,
@@ -468,7 +468,7 @@ async def handle_oauth_callback(
     error_description: str | None = None,
     oauth_service: OAuthService = Depends(get_oauth_service),
     auth_service: AuthService = Depends(get_auth_service),
-) -> Token | JSONResponse:
+) -> RedirectResponse | JSONResponse:
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
@@ -556,12 +556,28 @@ async def handle_oauth_callback(
     # Generate JWT tokens using TokenService
     token = TokenService.create_tokens_for_user(user, is_new_user)
 
-    # Set secure HTTP-only cookies using CookieService
-    cookie_service = CookieService()
-    cookie_service.set_auth_cookies(response, token)
+    # Redirect to frontend after successful OAuth authentication
+    from os import environ
 
-    # Return token for immediate frontend use
-    return token
+    from fastapi.responses import RedirectResponse
+
+    frontend_url = environ.get("FRONTEND_URL", "https://localhost")
+    redirect_url = f"{frontend_url}/?auth=success&is_new_user={str(is_new_user).lower()}"
+
+    logger.info(
+        "Redirecting to frontend after OAuth success",
+        redirect_url=redirect_url,
+        user_id=user.id,
+    )
+
+    # Create redirect response and set cookies on it
+    redirect_response = RedirectResponse(url=redirect_url, status_code=303)
+
+    # Set secure HTTP-only cookies on the redirect response
+    cookie_service = CookieService()
+    cookie_service.set_auth_cookies(redirect_response, token)
+
+    return redirect_response
 
 
 @router.post("/oauth/merge", response_model=AccountMergeResult)
@@ -1268,6 +1284,187 @@ async def auth_status_stream(request: Request) -> StreamingResponse:
     return StreamingResponse(
         sse_service.generate_auth_events(request), media_type="text/event-stream", headers=headers
     )
+
+
+@router.post("/oauth/facebook/data-deletion")
+@oauth_error_handler("Facebook data deletion callback")
+async def facebook_data_deletion_callback(
+    request: Request,
+    db_service: DatabaseService = Depends(get_database_service),
+) -> JSONResponse:
+    """
+    Handle Facebook's data deletion callback.
+
+    This endpoint is required by Facebook's Platform Policy for apps in Live mode.
+    Facebook calls this endpoint when a user requests data deletion through Facebook.
+
+    The signed_request contains:
+    - user_id: Facebook user ID
+    - algorithm: HMAC-SHA256 (verified)
+    - issued_at: Request timestamp
+
+    **Process:**
+    1. Verify HMAC signature from Facebook
+    2. Extract Facebook user ID from signed_request
+    3. Find user in database by provider_id
+    4. Delete all user data
+    5. Return confirmation URL and code
+
+    **Response Format (required by Facebook):**
+    ```json
+    {
+        "url": "https://localhost:3000/privacy/facebook-data-deletion?code=...",
+        "confirmation_code": "fb_12345678_abc123def456..."
+    }
+    ```
+
+    Args:
+        request: FastAPI request containing signed_request form data
+        db_service: Database service for user lookup and deletion
+
+    Returns:
+        JSONResponse with confirmation URL and code
+
+    Raises:
+        HTTPException: If signature invalid or deletion fails
+
+    @see https://developers.facebook.com/docs/development/create-an-app/app-dashboard/data-deletion-callback
+    """
+    import secrets
+
+    from src.auth.facebook_data_deletion import facebook_data_deletion_handler
+    from src.constants.auth import OAUTH_REDIRECT_URI_BASE
+
+    # Get form data from Facebook request
+    form_data = await request.form()
+    signed_request = form_data.get("signed_request")
+
+    if not signed_request:
+        logger.warning("Facebook data deletion request missing signed_request parameter")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing signed_request parameter",
+        )
+
+    # Ensure signed_request is a string (not UploadFile)
+    if not isinstance(signed_request, str):
+        logger.warning("Facebook data deletion request signed_request must be a string")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid signed_request parameter type",
+        )
+
+    # Parse and verify signed request
+    try:
+        data = facebook_data_deletion_handler.parse_signed_request(signed_request)
+
+        if not data:
+            logger.error("Invalid signature in Facebook data deletion request")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid signature",
+            )
+
+        # Extract Facebook user ID
+        facebook_user_id = data.get("user_id")
+        if not facebook_user_id:
+            logger.error("Missing user_id in Facebook signed_request", data=data)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing user_id in request",
+            )
+
+        # Find user by Facebook provider account ID
+        logger.info(
+            "Processing Facebook data deletion request",
+            facebook_user_id=facebook_user_id,
+        )
+
+        # Query database for user with this Facebook provider account ID
+        # Import database models (not Pydantic models)
+        from src.database.models.auth import LinkedAccount, User as UserTable
+
+        with db_service.get_session() as session:
+            linked_account = (
+                session.query(LinkedAccount)
+                .filter(
+                    LinkedAccount.provider == "facebook",
+                    LinkedAccount.provider_account_id == facebook_user_id,
+                )
+                .first()
+            )
+
+            if not linked_account:
+                logger.info(
+                    "No user found for Facebook data deletion request",
+                    facebook_user_id=facebook_user_id,
+                )
+                # Generate confirmation code even if user not found (per Facebook requirements)
+                confirmation_code = f"fb_{facebook_user_id}_{secrets.token_urlsafe(16)}"
+                deletion_url = f"{OAUTH_REDIRECT_URI_BASE}/privacy/facebook-data-deletion?code={confirmation_code}"
+                return JSONResponse(
+                    content={"url": deletion_url, "confirmation_code": confirmation_code}
+                )
+
+            # Get the user from the linked account
+            user = session.query(UserTable).filter(UserTable.id == linked_account.user_id).first()
+
+            if user:
+                # User found - delete their account
+                user_id = user.id
+                user_email = user.email
+
+                # Delete the user
+                session.delete(user)
+                session.commit()
+
+                logger.info(
+                    "Deleted user account via Facebook data deletion callback",
+                    user_id=user_id,
+                    facebook_user_id=facebook_user_id,
+                    email=user_email,
+                )
+
+                deletion_status = "completed"
+            else:
+                # User not found - they may have already deleted their account
+                logger.info(
+                    "User not found for Facebook data deletion",
+                    facebook_user_id=facebook_user_id,
+                )
+                deletion_status = "not_found"
+
+        # Generate confirmation code
+        confirmation_code = facebook_data_deletion_handler.generate_confirmation_code(
+            facebook_user_id
+        )
+
+        # Construct confirmation URL (required by Facebook)
+        # User can visit this URL to verify their data deletion
+        confirmation_url = (
+            f"{OAUTH_REDIRECT_URI_BASE}/privacy/"
+            f"facebook-data-deletion?code={confirmation_code}&status={deletion_status}"
+        )
+
+        logger.info(
+            "Facebook data deletion request processed",
+            facebook_user_id=facebook_user_id,
+            confirmation_code=confirmation_code,
+            status=deletion_status,
+        )
+
+        # Return response in format required by Facebook
+        return JSONResponse(
+            status_code=200,
+            content={"url": confirmation_url, "confirmation_code": confirmation_code},
+        )
+
+    except ValueError as e:
+        logger.error("Invalid signed_request format", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid request format: {e}",
+        )
 
 
 @router.delete("/account")

@@ -20,7 +20,6 @@ This implements best practices by:
 
 import logging
 
-import sqlalchemy as sa
 from sqlalchemy import text
 
 from alembic import op
