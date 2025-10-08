@@ -468,7 +468,7 @@ async def handle_oauth_callback(
     error_description: str | None = None,
     oauth_service: OAuthService = Depends(get_oauth_service),
     auth_service: AuthService = Depends(get_auth_service),
-):
+) -> RedirectResponse | JSONResponse:
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
