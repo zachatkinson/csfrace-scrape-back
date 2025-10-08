@@ -9,8 +9,9 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.auth.oauth_revocation_service import (
     GitHubTokenRevoker,

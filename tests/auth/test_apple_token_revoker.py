@@ -9,8 +9,9 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.auth.oauth_revocation_service import (
     AppleTokenRevoker,
@@ -75,9 +76,7 @@ class TestAppleTokenRevoker:
         mock_client.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_revoke_access_token_empty_token(
-        self, apple_revoker: AppleTokenRevoker
-    ) -> None:
+    async def test_revoke_access_token_empty_token(self, apple_revoker: AppleTokenRevoker) -> None:
         """Test revocation with empty token raises error."""
         with pytest.raises(TokenRevocationFailedError) as exc_info:
             await apple_revoker.revoke_access_token("")
@@ -225,9 +224,7 @@ class TestAppleTokenRevoker:
         mock_client.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_revoke_refresh_token_empty_token(
-        self, apple_revoker: AppleTokenRevoker
-    ) -> None:
+    async def test_revoke_refresh_token_empty_token(self, apple_revoker: AppleTokenRevoker) -> None:
         """Test revocation with empty refresh token raises error."""
         with pytest.raises(TokenRevocationFailedError) as exc_info:
             await apple_revoker.revoke_refresh_token("")

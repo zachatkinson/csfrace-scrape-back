@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.auth.models.oauth_models import OAuthProvider
 from src.auth.oauth_revocation_service import (
     MicrosoftTokenRevoker,
     OAuthRevocationRegistry,
 )
-from src.auth.models.oauth_models import OAuthProvider
 from src.constants.auth import MICROSOFT_REVOKE_URL
 
 
@@ -63,7 +63,10 @@ class TestMicrosoftTokenRevoker:
         assert result is True
         captured = capsys.readouterr()
         # Structured logging outputs JSON
-        assert "does not support access token revocation" in captured.out or "access_tokens_cannot_be_revoked" in captured.out
+        assert (
+            "does not support access token revocation" in captured.out
+            or "access_tokens_cannot_be_revoked" in captured.out
+        )
 
     async def test_revoke_access_token_returns_true(self, revoker):
         """Test that access token revocation returns True (non-critical)."""

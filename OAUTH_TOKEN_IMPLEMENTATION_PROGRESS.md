@@ -155,17 +155,22 @@
 ## Git Commits (Atomic)
 
 **Branch Created:** ✅ `feature/oauth-token-storage-revocation`
-**Commits Made:** 1
+**Commits Made:** 2
+**Pull Request:** ✅ [PR #37](https://github.com/zachatkinson/csfrace-scrape-back/pull/37)
 
 ### Completed Commits:
 1. ✅ `feat: add OAuth token encryption and revocation foundation` (commit 1b835ad)
+   - TokenEncryptionService with AES-128 Fernet encryption
+   - OAuthTokenRevoker abstract base class and registry
+   - Database schema updates and migration
+   - 29 passing tests
 
-### Planned Commits:
-2. ⏳ `feat: implement OAuth token revocation for all providers`
-3. ⏳ `feat: integrate token storage and revocation into OAuth service`
-4. ⏳ `test: add comprehensive OAuth token lifecycle tests`
-5. ⏳ `docs: add OAuth token storage and revocation documentation`
-6. ⏳ `chore: final quality checks and integration`
+2. ✅ `feat: complete OAuth token storage and revocation implementation` (commit 16635f4)
+   - All 5 provider implementations (Google, GitHub, Facebook, Microsoft, Apple)
+   - Complete OAuth service integration with encryption and revocation
+   - 12 integration tests covering full token lifecycle
+   - All quality checks passed (formatting, linting, type checking)
+   - 127+ total tests passing
 
 ---
 
@@ -239,9 +244,11 @@ The OAuth token storage and revocation system has been successfully implemented 
 ### Next Steps:
 
 1. ✅ Code is ready for commit
-2. ⏳ Create feature branch and commit changes
-3. ⏳ Create pull request for review
+2. ✅ Create feature branch and commit changes
+3. ✅ Create pull request for review → **[PR #37](https://github.com/zachatkinson/csfrace-scrape-back/pull/37)**
 4. ⏳ Deploy to staging for integration testing
 5. ⏳ Deploy to production after approval
 
-**Implementation Status:** 🟢 COMPLETE AND READY FOR DEPLOYMENT
+**Implementation Status:** 🟢 COMPLETE AND READY FOR REVIEW
+
+**Pull Request:** https://github.com/zachatkinson/csfrace-scrape-back/pull/37

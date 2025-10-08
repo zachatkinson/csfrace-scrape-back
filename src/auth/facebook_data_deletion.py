@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 import secrets
+from typing import Any, cast
 
 from src.constants.auth import OAUTH_FACEBOOK_CLIENT_SECRET
 from src.core.logging_hierarchy import get_auth_logger
@@ -33,7 +34,7 @@ class FacebookDataDeletionRequest:
         """
         self.app_secret = app_secret
 
-    def parse_signed_request(self, signed_request: str) -> dict | None:
+    def parse_signed_request(self, signed_request: str) -> dict[str, Any] | None:
         """
         Parse and verify Facebook's signed_request parameter.
 
@@ -79,7 +80,7 @@ class FacebookDataDeletionRequest:
             logger.info(
                 "Successfully verified Facebook signed_request", user_id=data.get("user_id")
             )
-            return data
+            return cast(dict[str, Any], data)
 
         except (ValueError, KeyError) as e:
             logger.error("Failed to parse signed_request", error=str(e))

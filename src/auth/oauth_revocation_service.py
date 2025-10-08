@@ -14,6 +14,7 @@ Supports graceful degradation if revocation fails (tokens expire naturally).
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
@@ -1063,13 +1064,15 @@ class GitHubTokenRevoker(OAuthTokenRevoker):
 
         try:
             async with self.httpx.AsyncClient(timeout=self.http_timeout) as client:
-                response = await client.delete(
-                    full_url,
+                response = await client.request(
+                    method="DELETE",
+                    url=full_url,
                     auth=(self.client_id, self.client_secret),  # Basic auth
-                    json={"access_token": access_token},
+                    content=json.dumps({"access_token": access_token}),
                     headers={
                         "Accept": "application/vnd.github+json",
                         "X-GitHub-Api-Version": "2022-11-28",
+                        "Content-Type": "application/json",
                     },
                 )
 

@@ -8,15 +8,16 @@ Tests cover:
 - Mock httpx for isolated unit testing
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
 
+import httpx
+import pytest
+
+from src.auth.models.oauth_models import OAuthProvider
 from src.auth.oauth_revocation_service import (
     FacebookTokenRevoker,
     OAuthRevocationRegistry,
 )
-from src.auth.models.oauth_models import OAuthProvider
 
 
 class TestFacebookTokenRevokerInitialization:
@@ -169,9 +170,7 @@ class TestFacebookTokenRevokerRevokeAccessToken:
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
-            mock_client.delete = AsyncMock(
-                side_effect=httpx.RequestError("Network error")
-            )
+            mock_client.delete = AsyncMock(side_effect=httpx.RequestError("Network error"))
             mock_client_class.return_value = mock_client
 
             result = await revoker.revoke_access_token(access_token)
@@ -328,9 +327,7 @@ class TestFacebookTokenRevokerRevokeAllTokens:
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
-            mock_client.delete = AsyncMock(
-                side_effect=httpx.RequestError("Network error")
-            )
+            mock_client.delete = AsyncMock(side_effect=httpx.RequestError("Network error"))
             mock_client_class.return_value = mock_client
 
             result = await revoker.revoke_all_tokens(user_id, access_token)

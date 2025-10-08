@@ -468,7 +468,7 @@ async def handle_oauth_callback(
     error_description: str | None = None,
     oauth_service: OAuthService = Depends(get_oauth_service),
     auth_service: AuthService = Depends(get_auth_service),
-):
+) -> RedirectResponse | JSONResponse:
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
@@ -1330,6 +1330,8 @@ async def facebook_data_deletion_callback(
 
     @see https://developers.facebook.com/docs/development/create-an-app/app-dashboard/data-deletion-callback
     """
+    import secrets
+
     from src.auth.facebook_data_deletion import facebook_data_deletion_handler
     from src.constants.auth import OAUTH_REDIRECT_URI_BASE
 
@@ -1342,6 +1344,14 @@ async def facebook_data_deletion_callback(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing signed_request parameter",
+        )
+
+    # Ensure signed_request is a string (not UploadFile)
+    if not isinstance(signed_request, str):
+        logger.warning("Facebook data deletion request signed_request must be a string")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid signed_request parameter type",
         )
 
     # Parse and verify signed request
@@ -1364,18 +1374,41 @@ async def facebook_data_deletion_callback(
                 detail="Missing user_id in request",
             )
 
-        # Find user by Facebook provider ID
-        provider_id = f"facebook_{facebook_user_id}"
-
+        # Find user by Facebook provider account ID
         logger.info(
             "Processing Facebook data deletion request",
             facebook_user_id=facebook_user_id,
-            provider_id=provider_id,
         )
 
-        # Query database for user with this Facebook provider ID
+        # Query database for user with this Facebook provider account ID
+        # Import database models (not Pydantic models)
+        from src.database.models.auth import LinkedAccount
+        from src.database.models.auth import User as UserTable
+
         with db_service.get_session() as session:
-            user = session.query(User).filter(User.provider_id == provider_id).first()
+            linked_account = (
+                session.query(LinkedAccount)
+                .filter(
+                    LinkedAccount.provider == "facebook",
+                    LinkedAccount.provider_account_id == facebook_user_id,
+                )
+                .first()
+            )
+
+            if not linked_account:
+                logger.info(
+                    "No user found for Facebook data deletion request",
+                    facebook_user_id=facebook_user_id,
+                )
+                # Generate confirmation code even if user not found (per Facebook requirements)
+                confirmation_code = f"fb_{facebook_user_id}_{secrets.token_urlsafe(16)}"
+                deletion_url = f"{OAUTH_REDIRECT_URI_BASE}/privacy/facebook-data-deletion?code={confirmation_code}"
+                return JSONResponse(
+                    content={"url": deletion_url, "confirmation_code": confirmation_code}
+                )
+
+            # Get the user from the linked account
+            user = session.query(UserTable).filter(UserTable.id == linked_account.user_id).first()
 
             if user:
                 # User found - delete their account
@@ -1399,7 +1432,6 @@ async def facebook_data_deletion_callback(
                 logger.info(
                     "User not found for Facebook data deletion",
                     facebook_user_id=facebook_user_id,
-                    provider_id=provider_id,
                 )
                 deletion_status = "not_found"
 

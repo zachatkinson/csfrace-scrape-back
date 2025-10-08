@@ -7,6 +7,7 @@ This module contains all application middleware including:
 - Helper functions for middleware
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
@@ -146,10 +147,8 @@ class MetricsMiddleware:
             # Decrement on error
             metrics_collector.decrement_active_connections()
             if metrics_collector.config.application_metrics_enabled and metrics_collector.metrics:
-                try:
+                with contextlib.suppress(Exception):
                     metrics_collector.metrics["active_requests"].dec()
-                except Exception:
-                    pass
             logger.error("Error in metrics collection", error=str(e))
             raise
 

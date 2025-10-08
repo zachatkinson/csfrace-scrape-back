@@ -8,12 +8,12 @@ This migration adds the token_scopes field to linked_accounts table
 for tracking OAuth scope grants for proper token revocation.
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '20251008_add_oauth_token_scopes'
+revision = "20251008_add_oauth_token_scopes"
 down_revision = None  # Will be set by orchestrator based on latest migration
 branch_labels = None
 depends_on = None
@@ -26,16 +26,16 @@ def upgrade() -> None:
     granted by the user for proper revocation tracking.
     """
     op.add_column(
-        'linked_accounts',
+        "linked_accounts",
         sa.Column(
-            'token_scopes',
+            "token_scopes",
             sa.Text(),
             nullable=True,
-            comment='Comma-separated OAuth scopes for revocation tracking'
-        )
+            comment="Comma-separated OAuth scopes for revocation tracking",
+        ),
     )
 
 
 def downgrade() -> None:
     """Remove token_scopes column from linked_accounts table."""
-    op.drop_column('linked_accounts', 'token_scopes')
+    op.drop_column("linked_accounts", "token_scopes")
