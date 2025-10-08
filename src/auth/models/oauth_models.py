@@ -23,7 +23,9 @@ class OAuthProvider(str, Enum):
 class OAuthUserInfo(BaseModel):
     """OAuth2 user information model - Single Responsibility for OAuth data."""
 
-    model_config = ConfigDict(use_enum_values=True)
+    # Note: Removed use_enum_values=True to preserve enum types internally
+    # This prevents the "'str' object has no attribute 'value'" error
+    model_config = ConfigDict()
 
     provider: OAuthProvider
     provider_id: str

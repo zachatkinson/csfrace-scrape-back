@@ -455,12 +455,12 @@ def initiate_oauth_login_redirect(
     return RedirectResponse(url=sso_response.authorization_url, status_code=status.HTTP_302_FOUND)
 
 
-@router.get("/oauth/{provider}/callback", response_model=Token)
+@router.get("/oauth/{provider}/callback")
 @limiter.limit(rate_limits.AUTH_OAUTH)
 @oauth_error_handler("OAuth callback processing")
 async def handle_oauth_callback(
     request: Request,  # Required for SlowAPI rate limiting and query params
-    response: Response,  # Required for setting HTTP-only cookies
+    response: Response,  # Not used but kept for compatibility
     provider: OAuthProvider,
     code: str | None = None,
     state: str | None = None,
@@ -468,7 +468,7 @@ async def handle_oauth_callback(
     error_description: str | None = None,
     oauth_service: OAuthService = Depends(get_oauth_service),
     auth_service: AuthService = Depends(get_auth_service),
-) -> Token | JSONResponse:
+):
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
     This endpoint implements the OAuth2 Authorization Code Flow callback handling
@@ -556,12 +556,28 @@ async def handle_oauth_callback(
     # Generate JWT tokens using TokenService
     token = TokenService.create_tokens_for_user(user, is_new_user)
 
-    # Set secure HTTP-only cookies using CookieService
-    cookie_service = CookieService()
-    cookie_service.set_auth_cookies(response, token)
+    # Redirect to frontend after successful OAuth authentication
+    from os import environ
 
-    # Return token for immediate frontend use
-    return token
+    from fastapi.responses import RedirectResponse
+
+    frontend_url = environ.get("FRONTEND_URL", "https://localhost")
+    redirect_url = f"{frontend_url}/?auth=success&is_new_user={str(is_new_user).lower()}"
+
+    logger.info(
+        "Redirecting to frontend after OAuth success",
+        redirect_url=redirect_url,
+        user_id=user.id,
+    )
+
+    # Create redirect response and set cookies on it
+    redirect_response = RedirectResponse(url=redirect_url, status_code=303)
+
+    # Set secure HTTP-only cookies on the redirect response
+    cookie_service = CookieService()
+    cookie_service.set_auth_cookies(redirect_response, token)
+
+    return redirect_response
 
 
 @router.post("/oauth/merge", response_model=AccountMergeResult)

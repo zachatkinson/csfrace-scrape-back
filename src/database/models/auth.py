@@ -174,6 +174,16 @@ class LinkedAccount(Base):
 
     Tracks OAuth accounts linked to users for multiple provider support.
     Allows users to sign in with multiple OAuth providers.
+
+    OAuth Token Storage:
+    - access_token: Encrypted OAuth access token (nullable for providers without tokens)
+    - refresh_token: Encrypted OAuth refresh token (nullable if not provided)
+    - token_expires_at: Token expiration timestamp for refresh logic
+    - token_scopes: Comma-separated OAuth scopes granted by user (for revocation tracking)
+
+    Security Note:
+    All tokens (access_token, refresh_token) should be encrypted using
+    TokenEncryptionService before storage to comply with security best practices.
     """
 
     __tablename__ = "linked_accounts"
@@ -194,11 +204,14 @@ class LinkedAccount(Base):
         String(255), nullable=False
     )  # Provider's user ID
 
-    # OAuth tokens (encrypted in production)
+    # OAuth tokens (encrypted in production using TokenEncryptionService)
     access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    token_scopes: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="Comma-separated OAuth scopes for revocation tracking"
     )
 
     # Provider data

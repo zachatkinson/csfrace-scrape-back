@@ -28,6 +28,16 @@ OAUTH_FACEBOOK_CLIENT_SECRET: str = EnvironmentLoader.get_optional(
 OAUTH_APPLE_CLIENT_ID: str = EnvironmentLoader.get_optional("OAUTH_APPLE_CLIENT_ID", "")
 OAUTH_APPLE_CLIENT_SECRET: str = EnvironmentLoader.get_optional("OAUTH_APPLE_CLIENT_SECRET", "")
 
+# OAuth Token Encryption - SECURE Environment Variable Configuration
+OAUTH_TOKEN_ENCRYPTION_KEY: str = EnvironmentLoader.get_required("OAUTH_TOKEN_ENCRYPTION_KEY")
+
+# OAuth Token Revocation URLs - DRY principle for provider endpoints
+GOOGLE_REVOKE_URL: str = "https://oauth2.googleapis.com/revoke"
+FACEBOOK_GRAPH_API_BASE: str = "https://graph.facebook.com/v18.0"
+GITHUB_REVOKE_URL: str = "https://api.github.com/applications"  # Append /{client_id}/grant
+MICROSOFT_REVOKE_URL: str = "https://graph.microsoft.com/v1.0/me/revokeSignInSessions"
+APPLE_REVOKE_URL: str = "https://appleid.apple.com/auth/revoke"  # For future production use
+
 # OAuth2 Redirect URIs - Centralized Configuration
 OAUTH_REDIRECT_URI_BASE: str = EnvironmentLoader.get_url(
     "OAUTH_REDIRECT_URI_BASE", "http://localhost:8000"

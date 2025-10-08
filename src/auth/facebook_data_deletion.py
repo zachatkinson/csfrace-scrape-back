@@ -14,7 +14,6 @@ import hashlib
 import hmac
 import json
 import secrets
-from typing import Dict, Optional
 
 from src.constants.auth import OAUTH_FACEBOOK_CLIENT_SECRET
 from src.core.logging_hierarchy import get_auth_logger
@@ -34,7 +33,7 @@ class FacebookDataDeletionRequest:
         """
         self.app_secret = app_secret
 
-    def parse_signed_request(self, signed_request: str) -> Optional[Dict]:
+    def parse_signed_request(self, signed_request: str) -> dict | None:
         """
         Parse and verify Facebook's signed_request parameter.
 
@@ -62,7 +61,9 @@ class FacebookDataDeletionRequest:
 
             # Verify signature
             if data.get("algorithm", "").upper() != "HMAC-SHA256":
-                logger.warning("Invalid algorithm in signed_request", algorithm=data.get("algorithm"))
+                logger.warning(
+                    "Invalid algorithm in signed_request", algorithm=data.get("algorithm")
+                )
                 return None
 
             # Compute expected signature
@@ -75,7 +76,9 @@ class FacebookDataDeletionRequest:
                 logger.warning("Signature verification failed for signed_request")
                 return None
 
-            logger.info("Successfully verified Facebook signed_request", user_id=data.get("user_id"))
+            logger.info(
+                "Successfully verified Facebook signed_request", user_id=data.get("user_id")
+            )
             return data
 
         except (ValueError, KeyError) as e:
