@@ -455,7 +455,7 @@ def initiate_oauth_login_redirect(
     return RedirectResponse(url=sso_response.authorization_url, status_code=status.HTTP_302_FOUND)
 
 
-@router.get("/oauth/{provider}/callback")
+@router.get("/oauth/{provider}/callback", response_model=None)
 @limiter.limit(rate_limits.AUTH_OAUTH)
 @oauth_error_handler("OAuth callback processing")
 async def handle_oauth_callback(
@@ -468,7 +468,7 @@ async def handle_oauth_callback(
     error_description: str | None = None,
     oauth_service: OAuthService = Depends(get_oauth_service),
     auth_service: AuthService = Depends(get_auth_service),
-) -> RedirectResponse | JSONResponse:
+):
     """Handle OAuth2 callback and return JWT tokens following OAuth2 Authorization Code Flow.
 
     This endpoint implements the OAuth2 Authorization Code Flow callback handling

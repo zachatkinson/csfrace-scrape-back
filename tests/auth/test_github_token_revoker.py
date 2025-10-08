@@ -57,14 +57,14 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
         result = await github_revoker.revoke_access_token(sample_access_token)
 
         assert result is True
-        mock_client.delete.assert_called_once()
+        mock_client.request.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_revoke_access_token_empty_token(
@@ -89,7 +89,7 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
@@ -106,7 +106,7 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.side_effect = github_revoker.httpx.TimeoutException("Timeout")
+        mock_client.request.side_effect = github_revoker.httpx.TimeoutException("Timeout")
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
@@ -123,7 +123,7 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.side_effect = github_revoker.httpx.HTTPError("HTTP error")
+        mock_client.request.side_effect = github_revoker.httpx.HTTPError("HTTP error")
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
@@ -140,7 +140,7 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.side_effect = Exception("Unexpected error")
+        mock_client.request.side_effect = Exception("Unexpected error")
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
@@ -163,7 +163,7 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
@@ -184,7 +184,7 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
@@ -214,14 +214,14 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
         await github_revoker.revoke_access_token(sample_access_token)
 
         # Verify URL includes client_id
-        call_args = mock_client.delete.call_args
+        call_args = mock_client.request.call_args
         url = call_args[0][0]
         assert github_revoker.client_id in url
         assert url.endswith("/grant")
@@ -238,14 +238,14 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
         await github_revoker.revoke_access_token(sample_access_token)
 
         # Verify headers
-        call_args = mock_client.delete.call_args
+        call_args = mock_client.request.call_args
         headers = call_args[1]["headers"]
         assert headers["Accept"] == "application/vnd.github+json"
         assert headers["X-GitHub-Api-Version"] == "2022-11-28"
@@ -262,13 +262,13 @@ class TestGitHubTokenRevoker:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
-        mock_client.delete.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         github_revoker.httpx.AsyncClient = MagicMock(return_value=mock_client)
 
         await github_revoker.revoke_access_token(sample_access_token)
 
         # Verify Basic auth
-        call_args = mock_client.delete.call_args
+        call_args = mock_client.request.call_args
         auth = call_args[1]["auth"]
         assert auth == (github_revoker.client_id, github_revoker.client_secret)
