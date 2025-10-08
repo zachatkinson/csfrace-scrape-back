@@ -136,12 +136,8 @@ class TestMicrosoftTokenRevoker:
 
     # ==================== Error Handling Tests ====================
 
-    async def test_revoke_all_tokens_401_unauthorized(self, revoker, mock_httpx_client, caplog):
+    async def test_revoke_all_tokens_401_unauthorized(self, revoker, mock_httpx_client, capsys):
         """Test handling of 401 Unauthorized error."""
-        import logging
-
-        caplog.set_level(logging.ERROR, logger="src.auth.oauth_revocation_service")
-
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 401
 
@@ -151,15 +147,12 @@ class TestMicrosoftTokenRevoker:
             result = await revoker.revoke_all_tokens("user", "invalid_token")
 
             assert result is False
-            assert "Invalid or expired access token" in caplog.text
-            assert "401" in caplog.text
+            captured = capsys.readouterr()
+            assert "Invalid or expired access token" in captured.out
+            assert "401" in captured.out
 
-    async def test_revoke_all_tokens_403_forbidden(self, revoker, mock_httpx_client, caplog):
+    async def test_revoke_all_tokens_403_forbidden(self, revoker, mock_httpx_client, capsys):
         """Test handling of 403 Forbidden error (insufficient permissions)."""
-        import logging
-
-        caplog.set_level(logging.ERROR, logger="src.auth.oauth_revocation_service")
-
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 403
 
@@ -169,11 +162,12 @@ class TestMicrosoftTokenRevoker:
             result = await revoker.revoke_all_tokens("user", "token_without_perms")
 
             assert result is False
-            assert "Insufficient permissions" in caplog.text
-            assert "403" in caplog.text
-            assert "User.RevokeSessions.All" in caplog.text
+            captured = capsys.readouterr()
+            assert "Insufficient permissions" in captured.out
+            assert "403" in captured.out
+            assert "User.RevokeSessions.All" in captured.out
 
-    async def test_revoke_all_tokens_500_server_error(self, revoker, mock_httpx_client, caplog):
+    async def test_revoke_all_tokens_500_server_error(self, revoker, mock_httpx_client, capsys):
         """Test handling of 500 Internal Server Error."""
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 500
@@ -185,10 +179,11 @@ class TestMicrosoftTokenRevoker:
             result = await revoker.revoke_all_tokens("user", "token")
 
             assert result is False
-            assert "unexpected status" in caplog.text
-            assert "500" in caplog.text
+            captured = capsys.readouterr()
+            assert "unexpected status" in captured.out
+            assert "500" in captured.out
 
-    async def test_revoke_all_tokens_timeout(self, revoker, caplog):
+    async def test_revoke_all_tokens_timeout(self, revoker, capsys):
         """Test handling of request timeout."""
         with patch.object(revoker, "httpx") as mock_httpx:
             mock_client = AsyncMock()
@@ -199,9 +194,10 @@ class TestMicrosoftTokenRevoker:
             result = await revoker.revoke_all_tokens("user", "token")
 
             assert result is False
-            assert "timed out" in caplog.text
+            captured = capsys.readouterr()
+            assert "timed out" in captured.out
 
-    async def test_revoke_all_tokens_network_error(self, revoker, caplog):
+    async def test_revoke_all_tokens_network_error(self, revoker, capsys):
         """Test handling of network/HTTP errors."""
         with patch.object(revoker, "httpx") as mock_httpx:
             mock_client = AsyncMock()
@@ -212,9 +208,10 @@ class TestMicrosoftTokenRevoker:
             result = await revoker.revoke_all_tokens("user", "token")
 
             assert result is False
-            assert "HTTP error" in caplog.text or "Unexpected error" in caplog.text
+            captured = capsys.readouterr()
+            assert "HTTP error" in captured.out or "Unexpected error" in captured.out
 
-    async def test_revoke_all_tokens_unexpected_exception(self, revoker, caplog):
+    async def test_revoke_all_tokens_unexpected_exception(self, revoker, capsys):
         """Test handling of unexpected exceptions."""
         with patch.object(revoker, "httpx") as mock_httpx:
             mock_client = AsyncMock()
@@ -224,11 +221,12 @@ class TestMicrosoftTokenRevoker:
             result = await revoker.revoke_all_tokens("user", "token")
 
             assert result is False
-            assert "Unexpected error" in caplog.text
+            captured = capsys.readouterr()
+            assert "Unexpected error" in captured.out
 
     # ==================== Logging Tests ====================
 
-    async def test_revoke_all_tokens_logs_attempt(self, revoker, mock_httpx_client, caplog):
+    async def test_revoke_all_tokens_logs_attempt(self, revoker, mock_httpx_client, capsys):
         """Test that revocation attempt is logged."""
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 200
@@ -238,9 +236,10 @@ class TestMicrosoftTokenRevoker:
 
             await revoker.revoke_all_tokens("user", "token")
 
-            assert "Attempting to revoke Microsoft sign-in sessions" in caplog.text
+            captured = capsys.readouterr()
+            assert "Attempting to revoke Microsoft sign-in sessions" in captured.out
 
-    async def test_revoke_all_tokens_logs_success(self, revoker, mock_httpx_client, caplog):
+    async def test_revoke_all_tokens_logs_success(self, revoker, mock_httpx_client, capsys):
         """Test that successful revocation is logged."""
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 200
@@ -250,7 +249,8 @@ class TestMicrosoftTokenRevoker:
 
             await revoker.revoke_all_tokens("user", "token")
 
-            assert "Successfully revoked Microsoft sign-in sessions" in caplog.text
+            captured = capsys.readouterr()
+            assert "Successfully revoked Microsoft sign-in sessions" in captured.out
 
     # ==================== Edge Cases and Boundary Conditions ====================
 
