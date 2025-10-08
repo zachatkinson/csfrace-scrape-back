@@ -1382,8 +1382,7 @@ async def facebook_data_deletion_callback(
 
         # Query database for user with this Facebook provider account ID
         # Import database models (not Pydantic models)
-        from src.database.models.auth import LinkedAccount
-        from src.database.models.auth import User as UserTable
+        from src.database.models.auth import LinkedAccount, User as UserTable
 
         with db_service.get_session() as session:
             linked_account = (

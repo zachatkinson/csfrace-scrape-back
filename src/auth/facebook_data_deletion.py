@@ -80,7 +80,7 @@ class FacebookDataDeletionRequest:
             logger.info(
                 "Successfully verified Facebook signed_request", user_id=data.get("user_id")
             )
-            return cast(dict[str, Any], data)
+            return cast("dict[str, Any]", data)
 
         except (ValueError, KeyError) as e:
             logger.error("Failed to parse signed_request", error=str(e))
