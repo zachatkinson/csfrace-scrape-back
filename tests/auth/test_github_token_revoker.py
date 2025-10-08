@@ -222,7 +222,7 @@ class TestGitHubTokenRevoker:
 
         # Verify URL includes client_id
         call_args = mock_client.request.call_args
-        url = call_args[0][0]
+        url = call_args.kwargs["url"]
         assert github_revoker.client_id in url
         assert url.endswith("/grant")
 
@@ -246,7 +246,7 @@ class TestGitHubTokenRevoker:
 
         # Verify headers
         call_args = mock_client.request.call_args
-        headers = call_args[1]["headers"]
+        headers = call_args.kwargs["headers"]
         assert headers["Accept"] == "application/vnd.github+json"
         assert headers["X-GitHub-Api-Version"] == "2022-11-28"
 
@@ -270,5 +270,5 @@ class TestGitHubTokenRevoker:
 
         # Verify Basic auth
         call_args = mock_client.request.call_args
-        auth = call_args[1]["auth"]
+        auth = call_args.kwargs["auth"]
         assert auth == (github_revoker.client_id, github_revoker.client_secret)

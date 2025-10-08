@@ -138,6 +138,10 @@ class TestMicrosoftTokenRevoker:
 
     async def test_revoke_all_tokens_401_unauthorized(self, revoker, mock_httpx_client, caplog):
         """Test handling of 401 Unauthorized error."""
+        import logging
+
+        caplog.set_level(logging.ERROR, logger="src.auth.oauth_revocation_service")
+
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 401
 
@@ -152,6 +156,10 @@ class TestMicrosoftTokenRevoker:
 
     async def test_revoke_all_tokens_403_forbidden(self, revoker, mock_httpx_client, caplog):
         """Test handling of 403 Forbidden error (insufficient permissions)."""
+        import logging
+
+        caplog.set_level(logging.ERROR, logger="src.auth.oauth_revocation_service")
+
         mock_client, mock_response = mock_httpx_client
         mock_response.status_code = 403
 
