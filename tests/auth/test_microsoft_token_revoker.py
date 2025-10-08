@@ -199,11 +199,16 @@ class TestMicrosoftTokenRevoker:
 
     async def test_revoke_all_tokens_network_error(self, revoker, capsys):
         """Test handling of network/HTTP errors."""
+
+        # Create proper mock exception class
+        class MockHTTPError(Exception):
+            pass
+
         with patch.object(revoker, "httpx") as mock_httpx:
             mock_client = AsyncMock()
             mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
-            mock_httpx.HTTPError = Exception
-            mock_client.post.side_effect = Exception("Network error")
+            mock_httpx.HTTPError = MockHTTPError
+            mock_client.post.side_effect = MockHTTPError("Network error")
 
             result = await revoker.revoke_all_tokens("user", "token")
 
