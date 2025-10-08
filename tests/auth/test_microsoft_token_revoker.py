@@ -200,14 +200,18 @@ class TestMicrosoftTokenRevoker:
     async def test_revoke_all_tokens_network_error(self, revoker, capsys):
         """Test handling of network/HTTP errors."""
 
-        # Create proper mock exception class
+        # Create proper mock exception classes
         class MockHTTPError(Exception):
+            pass
+
+        class MockTimeoutException(Exception):
             pass
 
         with patch.object(revoker, "httpx") as mock_httpx:
             mock_client = AsyncMock()
             mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
             mock_httpx.HTTPError = MockHTTPError
+            mock_httpx.TimeoutException = MockTimeoutException
             mock_client.post.side_effect = MockHTTPError("Network error")
 
             result = await revoker.revoke_all_tokens("user", "token")
@@ -218,9 +222,19 @@ class TestMicrosoftTokenRevoker:
 
     async def test_revoke_all_tokens_unexpected_exception(self, revoker, capsys):
         """Test handling of unexpected exceptions."""
+
+        # Create proper mock exception classes
+        class MockHTTPError(Exception):
+            pass
+
+        class MockTimeoutException(Exception):
+            pass
+
         with patch.object(revoker, "httpx") as mock_httpx:
             mock_client = AsyncMock()
             mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+            mock_httpx.HTTPError = MockHTTPError
+            mock_httpx.TimeoutException = MockTimeoutException
             mock_client.post.side_effect = ValueError("Unexpected error")
 
             result = await revoker.revoke_all_tokens("user", "token")
