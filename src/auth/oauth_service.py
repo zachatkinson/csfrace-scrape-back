@@ -1,13 +1,19 @@
 """OAuth2 SSO service with SOLID principles and DRY validation."""
 
+from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from .token_encryption_service import TokenEncryptionService
+
 import httpx
-from sqlalchemy.orm import Session
 
 from src.core.decorators import oauth_error_handler
 from src.core.exceptions import AccountMergeRequiredError
@@ -647,8 +653,9 @@ class OAuthService:
         db_session: Session,
         auth_service: AuthService | None = None,
         merge_service: AccountMergeService | None = None,
+        token_encryption_service: TokenEncryptionService | None = None,
     ):
-        """Dependency injection for database and auth services."""
+        """Dependency injection for database, auth, and encryption services."""
         self.db_session = db_session
         self.auth_service = auth_service or AuthService(db_session)
         self.merge_service = merge_service or AccountMergeService(db_session, self.auth_service)
@@ -657,6 +664,13 @@ class OAuthService:
             str, dict[str, str | float | OAuthProvider]
         ] = {}  # In-memory state cache (temporary)
         self._cached_oauth_user_info: OAuthUserInfo | None = None  # Temporary cache
+
+        # Token encryption service for secure token storage (Phase 1 integration)
+        if token_encryption_service is None:
+            from .token_encryption_service import TokenEncryptionService
+
+            token_encryption_service = TokenEncryptionService()
+        self.token_encryption_service = token_encryption_service
 
     def initiate_oauth_login(
         self, provider: OAuthProvider, redirect_uri: str | None = None
@@ -716,6 +730,10 @@ class OAuthService:
 
         # Step 3: Get user information from OAuth provider
         oauth_user_info = await oauth_provider.get_user_info(access_token)
+
+        # Step 3.2: Store access token in oauth_user_info for later encryption
+        # This token will be encrypted and stored in the database
+        oauth_user_info.access_token = access_token
 
         # Step 3.5: Check for account merge requirement (when linking accounts)
         if existing_user_id:
@@ -816,7 +834,7 @@ class OAuthService:
 
     @oauth_error_handler("account linking")
     def _link_oauth_account(self, user_id: str, oauth_user_info: OAuthUserInfo) -> LinkedAccount:
-        """Link OAuth account to user - FIXED: Now properly saves to database."""
+        """Link OAuth account to user with encrypted token storage - FIXED: Now properly saves to database."""
         # Check if this OAuth account is already linked to avoid duplicates
         existing_link = (
             self.db_session.query(LinkedAccountDB)
@@ -826,6 +844,28 @@ class OAuthService:
             )
             .first()
         )
+
+        # Encrypt access token if provided (Phase 3 integration)
+        encrypted_access_token = None
+        if oauth_user_info.access_token:
+            try:
+                encrypted_access_token = self.token_encryption_service.encrypt_token(
+                    oauth_user_info.access_token
+                )
+                logger.debug(
+                    "OAuth access token encrypted successfully",
+                    user_id=user_id,
+                    provider=oauth_user_info.provider,
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to encrypt OAuth access token",
+                    error=str(e),
+                    user_id=user_id,
+                    provider=oauth_user_info.provider,
+                )
+                # Non-critical: Continue without storing token
+                encrypted_access_token = None
 
         if existing_link:
             logger.info(
@@ -838,6 +878,7 @@ class OAuthService:
             existing_link.email = oauth_user_info.email
             existing_link.name = oauth_user_info.name
             existing_link.provider_account_id = oauth_user_info.provider_id
+            existing_link.access_token = encrypted_access_token  # Update encrypted token
             existing_link.updated_at = datetime.now(UTC)
 
             self.db_session.commit()
@@ -859,6 +900,7 @@ class OAuthService:
             provider_account_id=oauth_user_info.provider_id,
             email=oauth_user_info.email,
             name=oauth_user_info.name,
+            access_token=encrypted_access_token,  # Store encrypted access token
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
         )
@@ -868,11 +910,12 @@ class OAuthService:
         self.db_session.commit()
 
         logger.info(
-            "OAuth account successfully linked to user",
+            "OAuth account successfully linked to user with encrypted token",
             user_id=user_id,
             provider=oauth_user_info.provider,
             provider_email=oauth_user_info.email,
             linked_account_id=linked_account_db.id,
+            token_stored=encrypted_access_token is not None,
         )
 
         # Return the API model
@@ -1121,17 +1164,99 @@ class OAuthService:
 
         return connections
 
+    async def _revoke_oauth_token(
+        self, linked_account: LinkedAccountDB, provider: OAuthProvider
+    ) -> bool:
+        """Attempt to revoke OAuth token with provider before account deletion.
+
+        This method implements graceful degradation - if revocation fails for any reason,
+        it logs the error but returns False without raising an exception. This ensures
+        account disconnection can proceed even if the provider's revocation endpoint
+        is unavailable or the token is already invalid.
+
+        Args:
+            linked_account: The linked account database record containing encrypted token
+            provider: OAuth provider for token revocation
+
+        Returns:
+            bool: True if revocation succeeded, False if failed or no token stored
+        """
+        # Step 1: Check if we have an access token to revoke
+        if not linked_account.access_token:
+            logger.debug(
+                "No access token stored for OAuth account, skipping revocation",
+                user_id=linked_account.user_id,
+                provider=get_oauth_provider_value(provider),
+            )
+            return False
+
+        try:
+            # Step 2: Decrypt the access token
+            decrypted_token = self.token_encryption_service.decrypt_token(
+                linked_account.access_token
+            )
+
+            logger.debug(
+                "Decrypted OAuth access token for revocation",
+                user_id=linked_account.user_id,
+                provider=get_oauth_provider_value(provider),
+            )
+
+            # Step 3: Get the appropriate revoker from the registry
+            from .oauth_revocation_service import OAuthRevocationRegistry
+
+            revoker = OAuthRevocationRegistry.get_revoker(provider)
+
+            logger.debug(
+                "Retrieved OAuth token revoker from registry",
+                provider=get_oauth_provider_value(provider),
+                revoker_class=revoker.__class__.__name__,
+            )
+
+            # Step 4: Attempt to revoke all tokens (access + refresh if supported)
+            revocation_success = await revoker.revoke_all_tokens(
+                user_id=linked_account.user_id, access_token=decrypted_token
+            )
+
+            if revocation_success:
+                logger.info(
+                    "Successfully revoked OAuth tokens with provider",
+                    user_id=linked_account.user_id,
+                    provider=get_oauth_provider_value(provider),
+                )
+                return True
+            else:
+                logger.warning(
+                    "OAuth token revocation returned False (non-critical failure)",
+                    user_id=linked_account.user_id,
+                    provider=get_oauth_provider_value(provider),
+                )
+                return False
+
+        except Exception as e:
+            # Graceful degradation: Log error but don't raise
+            logger.error(
+                "Failed to revoke OAuth token (non-critical, proceeding with disconnect)",
+                user_id=linked_account.user_id,
+                provider=get_oauth_provider_value(provider),
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return False
+
     @oauth_error_handler("OAuth account disconnection")
-    def disconnect_oauth_account(self, user_id: str, provider: OAuthProvider) -> bool:
-        """Disconnect OAuth account from user - SOLID Single Responsibility with safety checks.
+    async def disconnect_oauth_account(self, user_id: str, provider: OAuthProvider) -> bool:
+        """Disconnect OAuth account from user with token revocation - SOLID Single Responsibility with safety checks.
 
         This method removes the linked OAuth account for a provider, but includes
         critical safety checks to prevent users from locking themselves out.
+        Also attempts to revoke the OAuth token with the provider before deletion.
 
         Safety Rules:
         1. Cannot disconnect if it's the only authentication method (no password set)
         2. Cannot disconnect the primary OAuth account if it's the only one
         3. Validates the account is actually linked before attempting removal
+        4. Attempts token revocation before deletion (Phase 3 integration)
 
         Args:
             user_id: User ID to disconnect account from
@@ -1144,7 +1269,7 @@ class OAuthService:
             ValueError: If disconnecting would lock user out of account
         """
         logger.info(
-            "Attempting to disconnect OAuth account",
+            "Attempting to disconnect OAuth account with token revocation",
             user_id=user_id,
             provider=get_oauth_provider_value(provider),
         )
@@ -1195,7 +1320,10 @@ class OAuthService:
             )
             return False
 
-        # Delete the linked account
+        # Phase 3: Attempt token revocation before deletion
+        revocation_success = await self._revoke_oauth_token(linked_account, provider)
+
+        # Delete the linked account (even if revocation fails - graceful degradation)
         self.db_session.delete(linked_account)
         self.db_session.commit()
 
@@ -1203,6 +1331,7 @@ class OAuthService:
             "OAuth account disconnected successfully",
             user_id=user_id,
             provider=get_oauth_provider_value(provider),
+            token_revoked=revocation_success,
             linked_account_id=linked_account.id,
         )
 

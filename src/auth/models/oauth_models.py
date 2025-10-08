@@ -32,6 +32,7 @@ class OAuthUserInfo(BaseModel):
     email: EmailStr
     name: str
     avatar_url: str | None = None
+    access_token: str | None = None  # OAuth access token for storage and revocation
 
 
 class OAuthCallback(BaseModel):

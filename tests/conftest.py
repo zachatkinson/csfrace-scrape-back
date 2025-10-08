@@ -240,6 +240,7 @@ def setup_test_environment() -> Generator[None]:
         "DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/test_db",
         "REDIS_URL": "redis://localhost:6379/15",  # Test database
         "SECRET_KEY": "test-secret-key-not-for-production",
+        "OAUTH_TOKEN_ENCRYPTION_KEY": "test-encryption-key-32-bytes-long!",  # Required for OAuth
     }
 
     os.environ.update(test_env)
