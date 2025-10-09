@@ -7,7 +7,11 @@ from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+# Import configuration from centralized settings
+from src.config.settings import ConfigManager
+
 from ..api.errors import APIErrorFactory
+from ..config.auth import AuthConfig
 from ..database.service import DatabaseService
 from .models import TokenData, User
 from .oauth_service import OAuthService
@@ -15,16 +19,22 @@ from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
 
-# from .config import auth_config  # type: ignore[import-not-found]
+
+def _get_auth_config() -> "AuthConfig":
+    """Get authentication configuration from centralized settings."""
+    try:
+        settings = ConfigManager.get_config()
+        return settings.auth
+    except RuntimeError:
+        # Fallback for testing or early initialization
+        import os
+
+        from src.config.auth import AuthConfig
+
+        return AuthConfig(SECRET_KEY=os.getenv("SECRET_KEY", ""))
 
 
-# Temporary auth config until config.py is available
-class AuthConfig:
-    SECRET_KEY = "your-secret-key-here"  # noqa: S105
-    ALGORITHM = "HS256"
-
-
-auth_config = AuthConfig()
+auth_config = _get_auth_config()
 
 # OAuth2 scheme for token extraction
 oauth2_scheme = OAuth2PasswordBearer(

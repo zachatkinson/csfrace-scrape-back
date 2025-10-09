@@ -6,24 +6,26 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from passlib.context import CryptContext
 
+from src.config.auth import AuthConfig
+from src.config.settings import ConfigManager
 from src.core.decorators import auth_error_handler
 
 from .models import TokenData
 
-# from .config import auth_config  # type: ignore[import-not-found]
+
+def _get_auth_config() -> "AuthConfig":
+    """Get authentication configuration from settings."""
+    try:
+        settings = ConfigManager.get_config()
+        return settings.auth
+    except RuntimeError:
+        # Fallback for testing or early initialization
+        from src.config.auth import AuthConfig
+
+        return AuthConfig()
 
 
-# Temporary auth config until config.py is available
-class AuthConfig:
-    SECRET_KEY = "your-secret-key-here"  # noqa: S105
-    ALGORITHM = "HS256"
-    PWD_CONTEXT_SCHEMES = ["bcrypt"]
-    PWD_CONTEXT_DEPRECATED = "auto"  # noqa: S105
-    access_token_expire_delta = timedelta(minutes=30)
-    refresh_token_expire_delta = timedelta(days=7)
-
-
-auth_config = AuthConfig()
+auth_config = _get_auth_config()
 
 
 class SecurityManager:

@@ -2,13 +2,16 @@
 
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from fastapi import Response
 
 from src.core.logging_hierarchy import get_auth_logger
 
 from ..models import Token
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = get_auth_logger()
 
@@ -23,17 +26,27 @@ class CookieService:
         # Allow forcing secure cookies in development (for HTTPS development environments)
         self.force_secure_cookies = os.getenv("FORCE_SECURE_COOKIES", "false").lower() == "true"
 
-    def set_auth_cookies(self, response: Response, token: Token) -> None:
+    def set_auth_cookies(
+        self, response: Response, token: Token, request: "Request | None" = None
+    ) -> None:
         """Set HTTP-only cookies for secure token storage.
 
         Args:
             response: FastAPI response object
             token: JWT token object with access and refresh tokens
+            request: Optional FastAPI request to detect HTTPS via X-Forwarded-Proto
         """
+        # Check if request came through HTTPS proxy (nginx sets X-Forwarded-Proto)
+        is_https_request = False
+        if request:
+            forwarded_proto = request.headers.get("X-Forwarded-Proto", "").lower()
+            is_https_request = forwarded_proto == "https"
+
         # Environment-aware security settings
-        secure_cookies = (
-            self.is_production or self.force_secure_cookies
-        )  # Secure cookies in production or when forced (for HTTPS development)
+        # CRITICAL: Disable Secure flag for localhost (even with HTTPS) due to self-signed certs
+        # Browsers reject Secure cookies on localhost with self-signed certificates
+        # Use Secure flag if: production OR explicitly forced (not just HTTPS detection)
+        secure_cookies = self.is_production or self.force_secure_cookies
         cookie_domain = self._get_cookie_domain()
         samesite_policy = self._get_samesite_policy()
 
@@ -83,6 +96,8 @@ class CookieService:
             secure_cookies=secure_cookies,
             cookie_domain=cookie_domain,
             samesite_policy=samesite_policy,
+            is_https_request=is_https_request,
+            x_forwarded_proto=request.headers.get("X-Forwarded-Proto") if request else None,
         )
 
     def clear_auth_cookies(self, response: Response) -> None:
@@ -148,12 +163,13 @@ class CookieService:
         """Get appropriate cookie domain for environment.
 
         Returns:
-            Cookie domain string for development, None for production
+            None - let browser use default domain (exact host match)
         """
-        # Domain setting for cookie scope
-        # CRITICAL: Set domain to ensure cookies are accessible to both OAuth redirect (port 3000)
-        # and subsequent SSE proxy requests. Without explicit domain, cookies may not be shared.
-        return None if self.is_production else "localhost"
+        # CRITICAL: Return None to let browser use default domain behavior
+        # Setting domain="localhost" causes browsers to add a leading dot (.localhost)
+        # which prevents cookies from being sent back to localhost
+        # With None, cookies work correctly for both localhost and production domains
+        return None
 
     def _get_samesite_policy(self) -> Literal["strict", "lax"]:
         """Get appropriate SameSite policy for environment.
