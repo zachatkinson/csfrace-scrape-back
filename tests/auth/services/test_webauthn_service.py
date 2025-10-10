@@ -464,7 +464,9 @@ class TestPasskeyManager:
         )
 
         # Act
-        result = await passkey_manager.start_passkey_registration(sample_user, device_name="Test Device")
+        result = await passkey_manager.start_passkey_registration(
+            sample_user, device_name="Test Device"
+        )
 
         # Assert - Test API format
         assert "publicKey" in result
