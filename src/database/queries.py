@@ -338,20 +338,15 @@ class JobQueries:
         )
 
     @staticmethod
-    def find_pending_jobs(job_table: type[ModelType], priority: str | None = None) -> Select[Any]:
+    def find_pending_jobs(job_table: type[ModelType]) -> Select[Any]:
         """Perfect pending jobs query - used everywhere."""
-        conditions = [job_table.status == "pending"]  # type: ignore[attr-defined]
+        where_clause = job_table.status == "pending"  # type: ignore[attr-defined]
 
-        if priority:
-            conditions.append(job_table.priority == priority)  # type: ignore[attr-defined]
-
-        where_clause = and_(*conditions)
         return (
             select(job_table)
             .where(where_clause)
             .order_by(
-                job_table.priority.desc(),  # type: ignore[attr-defined]  # High priority first
-                job_table.created_at.asc(),  # type: ignore[attr-defined]  # Oldest first within priority
+                job_table.created_at.asc(),  # type: ignore[attr-defined]  # Oldest first
             )
         )
 

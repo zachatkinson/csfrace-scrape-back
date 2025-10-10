@@ -19,7 +19,7 @@ from src.core.decorators import database_error_handler
 from src.core.logging_hierarchy import get_database_logger
 from src.utils.url_utils import extract_domain
 
-from ...common.status import JobPriority, JobStatus
+from ...common.status import JobStatus
 from ...constants import API_DEFAULT_LIMIT
 from ...core.exceptions import ValidationError
 from ..models import ScrapingJob
@@ -35,7 +35,6 @@ class JobCreateRequest:
     url: str
     output_directory: str
     user_id: str  # MANDATORY - no default system user (ZERO TOLERANCE)
-    priority: JobPriority = JobPriority.NORMAL
     max_retries: int = 3
     options: dict[str, Any] | None = None
     batch_id: str | None = None
@@ -74,7 +73,7 @@ class JobService:
             DatabaseError: If job creation fails
             ValidationError: If request data is invalid
         """
-        logger.info("Creating job", url=request.url, priority=request.priority.name)
+        logger.info("Creating job", url=request.url)
 
         # Create job with auto-generated metadata
         # Note: output_directory stored in options, not as direct field
