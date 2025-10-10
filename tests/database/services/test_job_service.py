@@ -411,18 +411,10 @@ class TestJobService:
         """Test retrieval of pending jobs ordered by creation time."""
         # Arrange
         # Create jobs with different statuses
-        pending_job1 = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.PENDING
-        )
-        pending_job2 = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.PENDING
-        )
-        pending_job3 = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.PENDING
-        )
-        running_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.RUNNING
-        )
+        pending_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        pending_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        pending_job3 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        running_job = JobFactory.create_scraping_job(test_session, status=JobStatus.RUNNING)
 
         # Act
         results = job_service.get_pending_jobs(limit=10)
@@ -489,9 +481,7 @@ class TestJobService:
         """Test retrieval of jobs eligible for retry."""
         # Arrange
         # Create failed job that can be retried
-        retry_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.FAILED
-        )
+        retry_job = JobFactory.create_scraping_job(test_session, status=JobStatus.FAILED)
         retry_job.retry_count = 1
         retry_job.max_retries = 3
         test_session.commit()
