@@ -17,7 +17,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.common.status import JobPriority, JobStatus
+from src.common.status import JobStatus
 from src.database.models.jobs import ContentResult, JobLog, ScrapingJob
 
 # ============================================================================
@@ -36,7 +36,6 @@ def sample_job_data() -> dict[str, Any]:
         "job_type": "single",
         "target_format": "html",
         "status": "pending",
-        "priority": 5,
         "retry_count": 0,
         "max_retries": 3,
         "options": {},
@@ -87,46 +86,6 @@ class TestScrapingJobProperties:
 
         # Assert
         assert status_enum == JobStatus.COMPLETED
-
-    @pytest.mark.unit
-    def test_priority_enum_property(self, scraping_job: ScrapingJob) -> None:
-        """Test priority_enum property returns JobPriority enum - Lines 128-130.
-
-        Tests the priority_enum property which imports db_to_priority.
-        """
-        # Arrange
-        scraping_job.priority = 8  # HIGH priority (db value 8)
-
-        # Act
-        priority_enum = scraping_job.priority_enum
-
-        # Assert
-        assert isinstance(priority_enum, JobPriority)
-        assert priority_enum == JobPriority.HIGH
-
-    @pytest.mark.unit
-    def test_priority_enum_normal(self, scraping_job: ScrapingJob) -> None:
-        """Test priority_enum with normal priority."""
-        # Arrange
-        scraping_job.priority = 5  # NORMAL priority (db value 5)
-
-        # Act
-        priority_enum = scraping_job.priority_enum
-
-        # Assert
-        assert priority_enum == JobPriority.NORMAL
-
-    @pytest.mark.unit
-    def test_priority_enum_urgent(self, scraping_job: ScrapingJob) -> None:
-        """Test priority_enum with urgent priority."""
-        # Arrange
-        scraping_job.priority = 10  # URGENT priority (db value 10)
-
-        # Act
-        priority_enum = scraping_job.priority_enum
-
-        # Assert
-        assert priority_enum == JobPriority.URGENT
 
     @pytest.mark.unit
     def test_is_finished_completed(self, scraping_job: ScrapingJob) -> None:
