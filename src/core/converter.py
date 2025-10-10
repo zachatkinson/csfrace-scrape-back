@@ -1,8 +1,8 @@
 """Async WordPress to Shopify content converter using aiohttp."""
 
+from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable, Coroutine
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
