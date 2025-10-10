@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...auth.dependencies import get_current_user
+from ...auth.dependencies import get_current_user_from_cookie
 from ...database.models.auth import User, UserSettings
 from ..dependencies import get_db_session
 from ..schemas import UserSettingsResponse, UserSettingsUpdate
@@ -22,7 +22,8 @@ router = APIRouter(prefix="/user/settings", tags=["user-settings"])
 
 @router.get("/", response_model=UserSettingsResponse)
 async def get_user_settings(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_session)
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UserSettingsResponse:
     """
     Get current user's settings.
@@ -52,7 +53,7 @@ async def get_user_settings(
 @router.put("/", response_model=UserSettingsResponse)
 async def update_user_settings(
     settings_update: UserSettingsUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_from_cookie),
     db: AsyncSession = Depends(get_db_session),
 ) -> UserSettingsResponse:
     """
@@ -88,7 +89,8 @@ async def update_user_settings(
 
 @router.delete("/")
 async def reset_user_settings(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_session)
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
     """
     Reset user settings to defaults by deleting current settings.

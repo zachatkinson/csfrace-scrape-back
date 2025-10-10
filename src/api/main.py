@@ -63,9 +63,9 @@ app.include_router(health_stream.router)  # Real-time health events via SSE
 app.include_router(performance_stream.router)  # Real-time performance metrics via SSE
 app.include_router(events_router)  # Unified real-time events (SSE + WebSocket + HTTP)
 app.include_router(auth_router)  # Authentication endpoints
+app.include_router(user_settings.router, prefix="/auth")  # User settings under /auth
 app.include_router(jobs.router)
 app.include_router(scraper.router)  # Scraper endpoints (/scraper/jobs for API contract)
-app.include_router(user_settings.router)  # User settings endpoints
 app.include_router(metrics_router)  # Metrics endpoints
 
 

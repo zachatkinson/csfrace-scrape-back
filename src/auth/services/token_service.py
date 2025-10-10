@@ -1,14 +1,17 @@
 """JWT token creation and management service following SOLID principles."""
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
-from src.config.auth import AuthConfig
 from src.config.settings import ConfigManager
 from src.core.logging_hierarchy import get_auth_logger
 
 from ...constants import BEARER_TOKEN_TYPE
 from ..models import Token, User
 from ..security import security_manager
+
+if TYPE_CHECKING:
+    from src.config.auth import AuthConfig
 
 
 def _get_auth_config() -> "AuthConfig":

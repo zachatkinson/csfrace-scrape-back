@@ -27,7 +27,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.logging_hierarchy import get_database_logger
 
-from ...common.status import JobPriority, JobStatus
+from ...common.status import JobStatus
 from .base import Base
 
 logger = get_database_logger()
@@ -62,7 +62,6 @@ class ScrapingJob(Base):
         comment="Extracted domain from source_url for efficient statistics and filtering",
     )
 
-    job_type: Mapped[str] = mapped_column(String, nullable=False, default="single")
     target_format: Mapped[str] = mapped_column(String, nullable=False, default="html")
 
     # Job management
@@ -72,7 +71,7 @@ class ScrapingJob(Base):
         nullable=False,
         index=True,
     )
-    priority: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    # priority: Removed - YAGNI (not used for filtering, ordering, or queue processing)
 
     # Execution tracking
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -99,8 +98,11 @@ class ScrapingJob(Base):
     download_size_bytes: Mapped[int | None] = mapped_column(Integer)
     output_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
-    # Batch grouping
-    batch_id: Mapped[str | None] = mapped_column(String)
+    # Progress tracking (0-100)
+    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Batch grouping (foreign key exists at database level)
+    batch_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="scraping_jobs")
@@ -122,12 +124,7 @@ class ScrapingJob(Base):
         """Return status as enum instance."""
         return JobStatus(self.status)
 
-    @property
-    def priority_enum(self) -> JobPriority:
-        """Return priority as enum instance."""
-        from ...common.status import db_to_priority
-
-        return db_to_priority(self.priority)
+    # priority_enum property removed - field no longer exists
 
     @property
     def is_finished(self) -> bool:
@@ -202,7 +199,7 @@ class ContentResult(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
         nullable=False,

@@ -4,24 +4,33 @@ import json
 import os
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import asyncio
 import jwt
 from fastapi import Request
 from slowapi.util import get_remote_address
 
+from src.config.settings import ConfigManager
 from src.core.logging_hierarchy import get_auth_logger
 
-# from ..config import auth_config  # type: ignore[import-not-found]
+if TYPE_CHECKING:
+    from src.config.auth import AuthConfig
 
 
-# Temporary auth config until config.py is available
-class AuthConfig:
-    SECRET_KEY = "your-secret-key-here"  # noqa: S105
-    ALGORITHM = "HS256"
+def _get_auth_config() -> "AuthConfig":
+    """Get authentication configuration from centralized settings."""
+    try:
+        settings = ConfigManager.get_config()
+        return settings.auth
+    except RuntimeError:
+        # Fallback for testing or early initialization
+        from src.config.auth import AuthConfig
+
+        return AuthConfig(SECRET_KEY=os.getenv("SECRET_KEY", ""))
 
 
-auth_config = AuthConfig()
+auth_config = _get_auth_config()
 
 logger = get_auth_logger()
 

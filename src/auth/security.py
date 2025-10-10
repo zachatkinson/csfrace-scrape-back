@@ -2,15 +2,18 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import jwt
 from passlib.context import CryptContext
 
-from src.config.auth import AuthConfig
 from src.config.settings import ConfigManager
 from src.core.decorators import auth_error_handler
 
 from .models import TokenData
+
+if TYPE_CHECKING:
+    from src.config.auth import AuthConfig
 
 
 def _get_auth_config() -> "AuthConfig":

@@ -3,11 +3,10 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl
 
 from src.core.decorators import api_error_handler
 
-from ..common.status import JobPriority
 from ..constants import (
     API_MAX_RETRIES_LIMIT,
     API_MAX_URLS_PER_BATCH,
@@ -28,7 +27,7 @@ class JobCreate(BaseModel):
     url: HttpUrl
     slug: str | None = None
     custom_slug: str | None = None
-    priority: JobPriority = JobPriority.NORMAL
+    # priority: Removed - YAGNI, not used for filtering/ordering/queue processing
     output_directory: str | None = None
     max_retries: int = Field(default=3, ge=0, le=API_MAX_RETRIES_LIMIT)
     # timeout_seconds: removed - not in database model
@@ -41,7 +40,7 @@ class JobCreate(BaseModel):
 class JobUpdate(BaseModel):
     """Schema for updating an existing job."""
 
-    priority: JobPriority | None = None
+    # priority: Removed - YAGNI (not used for filtering, ordering, or queue processing)
     max_retries: int | None = Field(None, ge=0, le=API_MAX_RETRIES_LIMIT)
     # timeout_seconds: removed - not in database model
     # skip_existing: removed - not in database model
@@ -51,14 +50,13 @@ class JobUpdate(BaseModel):
 
 
 class JobResponse(BaseSchema):
-    """Schema for job responses."""
+    """Schema for job responses with embedded content_results metadata."""
 
     id: str  # String ID in database model
     source_url: str  # Required field in model
-    job_type: str  # Actual field in model
     target_format: str  # Actual field in model
     status: str  # String status in database model
-    priority: str  # String priority for API responses (converted from database integer)
+    # priority: Removed - YAGNI (not used for filtering, ordering, or queue processing)
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -69,16 +67,16 @@ class JobResponse(BaseSchema):
     output_size_bytes: int | None = None  # Actual field in model
     batch_id: str | None = None  # String ID in database model
     options: dict[str, Any] | None = None
+    progress: int = 0  # Progress tracking (0-100)
 
-    @field_validator("priority", mode="before")
-    @classmethod
-    def convert_priority_to_string(cls, v: Any) -> str:
-        """Convert database integer priority to string for API response."""
-        if isinstance(v, int):
-            result = _convert_db_priority_to_string_safe(v)
-            return result if result is not None else JobPriority.NORMAL.value
-        # v is already a string (from API input or database string field)
-        return str(v)
+    # Embedded content_results metadata (from content_results table)
+    title: str | None = None
+    meta_description: str | None = None
+    word_count: int | None = None
+    image_count: int | None = None
+    link_count: int | None = None
+    author: str | None = None
+    published_date: datetime | None = None
 
     # Computed fields derived from source_url
     @property
@@ -114,7 +112,7 @@ class JobsCreateRequest(BaseModel):
     """
 
     urls: list[HttpUrl] = Field(min_length=1, max_length=API_MAX_URLS_PER_BATCH)
-    priority: JobPriority = JobPriority.NORMAL
+    # priority: Removed - YAGNI (not used for filtering, ordering, or queue processing)
     output_base_directory: str | None = None
     max_retries: int = Field(default=3, ge=0, le=API_MAX_RETRIES_LIMIT)
     options: dict[str, Any] | None = None

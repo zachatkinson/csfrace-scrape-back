@@ -1,6 +1,7 @@
 """FastAPI dependencies for authentication following official patterns."""
 
 from collections.abc import Awaitable, Callable, Generator
+from typing import TYPE_CHECKING
 
 import jwt
 from fastapi import Depends, Request
@@ -11,13 +12,15 @@ from sqlalchemy.orm import Session
 from src.config.settings import ConfigManager
 
 from ..api.errors import APIErrorFactory
-from ..config.auth import AuthConfig
 from ..database.service import DatabaseService
 from .models import TokenData, User
 from .oauth_service import OAuthService
 from .security import security_manager
 from .service import AuthService
 from .webauthn_service import PasskeyManager, WebAuthnService
+
+if TYPE_CHECKING:
+    from ..config.auth import AuthConfig
 
 
 def _get_auth_config() -> "AuthConfig":
