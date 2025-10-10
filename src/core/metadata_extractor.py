@@ -115,15 +115,21 @@ class MetadataExtractorService:
             # Metadata from metadata.txt (ensure correct types)
             title=str(title_value) if isinstance(title_value, str) else None,
             meta_description=str(meta_desc_value) if isinstance(meta_desc_value, str) else None,
-            published_date=published_date_value if isinstance(published_date_value, datetime) else None,
+            published_date=published_date_value
+            if isinstance(published_date_value, datetime)
+            else None,
             author=str(author_value) if isinstance(author_value, str) else None,
             # Statistics (ensure int types)
             word_count=int(word_count_value) if isinstance(word_count_value, int) else None,
             image_count=image_count,
             link_count=int(link_count_value) if isinstance(link_count_value, int) else None,
             # HTML content (ensure string types)
-            original_html=str(original_html_value) if isinstance(original_html_value, str) else None,
-            converted_html=str(converted_html_value) if isinstance(converted_html_value, str) else None,
+            original_html=str(original_html_value)
+            if isinstance(original_html_value, str)
+            else None,
+            converted_html=str(converted_html_value)
+            if isinstance(converted_html_value, str)
+            else None,
             shopify_html=str(shopify_html_value) if isinstance(shopify_html_value, str) else None,
         )
 

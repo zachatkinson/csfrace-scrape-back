@@ -348,9 +348,7 @@ class AuthService:
                 revoker = OAuthRevocationRegistry.get_revoker(OAuthProvider(account.provider))
                 if revoker and account.access_token:
                     # Decrypt the token (access_token is stored encrypted)
-                    decrypted_token = encryption_service.decrypt_token(
-                        account.access_token
-                    )
+                    decrypted_token = encryption_service.decrypt_token(account.access_token)
 
                     # Revoke all tokens (notifies provider)
                     await revoker.revoke_all_tokens(
