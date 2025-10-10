@@ -146,7 +146,7 @@ class PerformanceSSEService(BaseSSEService):
 
     async def stream_events_with_polling(
         self, request: Request, user_id: str | None = None
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """Custom streaming with polling instead of Redis pub/sub.
 
         This overrides the base stream_events() to implement polling logic
