@@ -5,7 +5,6 @@ and SOLID testing principles with database integration.
 """
 
 from datetime import datetime
-from typing import Any
 from uuid import uuid4
 
 import pytest
