@@ -14,7 +14,7 @@ Tests WebAuthn/Passkeys authentication flows - 80% unit tests (MANDATORY).
 
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -364,8 +364,8 @@ class TestCredentialManagement:
         self, webauthn_service: Any, sample_user: Mock
     ) -> None:
         """Test cleanup of expired challenges - Maintenance logic."""
-        # Arrange - Mock the challenge storage cleanup method
-        webauthn_service._challenge_storage.cleanup_expired = Mock(return_value=1)
+        # Arrange - Mock the challenge storage cleanup method (async)
+        webauthn_service._challenge_storage.cleanup_expired = AsyncMock(return_value=1)
 
         # Act
         cleaned = await webauthn_service.cleanup_expired_challenges(max_age_minutes=10)
@@ -441,7 +441,8 @@ class TestPasskeyManager:
         return PasskeyManager(webauthn_service)
 
     @pytest.mark.unit
-    def test_start_passkey_registration(
+    @pytest.mark.asyncio
+    async def test_start_passkey_registration(
         self, passkey_manager: Any, webauthn_service: Any, sample_user: Mock
     ) -> None:
         """Test passkey registration returns proper API format."""
@@ -458,12 +459,12 @@ class TestPasskeyManager:
         mock_options.credential_options.authenticator_selection = {}
         mock_options.credential_options.attestation = "none"
 
-        webauthn_service.generate_registration_options = Mock(
+        webauthn_service.generate_registration_options = AsyncMock(
             return_value=(mock_options, "challenge_key")
         )
 
         # Act
-        result = passkey_manager.start_passkey_registration(sample_user, device_name="Test Device")
+        result = await passkey_manager.start_passkey_registration(sample_user, device_name="Test Device")
 
         # Assert - Test API format
         assert "publicKey" in result
@@ -648,7 +649,8 @@ class TestWebAuthnEnhancedEdgeCases:
                 )
 
     @pytest.mark.unit
-    def test_passkey_authentication_usernameless(
+    @pytest.mark.asyncio
+    async def test_passkey_authentication_usernameless(
         self, mock_db_session: Mock, webauthn_config: Any, mock_auth_service: Mock
     ) -> None:
         """Test PasskeyManager start_passkey_authentication without user - Lines 506-508."""
@@ -668,10 +670,10 @@ class TestWebAuthnEnhancedEdgeCases:
         with patch.object(
             webauthn_service,
             "generate_authentication_options",
-            return_value=(mock_options, "challenge_key_any"),
+            new=AsyncMock(return_value=(mock_options, "challenge_key_any")),
         ) as mock_generate:
             # Act - No user provided (usernameless)
-            result = passkey_manager.start_passkey_authentication(user=None)
+            result = await passkey_manager.start_passkey_authentication(user=None)
 
             # Assert
             assert "publicKey" in result
