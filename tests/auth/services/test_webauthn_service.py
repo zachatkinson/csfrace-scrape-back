@@ -137,7 +137,9 @@ class TestWebAuthnRegistration:
             mock_gen.return_value = mock_options
 
             # Act
-            options, challenge_key = await webauthn_service.generate_registration_options(sample_user)
+            options, challenge_key = await webauthn_service.generate_registration_options(
+                sample_user
+            )
 
         # Assert - Test OUR business logic using challenge storage API
         challenge_data = await webauthn_service._challenge_storage.get_challenge(challenge_key)
@@ -164,7 +166,7 @@ class TestWebAuthnRegistration:
                 "user_id": sample_user.id,
                 "type": "registration",
                 "created_at": datetime.now(UTC).isoformat(),
-            }
+            },
         )
 
         mock_credential = Mock()
