@@ -70,8 +70,8 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None
         # Publish status update event
         await publish_job_status_update(
             job_id=job_id,
-            old_status=JobStatus.PENDING,
-            new_status=JobStatus.RUNNING,
+            old_status=JobStatus.PENDING.value,
+            new_status=JobStatus.RUNNING.value,
             url=url,
             domain=domain,
         )
@@ -92,7 +92,7 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None
             # Publish progress update via SSE
             await publish_job_progress(
                 job_id=job_id,
-                status=JobStatus.RUNNING,
+                status=JobStatus.RUNNING.value,
                 progress_percent=float(progress),
                 url=url,
                 domain=domain,
@@ -179,8 +179,8 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None
             # Publish completion event with scraped metadata (title, word_count, image_count)
             await publish_job_status_update(
                 job_id=job_id,
-                old_status=JobStatus.RUNNING,
-                new_status=JobStatus.COMPLETED,
+                old_status=JobStatus.RUNNING.value,
+                new_status=JobStatus.COMPLETED.value,
                 url=url,
                 domain=domain,
                 processing_time_ms=job.processing_time_ms if job.processing_time_ms else None,
@@ -263,7 +263,7 @@ async def create_jobs(
             job_id=job.id,
             url=job.source_url,
             domain=job.domain,
-            status=JobStatus.PENDING,
+            status=JobStatus.PENDING.value,
         )
 
     # Add background tasks for all jobs

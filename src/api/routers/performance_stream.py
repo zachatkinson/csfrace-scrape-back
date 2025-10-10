@@ -36,7 +36,7 @@ class PerformanceSSEService(BaseSSEService):
     - Provide initial metrics snapshot on connection
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize performance SSE service."""
         super().__init__(connection_message="Real-time performance monitoring connected")
         self._previous_metrics: dict[str, Any] = {}
@@ -146,7 +146,7 @@ class PerformanceSSEService(BaseSSEService):
 
     async def stream_events_with_polling(
         self, request: Request, user_id: str | None = None
-    ) -> AsyncGenerator[str]:
+    ) -> AsyncGenerator[str, None]:
         """Custom streaming with polling instead of Redis pub/sub.
 
         This overrides the base stream_events() to implement polling logic

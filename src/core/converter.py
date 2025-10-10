@@ -1,6 +1,7 @@
 """Async WordPress to Shopify content converter using aiohttp."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -292,7 +293,10 @@ class AsyncWordPressConverter:
             None, lambda: path.write_text(content, encoding="utf-8")
         )
 
-    async def convert(self, progress_callback: Callable[[int], None] | None = None) -> None:
+    async def convert(
+        self,
+        progress_callback: Callable[[int], None | Coroutine[Any, Any, None]] | None = None,
+    ) -> None:
         """Main conversion method with progress tracking.
 
         Args:

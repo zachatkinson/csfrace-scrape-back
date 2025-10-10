@@ -88,7 +88,19 @@ class MetadataExtractorService:
         html_data = self._extract_html_data()
         image_count = self._count_images()
 
-        # Combine all extracted data
+        # Combine all extracted data with explicit type conversions
+        title_value = metadata_txt_data.get("title")
+        meta_desc_value = metadata_txt_data.get("meta_description")
+        published_date_value = metadata_txt_data.get("published_date")
+        author_value = metadata_txt_data.get("author")
+
+        # Extract statistics from html_data with proper type conversions
+        word_count_value = html_data.get("word_count")
+        link_count_value = html_data.get("link_count")
+        original_html_value = html_data.get("original_html")
+        converted_html_value = html_data.get("converted_html")
+        shopify_html_value = html_data.get("shopify_html")
+
         results = ContentResultsData(
             # File paths
             html_file_path=str(self.output_dir / "converted_content.html")
@@ -100,19 +112,19 @@ class MetadataExtractorService:
             images_directory=str(self.output_dir / "images")
             if (self.output_dir / "images").exists()
             else None,
-            # Metadata from metadata.txt
-            title=metadata_txt_data.get("title"),
-            meta_description=metadata_txt_data.get("meta_description"),
-            published_date=metadata_txt_data.get("published_date"),
-            author=metadata_txt_data.get("author"),
-            # Statistics
-            word_count=html_data.get("word_count"),
+            # Metadata from metadata.txt (ensure correct types)
+            title=str(title_value) if isinstance(title_value, str) else None,
+            meta_description=str(meta_desc_value) if isinstance(meta_desc_value, str) else None,
+            published_date=published_date_value if isinstance(published_date_value, datetime) else None,
+            author=str(author_value) if isinstance(author_value, str) else None,
+            # Statistics (ensure int types)
+            word_count=int(word_count_value) if isinstance(word_count_value, int) else None,
             image_count=image_count,
-            link_count=html_data.get("link_count"),
-            # HTML content
-            original_html=html_data.get("original_html"),
-            converted_html=html_data.get("converted_html"),
-            shopify_html=html_data.get("shopify_html"),
+            link_count=int(link_count_value) if isinstance(link_count_value, int) else None,
+            # HTML content (ensure string types)
+            original_html=str(original_html_value) if isinstance(original_html_value, str) else None,
+            converted_html=str(converted_html_value) if isinstance(converted_html_value, str) else None,
+            shopify_html=str(shopify_html_value) if isinstance(shopify_html_value, str) else None,
         )
 
         self.logger.info(
@@ -193,7 +205,7 @@ class MetadataExtractorService:
         Returns:
             Dictionary with word_count, link_count, original_html, converted_html, shopify_html
         """
-        html_data = {}
+        html_data: dict[str, str | int] = {}
 
         # Read converted_content.html (primary HTML file)
         converted_path = self.output_dir / "converted_content.html"

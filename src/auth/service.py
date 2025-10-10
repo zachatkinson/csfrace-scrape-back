@@ -341,12 +341,15 @@ class AuthService:
         # Revoke tokens for each OAuth provider
         for account in linked_accounts:
             try:
-                # Get the revoker for this provider
-                revoker = OAuthRevocationRegistry.get_revoker(account.provider)
-                if revoker and account.encrypted_access_token:
-                    # Decrypt the token
+                # Import OAuthProvider enum for proper type conversion
+                from .models.oauth_models import OAuthProvider
+
+                # Get the revoker for this provider (convert string to enum)
+                revoker = OAuthRevocationRegistry.get_revoker(OAuthProvider(account.provider))
+                if revoker and account.access_token:
+                    # Decrypt the token (access_token is stored encrypted)
                     decrypted_token = encryption_service.decrypt_token(
-                        account.encrypted_access_token
+                        account.access_token
                     )
 
                     # Revoke all tokens (notifies provider)
@@ -385,13 +388,9 @@ class AuthService:
         for cred in webauthn_creds:
             self.db.delete(cred)
 
-        # Delete WebAuthn challenges (GDPR: remove temporary authentication data)
-        from .models.webauthn_models import WebAuthnChallenge
-
-        challenges_result = self.db.execute(
-            delete(WebAuthnChallenge).where(WebAuthnChallenge.user_id == user_id)
-        )
-        deletion_summary["webauthn_challenges"] = challenges_result.rowcount
+        # WebAuthn challenges are stored in Redis with automatic TTL expiration (10 minutes)
+        # No explicit deletion needed - they expire automatically (GDPR compliant)
+        deletion_summary["webauthn_challenges"] = 0  # Not tracked (Redis auto-expiration)
 
         # Delete user settings
         user_settings = self.db.execute(

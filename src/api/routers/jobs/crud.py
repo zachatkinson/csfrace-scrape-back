@@ -8,6 +8,8 @@ This module handles basic job database operations including:
 - Delete job (/{job_id})
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query, status
 
 from src.auth.dependencies import get_current_user_from_cookie
@@ -16,6 +18,7 @@ from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
 
 from ....common.status import JobStatus
+from ....database.models.jobs import ScrapingJob
 from ...crud import JobCRUD
 from ...dependencies import DBSession
 from ...errors import APIErrorFactory
@@ -31,7 +34,7 @@ logger = get_api_logger()
 router = APIRouter()
 
 
-def _enrich_job_response(job) -> dict:
+def _enrich_job_response(job: ScrapingJob) -> dict[str, Any]:
     """Enrich job data with content_results metadata.
 
     Extracts content_results metadata and merges it with job data
