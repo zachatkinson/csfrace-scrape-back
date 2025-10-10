@@ -107,7 +107,8 @@ class TestWebAuthnRegistration:
     """Test WebAuthn registration flow - MANDATORY business logic focus."""
 
     @pytest.mark.unit
-    def test_generate_registration_options_creates_challenge(
+    @pytest.mark.asyncio
+    async def test_generate_registration_options_creates_challenge(
         self, webauthn_service: Any, sample_user: Mock
     ) -> None:
         """Test registration options generation creates challenge.
@@ -136,15 +137,17 @@ class TestWebAuthnRegistration:
             mock_gen.return_value = mock_options
 
             # Act
-            options, challenge_key = webauthn_service.generate_registration_options(sample_user)
+            options, challenge_key = await webauthn_service.generate_registration_options(sample_user)
 
-        # Assert - Test OUR business logic
-        assert challenge_key in webauthn_service._pending_challenges
-        assert webauthn_service._pending_challenges[challenge_key]["user_id"] == sample_user.id
-        assert webauthn_service._pending_challenges[challenge_key]["type"] == "registration"
+        # Assert - Test OUR business logic using challenge storage API
+        challenge_data = await webauthn_service._challenge_storage.get_challenge(challenge_key)
+        assert challenge_data is not None
+        assert challenge_data["user_id"] == sample_user.id
+        assert challenge_data["type"] == "registration"
 
     @pytest.mark.unit
-    def test_verify_registration_stores_credential(
+    @pytest.mark.asyncio
+    async def test_verify_registration_stores_credential(
         self, webauthn_service: Any, sample_user: Mock
     ) -> None:
         """Test registration verification stores credential in database.
@@ -153,12 +156,16 @@ class TestWebAuthnRegistration:
         """
         # Arrange
         challenge_key = f"reg_{sample_user.id}_challenge"
-        webauthn_service._pending_challenges[challenge_key] = {
-            "challenge": "test_challenge",
-            "user_id": sample_user.id,
-            "type": "registration",
-            "created_at": datetime.now(UTC),
-        }
+        # Store challenge using the challenge storage API
+        await webauthn_service._challenge_storage.store_challenge(
+            challenge_key,
+            {
+                "challenge": "test_challenge",
+                "user_id": sample_user.id,
+                "type": "registration",
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        )
 
         mock_credential = Mock()
         mock_credential.id = b"credential_id"
@@ -176,18 +183,21 @@ class TestWebAuthnRegistration:
         with patch("src.auth.webauthn_service.verify_registration_response") as mock_verify:
             mock_verify.return_value = mock_verification
 
-            result = webauthn_service.verify_registration_response(
+            result = await webauthn_service.verify_registration_response(
                 mock_credential, challenge_key, device_name="Test Device"
             )
 
         # Assert - Test OUR business logic
         assert result.user_id == sample_user.id
         assert result.metadata.device_name == "Test Device"
-        assert challenge_key not in webauthn_service._pending_challenges
+        # Verify challenge was deleted
+        challenge_data = await webauthn_service._challenge_storage.get_challenge(challenge_key)
+        assert challenge_data is None
         webauthn_service._store_credential.assert_called_once()
 
     @pytest.mark.unit
-    def test_registration_rejects_invalid_challenge(self, webauthn_service: Any) -> None:
+    @pytest.mark.asyncio
+    async def test_registration_rejects_invalid_challenge(self, webauthn_service: Any) -> None:
         """Test registration rejects invalid challenge - Security validation."""
         # Arrange
         invalid_challenge = "invalid_key"
@@ -195,7 +205,7 @@ class TestWebAuthnRegistration:
 
         # Act & Assert - Test OUR validation logic
         with pytest.raises(ValueError, match="Invalid or expired challenge"):
-            webauthn_service.verify_registration_response(mock_credential, invalid_challenge)
+            await webauthn_service.verify_registration_response(mock_credential, invalid_challenge)
 
 
 # ============================================================================
