@@ -131,7 +131,7 @@ class TestCookieService:
             assert auth_token_call[1]["secure"] is False  # Development
             assert auth_token_call[1]["samesite"] == "lax"  # Development
             assert auth_token_call[1]["path"] == "/"
-            assert auth_token_call[1]["domain"] == "localhost"
+            assert auth_token_call[1]["domain"] is None  # None for browser default
 
             # Verify refresh_token cookie
             refresh_token_call = mock_response.set_cookie.call_args_list[1]
@@ -227,7 +227,7 @@ class TestCookieService:
                 assert call[1]["expires"] < datetime.now(UTC)  # Past date
                 assert call[1]["secure"] is False  # Development
                 assert call[1]["samesite"] == "lax"  # Development
-                assert call[1]["domain"] == "localhost"
+                assert call[1]["domain"] is None  # None for browser default
 
             # Verify cookie names
             cookie_names = [call[1]["key"] for call in mock_response.set_cookie.call_args_list]
@@ -263,7 +263,7 @@ class TestCookieService:
             domain = service._get_cookie_domain()
 
             # Assert
-            assert domain == "localhost"
+            assert domain is None  # None for browser default behavior
 
     @pytest.mark.unit
     def test_get_cookie_domain_production(self) -> None:
@@ -389,10 +389,10 @@ class TestCookieService:
     @pytest.mark.parametrize(
         "environment,expected_secure,expected_samesite,expected_domain",
         [
-            ("development", False, "lax", "localhost"),
+            ("development", False, "lax", None),
             ("production", True, "strict", None),
-            ("staging", False, "lax", "localhost"),  # Non-production environment
-            ("test", False, "lax", "localhost"),  # Non-production environment
+            ("staging", False, "lax", None),  # Non-production environment
+            ("test", False, "lax", None),  # Non-production environment
         ],
     )
     def test_environment_specific_settings(
