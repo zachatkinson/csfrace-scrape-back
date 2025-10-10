@@ -33,8 +33,6 @@ def sample_job_data() -> dict[str, Any]:
         "user_id": str(uuid4()),
         "source_url": "https://example.com/test",
         "domain": "example.com",
-        "job_type": "single",
-        "target_format": "html",
         "status": "pending",
         "retry_count": 0,
         "max_retries": 3,
