@@ -219,7 +219,8 @@ class TestWebAuthnAuthentication:
     """Test WebAuthn authentication flow - Business logic focus."""
 
     @pytest.mark.unit
-    def test_generate_authentication_options_creates_challenge(
+    @pytest.mark.asyncio
+    async def test_generate_authentication_options_creates_challenge(
         self, webauthn_service: Any, sample_user: Mock, sample_credential: Any
     ) -> None:
         """Test authentication options generation creates challenge."""
@@ -236,15 +237,19 @@ class TestWebAuthnAuthentication:
             mock_gen.return_value = mock_options
 
             # Act
-            options, challenge_key = webauthn_service.generate_authentication_options(sample_user)
+            options, challenge_key = await webauthn_service.generate_authentication_options(
+                sample_user
+            )
 
-        # Assert - Test OUR business logic
-        assert challenge_key in webauthn_service._pending_challenges
-        assert webauthn_service._pending_challenges[challenge_key]["user_id"] == sample_user.id
-        assert webauthn_service._pending_challenges[challenge_key]["type"] == "authentication"
+        # Assert - Test OUR business logic using challenge storage API
+        challenge_data = await webauthn_service._challenge_storage.get_challenge(challenge_key)
+        assert challenge_data is not None
+        assert challenge_data["user_id"] == sample_user.id
+        assert challenge_data["type"] == "authentication"
 
     @pytest.mark.unit
-    def test_verify_authentication_updates_credential(
+    @pytest.mark.asyncio
+    async def test_verify_authentication_updates_credential(
         self,
         webauthn_service: Any,
         sample_user: Mock,
@@ -254,12 +259,15 @@ class TestWebAuthnAuthentication:
         """Test authentication updates credential sign count and usage."""
         # Arrange
         challenge_key = f"auth_{sample_user.id}_challenge"
-        webauthn_service._pending_challenges[challenge_key] = {
-            "challenge": "test_challenge",
-            "user_id": sample_user.id,
-            "type": "authentication",
-            "created_at": datetime.now(UTC),
-        }
+        await webauthn_service._challenge_storage.store_challenge(
+            challenge_key,
+            {
+                "challenge": "test_challenge",
+                "user_id": sample_user.id,
+                "type": "authentication",
+                "created_at": datetime.now(UTC).isoformat(),
+            },
+        )
 
         mock_credential = Mock()
         mock_credential.raw_id = b"credential_id"
@@ -280,18 +288,21 @@ class TestWebAuthnAuthentication:
         with patch("src.auth.webauthn_service.verify_authentication_response") as mock_verify:
             mock_verify.return_value = mock_verification
 
-            user, credential = webauthn_service.verify_authentication_response(
+            user, credential = await webauthn_service.verify_authentication_response(
                 mock_credential, challenge_key
             )
 
         # Assert - Test OUR business logic
         assert user.id == sample_user.id
         assert credential.sign_count == 1
-        assert challenge_key not in webauthn_service._pending_challenges
+        # Verify challenge was deleted
+        challenge_data = await webauthn_service._challenge_storage.get_challenge(challenge_key)
+        assert challenge_data is None
         webauthn_service._update_credential.assert_called_once()
 
     @pytest.mark.unit
-    def test_authentication_rejects_invalid_challenge(self, webauthn_service: Any) -> None:
+    @pytest.mark.asyncio
+    async def test_authentication_rejects_invalid_challenge(self, webauthn_service: Any) -> None:
         """Test authentication rejects invalid challenge - Security validation."""
         # Arrange
         invalid_challenge = "invalid_key"
@@ -299,7 +310,9 @@ class TestWebAuthnAuthentication:
 
         # Act & Assert - Test OUR validation logic
         with pytest.raises(ValueError, match="Invalid or expired challenge"):
-            webauthn_service.verify_authentication_response(mock_credential, invalid_challenge)
+            await webauthn_service.verify_authentication_response(
+                mock_credential, invalid_challenge
+            )
 
 
 # ============================================================================
