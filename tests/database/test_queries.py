@@ -831,7 +831,6 @@ class TestJobQueries:
         assert "completed" in query_str
 
 
-
 # ============================================================================
 # Test Suite 13: AuthQueries - Authentication Patterns (5 tests) - Lines 368-414
 # ============================================================================
