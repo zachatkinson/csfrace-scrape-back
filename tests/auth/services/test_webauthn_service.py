@@ -233,7 +233,10 @@ class TestWebAuthnAuthentication:
             mock_options.challenge = b"test_challenge"
             mock_options.rp_id = "localhost"
             mock_options.timeout = 60000
-            mock_options.user_verification = "preferred"
+            # Mock user_verification as an enum with .value attribute
+            mock_user_verification = Mock()
+            mock_user_verification.value = "preferred"
+            mock_options.user_verification = mock_user_verification
             mock_gen.return_value = mock_options
 
             # Act
@@ -356,36 +359,20 @@ class TestCredentialManagement:
         webauthn_service._update_credential.assert_called_once()
 
     @pytest.mark.unit
-    def test_cleanup_expired_challenges(self, webauthn_service: Any, sample_user: Mock) -> None:
+    @pytest.mark.asyncio
+    async def test_cleanup_expired_challenges(
+        self, webauthn_service: Any, sample_user: Mock
+    ) -> None:
         """Test cleanup of expired challenges - Maintenance logic."""
-        # Arrange
-        current_time = datetime.now(UTC)
-
-        # Expired challenge (15 minutes old)
-        expired_key = f"reg_{sample_user.id}_expired"
-        webauthn_service._pending_challenges[expired_key] = {
-            "challenge": "expired",
-            "user_id": sample_user.id,
-            "type": "registration",
-            "created_at": current_time - timedelta(minutes=15),
-        }
-
-        # Valid challenge (5 minutes old)
-        valid_key = f"reg_{sample_user.id}_valid"
-        webauthn_service._pending_challenges[valid_key] = {
-            "challenge": "valid",
-            "user_id": sample_user.id,
-            "type": "registration",
-            "created_at": current_time - timedelta(minutes=5),
-        }
+        # Arrange - Mock the challenge storage cleanup method
+        webauthn_service._challenge_storage.cleanup_expired = Mock(return_value=1)
 
         # Act
-        cleaned = webauthn_service.cleanup_expired_challenges(max_age_minutes=10)
+        cleaned = await webauthn_service.cleanup_expired_challenges(max_age_minutes=10)
 
-        # Assert - Test OUR cleanup logic
+        # Assert - Test that cleanup delegates to challenge storage
         assert cleaned == 1
-        assert expired_key not in webauthn_service._pending_challenges
-        assert valid_key in webauthn_service._pending_challenges
+        webauthn_service._challenge_storage.cleanup_expired.assert_called_once_with(10)
 
 
 # ============================================================================
@@ -397,18 +384,22 @@ class TestWebAuthnEdgeCases:
     """Edge cases and security scenarios - MANDATORY security testing."""
 
     @pytest.mark.unit
-    def test_authentication_rejects_inactive_credential(
+    @pytest.mark.asyncio
+    async def test_authentication_rejects_inactive_credential(
         self, webauthn_service: Any, sample_user: Mock, sample_credential: Any
     ) -> None:
         """Test authentication rejects inactive credentials - Security."""
         # Arrange
         challenge_key = f"auth_{sample_user.id}_challenge"
-        webauthn_service._pending_challenges[challenge_key] = {
-            "challenge": "test_challenge",
-            "user_id": sample_user.id,
-            "type": "authentication",
-            "created_at": datetime.now(UTC),
-        }
+        await webauthn_service._challenge_storage.store_challenge(
+            challenge_key,
+            {
+                "challenge": "test_challenge",
+                "user_id": sample_user.id,
+                "type": "authentication",
+                "created_at": datetime.now(UTC).isoformat(),
+            },
+        )
 
         sample_credential.metadata.is_active = False
         webauthn_service._get_credential_by_id = Mock(return_value=sample_credential)
@@ -418,7 +409,7 @@ class TestWebAuthnEdgeCases:
 
         # Act & Assert - Test OUR security logic
         with pytest.raises(ValueError, match="Credential not found or inactive"):
-            webauthn_service.verify_authentication_response(mock_credential, challenge_key)
+            await webauthn_service.verify_authentication_response(mock_credential, challenge_key)
 
     @pytest.mark.unit
     def test_revoke_credential_wrong_user_fails(
@@ -526,48 +517,59 @@ class TestWebAuthnEnhancedEdgeCases:
     """Test additional edge cases to achieve 95%+ coverage."""
 
     @pytest.mark.unit
-    def test_registration_rejects_wrong_challenge_type(
+    @pytest.mark.asyncio
+    async def test_registration_rejects_wrong_challenge_type(
         self, webauthn_service: Any, sample_user: Mock
     ) -> None:
         """Test registration rejects authentication challenge - Line 217."""
         # Arrange - Create authentication challenge instead of registration
         challenge_key = f"reg_{sample_user.id}_challenge"
-        webauthn_service._pending_challenges[challenge_key] = {
-            "challenge": "test_challenge",
-            "user_id": sample_user.id,
-            "type": "authentication",  # Wrong type!
-            "created_at": datetime.now(UTC),
-        }
+        await webauthn_service._challenge_storage.store_challenge(
+            challenge_key,
+            {
+                "challenge": "test_challenge",
+                "user_id": sample_user.id,
+                "type": "authentication",  # Wrong type!
+                "created_at": datetime.now(UTC).isoformat(),
+            },
+        )
 
         mock_credential = Mock()
 
         # Act & Assert
         with pytest.raises(ValueError, match="Challenge type mismatch"):
-            webauthn_service.verify_registration_response(mock_credential, challenge_key)
+            await webauthn_service.verify_registration_response(mock_credential, challenge_key)
 
     @pytest.mark.unit
-    def test_authentication_rejects_wrong_challenge_type(
+    @pytest.mark.asyncio
+    async def test_authentication_rejects_wrong_challenge_type(
         self, webauthn_service: Any, sample_user: Mock
     ) -> None:
         """Test authentication rejects registration challenge - Line 317."""
         # Arrange - Create registration challenge instead of authentication
         challenge_key = f"auth_{sample_user.id}_challenge"
-        webauthn_service._pending_challenges[challenge_key] = {
-            "challenge": "test_challenge",
-            "user_id": sample_user.id,
-            "type": "registration",  # Wrong type!
-            "created_at": datetime.now(UTC),
-        }
+        await webauthn_service._challenge_storage.store_challenge(
+            challenge_key,
+            {
+                "challenge": "test_challenge",
+                "user_id": sample_user.id,
+                "type": "registration",  # Wrong type!
+                "created_at": datetime.now(UTC).isoformat(),
+            },
+        )
 
         mock_credential = Mock()
         mock_credential.raw_id = b"credential_id"
 
         # Act & Assert
         with pytest.raises(ValueError, match="Challenge type mismatch"):
-            webauthn_service.verify_authentication_response(mock_credential, challenge_key)
+            await webauthn_service.verify_authentication_response(mock_credential, challenge_key)
 
     @pytest.mark.unit
-    def test_usernameless_authentication_no_user_provided(self, webauthn_service: Any) -> None:
+    @pytest.mark.asyncio
+    async def test_usernameless_authentication_no_user_provided(
+        self, webauthn_service: Any
+    ) -> None:
         """Test usernameless/discoverable authentication - Lines 265-266."""
         # Arrange - No user provided (usernameless login)
         with patch("src.auth.webauthn_service.generate_authentication_options") as mock_gen:
@@ -575,21 +577,29 @@ class TestWebAuthnEnhancedEdgeCases:
             mock_options.challenge = b"test_challenge"
             mock_options.rp_id = "localhost"
             mock_options.timeout = 60000
-            mock_options.user_verification = "preferred"
+            # Mock user_verification as an enum with .value attribute
+            mock_user_verification = Mock()
+            mock_user_verification.value = "preferred"
+            mock_options.user_verification = mock_user_verification
             mock_gen.return_value = mock_options
 
             # Act - Pass None for user (usernameless)
-            options, challenge_key = webauthn_service.generate_authentication_options(user=None)
+            options, challenge_key = await webauthn_service.generate_authentication_options(
+                user=None
+            )
 
         # Assert
         assert "auth_any_" in challenge_key
-        assert webauthn_service._pending_challenges[challenge_key]["user_id"] is None
-        assert webauthn_service._pending_challenges[challenge_key]["type"] == "authentication"
+        challenge_data = await webauthn_service._challenge_storage.get_challenge(challenge_key)
+        assert challenge_data is not None
+        assert challenge_data["user_id"] is None
+        assert challenge_data["type"] == "authentication"
         # Should pass empty allow_credentials for discoverable credentials
         assert options.allow_credentials == []
 
     @pytest.mark.unit
-    def test_authentication_rejects_inactive_user(
+    @pytest.mark.asyncio
+    async def test_authentication_rejects_inactive_user(
         self,
         webauthn_service: Any,
         sample_user: Mock,
@@ -599,12 +609,15 @@ class TestWebAuthnEnhancedEdgeCases:
         """Test authentication rejects inactive user - Line 346."""
         # Arrange
         challenge_key = f"auth_{sample_user.id}_challenge"
-        webauthn_service._pending_challenges[challenge_key] = {
-            "challenge": "test_challenge",
-            "user_id": sample_user.id,
-            "type": "authentication",
-            "created_at": datetime.now(UTC),
-        }
+        await webauthn_service._challenge_storage.store_challenge(
+            challenge_key,
+            {
+                "challenge": "test_challenge",
+                "user_id": sample_user.id,
+                "type": "authentication",
+                "created_at": datetime.now(UTC).isoformat(),
+            },
+        )
 
         mock_credential = Mock()
         mock_credential.raw_id = b"credential_id"
@@ -630,7 +643,9 @@ class TestWebAuthnEnhancedEdgeCases:
             mock_verify.return_value = mock_verification
 
             with pytest.raises(ValueError, match="User not found or inactive"):
-                webauthn_service.verify_authentication_response(mock_credential, challenge_key)
+                await webauthn_service.verify_authentication_response(
+                    mock_credential, challenge_key
+                )
 
     @pytest.mark.unit
     def test_passkey_authentication_usernameless(
