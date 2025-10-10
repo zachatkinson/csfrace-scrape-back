@@ -12,7 +12,7 @@ MANDATORY COMPLIANCE:
 Tests WebAuthn/Passkeys authentication flows - 80% unit tests (MANDATORY).
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import Mock, patch
 from uuid import uuid4
