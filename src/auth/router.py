@@ -744,14 +744,14 @@ async def disconnect_oauth_provider(
 @router.post("/passkeys/register/begin", response_model=PasskeyRegistrationResponse)
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 @auth_error_handler("passkey registration initiation")
-def begin_passkey_registration(
+async def begin_passkey_registration(
     request: Request,  # SlowAPI requirement  # pylint: disable=unused-argument
     passkey_request: PasskeyRegistrationRequest,
     current_user: User = Depends(get_current_active_user_from_cookie),
     passkey_manager: PasskeyManager = Depends(get_passkey_manager),
 ) -> PasskeyRegistrationResponse:
     """Begin WebAuthn/Passkeys registration - Following FIDO2 standards."""
-    registration_data = passkey_manager.start_passkey_registration(
+    registration_data = await passkey_manager.start_passkey_registration(
         user=current_user, device_name=passkey_request.device_name or "Default Device"
     )
 
@@ -765,7 +765,7 @@ def begin_passkey_registration(
 @router.post("/passkeys/register/complete", response_model=dict[str, str])
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 @auth_error_handler("passkey registration completion")
-def complete_passkey_registration(
+async def complete_passkey_registration(
     request: Request,  # SlowAPI requirement  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     current_user: User = Depends(get_current_active_user_from_cookie),
@@ -812,7 +812,7 @@ def complete_passkey_registration(
     )
 
     # Verify and store the credential
-    webauthn_credential = webauthn_service.verify_registration_response(
+    webauthn_credential = await webauthn_service.verify_registration_response(
         credential=registration_credential,
         challenge_key=credential_request.challenge_key,
         device_name=credential_request.device_name,
@@ -835,7 +835,7 @@ def complete_passkey_registration(
 @router.post("/passkeys/authenticate/begin", response_model=PasskeyAuthenticationResponse)
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 @auth_error_handler("passkey authentication initiation")
-def begin_passkey_authentication(
+async def begin_passkey_authentication(
     request: Request,  # SlowAPI requirement  # pylint: disable=unused-argument
     auth_request: PasskeyAuthenticationRequest,
     auth_service: AuthService = Depends(get_auth_service),
@@ -850,7 +850,7 @@ def begin_passkey_authentication(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     # Start authentication (works for both username and usernameless flows)
-    authentication_data = passkey_manager.start_passkey_authentication(user)
+    authentication_data = await passkey_manager.start_passkey_authentication(user)
 
     return PasskeyAuthenticationResponse(
         public_key=authentication_data["publicKey"],
@@ -861,11 +861,11 @@ def begin_passkey_authentication(
 @router.post("/passkeys/authenticate/complete", response_model=Token)
 @limiter.limit(rate_limits.AUTH_PASSKEY)
 @auth_error_handler("passkey authentication completion")
-def complete_passkey_authentication(
+async def complete_passkey_authentication(
     request: Request,  # SlowAPI requirement  # pylint: disable=unused-argument
     credential_request: PasskeyCredentialRequest,
     webauthn_service: WebAuthnService = Depends(get_webauthn_service),
-) -> Token:
+) -> JSONResponse:
     """Complete WebAuthn/Passkeys authentication following FIDO2 standards and return JWT token."""
     logger.info(
         "Processing passkey authentication completion",
@@ -910,7 +910,7 @@ def complete_passkey_authentication(
     )
 
     # Verify authentication and get user
-    user, webauthn_credential = webauthn_service.verify_authentication_response(
+    user, webauthn_credential = await webauthn_service.verify_authentication_response(
         credential=authentication_credential,
         challenge_key=credential_request.challenge_key,
     )

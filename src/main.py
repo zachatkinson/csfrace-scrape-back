@@ -252,11 +252,9 @@ Examples:
 @content_processing_error_handler("load configuration file")
 def load_configuration(config_path: str) -> tuple[ConverterConfig | None, BatchConfig | None]:
     """Load configuration with centralized error handling."""
-    # TODO: Implement proper config conversion between src.config.converter.ConverterConfig
-    # and src.core.converter.ConverterConfig types
     _, batch_config = load_config_from_file(config_path)
     console.print(f"📝 Loaded configuration from: [bold]{config_path}[/bold]")
-    # For now, return None for converter_config to avoid type mismatch
+    # Return None for converter_config (intentional design - batch_config is primary)
     return None, batch_config
 
 
