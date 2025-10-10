@@ -125,7 +125,7 @@ class MetadataExtractorService:
 
         return results
 
-    def _parse_metadata_file(self) -> dict:
+    def _parse_metadata_file(self) -> dict[str, str | datetime | None]:
         """Parse metadata.txt file for extracted metadata.
 
         Returns:
@@ -187,7 +187,7 @@ class MetadataExtractorService:
             self.logger.error("Failed to parse metadata.txt", error=str(e), exc_info=True)
             return {}
 
-    def _extract_html_data(self) -> dict:
+    def _extract_html_data(self) -> dict[str, str | int]:
         """Extract data from HTML files (word count, link count, content).
 
         Returns:

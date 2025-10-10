@@ -122,7 +122,7 @@ class FontProcessor(ContentExtractorBase):
             if not hasattr(content, "new_tag") or not callable(content.new_tag):
                 continue
             # Create new span tag (BeautifulSoup returns Any type, but it's actually a Tag)
-            span_tag = content.new_tag("span")  # type: ignore[misc]
+            span_tag = content.new_tag("span")
             if not isinstance(span_tag, Tag):
                 continue
 
@@ -310,9 +310,9 @@ class MediaProcessor(ContentExtractorBase):
                 and callable(content.new_tag)
             ):
                 # Wrap in responsive container (BeautifulSoup returns Any type, but it's actually a Tag)
-                wrapper_tag = content.new_tag("div")  # type: ignore[misc]
+                wrapper_tag = content.new_tag("div")
                 if isinstance(wrapper_tag, Tag):
-                    wrapper_tag.attrs["class"] = ["video-responsive"]  # type: ignore[assignment]
+                    wrapper_tag.attrs["class"] = ["video-responsive"]
                     iframe.wrap(wrapper_tag)
 
         return content

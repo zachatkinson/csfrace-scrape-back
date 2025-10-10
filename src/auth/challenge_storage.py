@@ -217,7 +217,7 @@ class RedisChallengeStorage(IChallengeStorage):
 
         # Deserialize from JSON
         try:
-            challenge_data = json.loads(challenge_json)
+            challenge_data: dict[str, Any] = json.loads(challenge_json)
             return challenge_data
         except json.JSONDecodeError as e:
             logger.error("Failed to decode challenge JSON from Redis", error=str(e))

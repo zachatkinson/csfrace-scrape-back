@@ -212,7 +212,7 @@ async def publish_job_status_update(
     Returns:
         True if published successfully
     """
-    data = {
+    data: dict[str, Any] = {
         "url": url,
         "domain": domain,
         "old_status": old_status,

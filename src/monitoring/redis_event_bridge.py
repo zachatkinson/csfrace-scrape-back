@@ -81,7 +81,7 @@ class RedisEventBridge:
                     await cache_manager.initialize()
 
                 # Get Redis client from the backend (proper way to access Redis)
-                redis_backend = cache_manager._ensure_backend()  # type: ignore[attr-defined]
+                redis_backend = cache_manager._ensure_backend()
                 self._redis_client = await redis_backend._get_client()  # type: ignore[attr-defined]
 
                 if self._redis_client is None:

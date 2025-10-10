@@ -84,7 +84,6 @@ class JobService:
         job = ScrapingJob(
             user_id=request.user_id,
             source_url=request.url,
-            priority=self._normalize_priority(request.priority),
             max_retries=request.max_retries,
             options=job_options,
             batch_id=request.batch_id,
@@ -99,41 +98,6 @@ class JobService:
 
         logger.info("Job created successfully", job_id=job.id, domain=job.domain)
         return job
-
-    def _normalize_priority(self, priority: str | object) -> int:
-        """Normalize priority value to integer.
-
-        Args:
-            priority: Priority as string, enum, or object
-
-        Returns:
-            Integer priority value (1-10 scale)
-        """
-        if hasattr(priority, "value"):
-            # Handle enum objects - map enum string values to integers
-            priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
-            normalized = priority_map.get(priority.value.lower(), 5)
-        elif isinstance(priority, str):
-            # Handle string values
-            priority_map = {"low": 1, "normal": 5, "high": 8, "urgent": 10}
-            normalized = priority_map.get(priority.lower(), 5)
-        else:
-            # Handle direct integer or other types
-            if isinstance(priority, (int, float)):
-                normalized = int(priority)
-            else:
-                try:
-                    normalized = int(str(priority))
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"Unable to parse priority '{priority}', using default", priority=priority
-                    )
-                    normalized = 5  # Default priority
-
-        # Clamp to valid range
-        normalized = max(1, min(10, normalized))
-        logger.debug("Priority normalized", original=priority, normalized=normalized)
-        return normalized
 
     def _extract_domain_safely(self, url: str) -> str:
         """Extract domain from URL safely.
@@ -152,7 +116,7 @@ class JobService:
 
         Args:
             urls: List of URLs to process
-            **job_config: Shared job configuration (output_directory, priority, etc.)
+            **job_config: Shared job configuration (output_directory, max_retries, etc.)
 
         Returns:
             List of created job instances
@@ -179,7 +143,6 @@ class JobService:
             job = ScrapingJob(
                 user_id=request.user_id,
                 source_url=request.url,
-                priority=self._normalize_priority(request.priority),
                 max_retries=request.max_retries,
                 options=job_options,
                 batch_id=batch_id,
@@ -276,13 +239,13 @@ class JobService:
 
     @database_error_handler("get pending jobs")
     def get_pending_jobs(self, limit: int = API_DEFAULT_LIMIT) -> list[ScrapingJob]:
-        """Get pending jobs ordered by priority and creation time.
+        """Get pending jobs ordered by creation time.
 
         Args:
             limit: Maximum number of jobs to return
 
         Returns:
-            List of pending jobs ordered by priority (high to low), then by creation time
+            List of pending jobs ordered by creation time
         """
         logger.debug("Getting pending jobs", limit=limit)
 
@@ -294,7 +257,7 @@ class JobService:
         # Eagerly load attributes to prevent DetachedInstanceError
         for job in jobs:
             # Access all attributes to load them into the session
-            _ = job.source_url, job.domain, job.status, job.priority
+            _ = job.source_url, job.domain, job.status
             self.session.expunge(job)  # Detach from session for safe return
 
         logger.debug("Pending jobs retrieved", count=len(jobs))
@@ -336,7 +299,7 @@ class JobService:
         # Eagerly load attributes to prevent DetachedInstanceError
         for job in jobs:
             # Access all attributes to load them into the session
-            _ = job.source_url, job.domain, job.status, job.priority
+            _ = job.source_url, job.domain, job.status
             self.session.expunge(job)  # Detach from session for safe return
 
         logger.debug("Jobs by status retrieved", status=status.name, count=len(jobs), domain=domain)
@@ -365,7 +328,7 @@ class JobService:
                     | (ScrapingJob.completed_at <= datetime.now(UTC)),
                 )
             )
-            .order_by(desc(ScrapingJob.priority), ScrapingJob.created_at)
+            .order_by(ScrapingJob.created_at)
             .limit(max_jobs)
         )
 
@@ -374,7 +337,7 @@ class JobService:
         # Eagerly load attributes to prevent DetachedInstanceError
         for job in jobs:
             # Access all attributes to load them into the session
-            _ = job.source_url, job.domain, job.status, job.priority
+            _ = job.source_url, job.domain, job.status
             self.session.expunge(job)  # Detach from session for safe return
 
         logger.debug("Retry jobs retrieved", count=len(jobs))
@@ -401,7 +364,7 @@ class JobService:
         # Eagerly load attributes to prevent DetachedInstanceError
         for job in jobs:
             # Access all attributes to load them into the session
-            _ = job.source_url, job.domain, job.status, job.priority
+            _ = job.source_url, job.domain, job.status
             self.session.expunge(job)  # Detach from session for safe return
 
         logger.debug("Batch jobs retrieved", batch_id=batch_id, count=len(jobs))
