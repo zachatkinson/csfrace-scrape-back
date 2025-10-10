@@ -30,8 +30,8 @@ from fastapi.responses import StreamingResponse
 from src.api.routers.performance_stream import (
     performance_stream,
     router,
-    safe_json_dumps,
 )
+from src.core.sse.events import safe_json_dumps
 
 # ============================================================================
 # Test Fixtures - DRY Principle
