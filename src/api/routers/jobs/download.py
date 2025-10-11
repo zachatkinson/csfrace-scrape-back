@@ -25,6 +25,32 @@ logger = get_api_logger()
 router = APIRouter()
 
 
+def _is_safe_path(path: Path, base_dir: Path) -> bool:
+    """Validate that path is within base_dir (prevent path traversal attacks).
+
+    Uses path.resolve() to normalize paths and prevent directory traversal
+    with sequences like '../' or symbolic links.
+
+    Args:
+        path: Path to validate
+        base_dir: Expected parent directory
+
+    Returns:
+        True if path is safely within base_dir, False otherwise
+    """
+    try:
+        # Resolve both paths to absolute, normalized paths
+        resolved_path = path.resolve()
+        resolved_base = base_dir.resolve()
+
+        # Check if path is relative to base_dir
+        # is_relative_to() raises ValueError if not relative
+        resolved_path.relative_to(resolved_base)
+        return True
+    except (ValueError, OSError, RuntimeError):
+        return False
+
+
 @router.get("/{job_id}/download")
 @api_error_handler("download job")
 async def download_job(job_id: str, db: DBSession) -> FileResponse:
@@ -85,7 +111,17 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
             detail="Job output files not found",
         )
 
-    if not output_dir.exists():
+    # Security validation: Resolve path and validate it exists
+    try:
+        output_dir = output_dir.resolve()
+    except (OSError, RuntimeError) as e:
+        logger.error("Failed to resolve output directory path", job_id=job_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Invalid output directory path",
+        ) from e
+
+    if not output_dir.exists() or not output_dir.is_dir():
         logger.error("Output directory not found", job_id=job_id, output_dir=str(output_dir))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -99,10 +135,29 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
         zip_path = await _create_job_archive(job_id, output_dir)
         logger.info("ZIP archive created", job_id=job_id, zip_path=str(zip_path))
 
+        # Security validation: Verify ZIP path is within temp directory
+        temp_dir = Path(tempfile.gettempdir()).resolve()
+        if not _is_safe_path(zip_path, temp_dir):
+            logger.error(
+                "Security: ZIP path outside temp directory", job_id=job_id, zip_path=str(zip_path)
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Invalid archive path",
+            )
+
+        # Verify the file exists before serving
+        if not zip_path.exists() or not zip_path.is_file():
+            logger.error("ZIP file not found after creation", job_id=job_id, zip_path=str(zip_path))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Archive file not found",
+            )
+
         # Generate safe filename from job data
         domain = getattr(job, "domain", "job")
         title = content_result.title if content_result.title else "output"
-        # Sanitize filename
+        # Sanitize filename (allow only alphanumeric, dash, underscore)
         safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title[:50])
         filename = f"{domain}_{safe_title}_{job_id[:8]}.zip"
 
@@ -135,13 +190,30 @@ async def _create_job_archive(job_id: str, output_dir: Path) -> Path:
         Path to created ZIP file in temp directory
 
     Raises:
+        ValueError: If paths are invalid or contain traversal attempts
         Exception: If archive creation fails
     """
-    # Create temp file for ZIP archive
-    temp_dir = Path(tempfile.gettempdir())
+    # Validate output_dir to prevent path traversal
+    try:
+        output_dir = output_dir.resolve()
+        # Ensure output_dir exists and is a directory
+        if not output_dir.exists() or not output_dir.is_dir():
+            raise ValueError(f"Invalid output directory: {output_dir}")
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Path resolution failed: {e}") from e
+
+    # Create temp file for ZIP archive with strict path validation
+    temp_dir = Path(tempfile.gettempdir()).resolve()
     # Use job_id hash for unique temp filename
     file_hash = hashlib.md5(job_id.encode(), usedforsecurity=False).hexdigest()[:8]
-    zip_path = temp_dir / f"job_{job_id[:8]}_{file_hash}.zip"
+    zip_filename = f"job_{job_id[:8]}_{file_hash}.zip"
+
+    # Construct and validate ZIP path is within temp directory (prevent path traversal)
+    zip_path = (temp_dir / zip_filename).resolve()
+
+    # Security check: Ensure ZIP path is within temp directory
+    if not _is_safe_path(zip_path, temp_dir):
+        raise ValueError(f"Invalid ZIP path: {zip_path} not within {temp_dir}")
 
     # Run ZIP creation in thread pool to avoid blocking
     loop = asyncio.get_event_loop()
