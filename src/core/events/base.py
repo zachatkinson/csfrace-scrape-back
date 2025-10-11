@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class Event(BaseModel):
@@ -38,14 +38,21 @@ class Event(BaseModel):
     source: str = Field(default="system", description="Event source identifier")
     sequence: int | None = Field(default=None, description="Optional sequence number")
 
-    class Config:
-        """Pydantic configuration."""
+    # Pydantic V2 configuration using ConfigDict
+    model_config = ConfigDict(
+        frozen=False,  # Allow modifications for sequence numbers
+    )
 
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-        frozen = False  # Allow modifications for sequence numbers
+    # Pydantic V2 custom serializers (replaces deprecated json_encoders)
+    @field_serializer("timestamp")
+    def serialize_datetime(self, value: datetime) -> str:
+        """Serialize datetime to ISO format string."""
+        return value.isoformat()
+
+    @field_serializer("id")
+    def serialize_uuid(self, value: UUID) -> str:
+        """Serialize UUID to string."""
+        return str(value)
 
 
 class EventSubscriber(ABC):
