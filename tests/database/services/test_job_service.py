@@ -410,11 +410,11 @@ class TestJobService:
     def test_get_pending_jobs(self, job_service: JobService, test_session: Session) -> None:
         """Test retrieval of pending jobs ordered by creation time."""
         # Arrange
-        # Create jobs with different statuses
-        pending_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
-        pending_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
-        pending_job3 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
-        running_job = JobFactory.create_scraping_job(test_session, status=JobStatus.RUNNING)
+        # Create jobs with different statuses (unused variables prefixed with _ to indicate intentional)
+        _pending_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _pending_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _pending_job3 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _running_job = JobFactory.create_scraping_job(test_session, status=JobStatus.RUNNING)
 
         # Act
         results = job_service.get_pending_jobs(limit=10)
@@ -431,9 +431,9 @@ class TestJobService:
     def test_get_jobs_by_status(self, job_service: JobService, test_session: Session) -> None:
         """Test filtering jobs by status."""
         # Arrange
-        completed_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
-        completed_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
-        pending_job = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _completed_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
+        _completed_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
+        _pending_job = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
 
         # Act
         results = job_service.get_jobs_by_status(JobStatus.COMPLETED, limit=10)
