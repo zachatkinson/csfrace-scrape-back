@@ -13,6 +13,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
+from src.constants.core import DEFAULT_OUTPUT_DIR
 from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
 
@@ -120,6 +121,20 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Invalid output directory path",
         ) from e
+
+    # Security validation: Ensure output_dir is within expected base directory (prevent path traversal)
+    expected_base_dir = Path(DEFAULT_OUTPUT_DIR).resolve()
+    if not _is_safe_path(output_dir, expected_base_dir):
+        logger.error(
+            "Security: Output directory outside expected base",
+            job_id=job_id,
+            output_dir=str(output_dir),
+            expected_base=str(expected_base_dir),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Invalid output directory location",
+        )
 
     if not output_dir.exists() or not output_dir.is_dir():
         logger.error("Output directory not found", job_id=job_id, output_dir=str(output_dir))
