@@ -27,51 +27,6 @@ logger = get_api_logger()
 router = APIRouter()
 
 
-def _sanitize_path(path_to_check: str, base_directory: str) -> str:
-    """Sanitize and validate file path against base directory (prevent path traversal).
-
-    Uses os.path.normpath and startswith validation as recommended by CodeQL documentation.
-    This pattern is explicitly recognized by CodeQL's security taint analysis.
-
-    Based on CodeQL official guidance:
-    https://codeql.github.com/codeql-query-help/python/py-path-injection/
-
-    Args:
-        path_to_check: Path to validate (string)
-        base_directory: Expected parent directory (string)
-
-    Returns:
-        Sanitized, validated path string
-
-    Raises:
-        ValueError: If path is outside base_directory (path traversal attempt)
-    """
-    # Normalize the paths to handle "../" and other traversal attempts
-    # os.path.normpath is recognized by CodeQL as a sanitization step
-    normalized_path = os.path.normpath(path_to_check)
-    normalized_base = os.path.normpath(base_directory)
-
-    # Ensure base directory is absolute
-    if not os.path.isabs(normalized_base):
-        normalized_base = os.path.abspath(normalized_base)
-
-    # Make path absolute relative to base if it's not already absolute
-    if not os.path.isabs(normalized_path):
-        normalized_path = os.path.join(normalized_base, normalized_path)
-        normalized_path = os.path.normpath(normalized_path)
-
-    # CodeQL-recognized validation: check if normalized path starts with base
-    # This prevents path traversal attacks (CWE-22)
-    # Allow exact match or paths that start with base + separator
-    if (
-        not normalized_path.startswith(normalized_base + os.sep)
-        and normalized_path != normalized_base
-    ):
-        raise ValueError(f"Path traversal detected: {path_to_check} is outside {base_directory}")
-
-    return normalized_path
-
-
 @router.get("/{job_id}/download")
 @api_error_handler("download job")
 async def download_job(job_id: str, db: DBSession) -> FileResponse:
@@ -133,21 +88,30 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
         )
 
     # Security validation: Sanitize output_dir path (prevent path traversal)
-    # Use CodeQL-recognized os.path pattern for validation
-    try:
-        output_dir_str = _sanitize_path(str(output_dir), DEFAULT_OUTPUT_DIR)
-        output_dir = Path(output_dir_str)
-    except ValueError as e:
+    # Inline validation for CodeQL taint tracking recognition
+    output_dir_str = str(output_dir)
+    normalized_output = os.path.normpath(output_dir_str)
+    normalized_base = os.path.normpath(os.path.abspath(DEFAULT_OUTPUT_DIR))
+
+    # CodeQL-recognized guard: constant string comparison (StringConstCompare pattern)
+    # This acts as a sanitizer guard in CodeQL's dataflow analysis
+    if (
+        not normalized_output.startswith(normalized_base + os.sep)
+        and normalized_output != normalized_base
+    ):
         logger.error(
             "Security: Path traversal detected in output directory",
             job_id=job_id,
-            output_dir=str(output_dir),
-            error=str(e),
+            output_dir=output_dir_str,
+            base_dir=normalized_base,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Invalid output directory location",
-        ) from e
+        )
+
+    # Use the validated path
+    output_dir = Path(normalized_output)
 
     if not output_dir.exists() or not output_dir.is_dir():
         logger.error("Output directory not found", job_id=job_id, output_dir=str(output_dir))
@@ -164,21 +128,29 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
         logger.info("ZIP archive created", job_id=job_id, zip_path=str(zip_path))
 
         # Security validation: Verify ZIP path is within temp directory
-        # Use CodeQL-recognized os.path pattern for validation
-        try:
-            zip_path_str = _sanitize_path(str(zip_path), tempfile.gettempdir())
-            zip_path = Path(zip_path_str)
-        except ValueError as e:
+        # Inline validation for CodeQL taint tracking recognition
+        zip_path_str = str(zip_path)
+        normalized_zip = os.path.normpath(zip_path_str)
+        normalized_temp = os.path.normpath(os.path.abspath(tempfile.gettempdir()))
+
+        # CodeQL-recognized guard: constant string comparison (StringConstCompare pattern)
+        if (
+            not normalized_zip.startswith(normalized_temp + os.sep)
+            and normalized_zip != normalized_temp
+        ):
             logger.error(
                 "Security: ZIP path traversal detected",
                 job_id=job_id,
-                zip_path=str(zip_path),
-                error=str(e),
+                zip_path=zip_path_str,
+                temp_dir=normalized_temp,
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Invalid archive path",
-            ) from e
+            )
+
+        # Use the validated path
+        zip_path = Path(normalized_zip)
 
         # Verify the file exists before serving
         if not zip_path.exists() or not zip_path.is_file():
@@ -227,15 +199,25 @@ async def _create_job_archive(job_id: str, output_dir: Path) -> Path:
         ValueError: If paths are invalid or contain traversal attempts
         Exception: If archive creation fails
     """
-    # Validate output_dir to prevent path traversal (CodeQL-recognized pattern)
-    try:
-        output_dir_str = _sanitize_path(str(output_dir), DEFAULT_OUTPUT_DIR)
-        output_dir = Path(output_dir_str)
-        # Ensure output_dir exists and is a directory
-        if not output_dir.exists() or not output_dir.is_dir():
-            raise ValueError(f"Invalid output directory: {output_dir}")
-    except ValueError as e:
-        raise ValueError(f"Path validation failed: {e}") from e
+    # Validate output_dir to prevent path traversal (inline for CodeQL taint tracking)
+    output_dir_str = str(output_dir)
+    normalized_output = os.path.normpath(output_dir_str)
+    normalized_base = os.path.normpath(os.path.abspath(DEFAULT_OUTPUT_DIR))
+
+    # CodeQL-recognized guard: constant string comparison
+    if (
+        not normalized_output.startswith(normalized_base + os.sep)
+        and normalized_output != normalized_base
+    ):
+        raise ValueError(
+            f"Path traversal detected: {output_dir_str} is outside {DEFAULT_OUTPUT_DIR}"
+        )
+
+    output_dir = Path(normalized_output)
+
+    # Ensure output_dir exists and is a directory
+    if not output_dir.exists() or not output_dir.is_dir():
+        raise ValueError(f"Invalid output directory: {output_dir}")
 
     # Create temp file for ZIP archive with strict path validation
     temp_dir = tempfile.gettempdir()
@@ -243,11 +225,20 @@ async def _create_job_archive(job_id: str, output_dir: Path) -> Path:
     file_hash = hashlib.md5(job_id.encode(), usedforsecurity=False).hexdigest()[:8]
     zip_filename = f"job_{job_id[:8]}_{file_hash}.zip"
 
-    # Security check: Sanitize and validate ZIP path (CodeQL-recognized pattern)
+    # Security check: Sanitize and validate ZIP path (inline for CodeQL recognition)
     # Construct path using os.path.join for CodeQL taint tracking
     zip_path_str = os.path.join(temp_dir, zip_filename)
-    zip_path_str = _sanitize_path(zip_path_str, temp_dir)
-    zip_path = Path(zip_path_str)
+    normalized_zip = os.path.normpath(zip_path_str)
+    normalized_temp = os.path.normpath(os.path.abspath(temp_dir))
+
+    # CodeQL-recognized guard: constant string comparison
+    if (
+        not normalized_zip.startswith(normalized_temp + os.sep)
+        and normalized_zip != normalized_temp
+    ):
+        raise ValueError(f"Path traversal detected: {zip_path_str} is outside {temp_dir}")
+
+    zip_path = Path(normalized_zip)
 
     # Run ZIP creation in thread pool to avoid blocking
     loop = asyncio.get_event_loop()
