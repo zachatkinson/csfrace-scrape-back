@@ -110,17 +110,18 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
             detail="Invalid output directory location",
         )
 
-    # Use the validated path
-    output_dir = Path(normalized_output)
-
-    if not output_dir.exists() or not output_dir.is_dir():
-        logger.error("Output directory not found", job_id=job_id, output_dir=str(output_dir))
+    # Verify validated path exists and is a directory
+    if not os.path.exists(normalized_output) or not os.path.isdir(normalized_output):
+        logger.error("Output directory not found", job_id=job_id, output_dir=normalized_output)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Job output files no longer exist",
         )
 
-    logger.info("Creating ZIP archive", job_id=job_id, output_dir=str(output_dir))
+    # Use the validated path
+    output_dir = Path(normalized_output)
+
+    logger.info("Creating ZIP archive", job_id=job_id, output_dir=normalized_output)
 
     # Create ZIP archive in temporary directory
     try:
@@ -149,12 +150,11 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
                 detail="Invalid archive path",
             )
 
-        # Use the validated path
-        zip_path = Path(normalized_zip)
-
-        # Verify the file exists before serving
-        if not zip_path.exists() or not zip_path.is_file():
-            logger.error("ZIP file not found after creation", job_id=job_id, zip_path=str(zip_path))
+        # Verify the file exists before serving (use validated string path)
+        if not os.path.exists(normalized_zip) or not os.path.isfile(normalized_zip):
+            logger.error(
+                "ZIP file not found after creation", job_id=job_id, zip_path=normalized_zip
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Archive file not found",
@@ -167,8 +167,9 @@ async def download_job(job_id: str, db: DBSession) -> FileResponse:
         safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title[:50])
         filename = f"{domain}_{safe_title}_{job_id[:8]}.zip"
 
+        # Use validated string path directly for FileResponse (CodeQL taint tracking)
         return FileResponse(
-            path=zip_path,
+            path=normalized_zip,
             media_type="application/zip",
             filename=filename,
             headers={
@@ -213,11 +214,11 @@ async def _create_job_archive(job_id: str, output_dir: Path) -> Path:
             f"Path traversal detected: {output_dir_str} is outside {DEFAULT_OUTPUT_DIR}"
         )
 
-    output_dir = Path(normalized_output)
+    # Ensure output_dir exists and is a directory (use os.path for validation)
+    if not os.path.exists(normalized_output) or not os.path.isdir(normalized_output):
+        raise ValueError(f"Invalid output directory: {normalized_output}")
 
-    # Ensure output_dir exists and is a directory
-    if not output_dir.exists() or not output_dir.is_dir():
-        raise ValueError(f"Invalid output directory: {output_dir}")
+    output_dir = Path(normalized_output)
 
     # Create temp file for ZIP archive with strict path validation
     temp_dir = tempfile.gettempdir()
