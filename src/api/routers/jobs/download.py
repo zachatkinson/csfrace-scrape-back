@@ -62,11 +62,11 @@ def _sanitize_path(path_to_check: str, base_directory: str) -> str:
 
     # CodeQL-recognized validation: check if normalized path starts with base
     # This prevents path traversal attacks (CWE-22)
-    if not normalized_path.startswith(normalized_base + os.sep):
-        if normalized_path != normalized_base:  # Allow exact match
-            raise ValueError(
-                f"Path traversal detected: {path_to_check} is outside {base_directory}"
-            )
+    # Allow exact match or paths that start with base + separator
+    if not normalized_path.startswith(normalized_base + os.sep) and normalized_path != normalized_base:
+        raise ValueError(
+            f"Path traversal detected: {path_to_check} is outside {base_directory}"
+        )
 
     return normalized_path
 
