@@ -1,0 +1,9 @@
+PR #38 included the following fixes that warrant a patch release:
+
+- fix: remove redundant Alembic migrations causing restart loop
+- fix: simplify nested if statement to pass Ruff SIM102 lint check  
+- fix: prefix unused test variables with underscore to address CodeQL warnings
+- security: fix CodeQL HIGH SEVERITY path traversal vulnerability in download endpoint
+- security: add comprehensive path validation to prevent path traversal attacks
+
+These fixes improve database migration reliability, code quality, and security posture.
