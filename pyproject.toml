@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csfrace-scraper"
-version = "5.19.0"
+version = "5.19.1"
 description = "WordPress to Shopify content converter for CSFrace website migration with strict type safety"
 readme = "README.md"
 license = {text = "MIT"}
