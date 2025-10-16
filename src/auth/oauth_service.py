@@ -1214,8 +1214,9 @@ class OAuthService:
             )
 
             # Step 4: Attempt to revoke all tokens (access + refresh if supported)
+            # Use provider_account_id (e.g., Facebook user ID) not internal user_id
             revocation_success = await revoker.revoke_all_tokens(
-                user_id=linked_account.user_id, access_token=decrypted_token
+                user_id=linked_account.provider_account_id, access_token=decrypted_token
             )
 
             if revocation_success:

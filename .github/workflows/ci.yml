@@ -1022,6 +1022,9 @@ jobs:
 
 
       - name: Run performance tests
+        env:
+          # Authentication configuration for enterprise auth stack
+          SECRET_KEY: b18939e378f6b5e6c6f2ac8a7b3ee49eb3f5d6a909902abbdb4358a4093e2900
         run: |
           # Run all benchmark tests across the test suite using --benchmark-only
           # Benchmark tests are distributed throughout tests/ and marked with benchmark fixture

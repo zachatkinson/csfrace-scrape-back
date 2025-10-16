@@ -730,7 +730,8 @@ class TestDeleteUserAccount:
     """Test permanent user deletion - Lines 253-297."""
 
     @pytest.mark.integration
-    def test_delete_user_account_success(
+    @pytest.mark.asyncio
+    async def test_delete_user_account_success(
         self, test_session: Session, user_create_password: UserCreate
     ) -> None:
         """Test delete_user_account successfully deletes user."""
@@ -739,7 +740,7 @@ class TestDeleteUserAccount:
         created_user = service.create_user(user_create_password)
 
         # Act
-        result = service.delete_user_account(created_user.id)
+        result = await service.delete_user_account(created_user.id)
 
         # Assert
         assert result is True
@@ -747,20 +748,22 @@ class TestDeleteUserAccount:
         assert user_row is None
 
     @pytest.mark.unit
-    def test_delete_user_account_not_found(self, test_session: Session) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_account_not_found(self, test_session: Session) -> None:
         """Test delete_user_account returns False for non-existent user."""
         # Arrange
         service = AuthService(db=test_session)
         non_existent_id = str(uuid4())
 
         # Act
-        result = service.delete_user_account(non_existent_id)
+        result = await service.delete_user_account(non_existent_id)
 
         # Assert
         assert result is False
 
     @pytest.mark.integration
-    def test_delete_user_account_removes_from_database(
+    @pytest.mark.asyncio
+    async def test_delete_user_account_removes_from_database(
         self, test_session: Session, user_create_password: UserCreate
     ) -> None:
         """Test delete_user_account completely removes user from database."""
@@ -770,7 +773,7 @@ class TestDeleteUserAccount:
         user_id = created_user.id
 
         # Act
-        service.delete_user_account(user_id)
+        await service.delete_user_account(user_id)
 
         # Assert - User should not be found
         result = service.get_user_by_id(user_id)

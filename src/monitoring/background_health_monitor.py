@@ -122,15 +122,18 @@ async def _perform_health_check_safe(health_service: HealthService) -> None:
     from ..api.dependencies import async_session
 
     async with async_session() as db_session:
-        # Perform health check
-        logger.debug("Performing scheduled health check")
-        current_health = await health_service.get_comprehensive_health_status(db_session)
+        try:
+            # Perform health check
+            logger.debug("Performing scheduled health check")
+            current_health = await health_service.get_comprehensive_health_status(db_session)
 
-        # Health service automatically publishes events now
-        logger.debug("Health check completed", status=current_health.get("status"))
+            # Health service automatically publishes events now
+            logger.debug("Health check completed", status=current_health.get("status"))
 
-        # Ensure session is committed properly
-        await db_session.commit()
+            # Commit is handled automatically by context manager in dependencies.py
+        except Exception:
+            # Rollback is handled automatically by context manager in dependencies.py
+            raise
 
 
 # Global instance

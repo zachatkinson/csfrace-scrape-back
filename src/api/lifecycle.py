@@ -26,24 +26,41 @@ class DatabaseInitializer:
     @staticmethod
     @api_error_handler("initialize database")
     async def initialize() -> bool:
-        """Initialize database connection and schema."""
-        from ..api.dependencies import engine as async_engine
+        """Initialize database connection and schema using Alembic migrations.
+
+        BEST PRACTICE: Use Alembic migrations as single source of truth for schema management.
+        This replaces manual SQL table creation for enterprise-grade database lifecycle.
+        """
+        import subprocess
+
         from ..database.init_db import init_db
-        from ..database.schema_manager import ensure_database_ready
 
         logger.info("Starting database initialization")
 
         # First, initialize basic database connection
         await init_db()
 
-        # FIXED: Use async engine from dependencies instead of sync DatabaseService
-        # This ensures ensure_database_ready can use async with correctly
-        schema_ready = await ensure_database_ready(async_engine, environment="development")
-        if schema_ready:
-            logger.info("Enterprise-grade database schema validated and ready")
+        # Run Alembic migrations to create/update schema
+        # This is the industry standard approach for database schema management
+        try:
+            logger.info("Running Alembic migrations (alembic upgrade head)")
+            result = subprocess.run(
+                ["alembic", "upgrade", "head"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd="/app",  # Run from project root where alembic.ini is located
+            )
+            logger.info(f"Alembic migrations completed successfully: {result.stdout}")
+            logger.info("Enterprise-grade database schema ready via migrations")
             return True
-        else:
-            logger.warning("Database schema readiness check failed, but continuing startup")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Alembic migration failed: {e.stderr}")
+            logger.warning("Database migration failed, but allowing startup to continue")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during migration: {e}")
+            logger.warning("Database migration error, but allowing startup to continue")
             return False
 
 
@@ -83,12 +100,18 @@ class EventSystemInitializer:
     async def initialize() -> bool:
         """Initialize event system and background publishing."""
         from ..core.events.background import start_event_publishing
+        from ..monitoring.redis_event_bridge import get_redis_event_bridge
 
         logger.info("Starting event system initialization")
 
         # Start background event publishing
         await start_event_publishing()
         logger.info("Event system initialized and background publishing started")
+
+        # Start Redis-to-EventBus bridge for job events
+        redis_bridge = get_redis_event_bridge()
+        await redis_bridge.start()
+        logger.info("Redis event bridge started - job events now flow to SSE clients")
 
         return True
 
@@ -97,8 +120,14 @@ class EventSystemInitializer:
     async def shutdown() -> bool:
         """Shutdown event system."""
         from ..core.events.background import stop_event_publishing
+        from ..monitoring.redis_event_bridge import get_redis_event_bridge
 
         logger.info("Starting event system shutdown")
+
+        # Stop Redis event bridge
+        redis_bridge = get_redis_event_bridge()
+        await redis_bridge.stop()
+        logger.info("Redis event bridge stopped")
 
         # Stop background event publishing
         await stop_event_publishing()

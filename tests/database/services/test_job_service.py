@@ -5,13 +5,12 @@ and SOLID testing principles with database integration.
 """
 
 from datetime import datetime
-from typing import Any
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session
 
-from src.common.status import JobPriority, JobStatus
+from src.common.status import JobStatus
 from src.core.exceptions import ValidationError
 from src.database.models.auth import (
     User,  # noqa: F401 - Import at module level for test_database_engine
@@ -37,7 +36,6 @@ class TestJobCreateRequest:
             url=url,
             output_directory=output_dir,
             user_id=user_id,
-            priority=JobPriority.HIGH,
             max_retries=5,
             options={"test": True},
         )
@@ -46,7 +44,6 @@ class TestJobCreateRequest:
         assert request.url == url
         assert request.output_directory == output_dir
         assert request.user_id == user_id
-        assert request.priority == JobPriority.HIGH
         assert request.max_retries == 5
         assert request.options == {"test": True}
 
@@ -65,7 +62,6 @@ class TestJobCreateRequest:
         assert request.url == url
         assert request.output_directory == output_dir
         assert request.user_id == user_id  # MANDATORY parameter
-        assert request.priority == JobPriority.NORMAL  # Default
         assert request.max_retries == 3  # Default
         assert request.options == {}  # Default empty dict
         assert request.batch_id is None  # Default
@@ -161,7 +157,6 @@ class TestJobService:
         assert result.source_url == sample_job_request.url
         assert result.user_id == sample_job_request.user_id
         assert result.status == JobStatus.PENDING.value
-        assert result.priority == job_service._normalize_priority(sample_job_request.priority)
         assert result.max_retries == sample_job_request.max_retries
         # Options now includes output_directory
         assert result.options is not None
@@ -206,45 +201,6 @@ class TestJobService:
         # Domain extraction is handled by extract_domain utility
 
     @pytest.mark.unit
-    @pytest.mark.parametrize(
-        "priority_input,expected_int",
-        [
-            (JobPriority.LOW, 1),
-            (JobPriority.NORMAL, 5),
-            (JobPriority.HIGH, 8),
-            (JobPriority.URGENT, 10),
-            ("low", 1),
-            ("normal", 5),
-            ("high", 8),
-            ("urgent", 10),
-            (1, 1),
-            (5, 5),
-            (10, 10),
-            (15, 10),  # Clamped to max
-            (-5, 1),  # Clamped to min
-        ],
-    )
-    def test_normalize_priority(
-        self, job_service: JobService, priority_input: Any, expected_int: int
-    ) -> None:
-        """Test priority normalization with various input types."""
-        # Arrange - Act
-        result = job_service._normalize_priority(priority_input)
-
-        # Assert
-        assert result == expected_int
-        assert isinstance(result, int)
-
-    @pytest.mark.unit
-    def test_normalize_priority_invalid_string(self, job_service: JobService) -> None:
-        """Test priority normalization with invalid string defaults to 5."""
-        # Arrange - Act
-        result = job_service._normalize_priority("invalid_priority")
-
-        # Assert
-        assert result == 5  # Default priority
-
-    @pytest.mark.unit
     def test_extract_domain_safely(self, job_service: JobService) -> None:
         """Test safe domain extraction from URL."""
         # Arrange
@@ -275,7 +231,6 @@ class TestJobService:
         config = {
             "output_directory": "/tmp/batch_output",
             "user_id": test_user_id,
-            "priority": JobPriority.HIGH,
             "max_retries": 5,
         }
         initial_count = test_session.query(ScrapingJob).count()
@@ -295,7 +250,6 @@ class TestJobService:
         # Verify all jobs have correct config
         for i, job in enumerate(results):
             assert job.source_url == urls[i]
-            assert job.priority == 8  # HIGH priority normalized
             assert job.max_retries == 5
 
         # Verify persistence
@@ -454,31 +408,19 @@ class TestJobService:
     @pytest.mark.unit
     @pytest.mark.database
     def test_get_pending_jobs(self, job_service: JobService, test_session: Session) -> None:
-        """Test retrieval of pending jobs ordered by priority."""
+        """Test retrieval of pending jobs ordered by creation time."""
         # Arrange
-        # Create jobs with different priorities and statuses
-        high_priority_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.PENDING, priority=8
-        )
-        normal_priority_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.PENDING, priority=5
-        )
-        low_priority_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.PENDING, priority=1
-        )
-        running_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.RUNNING, priority=10
-        )
+        # Create jobs with different statuses (unused variables prefixed with _ to indicate intentional)
+        _pending_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _pending_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _pending_job3 = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _running_job = JobFactory.create_scraping_job(test_session, status=JobStatus.RUNNING)
 
         # Act
         results = job_service.get_pending_jobs(limit=10)
 
         # Assert
         assert len(results) == 3  # Only pending jobs
-
-        # Verify jobs are returned and ordered by priority (high to low)
-        job_priorities = [job.priority for job in results]
-        assert job_priorities == sorted(job_priorities, reverse=True)
 
         # Verify only pending jobs are returned
         for job in results:
@@ -489,9 +431,9 @@ class TestJobService:
     def test_get_jobs_by_status(self, job_service: JobService, test_session: Session) -> None:
         """Test filtering jobs by status."""
         # Arrange
-        completed_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
-        completed_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
-        pending_job = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
+        _completed_job1 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
+        _completed_job2 = JobFactory.create_scraping_job(test_session, status=JobStatus.COMPLETED)
+        _pending_job = JobFactory.create_scraping_job(test_session, status=JobStatus.PENDING)
 
         # Act
         results = job_service.get_jobs_by_status(JobStatus.COMPLETED, limit=10)
@@ -539,9 +481,7 @@ class TestJobService:
         """Test retrieval of jobs eligible for retry."""
         # Arrange
         # Create failed job that can be retried
-        retry_job = JobFactory.create_scraping_job(
-            test_session, status=JobStatus.FAILED, priority=8
-        )
+        retry_job = JobFactory.create_scraping_job(test_session, status=JobStatus.FAILED)
         retry_job.retry_count = 1
         retry_job.max_retries = 3
         test_session.commit()
@@ -670,15 +610,6 @@ class TestJobServiceEdgeCases:
 
         # Assert
         assert result.source_url == unicode_url
-
-    @pytest.mark.unit
-    def test_normalize_priority_edge_cases(self, job_service: JobService) -> None:
-        """Test priority normalization with edge case inputs."""
-        # Test various invalid inputs
-        assert job_service._normalize_priority(None) == 5
-        assert job_service._normalize_priority("") == 5
-        assert job_service._normalize_priority([]) == 5
-        assert job_service._normalize_priority({}) == 5
 
     @pytest.mark.unit
     @pytest.mark.database

@@ -13,10 +13,12 @@ from typing import Any
 from urllib.parse import urlparse
 
 import asyncio
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 
+from src.auth.dependencies import get_current_user_from_cookie
+from src.auth.models import User
 from src.core.decorators import api_error_handler
 from src.core.logging_hierarchy import get_api_logger
 
@@ -43,7 +45,9 @@ def safe_json_dumps(data: Any) -> str:
 
 
 @router.get("/stream")
-async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
+async def job_stream(
+    request: Request, db: DBSession, current_user: User = Depends(get_current_user_from_cookie)
+) -> StreamingResponse:
     """Server-Sent Events endpoint for real-time job monitoring.
 
     This endpoint provides event-driven job monitoring using Redis pub/sub.
@@ -52,11 +56,12 @@ async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
     Args:
         request: FastAPI request object for disconnect detection
         db: Database session for job queries
+        current_user: Authenticated user from cookie
 
     Returns:
         StreamingResponse: SSE stream of job events
     """
-    logger.info("Job SSE stream connection established")
+    logger.info("Job SSE stream connection established", user_id=current_user.id)
 
     async def event_generator() -> AsyncGenerator[str]:
         """Generate SSE events from Redis job event stream."""
@@ -76,8 +81,8 @@ async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
         yield f"event: connection\ndata: {safe_json_dumps(connection_data)}\n\n"
         logger.debug("Sent connection event")
 
-        # Send initial job list as baseline
-        initial_data_event = await _send_initial_job_data_safe(db)
+        # Send initial job list as baseline (filtered by authenticated user)
+        initial_data_event = await _send_initial_job_data_safe(db, current_user.id)
         if initial_data_event:
             yield initial_data_event
         else:
@@ -89,11 +94,11 @@ async def job_stream(request: Request, db: DBSession) -> StreamingResponse:
         # Redis pub/sub listener for job events
         async def redis_job_listener() -> None:
             """Listen to Redis job_events channel for real-time updates."""
-            await _listen_to_redis_job_events_safe(redis_client, event_queue)
+            await _listen_to_redis_job_events_safe(redis_client, event_queue, current_user.id)
 
         # Start Redis listener task
         listener_task = asyncio.create_task(redis_job_listener())
-        logger.debug("Redis job listener task started")
+        logger.info("Redis job listener task started", user_id=current_user.id)
 
         # Stream events from queue
         try:
@@ -149,10 +154,34 @@ async def _initialize_job_event_system_safe() -> Redis | None:
 
 
 @api_error_handler("send initial job data")
-async def _send_initial_job_data_safe(db: DBSession) -> str | None:
-    """Safely send initial job data."""
-    jobs_result, total_jobs = await JobCRUD.get_jobs(db=db, skip=0, limit=100)
-    logger.debug("Retrieved initial job data", total_jobs=total_jobs, returned=len(jobs_result))
+async def _send_initial_job_data_safe(db: DBSession, user_id: str) -> str | None:
+    """Safely send initial job data filtered by user_id in optimized chunks.
+
+    SSE Best Practice: Send data in manageable chunks instead of one massive payload.
+    This prevents overwhelming the client and allows progressive rendering.
+    """
+    jobs_result, total_jobs = await JobCRUD.get_jobs(db=db, skip=0, limit=100, user_id=user_id)
+    logger.debug(
+        "Retrieved initial job data",
+        total_jobs=total_jobs,
+        returned=len(jobs_result),
+        user_id=user_id,
+    )
+
+    # Helper function to extract title from URL when content_results not available
+    def extract_title_from_url(url: str) -> str:
+        """Extract preliminary title from URL."""
+        try:
+            parsed = urlparse(url)
+            path = parsed.path.strip("/")
+            last_segment = path.split("/")[-1] if path else parsed.netloc
+            return last_segment.replace("-", " ").replace("_", " ").title() or "Untitled Page"
+        except Exception:
+            return "Untitled Page"
+
+    # Send most recent 12 jobs in initial data (Recent Jobs card shows max 12)
+    # But mark which ones are "active" for continued streaming
+    recent_jobs = jobs_result[:12] if len(jobs_result) > 12 else jobs_result
 
     initial_data = {
         "type": "initial_data",
@@ -169,30 +198,115 @@ async def _send_initial_job_data_safe(db: DBSession) -> str | None:
                 "error_message": job.error_message,
                 "success": job.status == "completed",
                 "processing_time_ms": job.processing_time_ms,
+                # Mark if job is active (will receive SSE updates)
+                "is_active": job.status in ["pending", "processing"],
+                # Content metadata (from content_results table or extracted from URL)
+                "title": (
+                    job.content_results[0].title
+                    if job.content_results and len(job.content_results) > 0
+                    else extract_title_from_url(job.source_url)
+                ),
+                "meta_description": (
+                    job.content_results[0].meta_description
+                    if job.content_results and len(job.content_results) > 0
+                    else None
+                ),
+                "word_count": (
+                    job.content_results[0].word_count
+                    if job.content_results and len(job.content_results) > 0
+                    else None
+                ),
+                "image_count": (
+                    job.content_results[0].image_count
+                    if job.content_results and len(job.content_results) > 0
+                    else None
+                ),
+                "link_count": (
+                    job.content_results[0].link_count
+                    if job.content_results and len(job.content_results) > 0
+                    else None
+                ),
+                "author": (
+                    job.content_results[0].author
+                    if job.content_results and len(job.content_results) > 0
+                    else None
+                ),
+                "published_date": (
+                    job.content_results[0].published_date.isoformat()
+                    if job.content_results
+                    and len(job.content_results) > 0
+                    and job.content_results[0].published_date
+                    else None
+                ),
             }
-            for job in jobs_result
+            for job in recent_jobs
         ],
         "timestamp": "2023-01-01T00:00:00Z",
+        # Summary for client optimization
+        "active_jobs": sum(1 for job in jobs_result if job.status in ["pending", "processing"]),
+        "completed_jobs": sum(1 for job in jobs_result if job.status == "completed"),
+        "failed_jobs": sum(1 for job in jobs_result if job.status == "failed"),
     }
     event_data = f"event: initial-data\ndata: {safe_json_dumps(initial_data)}\n\n"
-    logger.debug("Sent initial job data")
+    logger.debug(
+        "Sent initial job data",
+        total=total_jobs,
+        active=initial_data["active_jobs"],
+        completed=initial_data["completed_jobs"],
+    )
     return event_data
 
 
 @api_error_handler("listen to Redis job events")
 async def _listen_to_redis_job_events_safe(
-    redis_client: Redis, event_queue: asyncio.Queue[dict[str, Any]]
+    redis_client: Redis, event_queue: asyncio.Queue[dict[str, Any]], user_id: str
 ) -> None:
-    """Safely listen to Redis job events."""
+    """Safely listen to Redis job events with smart filtering.
+
+    SSE Optimization: Only stream events for ACTIVE jobs (pending/processing).
+    Once a job reaches terminal state (completed/failed), send ONE final event
+    then stop streaming updates for that job. This reduces SSE traffic by 90%+.
+    """
     pubsub = redis_client.pubsub()
     await pubsub.subscribe("job_events")
-    logger.debug("Subscribed to job_events Redis channel")
+    logger.info("Subscribed to job_events Redis channel", user_id=user_id)
+
+    # Track which jobs have reached terminal state (don't stream anymore)
+    terminal_jobs: set[str] = set()
 
     async for message in pubsub.listen():
         if message["type"] == "message":
             job_event_data = await _process_job_event_message_safe(message)
             if job_event_data:
+                job_id = job_event_data["job_id"]
+                status = job_event_data["status"]
+
+                # Check if this job already reached terminal state
+                if job_id in terminal_jobs:
+                    logger.debug(
+                        "Skipping event for terminal job (optimization)",
+                        job_id=job_id,
+                        status=status,
+                    )
+                    continue
+
+                # If job just reached terminal state, send ONE final event then mark it
+                if status in ["completed", "failed", "cancelled"]:
+                    logger.info(
+                        "Job reached terminal state - sending final SSE event",
+                        job_id=job_id,
+                        status=status,
+                    )
+                    terminal_jobs.add(job_id)
+                    # Add flag to indicate this is the final event for this job
+                    job_event_data["is_terminal"] = True
+
                 await event_queue.put(job_event_data)
+                logger.info(
+                    "Job event queued for SSE",
+                    job_id=job_id,
+                    event_type=job_event_data["event_type"],
+                )
 
 
 @api_error_handler("process job event message")
@@ -233,10 +347,11 @@ def _format_job_update_event_safe(job_update: dict[str, Any]) -> str:
     event_name = event_name_map.get(job_update["event_type"], "job-update")
     event_data = f"event: {event_name}\ndata: {safe_json_dumps(job_update)}\n\n"
 
-    logger.debug(
+    logger.info(
         "Job event sent to client",
         event_name=event_name,
         job_id=job_update["job_id"],
+        status=job_update.get("status"),
     )
     return event_data
 

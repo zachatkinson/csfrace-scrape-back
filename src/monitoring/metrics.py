@@ -34,16 +34,22 @@ except ImportError:
 
 @dataclass
 class MetricsConfig:
-    """Configuration for metrics collection."""
+    """Configuration for metrics collection.
+
+    Prometheus Metrics Strategy:
+    - SSE Health Monitoring: Real-time service status (database health via SSE)
+    - Prometheus Metrics: Historical trends, capacity planning, performance analysis
+    - Database metrics disabled in Prometheus to avoid async SQLAlchemy connection pool conflicts
+    """
 
     enabled: bool = True
     collection_interval: float = 30.0  # seconds
     prometheus_enabled: bool = True
     prometheus_port: int = 9090
-    system_metrics_enabled: bool = True
-    application_metrics_enabled: bool = True
-    cache_metrics_enabled: bool = True
-    database_metrics_enabled: bool = True
+    system_metrics_enabled: bool = True  # CPU, memory, disk, network - historical trends
+    application_metrics_enabled: bool = True  # HTTP requests, response times, batch jobs
+    cache_metrics_enabled: bool = True  # Cache hit rates, sizes - performance optimization
+    database_metrics_enabled: bool = False  # Disabled - use SSE health monitoring instead
     custom_labels: dict[str, str] = field(default_factory=dict)
     retention_hours: int = 24
 

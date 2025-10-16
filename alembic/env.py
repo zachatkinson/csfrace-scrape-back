@@ -79,161 +79,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-# ENTERPRISE PATTERN 2: Schema Validation Functions
-def validate_schema_consistency(connection) -> bool:
-    """
-    Validate that the actual database schema matches expected schema.
-    Returns True if consistent, False otherwise.
-    """
-    try:
-        inspector = inspect(connection)
-
-        # Check critical tables exist
-        existing_tables = set(inspector.get_table_names())
-        expected_tables = {"users", "jobs", "revoked_tokens", "oauth_linked_accounts"}
-
-        missing_tables = expected_tables - existing_tables
-        if missing_tables:
-            logger.warning(f"Missing critical tables: {missing_tables}")
-            return False
-
-        # Check critical columns exist
-        try:
-            # Validate jobs table has user_id column
-            jobs_columns = {col["name"] for col in inspector.get_columns("jobs")}
-            if "user_id" not in jobs_columns:
-                logger.warning("jobs table missing user_id column")
-                return False
-
-            # Validate revoked_tokens table exists
-            if "revoked_tokens" not in existing_tables:
-                logger.warning("revoked_tokens table missing")
-                return False
-
-        except Exception as e:
-            logger.warning(f"Schema validation error: {e}")
-            return False
-
-        logger.info("Schema validation passed")
-        return True
-
-    except Exception as e:
-        logger.error(f"Schema validation failed: {e}")
-        return False
-
-
-def ensure_critical_schema_exists(connection) -> None:
-    """
-    ENTERPRISE PATTERN 3: Idempotent Schema Creation
-    Ensure critical schema elements exist using idempotent operations.
-    """
-    try:
-        # Idempotent: Add user_id column to jobs table if missing (only if table exists)
-        connection.execute(
-            text("""
-            DO $$
-            BEGIN
-                -- Only alter if the jobs table exists
-                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'jobs') THEN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'jobs' AND column_name = 'user_id'
-                    ) THEN
-                        ALTER TABLE jobs ADD COLUMN user_id VARCHAR;
-                        RAISE NOTICE 'Added user_id column to jobs table';
-                    END IF;
-                END IF;
-            END $$;
-        """)
-        )
-
-        # Idempotent: Create revoked_tokens table if missing
-        connection.execute(
-            text("""
-            CREATE TABLE IF NOT EXISTS revoked_tokens (
-                jti VARCHAR PRIMARY KEY,
-                user_id VARCHAR,
-                token_type VARCHAR,
-                issued_at TIMESTAMP WITH TIME ZONE,
-                expires_at TIMESTAMP WITH TIME ZONE,
-                revoked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                revocation_reason VARCHAR,
-                revoked_by VARCHAR,
-                client_ip VARCHAR,
-                user_agent TEXT
-            );
-        """)
-        )
-
-        # Idempotent: Create oauth_linked_accounts table if missing
-        connection.execute(
-            text("""
-            CREATE TABLE IF NOT EXISTS oauth_linked_accounts (
-                id VARCHAR PRIMARY KEY,
-                user_id VARCHAR NOT NULL,
-                provider VARCHAR NOT NULL,
-                provider_user_id VARCHAR NOT NULL,
-                provider_username VARCHAR,
-                provider_email VARCHAR,
-                access_token TEXT,
-                refresh_token TEXT,
-                expires_at TIMESTAMP WITH TIME ZONE,
-                scope VARCHAR,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(provider, provider_user_id)
-            );
-        """)
-        )
-
-        # Idempotent: Create indexes if missing (only if tables exist)
-        connection.execute(
-            text("""
-            DO $$
-            BEGIN
-                -- Only create index if jobs table exists
-                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'jobs') THEN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                        WHERE c.relname = 'idx_jobs_user_id' AND n.nspname = 'public'
-                    ) THEN
-                        CREATE INDEX idx_jobs_user_id ON jobs(user_id);
-                        RAISE NOTICE 'Created index idx_jobs_user_id';
-                    END IF;
-                END IF;
-
-                -- Only create index if revoked_tokens table exists
-                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'revoked_tokens') THEN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                        WHERE c.relname = 'idx_revoked_tokens_user_id' AND n.nspname = 'public'
-                    ) THEN
-                        CREATE INDEX idx_revoked_tokens_user_id ON revoked_tokens(user_id);
-                        RAISE NOTICE 'Created index idx_revoked_tokens_user_id';
-                    END IF;
-                END IF;
-
-                -- Only create index if oauth_linked_accounts table exists
-                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'oauth_linked_accounts') THEN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                        WHERE c.relname = 'idx_oauth_accounts_user_id' AND n.nspname = 'public'
-                    ) THEN
-                        CREATE INDEX idx_oauth_accounts_user_id ON oauth_linked_accounts(user_id);
-                        RAISE NOTICE 'Created index idx_oauth_accounts_user_id';
-                    END IF;
-                END IF;
-            END $$;
-        """)
-        )
-
-        connection.commit()
-        logger.info("Critical schema elements ensured")
-
-    except Exception as e:
-        logger.error(f"Failed to ensure critical schema: {e}")
-        connection.rollback()
-        raise
+# BEST PRACTICE: Removed manual schema validation and table creation
+# All schema management is now handled exclusively by Alembic migrations
+# This follows the Single Source of Truth principle for database schema
 
 
 def log_migration_context() -> None:
@@ -316,28 +164,25 @@ def run_migrations_online() -> None:
         with connectable.connect() as connection:
             logger.info(f"Connected to database for {ENVIRONMENT} migrations")
 
-            # ENTERPRISE PATTERN 2: Pre-migration schema validation
-            if current_settings.get("validate_schema", True):
-                logger.info("Performing pre-migration schema validation")
-                schema_valid = validate_schema_consistency(connection)
-
-                if not schema_valid:
-                    logger.warning("Schema validation failed - applying critical fixes")
-                    ensure_critical_schema_exists(connection)
-                    logger.info("Critical schema fixes applied")
-                else:
-                    logger.info("Schema validation passed")
+            # BEST PRACTICE: Let Alembic migrations handle all schema creation
+            # No manual schema validation or table creation - migrations are single source of truth
+            logger.info("Skipping manual schema validation - using Alembic migrations as single source of truth")
 
             # Configure migration context with environment-specific settings
+            # Remove compare_server_default from current_settings since we're using a custom function
+            settings_without_compare = {k: v for k, v in current_settings.items() if k != 'compare_server_default'}
+
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,
-                **current_settings,
+                **settings_without_compare,
                 # Enhanced version table management
                 version_table=f"{MIGRATION_CONTEXT}_version",
                 version_table_schema=None,
                 # Add custom render functions for better migration quality
                 render_item=render_item_with_environment,
+                # Custom comparison to handle JSON/JSONB types
+                compare_server_default=compare_server_default,
             )
 
             # Execute migrations with enhanced error handling
@@ -347,25 +192,11 @@ def run_migrations_online() -> None:
                     context.run_migrations()
                     logger.info(f"Migrations completed successfully for {ENVIRONMENT}")
 
-                    # Post-migration validation
-                    if current_settings.get("validate_schema", True):
-                        logger.info("Performing post-migration schema validation")
-                        post_migration_valid = validate_schema_consistency(connection)
-                        if post_migration_valid:
-                            logger.info("Post-migration schema validation passed")
-                        else:
-                            logger.error("Post-migration schema validation failed")
-                            raise RuntimeError("Post-migration schema validation failed")
+                    # Post-migration validation disabled - migrations are single source of truth
+                    logger.info("Post-migration validation skipped - schema managed by Alembic")
 
             except Exception as migration_error:
                 logger.error(f"Migration failed for {ENVIRONMENT}: {migration_error}")
-
-                # Enhanced error recovery for known issues
-                if "user_id does not exist" in str(migration_error):
-                    logger.info("Attempting recovery for missing user_id column")
-                    ensure_critical_schema_exists(connection)
-                    logger.info("Recovery completed - please retry migration")
-
                 raise migration_error
 
     except SQLAlchemyError as db_error:
@@ -374,6 +205,21 @@ def run_migrations_online() -> None:
     except Exception as general_error:
         logger.error(f"Unexpected error during {ENVIRONMENT} migration: {general_error}")
         raise
+
+
+def compare_server_default(context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default):
+    """
+    Custom server default comparison to handle JSON/JSONB types.
+
+    PostgreSQL doesn't support direct comparison of JSON defaults,
+    so we skip comparison for JSON/JSONB columns to avoid autogenerate errors.
+    """
+    # Skip comparison for JSON/JSONB columns
+    if metadata_column.type.__class__.__name__ in ('JSON', 'JSONB'):
+        return False
+
+    # Use default comparison for other types
+    return None
 
 
 def render_item_with_environment(type_: str, _obj, _autogen_context):

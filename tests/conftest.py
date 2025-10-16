@@ -296,7 +296,6 @@ def job_factory(faker_instance: Faker) -> Callable[..., dict[str, Any]]:
     def _create_job_data(
         source_url: str | None = None,
         user_id: str | None = None,
-        priority: int = 5,
         max_retries: int = 3,
         **kwargs: Any,
     ) -> dict[str, Any]:
@@ -305,7 +304,6 @@ def job_factory(faker_instance: Faker) -> Callable[..., dict[str, Any]]:
             "id": str(uuid4()),
             "source_url": source_url or faker_instance.url(),
             "user_id": user_id or str(uuid4()),
-            "priority": priority,
             "max_retries": max_retries,
             "status": "pending",
             "created_at": datetime.now(UTC),
@@ -411,7 +409,6 @@ class JobFactory:
 
         If session provided, ensures user_id exists in database.
         """
-        from src.common.status import JobPriority
         from src.database.services.job_service import JobCreateRequest
 
         # Handle user_id - ensure it exists if session provided
@@ -426,7 +423,6 @@ class JobFactory:
             "url": kwargs.get("url", cls._faker.url()),
             "output_directory": kwargs.get("output_directory", "/tmp/output"),
             "user_id": user_id,
-            "priority": kwargs.get("priority", JobPriority.NORMAL),
             "max_retries": kwargs.get("max_retries", 3),
             "options": kwargs.get("options", {}),
             "batch_id": kwargs.get("batch_id"),
@@ -451,9 +447,6 @@ class JobFactory:
         status = kwargs.get("status", JobStatus.PENDING)
         status_value = status.value if isinstance(status, JobStatus) else status
 
-        # Get priority value
-        priority = kwargs.get("priority", 5)
-
         # Prepare options with output_directory
         options = kwargs.get("options", {})
         if "output_directory" not in options:
@@ -465,7 +458,6 @@ class JobFactory:
             source_url=kwargs.get("source_url", cls._faker.url()),
             domain=kwargs.get("domain", cls._faker.domain_name()),
             status=status_value,
-            priority=priority,
             max_retries=kwargs.get("max_retries", 3),
             retry_count=kwargs.get("retry_count", 0),
             created_at=kwargs.get("created_at", datetime.now(UTC)),
@@ -635,28 +627,6 @@ async def async_db_session() -> AsyncMock:  # type: ignore[misc]
         await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
-
-
-# ============================================================================
-# Parametrized Fixtures (For Data-Driven Testing)
-# ============================================================================
-
-
-@pytest.fixture(
-    params=[
-        {"priority": 1, "expected": "low"},
-        {"priority": 5, "expected": "normal"},
-        {"priority": 10, "expected": "high"},
-    ]
-)
-def priority_test_data(request: Any) -> dict[str, str | int]:
-    """Parametrized fixture for testing priority handling.
-
-    Demonstrates pytest's parametrize capability for data-driven tests.
-    Ref: https://docs.pytest.org/en/stable/how-to/parametrize.html
-    """
-    param: dict[str, str | int] = request.param
-    return param
 
 
 # ============================================================================

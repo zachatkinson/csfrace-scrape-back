@@ -1,22 +1,32 @@
 """JWT token creation and management service following SOLID principles."""
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
+from src.config.settings import ConfigManager
 from src.core.logging_hierarchy import get_auth_logger
 
 from ...constants import BEARER_TOKEN_TYPE
 from ..models import Token, User
 from ..security import security_manager
 
-# from ..config import auth_config  # type: ignore[import-not-found]
+if TYPE_CHECKING:
+    from src.config.auth import AuthConfig
 
 
-# Temporary auth config until config.py is available
-class AuthConfig:
-    ACCESS_TOKEN_EXPIRE_MINUTES = 30
+def _get_auth_config() -> "AuthConfig":
+    """Get authentication configuration from settings."""
+    try:
+        settings = ConfigManager.get_config()
+        return settings.auth
+    except RuntimeError:
+        # Fallback for testing or early initialization
+        from src.config.auth import AuthConfig
+
+        return AuthConfig()
 
 
-auth_config = AuthConfig()
+auth_config = _get_auth_config()
 
 logger = get_auth_logger()
 

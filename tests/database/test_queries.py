@@ -830,19 +830,6 @@ class TestJobQueries:
         assert "status" in query_str.lower()
         assert "completed" in query_str
 
-    @pytest.mark.unit
-    def test_find_pending_jobs_with_priority(self) -> None:
-        """Test find pending jobs ordered by priority - Lines 337-352."""
-        # Act - priority parameter expects string according to signature
-        stmt = JobQueries.find_pending_jobs(ScrapingJob, priority="8")
-
-        # Assert
-        assert stmt is not None
-        query_str = str(stmt)
-        # Query uses parameterized values, so "pending" won't appear as literal string
-        assert "status" in query_str.lower()
-        assert "priority" in query_str.lower()
-
 
 # ============================================================================
 # Test Suite 13: AuthQueries - Authentication Patterns (5 tests) - Lines 368-414

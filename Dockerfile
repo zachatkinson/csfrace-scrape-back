@@ -68,6 +68,10 @@ COPY --from=builder /app/.venv /app/.venv
 # Copy application code
 COPY . .
 
+# Copy and set up entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Create non-root user for security
 RUN groupadd -r csfrace && useradd -r -g csfrace csfrace
 
@@ -89,6 +93,9 @@ EXPOSE 8000
 # FIXED: Comprehensive health check with proper async/await chain
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=10)" || exit 1
+
+# Set entrypoint to run migrations before starting the app
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start the application
 # SECURITY: Use exec form for proper signal handling

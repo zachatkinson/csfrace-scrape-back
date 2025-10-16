@@ -176,13 +176,10 @@ class DatabaseService:
             job_service = JobService(session)
 
             # Convert the DatabaseService JobCreateRequest to JobService JobCreateRequest
-            from ..common.status import JobPriority
-
             service_request = JobServiceRequest(
                 url=request.url,
                 output_directory=request.output_directory,
                 user_id=request.user_id,
-                priority=JobPriority.NORMAL if request.priority == "normal" else JobPriority.HIGH,
                 options={},
                 batch_id=getattr(request, "batch_id", None),
             )

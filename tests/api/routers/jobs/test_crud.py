@@ -39,7 +39,6 @@ def sample_job_dict() -> dict[str, Any]:
         "job_type": "scrape",
         "target_format": "json",
         "status": JobStatus.PENDING.value,
-        "priority": "normal",
         "created_at": datetime.now(UTC),
         "started_at": None,
         "completed_at": None,

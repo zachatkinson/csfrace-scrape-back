@@ -253,7 +253,7 @@ class AuthService:
 
     @with_transaction_rollback
     @auth_error_handler("delete user account")
-    def delete_user_account(self, user_id: str) -> bool:
+    async def delete_user_account(self, user_id: str) -> bool:
         """Permanently delete user account and ALL associated data (GDPR compliant).
 
         This method performs a complete GDPR "right to be forgotten" deletion including:
@@ -323,16 +323,56 @@ class AuthService:
             "email": user_row.email,
         }
 
-        # Step 1: Explicitly delete all related records (defense in depth)
-        # Even with CASCADE, explicit deletion ensures nothing is missed
+        # Step 1: Revoke OAuth tokens BEFORE deleting records (GDPR + Security best practice)
+        # This notifies providers (Facebook, Google, etc.) that user is leaving
+        from .oauth_revocation_service import OAuthRevocationRegistry
+        from .token_encryption_service import TokenEncryptionService
 
-        # Delete linked OAuth accounts
+        encryption_service = TokenEncryptionService()
+
+        # Get all linked OAuth accounts to revoke tokens
         linked_accounts = (
             self.db.execute(select(LinkedAccount).where(LinkedAccount.user_id == user_id))
             .scalars()
             .all()
         )
         deletion_summary["linked_accounts"] = len(linked_accounts)
+
+        # Revoke tokens for each OAuth provider
+        for account in linked_accounts:
+            try:
+                # Import OAuthProvider enum for proper type conversion
+                from .models.oauth_models import OAuthProvider
+
+                # Get the revoker for this provider (convert string to enum)
+                revoker = OAuthRevocationRegistry.get_revoker(OAuthProvider(account.provider))
+                if revoker and account.access_token:
+                    # Decrypt the token (access_token is stored encrypted)
+                    decrypted_token = encryption_service.decrypt_token(account.access_token)
+
+                    # Revoke all tokens (notifies provider)
+                    await revoker.revoke_all_tokens(
+                        user_id=account.provider_account_id,  # Provider's user ID
+                        access_token=decrypted_token,
+                    )
+                    logger.info(
+                        "Revoked OAuth tokens during account deletion",
+                        provider=account.provider,
+                        user_id=user_id,
+                    )
+            except Exception as e:
+                # Don't fail deletion if revocation fails (graceful degradation)
+                logger.warning(
+                    "Failed to revoke OAuth tokens during deletion (non-critical)",
+                    provider=account.provider,
+                    user_id=user_id,
+                    error=str(e),
+                )
+
+        # Step 2: Explicitly delete all related records (defense in depth)
+        # Even with CASCADE, explicit deletion ensures nothing is missed
+
+        # Delete linked OAuth accounts (now that tokens are revoked)
         for account in linked_accounts:
             self.db.delete(account)
 
@@ -345,6 +385,10 @@ class AuthService:
         deletion_summary["webauthn_credentials"] = len(webauthn_creds)
         for cred in webauthn_creds:
             self.db.delete(cred)
+
+        # WebAuthn challenges are stored in Redis with automatic TTL expiration (10 minutes)
+        # No explicit deletion needed - they expire automatically (GDPR compliant)
+        deletion_summary["webauthn_challenges"] = 0  # Not tracked (Redis auto-expiration)
 
         # Delete user settings
         user_settings = self.db.execute(

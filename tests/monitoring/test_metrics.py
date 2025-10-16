@@ -72,7 +72,7 @@ class TestMetricsConfig:
         assert config.system_metrics_enabled is True
         assert config.application_metrics_enabled is True
         assert config.cache_metrics_enabled is True
-        assert config.database_metrics_enabled is True
+        assert config.database_metrics_enabled is False  # Disabled - use SSE health monitoring
         assert config.retention_hours == 24
 
     def test_config_customization(self) -> None:

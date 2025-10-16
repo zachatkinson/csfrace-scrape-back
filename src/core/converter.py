@@ -1,7 +1,8 @@
 """Async WordPress to Shopify content converter using aiohttp."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -292,11 +293,15 @@ class AsyncWordPressConverter:
             None, lambda: path.write_text(content, encoding="utf-8")
         )
 
-    async def convert(self, progress_callback: Callable[[int], None] | None = None) -> None:
+    async def convert(
+        self,
+        progress_callback: Callable[[int], None | Coroutine[Any, Any, None]] | None = None,
+    ) -> None:
         """Main conversion method with progress tracking.
 
         Args:
             progress_callback: Optional callback for progress updates (0-100)
+                             Can be sync or async function
 
         Raises:
             ConversionError: If conversion fails
@@ -304,14 +309,19 @@ class AsyncWordPressConverter:
         try:
             logger.info("Starting async conversion", url=self.base_url)
 
-            if progress_callback:
-                progress_callback(5)
+            # Helper to call progress callback (handles both sync and async)
+            async def call_progress(percent: int) -> None:
+                if progress_callback:
+                    result = progress_callback(percent)
+                    # If callback returns a coroutine, await it
+                    if asyncio.iscoroutine(result):
+                        await result
+
+            await call_progress(5)
 
             # Setup directories
             await self._setup_directories()
-
-            if progress_callback:
-                progress_callback(PROGRESS_SETUP)
+            await call_progress(PROGRESS_SETUP)
 
             # Create HTTP session with proper headers
             connector = aiohttp.TCPConnector(limit=self.config.http.max_concurrent)
@@ -322,39 +332,38 @@ class AsyncWordPressConverter:
                 timeout=timeout,
                 headers={"User-Agent": self.config.http.user_agent},
             ) as session:
-                if progress_callback:
-                    progress_callback(PROGRESS_FETCH)
+                await call_progress(PROGRESS_FETCH)
 
                 # Fetch webpage content
                 html_content = await self._fetch_content(session)
-
-                if progress_callback:
-                    progress_callback(40)
+                await call_progress(40)
 
                 # Process content
                 metadata, processed_html, image_urls = await self._process_content(html_content)
-
-                if progress_callback:
-                    progress_callback(PROGRESS_PROCESS)
+                await call_progress(PROGRESS_PROCESS)
 
                 # Save converted content
                 await self._save_content(metadata, processed_html)
-
-                if progress_callback:
-                    progress_callback(70)
+                await call_progress(70)
 
                 # Download images concurrently
                 if image_urls:
+                    # Create sync wrapper for image downloader's progress callback
+                    def sync_image_progress(p: float) -> None:
+                        """Synchronous progress wrapper for image downloads."""
+                        if progress_callback:
+                            result = progress_callback(70 + int(p * 0.3))
+                            # Schedule coroutine if needed (don't await in sync context)
+                            if asyncio.iscoroutine(result):
+                                asyncio.create_task(result)
+
                     await self.image_downloader.download_all(
                         session,
                         image_urls,
-                        progress_callback=lambda p: (
-                            progress_callback(70 + int(p * 0.3)) if progress_callback else None
-                        ),
+                        progress_callback=sync_image_progress,
                     )
 
-                if progress_callback:
-                    progress_callback(PROGRESS_COMPLETE)
+                await call_progress(PROGRESS_COMPLETE)
 
             logger.info(
                 "Conversion completed successfully",

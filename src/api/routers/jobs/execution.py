@@ -7,21 +7,30 @@ This module handles job creation and background execution including:
 """
 
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from src.auth.dependencies import get_current_user_from_cookie
+from src.auth.models import User
 from src.core.decorators import api_error_handler, job_error_handler
 from src.core.logging_hierarchy import get_api_logger
+from src.monitoring.job_events import (
+    publish_job_created,
+    publish_job_progress,
+    publish_job_status_update,
+)
 
 from ....common.status import JobStatus
 from ....config.rate_limits import rate_limits
 
 # Removed SYSTEM_USER_ID per ZERO TOLERANCE policy
 from ....core.converter import AsyncWordPressConverter
-from ....database.models.jobs import ScrapingJob
+from ....core.metadata_extractor import MetadataExtractorService
+from ....database.models.jobs import ContentResult, ScrapingJob
 from ...crud import JobCRUD
 from ...dependencies import DBSession, async_session
 from ...schemas import (
@@ -49,10 +58,23 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None
     """
     logger.info("Starting conversion job execution", job_id=job_id, url=url, output_dir=output_dir)
 
+    # Extract domain from URL for event publishing
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc or "unknown"
+
     async with async_session() as db:
-        # Update job status to running
+        # Update job status to running and publish SSE event
         await JobCRUD.update_job_status(db, job_id, JobStatus.RUNNING)
         logger.info("Job status updated to RUNNING", job_id=job_id)
+
+        # Publish status update event
+        await publish_job_status_update(
+            job_id=job_id,
+            old_status=JobStatus.PENDING.value,
+            new_status=JobStatus.RUNNING.value,
+            url=url,
+            domain=domain,
+        )
 
         # Create output directory
         output_path = Path(output_dir)
@@ -63,16 +85,83 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None
         converter = AsyncWordPressConverter(base_url=url, output_dir=output_path)
 
         # Execute conversion with progress callback
-        def progress_callback(progress: int) -> None:
-            """Progress callback for conversion updates."""
+        async def progress_callback(progress: int) -> None:
+            """Progress callback for conversion updates with SSE publishing."""
             logger.debug("Conversion progress", job_id=job_id, progress=progress)
-            # In a real implementation, you could update job progress in database
-            # For now, we'll just log progress
+
+            # Publish progress update via SSE
+            await publish_job_progress(
+                job_id=job_id,
+                status=JobStatus.RUNNING.value,
+                progress_percent=float(progress),
+                url=url,
+                domain=domain,
+                current_step=f"Processing: {progress}% complete",
+            )
 
         # Run the conversion
         logger.info("Starting conversion process", job_id=job_id)
         await converter.convert(progress_callback=progress_callback)
         logger.info("Conversion completed successfully", job_id=job_id)
+
+        # Extract metadata from generated files
+        logger.info(
+            "Extracting metadata from output files", job_id=job_id, output_dir=str(output_path)
+        )
+
+        # Variables to store metadata for SSE event (may not be available if extraction fails)
+        scraped_title = None
+        scraped_word_count = None
+        scraped_image_count = None
+
+        try:
+            metadata_extractor = MetadataExtractorService(output_path)
+            content_data = metadata_extractor.extract_all()
+            logger.info(
+                "Metadata extracted successfully",
+                job_id=job_id,
+                title=content_data.title,
+                word_count=content_data.word_count,
+                image_count=content_data.image_count,
+            )
+
+            # Store metadata for SSE event
+            scraped_title = content_data.title
+            scraped_word_count = content_data.word_count
+            scraped_image_count = content_data.image_count
+
+            # Create ContentResult record
+            content_result = ContentResult(
+                job_id=job_id,
+                # File paths
+                html_file_path=content_data.html_file_path,
+                metadata_file_path=content_data.metadata_file_path,
+                images_directory=content_data.images_directory,
+                # Metadata
+                title=content_data.title,
+                meta_description=content_data.meta_description,
+                published_date=content_data.published_date,
+                author=content_data.author,
+                # Statistics
+                word_count=content_data.word_count,
+                image_count=content_data.image_count,
+                link_count=content_data.link_count,
+                # HTML content (optional - can be large)
+                original_html=content_data.original_html,
+                converted_html=content_data.converted_html,
+                shopify_html=content_data.shopify_html,
+            )
+            db.add(content_result)
+            logger.info("ContentResult record created", job_id=job_id)
+
+        except Exception as e:
+            logger.error(
+                "Failed to extract metadata or create ContentResult",
+                job_id=job_id,
+                error=str(e),
+                exc_info=True,
+            )
+            # Continue with job completion even if metadata extraction fails
 
         # Mark job as completed
         job = await JobCRUD.update_job_status(db, job_id, JobStatus.COMPLETED)
@@ -87,6 +176,19 @@ async def execute_conversion_job(job_id: str, url: str, output_dir: str) -> None
 
             await db.commit()
 
+            # Publish completion event with scraped metadata (title, word_count, image_count)
+            await publish_job_status_update(
+                job_id=job_id,
+                old_status=JobStatus.RUNNING.value,
+                new_status=JobStatus.COMPLETED.value,
+                url=url,
+                domain=domain,
+                processing_time_ms=job.processing_time_ms if job.processing_time_ms else None,
+                title=scraped_title,  # Actual scraped title
+                word_count=scraped_word_count,  # Actual word count
+                image_count=scraped_image_count,  # Actual image count
+            )
+
         # Enhanced decorator handles exceptions and marks job as failed
 
 
@@ -98,6 +200,7 @@ async def create_jobs(
     jobs_data: JobsCreateRequest,
     background_tasks: BackgroundTasks,
     db: DBSession,
+    current_user: User = Depends(get_current_user_from_cookie),
 ) -> JobsCreateResponse:
     """Create jobs from URL array with automatic batch detection.
 
@@ -141,9 +244,9 @@ async def create_jobs(
         job = ScrapingJob(
             source_url=str(url),
             domain=domain,
-            user_id="anonymous",  # TODO: Replace with actual authenticated user
+            user_id=current_user.id,  # Secure: Use authenticated user's ID
             batch_id=batch_id,
-            priority=jobs_data.priority.value,
+            # priority removed - YAGNI (not used for filtering, ordering, or queue processing)
             max_retries=jobs_data.max_retries,
             options=job_options,
         )
@@ -153,6 +256,15 @@ async def create_jobs(
     await db.flush()  # Get job IDs
     await db.commit()
     logger.info("Jobs created in database", job_count=len(jobs), batch_id=batch_id)
+
+    # Publish job created events
+    for job in jobs:
+        await publish_job_created(
+            job_id=job.id,
+            url=job.source_url,
+            domain=job.domain,
+            status=JobStatus.PENDING.value,
+        )
 
     # Add background tasks for all jobs
     for job in jobs:

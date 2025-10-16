@@ -18,6 +18,36 @@ from ..caching.manager import cache_manager
 logger = get_monitoring_logger()
 
 
+def _extract_title_from_url(url: str) -> str:
+    """Extract a preliminary title from URL for immediate display.
+
+    Generates a human-readable title from the URL path to show in the UI
+    while the actual page title is being scraped.
+
+    Args:
+        url: Source URL to extract title from
+
+    Returns:
+        Human-readable title extracted from URL path
+    """
+    from urllib.parse import urlparse
+
+    try:
+        parsed_url = urlparse(url)
+        path = parsed_url.path.strip("/")
+
+        # Get last segment of path (e.g., "new-csf-jeep-wrangler")
+        last_segment = path.split("/")[-1] if path else parsed_url.netloc
+
+        # Convert hyphens/underscores to spaces and title case
+        # e.g., "new-csf-jeep-wrangler" -> "New Csf Jeep Wrangler"
+        title = last_segment.replace("-", " ").replace("_", " ").title()
+
+        return title if title else "Untitled Page"
+    except Exception:
+        return "Untitled Page"
+
+
 class JobEventType(Enum):
     """Types of job events that can be emitted."""
 
@@ -136,11 +166,19 @@ async def publish_job_created(job_id: str, url: str, domain: str, status: str = 
     Returns:
         True if published successfully
     """
+    # Extract preliminary title from URL for immediate UI display
+    title = _extract_title_from_url(url)
+
     return await job_event_publisher.publish_job_event(
         job_id=job_id,
         event_type=JobEventType.CREATED,
         status=status,
-        data={"url": url, "domain": domain, "created_at": datetime.now(UTC).isoformat()},
+        data={
+            "url": url,
+            "domain": domain,
+            "title": title,  # Include extracted title for immediate display
+            "created_at": datetime.now(UTC).isoformat(),
+        },
         message=f"Job created for {domain}",
     )
 
@@ -153,6 +191,9 @@ async def publish_job_status_update(
     domain: str,
     error_message: str | None = None,
     processing_time_ms: int | None = None,
+    title: str | None = None,
+    word_count: int | None = None,
+    image_count: int | None = None,
 ) -> bool:
     """Publish job status update event.
 
@@ -164,11 +205,14 @@ async def publish_job_status_update(
         domain: Domain being scraped
         error_message: Error message if failed
         processing_time_ms: Processing time in milliseconds
+        title: Actual scraped page title (if available)
+        word_count: Word count from scraped content (if available)
+        image_count: Image count from scraped content (if available)
 
     Returns:
         True if published successfully
     """
-    data = {
+    data: dict[str, Any] = {
         "url": url,
         "domain": domain,
         "old_status": old_status,
@@ -180,6 +224,12 @@ async def publish_job_status_update(
         data["error_message"] = error_message
     if processing_time_ms is not None:
         data["processing_time_ms"] = str(processing_time_ms)
+    if title is not None:
+        data["title"] = title
+    if word_count is not None:
+        data["word_count"] = word_count
+    if image_count is not None:
+        data["image_count"] = image_count
 
     message = f"Job status changed from {old_status} to {new_status}"
     if error_message:

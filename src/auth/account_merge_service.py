@@ -293,13 +293,10 @@ class MergeExecutor(IMergeExecutor):
                         to_user=target_user.id,
                     )
 
-            # Step 2: TODO - Transfer other user data (preferences, sessions, etc.)
-            # This would be expanded based on what other data exists in the system
-
-            # Step 3: Delete the source user account
+            # Step 2: Delete the source user account
             self.db_session.delete(source_user)
 
-            # Step 4: Commit transaction - all or nothing
+            # Step 3: Commit transaction - all or nothing
             self.db_session.commit()
 
             logger.info(
@@ -309,7 +306,7 @@ class MergeExecutor(IMergeExecutor):
                 transferred_providers=[p.value for p in transferred_providers],
             )
 
-            # Step 5: Return result
+            # Step 4: Return result
             return AccountMergeResult(
                 success=True,
                 message=f"Successfully merged accounts. {len(transferred_providers)} OAuth provider(s) transferred.",

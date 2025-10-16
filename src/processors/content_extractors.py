@@ -118,8 +118,11 @@ class FontProcessor(ContentExtractorBase):
         for font_tag in content.find_all("font"):
             if not isinstance(font_tag, Tag):
                 continue
+            # Verify new_tag method exists before using
+            if not hasattr(content, "new_tag") or not callable(content.new_tag):
+                continue
             # Create new span tag (BeautifulSoup returns Any type, but it's actually a Tag)
-            span_tag = content.new_tag("span")  # type: ignore[misc]
+            span_tag = content.new_tag("span")
             if not isinstance(span_tag, Tag):
                 continue
 
@@ -301,11 +304,15 @@ class MediaProcessor(ContentExtractorBase):
 
             parsed = urlparse(src_str)
             allowed_domains = {"youtube.com", "www.youtube.com", "youtu.be", "www.youtu.be"}
-            if parsed.netloc in allowed_domains:
+            if (
+                parsed.netloc in allowed_domains
+                and hasattr(content, "new_tag")
+                and callable(content.new_tag)
+            ):
                 # Wrap in responsive container (BeautifulSoup returns Any type, but it's actually a Tag)
-                wrapper_tag = content.new_tag("div")  # type: ignore[misc]
+                wrapper_tag = content.new_tag("div")
                 if isinstance(wrapper_tag, Tag):
-                    wrapper_tag.attrs["class"] = ["video-responsive"]  # type: ignore[assignment]
+                    wrapper_tag.attrs["class"] = ["video-responsive"]
                     iframe.wrap(wrapper_tag)
 
         return content
